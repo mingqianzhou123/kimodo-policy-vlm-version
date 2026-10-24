@@ -307,11 +307,19 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 6. **等价测试**：仿照 `tests/test_port_equivalence.py`，同一串请求分别喂给旧 runtime 和新的「服务 + 适配器」，
    对比回复（Arena 比 40 维，SIMPLE 比 36 维）。需要 `KIMODO_ORIGINAL_REPO` 指向旧仓库，不跑 Isaac 仿真。
 
-### 需要确认的问题
+### 已确认（2026-10-25）
 
-1. Arena 和 SIMPLE 只做到「输入相同 → 输出相同」的等价测试、不跑真实 Isaac 仿真，可以吗？如果要跑，在哪台机器上？
-2. RTC 不移植（正式评测都关着），可以吗？
-3. 旧 SIMPLE 代码把转向开关固定为 0（只靠速度走，不跟踪朝向）：这是有意的吗？ToolBench 我们打算开着开关、发目标朝向。
-4. TWIST2 的 `--anchor-root 1` 和 SIMPLE 的根起点外推，是这两个控制器必须的修正，还是当时的临时实验？
-5. ToolBench 没有根朝向：用我们自己发出的朝向推算（方案 a），还是在历史里遮掉（方案 b）？
-6. ToolBench 的 vx、vy 是在机器人自身坐标系下吗？（`actions/g1.py` 没写明，要在 `controllers/decoupled_wbc.py` 里确认。）
+1. Arena、SIMPLE 只做等价测试（同样输入 → 同样输出），不跑 Isaac 仿真。
+2. RTC 不移植：所有正式评测都关着，复现不受影响。以后要用，作为 planner 的选项加回去（和 benchmark 无关）。
+3. 转向开关做成每个 benchmark 自己的设置：SIMPLE 保持旧代码的「关」（等价测试要求）；ToolBench 先看操作员
+   演示里开关是怎么用的（`teleop.navigate_command` 第 3 项就是这个开关），在演示回放检查里比较「照操作员的用法」
+   和「一直开」，选成功率高的。要注意：开关一开，控制器就一直用行走策略，不会切回站立策略。
+4. TWIST2 的 `--anchor-root 1` 和 SIMPLE 的根起点外推都是必须的，做成 planner 选项，各适配器指定。
+5. ToolBench 请求里确实没有骨盆位姿（`docs/PUBLIC_EVALUATION.md` 的请求表和 `policies/remote_humanoid.py` 只发
+   32 维状态），用方案 a：适配器拿我们上一次发出的目标朝向当作当前朝向。生成训练数据时同样用操作员记录的目标
+   朝向，不用演示里的真实骨盆位姿。
+
+### 还没确定
+
+6. ToolBench 的 vx、vy 用哪个坐标系：由 NVIDIA 的 `decoupled_wbc` 包决定，不在 ToolBench 仓库里，接入时查源码
+   或在仿真里给一个速度看机器人往哪走。
