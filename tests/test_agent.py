@@ -62,3 +62,20 @@ def test_reset_clears_plan_and_forwards_seed():
     assert len(agent.history) == 0
     assert len(agent.step(observation())) == 5
     assert planner.seeds == [620001]
+
+
+def test_observe_then_replan_matches_step():
+    stepped, requested = CountingPlanner(chunk_len=3), CountingPlanner(chunk_len=3)
+    agent, server = Agent(stepped), Agent(requested)
+    agent.reset(), server.reset()
+    pending = []
+    for i in range(9):
+        agent.step(observation(i))
+        pending.append(observation(i))
+        if i % 3 == 0:  # a client asking for a chunk whenever the previous one is used up
+            for obs in pending:
+                server.observe(obs)
+            server.replan()
+            pending = []
+    assert stepped.calls == requested.calls == [1, 4, 4]
+    assert [o.step for o in server.history] == [3, 4, 5, 6]  # stamped in arrival order

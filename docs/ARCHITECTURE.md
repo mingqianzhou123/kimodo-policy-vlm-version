@@ -21,20 +21,25 @@
 kimodo_vla/
   core/
     types.py        # Observation、ActionChunk、Planner 接口：全仓库唯一的约定
-    agent.py        # Agent：保留最近观测，计划用完就重新规划（与 benchmark、模型都无关）
+    agent.py        # Agent：保留最近观测，计划用完就重新规划；也可「记下观测、立即规划」（按请求要整段的 benchmark）
   model/
     features.py     # 位姿轨迹 → Kimodo 特征：评测（planner）和训练数据共用同一份转换
     planner.py      # KimodoPlanner：把 KimodoPolicy 包成 Planner（以后 VLM 版本并列放这里）
     kimodo_policy.py, modules/   # 从旧仓库原样迁入，只改了 import 路径
   motion/ skeleton/ utils/       # G1 运动表示、正运动学、几何工具（原样迁入）
   controllers/
-    groot_wbc.py    # GR00T 系下肢控制器：骨盆轨迹 ↔ 底盘速度/转向角速度/高度指令（双向）
+    groot_wbc.py    # GR00T-WBC（BiGym）：骨盆轨迹 ↔ 底盘速度/转向角速度/高度指令（双向）
+    decoupled_wbc.py # NVIDIA decoupled WBC（SIMPLE、ToolBench）：40 维参考 → 36 维指令（速度 + 目标朝向）
   data/
     episodes.py     # 训练文件格式 + KimodoWindowDataset（与 benchmark 无关）
     build.py        # 一条演示 → 训练文件（历史、目标、手、帧对齐；与 benchmark 无关）
   benchmarks/
     base.py         # BenchmarkAdapter、Demonstration 接口 + AgentPolicy（把 Agent 和适配器拼成 policy）
     replay.py       # DemoPlanner / DirectPlanner：把演示当成「完美预测」回放，检查动作接口
+    server.py       # ChunkPolicy + make_server：按请求要整段动作的 benchmark 共用的 HTTP 服务
+    arena/          # HumanoidArena：adapter（64 维状态 → Observation，回 40 维）+ policy（路由、入口）
+    simple/         # SIMPLE：adapter + hands（Dex3 手、二值手防抖）+ policy（同进程调用或 HTTP）
+    toolbench/      # HumanoidToolBench：adapter（32 维状态，补全历史）+ policy（/act、/info、/release）
     bigym2/
       adapter.py    # BiGym 2.0 观测/动作的双向翻译（动作只管 BiGym 的布局和归一化）
       demos.py      # 读 BiGym 演示：实际执行的动作、操作员指令、图像（BiGym2Demo）
@@ -43,6 +48,7 @@ scripts/
   prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 三路官方 84×84 图像）
   check_bigym2_roundtrip.py # 动作来回转换检查
   eval_bigym2.py            # 按官方协议评测一个 checkpoint
+  serve_arena.py / serve_simple.py / serve_toolbench.py   # 起 HTTP 服务，等对方评测器来调
 tests/              # 见第 7 节
 ```
 
@@ -85,7 +91,23 @@ class Planner(Protocol):             # 模型侧唯一需要实现的接口
 
 ## 4. 接一个新 benchmark
 
-两个接口在 `benchmarks/base.py`：
+先看运行方式：仿真和我们在同一个进程、每步调一次（BiGym），用 `benchmarks/base.py` 的
+`BenchmarkAdapter`；仿真在别的进程、每次请求要一整段动作（Arena、SIMPLE、ToolBench），用
+`benchmarks/server.py` 的 `RequestAdapter`：
+
+```python
+class RequestAdapter(Protocol):
+    control_fps: float
+    def reset(self) -> None: ...
+    def to_observations(self, request) -> list[Observation]: ...   # 上次请求以来的每个控制步，最新一步带图像
+    def to_response(self, chunk: ActionChunk, request): ...        # 整段动作换成这个 benchmark 的格式
+```
+
+`ChunkPolicy(agent, adapter)` 处理一次请求：观测逐个记进 Agent、立即规划一次、翻译整段；
+`make_server(routes, host, port, codec)` 把它放到 HTTP 后面，路由和编码（普通 JSON 或带 NumPy 的 JSON）
+由每个 benchmark 的 `policy.py` 给出。
+
+训练数据和逐步运行的接口在 `benchmarks/base.py`：
 
 ```python
 class BenchmarkAdapter(Protocol):     # 评测：原始观测 → Observation，ActionChunk → 环境动作
@@ -107,9 +129,10 @@ class Demonstration(Protocol):        # 训练数据：一条演示
 
 清单（不需要改 `core/`、`model/`、`controllers/`、`data/`）：
 
-1. **`benchmarks/<name>/adapter.py`**：实现 `BenchmarkAdapter`。动作里底盘那部分调控制器模块，
-   比如 GR00T 系（GR00T-WBC、GR00T Balance/Walk）就用 `controllers.groot_wbc.BaseCommander`，
-   适配器自己只管动作布局和归一化。以后换底层控制器，只改 `to_env_action` 里这一行调用。
+1. **`benchmarks/<name>/adapter.py`**：实现 `BenchmarkAdapter` 或 `RequestAdapter`。动作里控制器那部分
+   调 `controllers/` 里对应的模块（GR00T-WBC：`groot_wbc.BaseCommander`；decoupled WBC：`decoupled_wbc.encode`；
+   仿真那一侧自己跟踪 40 维参考的 SONIC、TWIST2：直接 `to_array40`），适配器自己只管布局和归一化。
+   以后换底层控制器，只改这一处调用。HTTP 的 benchmark 再写 `policy.py` 里的路由。
 2. **`benchmarks/<name>/demos.py`**：读这个 benchmark 的演示，每条包成一个 `Demonstration`。
    如果演示里存的是底盘速度指令，用 `controllers.groot_wbc.pelvis_path` 积分成骨盆轨迹。
 3. **两个薄脚本**：`scripts/prepare_<name>.py`（加载演示 → `data.build.training_episode` →
@@ -155,7 +178,9 @@ RTC（实时分块融合：新一段动作的开头向上一段没执行完的�
 2. 50Hz 观测重采样到 30Hz 时，时间网格固定从回合开始算起（训练时整条轨迹也是这样重采样的），
    所以 Agent 只保留最近约 3.4 秒观测，结果也和保留整条历史一致。
 
-目前只支持二值手部控制（BiGym 是两指夹爪）；连续手部控制是 SIMPLE 用的，迁移 SIMPLE 时再加。
+手部控制两种都支持：二值（BiGym、Arena、SIMPLE 二值权重），连续（SIMPLE 连续权重、ToolBench；历史条件用
+`Observation.hand` 里测到的闭合度）。另外两个按 benchmark 设的选项：`root_boundary`（每段第一帧位移从哪里算起，
+见第 12 节）和 `hand_filter`（SIMPLE 二值手的防抖）。
 
 接入 VLM：新模型实现同一个 `Planner` 接口即可，Agent、适配器、评测脚本一行不改。
 
@@ -164,7 +189,7 @@ RTC（实时分块融合：新一段动作的开头向上一段没执行完的�
 ```bash
 pip install -e ".[bigym2,dev]"
 pytest                                                    # 类型、Agent、历史编码、训练文件、GR00T 指令互逆、BiGym 适配器
-KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   # 与旧推理流程对比
+KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest   # 另外跑与旧代码的对比：推理流程、Arena 服务、SIMPLE（含手部防抖）
 ```
 
 `test_bigym2_adapter.py` 在真实 BiGym 环境里检查：观测和仿真器关节值一致；归一化与 BiGym 互逆；
@@ -256,7 +281,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 **规模**：5 个任务 300 条演示，三路 84×84 图像共 8GB，可切出 112,683 个训练窗口（pick_box 演示最长，独占 57,643 个）。
 20 个任务按这 5 个任务的平均估算，约 32GB。窗口数和演示长度成正比，多任务训练时要考虑按任务均衡采样。
 \n
-## 12. 四个 benchmark 共用一套接口（设计草案，待确认）
+## 12. 四个 benchmark 共用一套接口
 
 目标：HumanoidArena、SIMPLE（旧仓库）、BiGym 2.0、HumanoidToolBench 共用同一个 Agent + Planner，
 换 benchmark 只换适配器。来源：旧仓库 `evaluation/humanoidarena_server.py`、`simple_server.py`
@@ -328,3 +353,29 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 
 6. ToolBench 的 vx、vy 用哪个坐标系：由 NVIDIA 的 `decoupled_wbc` 包决定，不在 ToolBench 仓库里，接入时查源码
    或在仿真里给一个速度看机器人往哪走。
+
+### 实现情况（2026-10-26）
+
+已完成（都不跑仿真，只在 Mac 上测）：
+
+| | 代码 | 和旧代码 / 协议的对照 |
+|---|---|---|
+| 通用服务 | `benchmarks/server.py`、`Agent.observe/replan` | `test_server.py`：真实 HTTP，两种编码、错误返回 |
+| Arena | `benchmarks/arena/`、`scripts/serve_arena.py` | `test_arena_port.py`：同一串请求喂给旧服务和新服务，SONIC、SONIC + RTC、TWIST2 三种设置，40 维回复差 < 1e-5 |
+| SIMPLE | `benchmarks/simple/`、`controllers/decoupled_wbc.py`、`scripts/serve_simple.py` | `test_simple_port.py`：二值手、连续手两种权重，40 维和 36 维回复差 < 1e-5；手部防抖状态机用 400 次随机重规划逐帧对比，完全一致 |
+| ToolBench | `benchmarks/toolbench/`、`scripts/serve_toolbench.py` | `test_toolbench_adapter.py`：32 维状态读取、补全的历史、36 维布局、会话规则（409、`/release`、`/info`）。没有旧代码可比 |
+
+ToolBench 每次请求只给一个状态，评测器却在两次请求之间执行完整段动作。适配器把中间这些步用我们发出的
+目标补上（朝向也用我们发出的目标朝向），这样历史仍然每个控制步一条。训练数据必须按同样方式构造。
+
+和旧代码不同的一处：SIMPLE 的速度保护拒绝一段动作时，旧代码会把内部状态回滚，新代码不回滚
+（回合本来就在这里报错结束）。
+
+还没做：
+
+- SIMPLE 同进程评测：旧代码的 `--eval` 在 SIMPLE 自己的环境里跑仿真和模型。新代码的 `ChunkPolicy` 可以直接调用，
+  但还需要在 SIMPLE 的评测循环里接上（它的环境依赖和我们的不同，要实际装环境才能做）。
+- ToolBench 的训练数据（`benchmarks/toolbench/demos.py`、`scripts/prepare_toolbench.py`）和演示回放检查。
+  回放检查要决定：转向开关怎么设、`root_boundary` 用哪个（现在先按 SIMPLE 用外推）、手的闭合姿态
+  （现在先用 SIMPLE 遥操作的姿态）。
+

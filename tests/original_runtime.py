@@ -1,0 +1,153 @@
+"""The original repository's runtimes and a fake model, shared by the port-equivalence tests.
+
+A fake model records its inputs and returns input-dependent outputs, so history
+encoding and action decoding can be compared without checkpoints. Importing this
+module skips the test unless ``KIMODO_ORIGINAL_REPO`` points at a kimodo-policy checkout.
+"""
+
+import base64
+import os
+import sys
+import threading
+from types import SimpleNamespace
+
+import numpy as np
+import pytest
+import torch
+
+OLD_REPO = os.environ.get("KIMODO_ORIGINAL_REPO")
+if not OLD_REPO:
+    pytest.skip("set KIMODO_ORIGINAL_REPO to a kimodo-policy checkout to run", allow_module_level=True)
+sys.path.insert(0, OLD_REPO)
+import evaluation.humanoidarena_server as arena  # noqa: E402
+
+from kimodo_vla.motion.representation.kimodo_motionrep import KimodoMotionRep  # noqa: E402
+from kimodo_vla.skeleton.definitions import G1Skeleton34  # noqa: E402
+
+
+class FakeModel(torch.nn.Module):
+    def __init__(self, hand_control_mode="binary"):
+        super().__init__()
+        self.controlnet = torch.nn.Linear(1, 1)
+        self.fps = 30
+        self.config = SimpleNamespace(action_chunk=50, action_history=100, hand_control_mode=hand_control_mode)
+        self.representation = KimodoMotionRep(G1Skeleton34(), fps=30, stats_path=None)
+        self.text_encoder = None
+        self.calls = []
+
+    @property
+    def device(self):
+        return torch.device("cpu")
+
+    def predict_future(self, *, egoview, history_motion, history_feature_mask, hand_history,
+                       rtc_motion_reference=None, rtc_hand_reference=None, rtc_overlap_frames=0,
+                       rtc_frozen_frames=0, rtc_ramp_power=1.0, **_):
+        empty = torch.zeros(0)
+        self.calls.append(dict(
+            motion=history_motion.clone(), mask=history_feature_mask.clone(), hand=hand_history.clone(), image=egoview.clone(),
+            rtc_motion=empty if rtc_motion_reference is None else rtc_motion_reference.clone(),
+            rtc_hand=empty if rtc_hand_reference is None else rtc_hand_reference.clone(),
+            # Overlap settings only matter when a reference is passed.
+            rtc_settings=torch.tensor([rtc_overlap_frames, rtc_frozen_frames, rtc_ramp_power])
+            if rtc_motion_reference is not None else empty,
+        ))
+        s = float((history_motion.double() * history_feature_mask).sum().remainder(1.0))  # float64: no rounding noise
+        n = len(self.calls)
+        t = torch.arange(50, dtype=torch.float32) / 30
+        rots = torch.eye(3).repeat(50, 34, 1, 1)
+        yaw = 0.2 * t + 0.1 * s
+        rots[:, 0, 0, 0] = torch.cos(yaw); rots[:, 0, 0, 2] = torch.sin(yaw)
+        rots[:, 0, 2, 0] = -torch.sin(yaw); rots[:, 0, 2, 2] = torch.cos(yaw)
+        bend = 0.3 * torch.sin(t + n) + 0.2 * s
+        rots[:, 21, 1, 1] = torch.cos(bend); rots[:, 21, 1, 2] = -torch.sin(bend)
+        rots[:, 21, 2, 1] = torch.sin(bend); rots[:, 21, 2, 2] = torch.cos(bend)
+        root = torch.stack([0.3 * t + s, torch.full_like(t, 0.75), 0.1 * t], dim=1)
+        hand = torch.stack([(t > 0.8).float(), (t > 1.2).float() * (n % 2)], dim=1)
+        if self.config.hand_control_mode == "continuous":  # a closure that follows the hand condition
+            last = hand_history[0, -1] if hand_history.shape[1] else torch.zeros(2)
+            hand = (0.5 + 0.3 * torch.sin(t + n)[:, None] + 0.2 * (last - 0.5)).clamp(0.0, 1.0)
+        features = torch.arange(self.representation.motion_rep_dim, dtype=torch.float32) * 1e-3
+        if rtc_motion_reference is not None:  # let the reference reach the output, as RTC does
+            s = s + 0.01 * float(rtc_motion_reference.mean())
+        return dict(
+            motion_features=features + t[:, None] + s + n,
+            hand_clean=2 * hand - 1,
+            hand_closure=hand,
+            local_rot_mats=rots,
+            root_positions=root,
+            hand_binary=(hand >= 0.5).float(),
+            history_last_root_position=torch.tensor([s, 0.75, 0.05]),
+        )
+
+
+def episode(steps=420):
+    rng = np.random.default_rng(0)
+    phase = rng.uniform(0, 2 * np.pi, 29)
+    out = []
+    for i in range(steps):
+        t = i / 50
+        yaw = 0.4 + 0.3 * np.sin(0.5 * t)
+        joints = (0.2 * np.sin(0.7 * t + phase)).astype(np.float32)
+        image = np.full((8, 8, 3), i % 255, np.uint8)
+        out.append((yaw, joints, image))
+    return out
+
+
+def old_runtime(model, execution_frames, rtc, runtime_class=None, attributes=None):
+    rt = object.__new__(runtime_class or arena.KimodoHumanoidArenaRuntime)
+    for key, value in (attributes or {}).items():
+        setattr(rt, key, value)
+    rt.deterministic_eval = False
+    rt.device = torch.device("cpu")
+    rt.dtype = torch.float32
+    rt.diffusion_steps = 10
+    rt.control_fps = 50.0
+    rt.execution_frames = execution_frames
+    rt.rtc_enabled, rt.rtc_overlap_frames, rt.rtc_frozen_frames, rt.rtc_ramp_power = arena._resolve_rtc_parameters(
+        rtc, prediction_frames=50, execution_frames=execution_frames, overlap_frames=12, frozen_frames=1, ramp_power=1.0,
+    )
+    rt.text_embeddings = {"t": torch.zeros(1, 8)}
+    rt.task_instructions = {"t": "do it"}
+    rt.task_aliases = {"t": "t"}
+    rt.model = model
+    rt.action_codec = arena.HumanoidArenaActionDecoder(arena.G1Skeleton34(), arena.G1_XML_PATH, fps=50.0)
+    rt.state_motion_representation = arena.KimodoMotionRep(arena.G1Skeleton34(), fps=30, stats_path=None)
+    rt.lock = threading.Lock()
+    rt.episode_seed = None
+    rt.inference_index = 0
+    rt.reset()
+    return rt
+
+
+def arena_payload(task, image, states):
+    return {
+        "task": task,
+        "observation": {
+            "images": {"front": {"shape": list(image.shape), "dtype": "uint8",
+                                 "data_b64": base64.b64encode(image.tobytes()).decode()}},
+            "state_history": np.stack(states).tolist(),
+        },
+    }
+
+
+def compare_calls(old_calls, new_calls, keys=("motion", "mask", "hand", "image", "rtc_motion", "rtc_hand", "rtc_settings")):
+    """Largest |old - new| of every recorded model input, over all calls."""
+    assert len(old_calls) == len(new_calls), (len(old_calls), len(new_calls))
+    worst = {}
+    for i, (a, b) in enumerate(zip(old_calls, new_calls)):
+        for key in keys:
+            if a[key].shape != b[key].shape:
+                raise AssertionError(f"call {i} {key}: shape {tuple(a[key].shape)} vs {tuple(b[key].shape)}")
+            diff = float((a[key].float() - b[key].float()).abs().max()) if a[key].numel() else 0.0
+            worst[key] = max(worst.get(key, 0.0), diff)
+    return worst
+
+
+def old_simple_runtime(model, execution_frames, hand_control_mode):
+    """The original SIMPLE runtime (Arena runtime + SIMPLE mixin) around ``model``, as its ``--eval`` builds it."""
+    import evaluation.simple_server as simple_server
+
+    model.config.hand_control_mode = hand_control_mode
+    rt = old_runtime(model, execution_frames, False, runtime_class=simple_server._make_simple_runtime_class(arena),
+                     attributes={"simple_hand_control_mode": hand_control_mode, "max_navigation_speed": 1.5})
+    return rt, simple_server
