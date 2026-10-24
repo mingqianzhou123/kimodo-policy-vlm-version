@@ -39,6 +39,7 @@ scripts/
   prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 三路官方 84×84 图像）
   cache_text_embeddings.py  # 20 个任务指令的 LLM2Vec embedding
   train.py                  # 训练一个任务（第 12 节）
+  gpu_queue.py              # 按顺序把一批任务排到没人用的 GPU 上
   check_bigym2_roundtrip.py # 动作来回转换检查
   eval_bigym2.py            # 按官方协议评测一个 checkpoint
 configs/
@@ -265,3 +266,11 @@ python scripts/train.py --resume log/bigym2/<run>             # 中断后接着�
 checkpoint 里的 `config.json` 写了 `model.cameras`，评测时 planner 据此取相机，直接给 `eval_bigym2.py` 用。
 
 **实测**（A800，move_plate，三路，每步 48）：显存 21.5GB，约 0.6 秒/步，30k 步约 5 小时。
+
+**批量跑**：`scripts/gpu_queue.py` 读一个任务清单（每行 `名字 命令`），一张卡跑一个，
+只用没人占的卡（显存占用低于 500MB；别人的进程即使闲着也占显存），有卡空出来就接着排。
+每个任务的输出、所在 GPU、退出码都记在日志目录里；队列本身挂了也不影响已经在跑的训练，
+重启队列会跳过已经结束和还在跑的。失败的不自动重试。
+
+**2026-10-25 排上的正式训练**（A800，清单和日志在 `outputs/bigym2_queue/`）：主表 9 个任务各 3 组，
+顺序是三路从零（主结果）→ 只用头部从零（消融）→ 只用头部从 pt_419h 起步（对照），共 27 个。
