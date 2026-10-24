@@ -251,3 +251,67 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 **规模**：5 个任务 300 条演示，三路 84×84 图像共 8GB，可切出 112,683 个训练窗口（pick_box 演示最长，独占 57,643 个）。
 20 个任务按这 5 个任务的平均估算，约 32GB。窗口数和演示长度成正比，多任务训练时要考虑按任务均衡采样。
 \n
+## 12. 四个 benchmark 共用一套接口（设计草案，待确认）
+
+目标：HumanoidArena、SIMPLE（旧仓库）、BiGym 2.0、HumanoidToolBench 共用同一个 Agent + Planner，
+换 benchmark 只换适配器。来源：旧仓库 `evaluation/humanoidarena_server.py`、`simple_server.py`
+和两份 `*_eval.md`；ToolBench 来自 SNU-PI/HumanoidToolBench（3fec9bd）的 `docs/PUBLIC_EVALUATION.md`、
+`data/README.md`、`src/humanoidtoolbench/actions/g1.py`，以及 ToolBook 数据集的元数据。
+
+| | HumanoidArena | SIMPLE | BiGym 2.0 | HumanoidToolBench |
+|---|---|---|---|---|
+| 运行方式 | 仿真（Isaac Lab）在另一个进程，HTTP 调我们：`/health`、`/reset {seed}`、`/infer` | 官方评测在同一进程（`--eval`：SIMPLE 自己的 venv 里跑 MuJoCo 物理 + Isaac 渲染，直接调 runtime）；另有 HTTP `/act` | 同一进程，官方 `evaluate(policy)` 每步调一次 | HTTP：它们的评测器连我们。`POST /act`（带 NumPy 编码的 JSON），可选 `GET /info`、`POST /release`，一个服务只接一个评测器。原因：它锁定 transformers 4.57.1，我们要 5.1.0，装不进同一个环境 |
+| 每次请求给什么 | 任务名；`front` 图像（HWC，base64）；`state_history` [T, 64]：上次请求以来每个 50Hz 步的状态（根朝向 rot6d + 29 关节角 + 29 关节速度；SIMPLE 那边的换算表明根朝向相对回合首帧朝向） | 同样的 64 维（由 `floating_base_pose` 四元数和 `body_q` 换算）；`head_stereo_left` 图像；手的测量值（Dex3 关节 q/dq/力矩） | 一步的 `low_dim_obs`（骨盆 x/y/z/yaw、14 手臂关节、部分任务的腰、2 夹爪）+ 三路 84×84 图像 | 头部相机 `rgb_head_stereo_left` 360×640；`state` [1, 32]：两手各 7、两臂各 7、腰 roll/pitch/yaw 测量值、上一次发出的骨盆高度指令；指令文本（6 句固定）；首次请求带 `history.reset`。**没有骨盆位置和朝向，没有腿** |
+| 每次要我们回什么 | 一整段 40 维全身参考 [T, 40]（50Hz） | 一整段 36 维 WBC 指令 [T, 36] | 一步的归一化动作：vx、vy、高度、转向角速度、[躯干俯仰]、14 手臂、2 夹爪 | 一整段 36 维指令 [T, 36]，**和 SIMPLE 的 36 维布局相同**：两只 Dex3 手 14 + 手臂 14 + 躯干 roll/pitch/yaw + 骨盆高度 + vx、vy + 转向开关（绝对值 ≥ 0.1 才跟踪朝向）+ 目标朝向（绝对角，不是角速度）。评测器把整段执行完才再请求 |
+| 底层控制器 | SONIC 或 TWIST2，在仿真那一侧，直接吃 40 维参考 | decoupled WBC（SONIC 系），在仿真那一侧 | GR00T-WBC：速度 + 转向角速度 + 高度 | NVIDIA decoupled WBC（GR00T Balance/Walk）：速度 + 目标朝向（误差/0.5 秒，最快 1 rad/s）+ 高度；vx、vy、开关全为 0 时站立 |
+| 手 | 二值，2 维 | Dex3 七自由度手。二值：闭合姿态，加原代码里的防抖状态机；连续：闭合度 × 闭合姿态，历史用测量到的闭合度 | 两指夹爪，二值 | Dex3 七自由度手，关节目标连续；需要「2 个闭合度 → 14 个关节」的映射，同 SIMPLE 连续模式 |
+| 相机 | `front` 一路 | `head_stereo_left` 一路 | head + 两个手腕，84×84 | 头部一路，360×640（手腕相机只在数据里有，评测时不给） |
+| 观测到的关节 | 29 个全部 + 根朝向 | 29 个全部 + 根朝向 | 手臂（+ 部分任务的腰）+ 根 yaw | 手臂 + 腰；**没有根朝向** |
+| 控制频率 / 每次执行 | 50Hz；执行 15 个模型帧（文档里正式评测的参数） | 50Hz；执行 50 个模型帧 | 50Hz；50 个模型帧 | 50Hz；整段 |
+| 演示数据 | 旧仓库已有训练数据 | 旧仓库已有训练数据 | 每步存了操作员指令（第 10、11 节） | LeRobot 50fps，存了操作员指令（`teleop.navigate_command` [vx, vy, 角速度, 目标朝向]、高度指令、手的指令），还有骨盆位姿（只在数据里有）和三路 360×640 图像 |
+
+### 共用件和每个 benchmark 各写什么
+
+1. **一个 Agent，两种运行方式。**
+   - 同进程（BiGym、SIMPLE）：现有 `AgentPolicy`，每步 `to_observation → Agent.step → to_env_action`。
+   - HTTP（Arena、ToolBench，以及 SIMPLE 的 `/act`）：新建一个通用服务 `benchmarks/server.py`，包住 Agent：
+     收到请求后，适配器把它解析成「上次以来的一串 Observation + 当前图像」，全部记进 Agent 的历史，
+     立即规划一次，再由适配器把**整段** ActionChunk 换成回复；一把锁保证同一时间只处理一个请求。
+     路由和编码因 benchmark 而异（Arena：`/reset`、`/infer`，base64 图像；ToolBench 和 SIMPLE：`/act`，
+     NumPy 编码的 JSON，外加 ToolBench 的 `/info`、`/release`），所以每个适配器声明自己的路由表和编解码，
+     服务本身只管锁、重置和调用 Agent。
+   - 适配器接口相应分成两种：逐步的 `to_env_action(chunk, obs) -> 一步动作`（BiGym）和整段的
+     `to_response(chunk, obs) -> 回复`（Arena、SIMPLE、ToolBench）。
+   - 需要给 `core/agent.py` 加两个小方法（只记录观测、立即规划），现有 `step` 不变。这是唯一要动 `core/` 的地方。
+2. **`controllers/` 按控制器家族分，适配器挑一个用。**
+   - 40 维全身参考（SONIC、TWIST2，控制器在 Arena 那一侧）：就是 `ActionChunk.to_array40`，不需要新模块。
+   - GR00T 系（`groot_wbc.py`）：核心是「ActionChunk 每帧 → 底盘速度、朝向、高度」，下面两种编码：
+     转向角速度（BiGym，已完成）；目标朝向 + 转向开关的 36 维 decoupled WBC 布局（SIMPLE 和 ToolBench 共用，
+     移植旧代码 `arena_action_to_simple`）。反方向（指令 → 骨盆轨迹，训练目标用）同样两种：BiGym 积分角速度，
+     ToolBench 直接用记录的目标朝向。
+   - 注意：旧 SIMPLE 代码里转向开关一直填 0（等于不跟踪朝向），ToolBench 要开开关才会转身，见问题 3。
+3. **ToolBench 没有根朝向，需要专门处理。** Kimodo 的历史条件里一直有根朝向。两个办法：
+   (a) 适配器用我们自己发出的目标朝向推算当前朝向，当作观测；
+   (b) 历史里把根朝向遮掉。
+   不管选哪种，训练数据必须用同一种（演示里虽然有真实骨盆位姿，也不能拿来做历史），否则训练和评测看到的不一样。
+4. **Planner 要补的东西**（等价测试需要，全部做成参数，默认行为不变）：
+   - 每次执行帧数：已有（Arena 15、其余 50）。
+   - 第一帧位移从哪里算起（根位置的起点）：Arena 默认用模型生成的历史末端；TWIST2 正式评测用 `--anchor-root 1`
+     （第一帧预测）；SIMPLE 用外推 `2·r0 − r1`。三种都做成选项。
+   - 连续手部控制（SIMPLE、ToolBench）：目前 `KimodoPlanner` 只支持二值；历史改用 `Observation.hand` 里的测量闭合度。
+   - SIMPLE 二值手的防抖状态机、1.5 m/s 导航速度保护：属于 SIMPLE 适配器，不进 planner。
+   - RTC（实时分块融合）：旧服务默认开，但两份评测文档里的正式参数都是 `--rtc 0`，所以不移植。
+   - 360×640 的图像由 DINOv3 预处理缩到 224×224（和 BiGym 84×84 放大到 224 是同一条路径），宽高比会变，模型里不用改。
+5. **训练数据**：ToolBench 演示存了操作员指令，BiGym 那套「用指令当训练目标」可以照用：写一个
+   `benchmarks/toolbench/demos.py` 实现 `Demonstration`，复用 `data/build.py`。
+6. **等价测试**：仿照 `tests/test_port_equivalence.py`，同一串请求分别喂给旧 runtime 和新的「服务 + 适配器」，
+   对比回复（Arena 比 40 维，SIMPLE 比 36 维）。需要 `KIMODO_ORIGINAL_REPO` 指向旧仓库，不跑 Isaac 仿真。
+
+### 需要确认的问题
+
+1. Arena 和 SIMPLE 只做到「输入相同 → 输出相同」的等价测试、不跑真实 Isaac 仿真，可以吗？如果要跑，在哪台机器上？
+2. RTC 不移植（正式评测都关着），可以吗？
+3. 旧 SIMPLE 代码把转向开关固定为 0（只靠速度走，不跟踪朝向）：这是有意的吗？ToolBench 我们打算开着开关、发目标朝向。
+4. TWIST2 的 `--anchor-root 1` 和 SIMPLE 的根起点外推，是这两个控制器必须的修正，还是当时的临时实验？
+5. ToolBench 没有根朝向：用我们自己发出的朝向推算（方案 a），还是在历史里遮掉（方案 b）？
+6. ToolBench 的 vx、vy 是在机器人自身坐标系下吗？（`actions/g1.py` 没写明，要在 `controllers/decoupled_wbc.py` 里确认。）
