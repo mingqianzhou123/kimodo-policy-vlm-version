@@ -22,6 +22,7 @@ PI05 = {
     "drawer_top_close": 100, "drawer_top_open": 99, "move_plate": 65,
     "move_two_plates": 68, "dishwasher_close": 79, "dishwasher_load_cups": 92,
 }
+PI05_MEAN = 75  # as reported; the mean of the rounded entries above is 74.4
 VARIANT_ORDER = ("3cam", "head", "head_pt419h")
 
 
@@ -99,14 +100,14 @@ def main() -> None:
     for variant in variants:
         values = [scores.get((t, variant)) for t in PI05]
         means.append(f"**{sum(v['last5'] for v in values) / len(values):.0f}**" if all(values) else "–")
-    lines.append(f"| nine-task mean | {sum(PI05.values()) / len(PI05):.0f} | " + " | ".join(means) + " |")
+    lines.append(f"| nine-task mean | {PI05_MEAN} | " + " | ".join(means) + " |")
 
     lines += ["", "## Every evaluated checkpoint (success %)", ""]
     for variant in variants:
         steps = sorted({s for (t, v), r in by_key.items() if v == variant for s in r["evals"]})
         if not steps:
             continue
-        lines += [f"**{variant}**", "", "| Task | " + " | ".join(f"{s // 1000}k" for s in steps) + " |",
+        lines += [f"**{variant}**", "", "| Task | " + " | ".join(f"{s / 1000:g}k" for s in steps) + " |",
                   "|---|" + "---|" * len(steps)]
         for task in tasks:
             run = by_key.get((task, variant))
