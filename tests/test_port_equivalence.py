@@ -41,11 +41,19 @@ class FakeModel(torch.nn.Module):
     def device(self):
         return torch.device("cpu")
 
-    def predict_future(self, *, egoview, history_motion, history_feature_mask, hand_history, **_):
-        self.calls.append(
-            dict(motion=history_motion.clone(), mask=history_feature_mask.clone(), hand=hand_history.clone(), image=egoview.clone())
-        )
-        s = float((history_motion * history_feature_mask).sum().remainder(1.0))
+    def predict_future(self, *, egoview, history_motion, history_feature_mask, hand_history,
+                       rtc_motion_reference=None, rtc_hand_reference=None, rtc_overlap_frames=0,
+                       rtc_frozen_frames=0, rtc_ramp_power=1.0, **_):
+        empty = torch.zeros(0)
+        self.calls.append(dict(
+            motion=history_motion.clone(), mask=history_feature_mask.clone(), hand=hand_history.clone(), image=egoview.clone(),
+            rtc_motion=empty if rtc_motion_reference is None else rtc_motion_reference.clone(),
+            rtc_hand=empty if rtc_hand_reference is None else rtc_hand_reference.clone(),
+            # Overlap settings only matter when a reference is passed.
+            rtc_settings=torch.tensor([rtc_overlap_frames, rtc_frozen_frames, rtc_ramp_power])
+            if rtc_motion_reference is not None else empty,
+        ))
+        s = float((history_motion.double() * history_feature_mask).sum().remainder(1.0))  # float64: no rounding noise
         n = len(self.calls)
         t = torch.arange(50, dtype=torch.float32) / 30
         rots = torch.eye(3).repeat(50, 34, 1, 1)
@@ -57,8 +65,12 @@ class FakeModel(torch.nn.Module):
         rots[:, 21, 2, 1] = torch.sin(bend); rots[:, 21, 2, 2] = torch.cos(bend)
         root = torch.stack([0.3 * t + s, torch.full_like(t, 0.75), 0.1 * t], dim=1)
         hand = torch.stack([(t > 0.8).float(), (t > 1.2).float() * (n % 2)], dim=1)
+        features = torch.arange(self.representation.motion_rep_dim, dtype=torch.float32) * 1e-3
+        if rtc_motion_reference is not None:  # let the reference reach the output, as RTC does
+            s = s + 0.01 * float(rtc_motion_reference.mean())
         return dict(
-            motion_features=torch.zeros(50, self.representation.motion_rep_dim),
+            motion_features=features + t[:, None] + s + n,
+            hand_clean=2 * hand - 1,
             local_rot_mats=rots,
             root_positions=root,
             hand_binary=hand,
@@ -79,15 +91,17 @@ def episode(steps=420):
     return out
 
 
-def old_runtime(model):
+def old_runtime(model, execution_frames, rtc):
     rt = object.__new__(arena.KimodoHumanoidArenaRuntime)
     rt.deterministic_eval = False
     rt.device = torch.device("cpu")
     rt.dtype = torch.float32
     rt.diffusion_steps = 10
     rt.control_fps = 50.0
-    rt.execution_frames = 50
-    rt.rtc_enabled, rt.rtc_overlap_frames, rt.rtc_frozen_frames, rt.rtc_ramp_power = False, 0, 0, 1.0
+    rt.execution_frames = execution_frames
+    rt.rtc_enabled, rt.rtc_overlap_frames, rt.rtc_frozen_frames, rt.rtc_ramp_power = arena._resolve_rtc_parameters(
+        rtc, prediction_frames=50, execution_frames=execution_frames, overlap_frames=12, frozen_frames=1, ramp_power=1.0,
+    )
     rt.text_embeddings = {"t": torch.zeros(1, 8)}
     rt.task_instructions = {"t": "do it"}
     rt.task_aliases = {"t": "t"}
@@ -101,13 +115,14 @@ def old_runtime(model):
     return rt
 
 
-def test_planner_matches_original_runtime():
+@pytest.mark.parametrize("execution_frames, rtc", [(50, False), (15, False), (15, True)])
+def test_planner_matches_original_runtime(execution_frames, rtc):
     data = episode()
     first = yaw_matrix(data[0][0])
 
     # Original runtime: the client sends every state since its previous request.
     old_model = FakeModel()
-    rt = old_runtime(old_model)
+    rt = old_runtime(old_model, execution_frames, rtc)
     old_actions, pending, cursor, plan = [], [], 0, None
     for yaw, joints, image in data:
         relative = first.T @ yaw_matrix(yaw)
@@ -127,7 +142,7 @@ def test_planner_matches_original_runtime():
 
     # New code path.
     new_model = FakeModel()
-    planner = KimodoPlanner(new_model, {"do it": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=50)
+    planner = KimodoPlanner(new_model, {"do it": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=execution_frames, rtc=rtc)
     agent = Agent(planner)
     agent.reset()
     new_actions = []
@@ -143,7 +158,7 @@ def test_planner_matches_original_runtime():
     assert len(old_model.calls) == len(new_model.calls), (len(old_model.calls), len(new_model.calls))
     worst = {}
     for i, (a, b) in enumerate(zip(old_model.calls, new_model.calls)):
-        for key in ("motion", "mask", "hand", "image"):
+        for key in ("motion", "mask", "hand", "image", "rtc_motion", "rtc_hand", "rtc_settings"):
             if a[key].shape != b[key].shape:
                 raise AssertionError(f"call {i} {key}: shape {tuple(a[key].shape)} vs {tuple(b[key].shape)}")
             diff = float((a[key].float() - b[key].float()).abs().max()) if a[key].numel() else 0.0
@@ -153,4 +168,5 @@ def test_planner_matches_original_runtime():
     print("max |old - new| model inputs:", {k: f"{v:.2e}" for k, v in worst.items()})
     print(f"max |old - new| over {len(new_actions)} executed 40-D actions: {action_diff:.2e}")
     assert all(v < 1e-4 for v in worst.values()) and action_diff < 1e-4
+    assert any(c["rtc_motion"].numel() for c in new_model.calls) == rtc
 

@@ -140,8 +140,13 @@ MUJOCO_GL=egl python scripts/eval_bigym2.py --task move_plate \
 ## 6. KimodoPlanner 和旧仓库的关系
 
 `model/planner.py` 是旧仓库 `evaluation/humanoidarena_server.py` 里推理流程的移植，
-去掉了 HTTP、RTC、调试开关和事务快照。所有关节都可见时，它送进模型的输入和输出的动作
-与旧代码一致：`tests/test_port_equivalence.py` 用同一条 420 步轨迹对比，最大差 2e-6。
+去掉了 HTTP、调试开关和事务快照。所有关节都可见时，它送进模型的输入和输出的动作
+与旧代码一致：`tests/test_port_equivalence.py` 用同一条 420 步轨迹对比三种设置
+（每次执行 50 帧；15 帧；15 帧 + RTC），动作最大差 6e-6。
+
+RTC（实时分块融合：新一段动作的开头向上一段没执行完的尾巴靠拢，让两段衔接更平滑）保留为
+`KimodoPlanner(rtc=True, rtc_overlap_frames=12, rtc_frozen_frames=1, rtc_ramp_power=1.0)`，**默认关**。
+所有正式评测都是关着的；评测脚本不传这个参数就是关。
 
 和旧代码不同的两点：
 
@@ -300,7 +305,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
      （第一帧预测）；SIMPLE 用外推 `2·r0 − r1`。三种都做成选项。
    - 连续手部控制（SIMPLE、ToolBench）：目前 `KimodoPlanner` 只支持二值；历史改用 `Observation.hand` 里的测量闭合度。
    - SIMPLE 二值手的防抖状态机、1.5 m/s 导航速度保护：属于 SIMPLE 适配器，不进 planner。
-   - RTC（实时分块融合）：旧服务默认开，但两份评测文档里的正式参数都是 `--rtc 0`，所以不移植。
+   - RTC（实时分块融合）：已作为 planner 选项加上，默认关（正式评测都关着），见第 6 节。
    - 360×640 的图像由 DINOv3 预处理缩到 224×224（和 BiGym 84×84 放大到 224 是同一条路径），宽高比会变，模型里不用改。
 5. **训练数据**：ToolBench 演示存了操作员指令，BiGym 那套「用指令当训练目标」可以照用：写一个
    `benchmarks/toolbench/demos.py` 实现 `Demonstration`，复用 `data/build.py`。
@@ -310,7 +315,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 ### 已确认（2026-10-25）
 
 1. Arena、SIMPLE 只做等价测试（同样输入 → 同样输出），不跑 Isaac 仿真。
-2. RTC 不移植：所有正式评测都关着，复现不受影响。以后要用，作为 planner 的选项加回去（和 benchmark 无关）。
+2. RTC 现在就作为 planner 的选项加上（和 benchmark 无关），默认关，评测时不开。已完成，见第 6 节。
 3. 转向开关做成每个 benchmark 自己的设置：SIMPLE 保持旧代码的「关」（等价测试要求）；ToolBench 先看操作员
    演示里开关是怎么用的（`teleop.navigate_command` 第 3 项就是这个开关），在演示回放检查里比较「照操作员的用法」
    和「一直开」，选成功率高的。要注意：开关一开，控制器就一直用行走策略，不会切回站立策略。

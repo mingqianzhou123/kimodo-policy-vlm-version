@@ -1,9 +1,14 @@
 """KimodoPlanner: Kimodo-Policy behind the ``Planner`` interface.
 
 Ported from ``evaluation/humanoidarena_server.py`` of the original repository
-(``KimodoHumanoidArenaRuntime.infer``), with the HTTP layer, RTC and trace
-flags removed. With every joint observed it feeds the model exactly what the
+(``KimodoHumanoidArenaRuntime.infer``), with the HTTP layer and trace flags
+removed. With every joint observed it feeds the model exactly what the
 original runtime did, so released checkpoints behave the same.
+
+RTC (real-time chunking) is kept as an option, off by default: every published
+evaluation ran with it off. When on, the next plan's first ``rtc_overlap_frames``
+model frames are pulled towards the part of the previous prediction that was
+not executed, so consecutive chunks join smoothly.
 """
 
 from __future__ import annotations
@@ -61,6 +66,10 @@ class KimodoPlanner:
         execution_frames: int = 0,
         diffusion_steps: int = 10,
         cameras: Sequence[str] = ("head",),
+        rtc: bool = False,
+        rtc_overlap_frames: int = 12,
+        rtc_frozen_frames: int = 1,
+        rtc_ramp_power: float = 1.0,
     ):
         if model.config.hand_control_mode != "binary":
             raise NotImplementedError("KimodoPlanner currently supports binary hand control only")
@@ -77,6 +86,15 @@ class KimodoPlanner:
         self.execution_frames = chunk if execution_frames == 0 else int(execution_frames)
         if not 0 < self.execution_frames <= chunk:
             raise ValueError(f"execution_frames must be in (0, {chunk}], got {execution_frames}")
+        if not 0 <= rtc_frozen_frames <= rtc_overlap_frames:
+            raise ValueError(f"need 0 <= rtc_frozen_frames <= rtc_overlap_frames, got {rtc_frozen_frames}, {rtc_overlap_frames}")
+        if not (np.isfinite(rtc_ramp_power) and rtc_ramp_power > 0):
+            raise ValueError(f"rtc_ramp_power must be finite and positive, got {rtc_ramp_power}")
+        # The overlap can only cover the predicted frames that are not executed.
+        self.rtc_overlap_frames = min(int(rtc_overlap_frames), chunk - self.execution_frames)
+        self.rtc_frozen_frames = min(int(rtc_frozen_frames), self.rtc_overlap_frames)
+        self.rtc_ramp_power = float(rtc_ramp_power)
+        self.rtc = bool(rtc) and self.rtc_overlap_frames > 0
         self.history_frames = model.config.action_history
         # Margin: the newest observation is dropped at the prediction cut, and the grid may not align with the window.
         self.history_steps = math.ceil(self.history_frames * self.control_fps / self.model_fps) + 3
@@ -131,6 +149,9 @@ class KimodoPlanner:
         self._hand_history = torch.zeros(1, 0, 2)
         self._previous_rot: torch.Tensor | None = None
         self._previous_root: torch.Tensor | None = None
+        self._rtc_motion: torch.Tensor | None = None  # unexecuted prediction tail, and the instruction it was for
+        self._rtc_hand: torch.Tensor | None = None
+        self._rtc_instruction: str | None = None
 
     def condition_history(self, history: Sequence[Observation]):
         """The model's history condition ``(motion [H', D], mask [H', D])`` plus the last observed pose.
@@ -174,6 +195,7 @@ class KimodoPlanner:
         if self.seed is not None:
             generator = torch.Generator(device=device)
             generator.manual_seed(_episode_noise_seed(self.seed, self.num_plans))
+        use_rtc = self.rtc and self._rtc_motion is not None and self._rtc_instruction == obs.instruction
 
         output = self.model.predict_future(
             instruction=obs.instruction,
@@ -185,6 +207,11 @@ class KimodoPlanner:
             text_feat=None if text is None else text.to(device=device, dtype=dtype),
             hand_history=hand_history.to(device),
             generator=generator,
+            rtc_motion_reference=self._rtc_motion if use_rtc else None,
+            rtc_hand_reference=self._rtc_hand if use_rtc else None,
+            rtc_overlap_frames=self.rtc_overlap_frames,
+            rtc_frozen_frames=self.rtc_frozen_frames,
+            rtc_ramp_power=self.rtc_ramp_power,
         )
 
         n = self.execution_frames
@@ -216,5 +243,11 @@ class KimodoPlanner:
         self._hand_history = torch.cat((self._hand_history, hand.unsqueeze(0)), dim=1)[:, -self.history_frames :]
         self._previous_rot = local_rot[-1].clone()
         self._previous_root = root_pos[-1].clone()
+        if self.rtc:
+            tail = slice(n, n + self.rtc_overlap_frames)
+            self._rtc_motion = output["motion_features"][tail].detach().float().clone()
+            hand_clean = output.get("hand_clean")
+            self._rtc_hand = None if hand_clean is None else hand_clean[tail].detach().float().clone()
+            self._rtc_instruction = obs.instruction
         self.num_plans += 1
         return chunk
