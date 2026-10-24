@@ -41,6 +41,7 @@ def hold_target(start, step=0, frames=5, dx=0.0, yaw_rate=0.0, fps=50.0):
 
 def rollout(env, adapter, steps, **target_kwargs):
     start = obs = adapter.to_observation(env.reset(seed=SEED))
+    adapter.reset()
     for step in range(steps):
         target = hold_target(start, step, **target_kwargs)
         obs = adapter.to_observation(env.step(adapter.to_env_action(target, obs)))
@@ -63,6 +64,7 @@ def test_observation_matches_simulator(env_and_adapter):
 def test_action_normalization_inverts_bigym(env_and_adapter):
     env, adapter = env_and_adapter
     obs = adapter.to_observation(env.reset(seed=SEED))
+    adapter.reset()
     target = hold_target(obs, dx=0.004)
     raw = adapter.to_raw_action(target, obs)
     np.testing.assert_allclose(env.denormalize_action(adapter.to_env_action(target, obs)), raw, atol=1e-5)

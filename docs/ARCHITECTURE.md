@@ -30,6 +30,7 @@ kimodo_vla/
     base.py         # BenchmarkAdapter 接口 + AgentPolicy（把 Agent 和适配器拼成 policy）
     bigym2/
       adapter.py    # BiGym 2.0 观测/动作的双向翻译
+      demos.py      # 演示数据 → 全身动作轨迹（实际执行的 / 操作员指令的）
       policy.py     # make_policy / make_kimodo_policy：交给 BiGym 官方评测器
 scripts/
   eval_bigym2.py    # 按官方协议评测一个 checkpoint
@@ -92,7 +93,7 @@ class BenchmarkAdapter(Protocol):
 | 方向 | 内容 |
 |---|---|
 | 观测 | `low_dim_obs` 按官方布局取出：骨盆 x/y/z/yaw、14 个手臂关节、（开启躯干俯仰的 14 个任务）3 个腰关节、2 个夹爪。腿部关节和（其余任务的）腰关节 `joint_mask=False`、值填 0。实测 WBC 接管腰部时，腰俯仰也只在 0.06 rad 以内。骨盆横滚和俯仰角在官方观测里拿不到，按 0 处理。`rgb_obs` 拆成 head / right_wrist / left_wrist 三张图 |
-| 动作 | `vx, vy` = 第 0 帧位移 × 50Hz（前馈）；`wz` = 目标朝向的变化率 + 2.0 × 朝向误差（闭环）；`height` 直接给；`torso pitch` 取目标腰俯仰关节；14 个手臂关节直接给；手闭合度 ≥ 0.5 → 夹爪合。最后按 `env.wholebody_action_layout()` 归一化到 [-1, 1] |
+| 动作 | `vx, vy` = 第 0 帧位移 × 50Hz；`wz` = 上一步目标朝向到第 0 帧目标朝向的变化率（和位移一样用向后差分，纯前馈，不做朝向闭环）；`height` 直接给；`torso pitch` 取目标腰俯仰关节；14 个手臂关节直接给；手闭合度 ≥ 0.5 → 夹爪合。最后按 `env.wholebody_action_layout()` 归一化到 [-1, 1] |
 | 语言 | 用 BiGym 自带的 `task_instructions.yaml`，和演示数据里的指令一致 |
 
 BiGym 是纯 Python + MuJoCo，模型和环境在同一个进程里跑，不需要 HTTP 服务。
@@ -146,6 +147,37 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 
 - [ ] 训练：`data/sources/bigym2.py`（演示 → Kimodo 训练样本，观测要走同一个 `to_observation`，
       保证训练和评测的掩码一致）和 `train.py`。
-- [ ] 动作来回转换检查：演示动作 → `ActionChunk` → BiGym 动作，回放看成功率，判断 `vx, vy` 是否需要闭环。
+- [x] 动作来回转换检查（`scripts/check_bigym2_roundtrip.py`，见第 10 节）。
 - [ ] 文本 embedding：用 LLM2Vec 给 20 个任务指令预先算好。
-- [ ] 待确认：84×84 还是 224×224（官方 runner 对相机分辨率改动不出排行榜记录，需要问作者 π0.5 是怎么报的）；手腕相机是否接进模型。
+- [x] 第一版输入：只用头部相机，224×224（从仿真状态重新渲染，和 π0.5 一样在论文里披露）。
+      其他 baseline（ACT、DP、三个 RL 方法、编程 agent）都是 3 路 84×84。
+- [ ] 手腕相机：第二版再做，作为消融。需要改模型结构，因为 Kimodo-Policy 只接一路图像。
+- [ ] 待确认：官方 runner 发现相机设置被改动就不出排行榜记录，要问作者 π0.5 的分数是怎么报的。
+
+## 10. 动作来回转换检查的结论
+
+做法：把演示里的动作当成「完美的模型预测」，走和正式评测完全相同的流程
+（Agent → 30Hz Kimodo 动作块 → 重采样 → 40 维编码 → 适配器 → BiGym），看还剩多少成功率。
+5 个任务 × 60 条演示，2026-10-24 在 A800 上跑。
+
+| 任务 | 原样回放 | 实际执行的动作当目标 | 操作员指令当目标（30Hz 流程） | 指令直接给 50Hz |
+|---|---|---|---|---|
+| drawer_top_open | 100% | 0% | 97% | 100% |
+| flip_cup | 100% | 2% | 97% | 98% |
+| move_plate | 100% | 7% | 97% | 100% |
+| pick_box | 100% | 0% | 80% | 90% |
+| reach_target_single | 100% | 95% | 100% | 100% |
+
+结论：
+
+1. **训练目标必须用操作员的指令，不能用机器人实际执行出来的动作。** 把实际动作当目标，
+   手臂会再叠加一次重力下垂（平均误差 0.02 rad），除了够取任务以外基本全部失败。
+   `demos.commanded_motion` 就是训练要用的目标。
+2. **朝向闭环有害，已关闭。** 增益为 2 时 move_plate 掉到 23%，pick_box 掉到 2%：
+   它会去纠正 WBC 本来就有的朝向漂移，结果走出和演示不一样的路线。
+3. **转向角速度要和平移一样用向后差分。** 原来用的是向前差分，比操作员提前一步，
+   pick_box 因此少了约 12 个点（50Hz 直接给：78% → 90%）。
+4. **Kimodo 的 30Hz 表示带来的损失**：大部分任务只有 0–3 个点，pick_box 有 10 个点（90% → 80%），
+   它转身和走动多，30Hz 重采样会把路线磨平。所以这套接口的成功率上限约为 94%（5 个任务平均）。
+5. pick_box 直接给 50Hz 也只有 90%：抱 3kg 箱子对接触很敏感，指令上的微小差别就可能失败。
+

@@ -16,7 +16,7 @@ frozen GR00T-WBC, so they are not observed and the adapter drops their targets.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -49,15 +49,21 @@ class BiGym2Adapter:
     pitch_command: bool          # True on the 14 tasks whose action has a torso-pitch slot
     action_low: np.ndarray
     action_high: np.ndarray
+    cameras: tuple[str, ...] = CAMERA_NAMES  # () for state-only tools such as demo replay
     control_fps: float = CONTROL_FPS
-    yaw_gain: float = 2.0        # rad/s of yaw-rate command per rad of heading error
+    # rad/s of yaw-rate command per rad of heading error. Off: replaying the operator's
+    # commands through the adapter, gain 2 cut move_plate from 97% to 23% success and
+    # pick_box from 77% to 2%, because it fights the controller's natural heading drift.
+    yaw_gain: float = 0.0
+    _previous_yaw: float | None = field(default=None, init=False, repr=False)
 
     @classmethod
     def from_env(cls, env, task: str) -> "BiGym2Adapter":
         if env.config.frame_stack != 1 or env.config.normalize_low_dim_obs:
             raise ValueError("BiGym2Adapter expects frame_stack=1 and raw low_dim_obs")
-        if tuple(env.config.camera_keys) != CAMERA_NAMES:
-            raise ValueError(f"unexpected camera order: {env.config.camera_keys}")
+        cameras = tuple(env.config.camera_keys)
+        if cameras not in (CAMERA_NAMES, ()):
+            raise ValueError(f"unexpected camera order: {cameras}")
         layout = env.wholebody_action_layout()
         if tuple(layout["limb_names"]) != ARM_JOINT_NAMES:
             raise ValueError(f"unexpected BiGym arm order: {layout['limb_names']}")
@@ -67,6 +73,7 @@ class BiGym2Adapter:
             pitch_command=pitch,
             action_low=np.asarray(layout["action_low"], dtype=np.float32),
             action_high=np.asarray(layout["action_high"], dtype=np.float32),
+            cameras=cameras,
         )
         expected = 2 * adapter._proprio_width + 2 + 4
         if env.low_dim_raw_observation_space.shape != (expected,):
@@ -78,7 +85,7 @@ class BiGym2Adapter:
         return (3 if self.pitch_command else 0) + 18 + 4
 
     def reset(self) -> None:
-        pass
+        self._previous_yaw = None
 
     def to_observation(self, timestep) -> Observation:
         low = np.asarray(timestep.low_dim_obs, dtype=np.float32)
@@ -100,7 +107,7 @@ class BiGym2Adapter:
         joint_mask[joint_indices(WAIST_JOINT_NAMES)] = self.pitch_command
 
         rgb = np.asarray(timestep.rgb_obs)
-        images = {name: np.ascontiguousarray(rgb[i, -3:].transpose(1, 2, 0)) for i, name in enumerate(CAMERA_NAMES)}
+        images = {name: np.ascontiguousarray(rgb[i, -3:].transpose(1, 2, 0)) for i, name in enumerate(self.cameras)}
         return Observation(
             images=images,
             root_pos=np.array([x, y, z], np.float32),
@@ -111,15 +118,20 @@ class BiGym2Adapter:
             instruction=self.instruction,
         )
 
-    def to_raw_action(self, target: ActionChunk, obs: Observation) -> np.ndarray:
-        """Target frame 0 in BiGym's raw (unnormalized) action units."""
+    def to_raw_action(self, target: ActionChunk, obs: Observation, previous_yaw: float | None = None) -> np.ndarray:
+        """Target frame 0 in BiGym's raw (unnormalized) action units.
+
+        Velocities are backward differences into frame 0, like ``root_delta_xy``:
+        the yaw rate runs from ``previous_yaw`` (the last step's target heading,
+        or the measured one at the start) to frame 0. A forward difference leads
+        the operator by one step and cost pick_box ~20% in demo replay.
+        """
         fps = target.fps
         vx, vy = target.root_delta_xy[0] * fps
-        yaw_target = yaw_of(target.root_rot)
-        yaw_rate = 0.0
-        if len(target) > 1:
-            yaw_rate = _wrap(yaw_target[1] - yaw_target[0]) * fps
-        yaw_rate += self.yaw_gain * _wrap(yaw_target[0] - yaw_of(obs.root_rot))
+        yaw_now = float(yaw_of(obs.root_rot))
+        yaw_target = float(yaw_of(target.root_rot[0]))
+        yaw_from = yaw_now if previous_yaw is None else previous_yaw
+        yaw_rate = _wrap(yaw_target - yaw_from) * fps + self.yaw_gain * _wrap(yaw_target - yaw_now)
         base = [vx, vy, target.root_height[0], yaw_rate]
         if self.pitch_command:
             base.append(target.joint_pos[0, joint_indices(["waist_pitch_joint"])[0]])
@@ -130,7 +142,8 @@ class BiGym2Adapter:
     def to_env_action(self, target: ActionChunk, obs: Observation) -> np.ndarray:
         if abs(target.fps - self.control_fps) > 1e-6:
             raise ValueError(f"target is at {target.fps} fps, BiGym runs at {self.control_fps}")
-        raw = self.to_raw_action(target, obs)
+        raw = self.to_raw_action(target, obs, self._previous_yaw)
+        self._previous_yaw = float(yaw_of(target.root_rot[0]))
         normalized = 2.0 * (raw - self.action_low) / (self.action_high - self.action_low) - 1.0
         return np.clip(normalized, -1.0, 1.0).astype(np.float32)
 
