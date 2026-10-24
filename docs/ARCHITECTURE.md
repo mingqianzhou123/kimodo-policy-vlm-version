@@ -166,9 +166,11 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
       （pt_419h 对照只能用一路）。checkpoint 的 `config.json` 里 `model.cameras`（如
       `["head", "right_wrist", "left_wrist"]`）决定 planner 取哪几路、按什么顺序；没写就是只用 `head`。
       一路时的计算和以前完全一样。`tests/test_multicamera.py` 只测了图像编码和 planner；
-      三路 ControlNet 的完整前向需要真实权重，要在 A800 上跑一步训练确认。
+      需要真实权重的完整检查是 `scripts/check_multicamera.py`（见下一条）。
 - [ ] 手腕相机（实验）：一路/三路消融。BiGym 作者确认 π0.5 三路相机都用了，ACT、DP 等也是三路，
-      所以建议三路作为主结果，只用头部的一路作为消融（待定）。
+      所以三路作为主结果，只用头部的一路作为消融（2026-10-25 定）。
+      `scripts/check_multicamera.py` 已在 A800 上用真实权重和 move_plate 数据跑通：训练、
+      三路相机各自影响预测、官方环境里闭环控制都正常。
 
 ## 10. 动作来回转换检查的结论
 
