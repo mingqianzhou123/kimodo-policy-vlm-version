@@ -153,7 +153,11 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 - [x] 训练数据：`scripts/prepare_bigym2.py` + `data/episodes.py`，见第 11 节。
 - [ ] 训练脚本 `train.py`。
 - [x] 动作来回转换检查（`scripts/check_bigym2_roundtrip.py`，见第 10 节）。
-- [ ] 文本 embedding：用 LLM2Vec 给 20 个任务指令预先算好。
+- [x] 文本 embedding：`scripts/cache_text_embeddings.py` 给 `task_instructions.yaml` 里 20 个任务的指令
+      各算一份 LLM2Vec embedding，存成 `<任务名>.pt`（格式同旧仓库，`planner.load_text_embeddings` 直接读）。
+      A800 上已生成在 `data/cache/bigym2`。新环境（transformers 5.1、peft 0.18）算出的结果和旧仓库缓存的
+      embedding 完全一致（同一句指令，最大差 0）；加载时打印的 LoRA「MISSING」是第一遍加载的提示，可以忽略。
+      这 20 句指令和论文附录里 π0.5 用的逐字相同。
 - [x] 输入图像：只用头部相机，官方 84×84，由 DINOv3 预处理在模型内部放大到 224。
       BiGym 作者澄清：所有方法拿到的都是同样的 84×84 原始数据，π0.5 的 224 也只是模型内部放大，
       不是重新渲染。评测用官方相机设置，所以官方 runner 会正常出排行榜记录。
