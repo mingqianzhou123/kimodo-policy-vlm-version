@@ -279,11 +279,12 @@ checkpoint 里的 `config.json` 写了 `model.cameras`，评测时 planner 据�
 `scripts/submit_bigym2.py` 给每个（任务，设置）提交 1 个训练作业（1 张卡），训练成功后自动接 2 个评测作业：
 最后 5 个 checkpoint（主表分数）和 5k–25k（学习曲线），每个作业在 1 张卡上同时评 5 个 checkpoint
 （每个评测进程约 3.3GB 显存），每个 checkpoint 100 回合。结果写在 `<run>/eval/checkpoint_<步数>.json`，
-`scripts/summarize_bigym2.py <目录>` 汇总成表。重跑提交脚本只补缺的部分：训完的不重训，没训完的接着训，
+`scripts/summarize_bigym2.py <目录>` 汇总成表。
+每个 checkpoint 评两种设置，在表里并列：默认执行完整个 50 帧（1.67 秒）再重新预测，结果在 `eval/`；每 10 帧（0.33 秒，接近 π0.5 的 0.32 秒）重新预测一次，结果在 `eval_exec10/`（`eval_run.py --execution-frames 10`）。重跑提交脚本只补缺的部分：还在队列里的同名作业直接沿用，训完的不重训，没训完的接着训，
 评过的 checkpoint 跳过。
 
 计算节点上没有登录节点本地那份 Python（`envs/kimodo` 指向登录节点的 `/var/tmp`），所以 A800 上另建了
 `.venv-cluster`：同一套已安装的包，换用共享盘上的 `envs/kimodo.shared`。`kimodo-vlm-env.sh` 会自动选。
 
 **2026-10-25 提交的正式训练**：主表 9 个任务 × 3 组（三路从零 = 主结果；只用头部从零 = 消融；
-只用头部从 pt_419h 起步 = 对照），共 27 个训练、54 个评测作业，输出在 A800 的 `log/bigym2/main9/`。
+只用头部从 pt_419h 起步 = 对照），共 27 个训练、108 个评测作业（两种重新预测间隔各 54 个），输出在 A800 的 `log/bigym2/main9/`。
