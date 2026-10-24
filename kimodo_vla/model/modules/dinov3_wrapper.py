@@ -9,6 +9,7 @@ class DINOv3Encoder(nn.Module):
         self.image_processor = AutoImageProcessor.from_pretrained(checkpoint_path)
         self.model = AutoModel.from_pretrained(checkpoint_path)
         self.image_size = self.model.config.image_size
+        self.token_count = (self.image_size // self.model.config.patch_size) ** 2  # patch tokens per image
         self.output_dim = self.model.config.hidden_size
         self.num_register_tokens = int(getattr(self.model.config, "num_register_tokens", 4))
 

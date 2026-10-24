@@ -60,16 +60,19 @@ class KimodoPlanner:
         control_fps: float = 50.0,
         execution_frames: int = 0,
         diffusion_steps: int = 10,
-        camera: str = "head",
+        cameras: Sequence[str] = ("head",),
     ):
         if model.config.hand_control_mode != "binary":
             raise NotImplementedError("KimodoPlanner currently supports binary hand control only")
+        num_cameras = getattr(model.config, "num_cameras", 1)
+        if len(cameras) != num_cameras:
+            raise ValueError(f"model takes {num_cameras} camera(s), got {tuple(cameras)}")
         self.model = model
         self.text_embeddings = text_embeddings
         self.control_fps = float(control_fps)
         self.model_fps = float(model.fps)
         self.diffusion_steps = int(diffusion_steps)
-        self.camera = camera
+        self.cameras = tuple(cameras)
         chunk = model.config.action_chunk
         self.execution_frames = chunk if execution_frames == 0 else int(execution_frames)
         if not 0 < self.execution_frames <= chunk:
@@ -93,6 +96,7 @@ class KimodoPlanner:
         checkpoint_dir = Path(checkpoint_dir).expanduser().resolve()
         saved = json.loads((checkpoint_dir / "config.json").read_text())
         model_cfg, main_cfg = saved["model"], saved["main"]
+        cameras = tuple(model_cfg.get("cameras", ("head",)))  # released checkpoints: one egocentric camera
         config = KimodoPolicyConfig(
             fps=int(model_cfg["fps"]),
             motion_mask_mode=str(model_cfg["motion_mask_mode"]),
@@ -112,10 +116,12 @@ class KimodoPlanner:
             hand_ffn_dim=int(model_cfg.get("hand_ffn_dim", 1024)),
             hand_init_seed=int(model_cfg.get("hand_init_seed", 3407)),
             hand_control_mode=str(model_cfg.get("hand_control_mode", "binary")),
+            num_cameras=len(cameras),
         )
         model = KimodoPolicy(config)
         model.load_controlnet_checkpoint(str(checkpoint_dir))
         model.to(device=torch.device(device), dtype=dtype).eval()
+        kwargs.setdefault("cameras", cameras)
         return cls(model, load_text_embeddings(text_embedding_cache), **kwargs)
 
     def reset(self, seed: int | None = None) -> None:
@@ -135,6 +141,11 @@ class KimodoPlanner:
         """
         features, mask, local_rot, root = self.kimodo.history(history, self._first_heading)
         return features[:-1][-self.history_frames :], mask[:-1][-self.history_frames :], local_rot[-1], root[-1]
+
+    def egoview(self, obs: Observation) -> torch.Tensor:
+        """``[3, H, W]`` for one camera, ``[cameras, 3, H, W]`` for several (as ``KimodoWindowDataset``)."""
+        images = [torch.from_numpy(np.ascontiguousarray(obs.images[c][..., :3])).permute(2, 0, 1) for c in self.cameras]
+        return images[0] if len(images) == 1 else torch.stack(images)
 
     def _text_embedding(self, instruction: str) -> torch.Tensor | None:
         embedding = self.text_embeddings.get(instruction.strip())
@@ -158,7 +169,6 @@ class KimodoPlanner:
             pad = torch.zeros(1, history_motion.shape[1] - hand_history.shape[1], 2)
             hand_history = torch.cat((pad, hand_history), dim=1)
 
-        image = torch.from_numpy(np.ascontiguousarray(obs.images[self.camera][..., :3]))
         text = self._text_embedding(obs.instruction)
         generator = None
         if self.seed is not None:
@@ -167,7 +177,7 @@ class KimodoPlanner:
 
         output = self.model.predict_future(
             instruction=obs.instruction,
-            egoview=image.permute(2, 0, 1).unsqueeze(0).to(device),
+            egoview=self.egoview(obs).unsqueeze(0).to(device),
             history_motion=history_motion,
             history_feature_mask=history_mask,
             diffusion_steps=self.diffusion_steps,

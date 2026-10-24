@@ -160,10 +160,15 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 - [x] 训练方式：只用 BiGym 演示从零训练 ControlNet 和手部头，不用我们的 VLA 预训练权重；
       Kimodo-G1、DINOv3、LLM2Vec 保持冻结。ControlNet 的注入层初始为零，所以训练从原版 Kimodo-G1 起步。
       用 pt_419h 初始化的一组作为对照。
-- [ ] 手腕相机：在 ControlNet 里改成接三路图像（从零训练，不浪费预训练权重），再做一路/三路消融。
-      训练数据已经存了三路。
-      BiGym 作者确认 π0.5 三路相机都用了，ACT、DP 等也是三路，所以只用头部相机的第一版
-      看到的信息比所有 baseline 都少，手腕相机的优先级要提高。
+- [x] 手腕相机（代码）：`KimodoPolicyConfig.num_cameras` 设成几，模型就接几路图像。每路单独过同一个
+      冻结的 DINOv3，各得 196 个 token，按相机顺序拼起来（三路 588 个）送进 ControlNet 和手部头。
+      ControlNet 里把 token 压到 50 个的那层随路数变宽，所以三路模型不能加载一路的 ControlNet 权重
+      （pt_419h 对照只能用一路）。checkpoint 的 `config.json` 里 `model.cameras`（如
+      `["head", "right_wrist", "left_wrist"]`）决定 planner 取哪几路、按什么顺序；没写就是只用 `head`。
+      一路时的计算和以前完全一样。`tests/test_multicamera.py` 只测了图像编码和 planner；
+      三路 ControlNet 的完整前向需要真实权重，要在 A800 上跑一步训练确认。
+- [ ] 手腕相机（实验）：一路/三路消融。BiGym 作者确认 π0.5 三路相机都用了，ACT、DP 等也是三路，
+      所以建议三路作为主结果，只用头部的一路作为消融（待定）。
 
 ## 10. 动作来回转换检查的结论
 
@@ -203,7 +208,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
   即操作员指令（见第 10 节）；`hand` 是夹爪指令。
 - `<演示名>.frames.npy`：每个 30Hz 帧对应的三路相机图像（头部、右腕、左腕），直接取数据集里
   记录的官方 84×84 图像。`KimodoWindowDataset(cameras=...)` 选用哪几路：一路时 `egoview` 是
-  `[3, H, W]`（现在的 KimodoPolicy），多路时是 `[路数, 3, H, W]`，留给三路输入的 ControlNet 和一路/三路消融。
+  `[3, H, W]`，多路时是 `[路数, 3, H, W]`，和 `KimodoPolicyConfig.num_cameras` 对应（见第 9 节）。
 
 每个样本 = 100 帧历史 + 50 帧未来 + 切点处的图像，键名和约定与旧仓库的训练数据完全一致，
 `KimodoPolicy.training_kimodo_policy_controlnet` 可以直接用。

@@ -87,6 +87,9 @@ class KimodoPolicyConfig:
     control_fusion_mode: str = "both"
     controlnet_scale: int = 1
     hand_control_mode: str = "binary"  # "binary" or closure-delta "continuous"
+    # Cameras per sample: egoview is [B, 3, H, W] for one, [B, num_cameras, 3, H, W]
+    # otherwise; every camera adds its DINOv3 tokens to the ControlNet input.
+    num_cameras: int = 1
 
 
 class KimodoPolicy(nn.Module):
@@ -162,6 +165,7 @@ class KimodoPolicy(nn.Module):
         self.controlnet = ControlNet(
             self.denoiser,
             image_feat_dim=self.image_encoder.output_dim,
+            image_token_count=self.image_encoder.token_count * config.num_cameras,
             motion_token_count=config.action_history + config.action_chunk,
             num_control_layers=config.controlnet_num_layers,
             controlnet_scale=config.controlnet_scale,
@@ -185,6 +189,17 @@ class KimodoPolicy(nn.Module):
                     ffn_dim=config.hand_ffn_dim,
                     max_diffusion_steps=self.diffusion.num_base_steps,
                 )
+
+    def _encode_images(self, egoview: torch.Tensor) -> torch.Tensor:
+        """DINOv3 tokens of every camera, concatenated in camera order: [B, num_cameras * 196, D]."""
+        if self.config.num_cameras == 1:
+            return self.image_encoder(egoview)
+        if egoview.ndim != 5 or egoview.shape[1] != self.config.num_cameras:
+            raise ValueError(
+                f"Expected egoview [B, {self.config.num_cameras}, 3, H, W], got {tuple(egoview.shape)}"
+            )
+        tokens = self.image_encoder(egoview.flatten(0, 1))
+        return tokens.reshape(egoview.shape[0], -1, tokens.shape[-1])
 
     @property
     def device(self) -> torch.device:
@@ -562,7 +577,7 @@ class KimodoPolicy(nn.Module):
     def training_kimodo_policy_controlnet(
         self,
         instruction: List[str],
-        egoview: torch.Tensor, # [B, 3, 480, 640]
+        egoview: torch.Tensor, # [B, 3, H, W], or [B, num_cameras, 3, H, W]
         gt_motion: torch.Tensor, # [B, T, 417], T = action_history + action_chunk
         gt_mask: torch.Tensor,   # [B, T] bool, T = action_history + action_chunk
         condition_motion: Optional[torch.Tensor] = None,
@@ -669,7 +684,7 @@ class KimodoPolicy(nn.Module):
         text_pad_mask = self._length_mask(text_length, maxlen, device)
         # 7. 图像编码 (DINOv3 冻结)
         with torch.no_grad():
-            image_feat = self.image_encoder(egoview)
+            image_feat = self._encode_images(egoview)
         image_feat = image_feat.to(dtype=next(self.controlnet.parameters()).dtype)
         # 8. ControlNet 前向（可训练）
         root_control_tokens, body_control_tokens = self.controlnet(t, image_feat, T, H)
@@ -874,12 +889,13 @@ class KimodoPolicy(nn.Module):
         history_motion = history_motion.to(device=self.device)
         if not torch.is_floating_point(history_motion):
             history_motion = history_motion.float()
-        if egoview.ndim == 3:
+        image_ndim = 4 if self.config.num_cameras == 1 else 5
+        if egoview.ndim == image_ndim - 1:
             egoview = egoview.unsqueeze(0)
-        if egoview.ndim != 4 or egoview.shape[0] != batch_size:
+        if egoview.ndim != image_ndim or egoview.shape[0] != batch_size:
             raise ValueError(
-                f"Expected egoview shape [B, C, H, W] with B={batch_size}, "
-                f"got {tuple(egoview.shape)}"
+                f"Expected egoview with {image_ndim} dims and B={batch_size} "
+                f"for {self.config.num_cameras} camera(s), got {tuple(egoview.shape)}"
             )
         egoview = egoview.to(self.device)
         history_length = self.config.action_history
@@ -1122,7 +1138,7 @@ class KimodoPolicy(nn.Module):
                     )
         text_features = text_features.to(device=self.device, dtype=denoiser_dtype)
         text_pad_mask = self._length_mask(text_lengths, text_features.shape[1], self.device)
-        image_features = self.image_encoder(egoview).to(
+        image_features = self._encode_images(egoview).to(
             dtype=next(self.controlnet.parameters()).dtype
         )
         heading_slice = self.representation.slice_dict["global_root_heading"]
