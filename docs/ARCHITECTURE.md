@@ -39,7 +39,10 @@ scripts/
   prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 三路官方 84×84 图像）
   cache_text_embeddings.py  # 20 个任务指令的 LLM2Vec embedding
   train.py                  # 训练一个任务（第 12 节）
-  gpu_queue.py              # 按顺序把一批任务排到没人用的 GPU 上
+  submit_bigym2.py          # 把主表 27 个训练和随后的评测提交到 Slurm 集群
+  eval_run.py               # 评测一个 run 的若干 checkpoint（同一张卡上并行）
+  summarize_bigym2.py       # 汇总成论文主表格式（旁边列 π0.5）
+  gpu_queue.py              # 不走集群时：把一批任务排到单机上没人用的 GPU
   check_bigym2_roundtrip.py # 动作来回转换检查
   eval_bigym2.py            # 按官方协议评测一个 checkpoint
 configs/
@@ -272,5 +275,15 @@ checkpoint 里的 `config.json` 写了 `model.cameras`，评测时 planner 据�
 每个任务的输出、所在 GPU、退出码都记在日志目录里；队列本身挂了也不影响已经在跑的训练，
 重启队列会跳过已经结束和还在跑的。失败的不自动重试。
 
-**2026-10-25 排上的正式训练**（A800，清单和日志在 `outputs/bigym2_queue/`）：主表 9 个任务各 3 组，
-顺序是三路从零（主结果）→ 只用头部从零（消融）→ 只用头部从 pt_419h 起步（对照），共 27 个。
+**集群（Slurm）**：A800 登录节点上 `sbatch` 可以提交到 30 个计算节点（每个 8 张 A800）。
+`scripts/submit_bigym2.py` 给每个（任务，设置）提交 1 个训练作业（1 张卡），训练成功后自动接 2 个评测作业：
+最后 5 个 checkpoint（主表分数）和 5k–25k（学习曲线），每个作业在 1 张卡上同时评 5 个 checkpoint
+（每个评测进程约 3.3GB 显存），每个 checkpoint 100 回合。结果写在 `<run>/eval/checkpoint_<步数>.json`，
+`scripts/summarize_bigym2.py <目录>` 汇总成表。重跑提交脚本只补缺的部分：训完的不重训，没训完的接着训，
+评过的 checkpoint 跳过。
+
+计算节点上没有登录节点本地那份 Python（`envs/kimodo` 指向登录节点的 `/var/tmp`），所以 A800 上另建了
+`.venv-cluster`：同一套已安装的包，换用共享盘上的 `envs/kimodo.shared`。`kimodo-vlm-env.sh` 会自动选。
+
+**2026-10-25 提交的正式训练**：主表 9 个任务 × 3 组（三路从零 = 主结果；只用头部从零 = 消融；
+只用头部从 pt_419h 起步 = 对照），共 27 个训练、54 个评测作业，输出在 A800 的 `log/bigym2/main9/`。
