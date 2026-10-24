@@ -37,8 +37,12 @@ kimodo_vla/
       policy.py     # make_policy / make_kimodo_policy：交给 BiGym 官方评测器
 scripts/
   prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 三路官方 84×84 图像）
+  cache_text_embeddings.py  # 20 个任务指令的 LLM2Vec embedding
+  train.py                  # 训练一个任务（第 12 节）
   check_bigym2_roundtrip.py # 动作来回转换检查
   eval_bigym2.py            # 按官方协议评测一个 checkpoint
+configs/
+  bigym2.yaml               # 训练的唯一一份基础配置
 tests/              # 见第 7 节
 ```
 
@@ -151,7 +155,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 ## 9. 还没做的
 
 - [x] 训练数据：`scripts/prepare_bigym2.py` + `data/episodes.py`，见第 11 节。
-- [ ] 训练脚本 `train.py`。
+- [x] 训练脚本 `scripts/train.py` + `configs/bigym2.yaml`，见第 12 节。
 - [x] 动作来回转换检查（`scripts/check_bigym2_roundtrip.py`，见第 10 节）。
 - [x] 文本 embedding：`scripts/cache_text_embeddings.py` 给 `task_instructions.yaml` 里 20 个任务的指令
       各算一份 LLM2Vec embedding，存成 `<任务名>.pt`（格式同旧仓库，`planner.load_text_embeddings` 直接读）。
@@ -180,7 +184,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 
 做法：把演示里的动作当成「完美的模型预测」，走和正式评测完全相同的流程
 （Agent → 30Hz Kimodo 动作块 → 重采样 → 40 维编码 → 适配器 → BiGym），看还剩多少成功率。
-5 个任务 × 60 条演示，2026-10-24 在 A800 上跑。
+前 5 个任务 × 60 条演示，2026-10-24 在 A800 上跑；主表其余 6 个任务 2026-10-25 补跑（没测「实际执行」那一列）。
 
 | 任务 | 原样回放 | 实际执行的动作当目标 | 操作员指令当目标（30Hz 流程） | 指令直接给 50Hz |
 |---|---|---|---|---|
@@ -189,6 +193,12 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 | move_plate | 100% | 7% | 97% | 100% |
 | pick_box | 100% | 0% | 80% | 90% |
 | reach_target_single | 100% | 95% | 100% | 100% |
+| drawer_top_close | 100% | – | 100% | 100% |
+| move_two_plates | 100% | – | 92% | 100% |
+| reach_target_multi_modal | 100% | – | 100% | 100% |
+| reach_target_dual | 100% | – | 98% | 100% |
+| dishwasher_close | 100% | – | 83% | 98% |
+| dishwasher_load_cups | 100% | – | 97% | 100% |
 
 结论：
 
@@ -200,7 +210,8 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 3. **转向角速度要和平移一样用向后差分。** 原来用的是向前差分，比操作员提前一步，
    pick_box 因此少了约 12 个点（50Hz 直接给：78% → 90%）。
 4. **Kimodo 的 30Hz 表示带来的损失**：大部分任务只有 0–3 个点，pick_box 有 10 个点（90% → 80%），
-   它转身和走动多，30Hz 重采样会把路线磨平。所以这套接口的成功率上限约为 94%（5 个任务平均）。
+   它转身和走动多，30Hz 重采样会把路线磨平。dishwasher_close 同理（83% vs 98%，骨盆漂移 6 厘米）。
+   论文主表 9 个任务上，这套接口的成功率上限约为 94%（π0.5 是 75%）。
 5. pick_box 直接给 50Hz 也只有 90%：抱 3kg 箱子对接触很敏感，指令上的微小差别就可能失败。
 
 
@@ -227,3 +238,30 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 **规模**：5 个任务 300 条演示，三路 84×84 图像共 8GB，可切出 112,683 个训练窗口（pick_box 演示最长，独占 57,643 个）。
 20 个任务按这 5 个任务的平均估算，约 32GB。窗口数和演示长度成正比，多任务训练时要考虑按任务均衡采样。
 \n
+
+## 12. 训练
+
+**协议**（2026-10-25 定，和论文里 π0.5 的做法对齐，见 BiGym 2.0 论文附录 D-C、Table A5）：
+每个任务单独训一个模型，只用该任务的 60 条演示；30k 步，每步 48 个样本，前 1k 步学习率线性升温，
+之后余弦降到 0.1 倍；保存 5k、10k……和最后 5 个（26k–30k，间隔 1k），评测这最后 5 个。
+主表是论文的 9 个任务：pick_box、reach_target_multi_modal、reach_target_dual、drawer_top_close、
+drawer_top_open、move_plate、move_two_plates、dishwasher_close、dishwasher_load_cups（π0.5 平均 75%）。
+这 9 个任务的训练数据都已在 A800 的 `prepared84` 里。
+
+```bash
+python scripts/train.py --task move_plate                    # 三路相机（主结果）
+python scripts/train.py --task move_plate --cameras head     # 只用头部（消融）
+python scripts/train.py --task move_plate --cameras head --init-checkpoint <pt_419h checkpoint>   # 对照
+python scripts/train.py --resume log/bigym2/<run>             # 中断后接着训
+```
+
+训练数据目录取环境变量 `BIGYM2_PREPARED`（A800 上由 `kimodo-vlm-env.sh` 设置）。其余设置都在 `configs/bigym2.yaml`，命令行可以用 `main.max_steps=200` 这种写法临时改。
+模型结构和损失权重沿用 pt_419h（4 层 ControlNet、root/body 梯度分开、root 损失权重 4、梯度裁剪 1.0），
+所以 pt_419h 对照和从零训练只差起点。学习率分组沿用旧仓库：从 Kimodo 复制来的 ControlNet 层 3e-5，
+新加的投影层和手部头 1e-4。样本是该任务所有训练窗口均匀打乱，不做图像增强（π0.5 也没写用了）。
+
+**输出**：`log/bigym2/<任务>_<路数>cam_<时间>/` 下有 `config.json`、`train.log`、`metrics.jsonl`、
+`resume.pt`（最新的优化器状态，用来接着训）和各个 `checkpoint_<步数>/`（只存 ControlNet 和手部头权重）。
+checkpoint 里的 `config.json` 写了 `model.cameras`，评测时 planner 据此取相机，直接给 `eval_bigym2.py` 用。
+
+**实测**（A800，move_plate，三路，每步 48）：显存 21.5GB，约 0.6 秒/步，30k 步约 5 小时。

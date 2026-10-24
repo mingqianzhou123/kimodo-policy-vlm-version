@@ -1,0 +1,68 @@
+# Kimodo-VLA on BiGym 2.0: one run per task, the paper's π0.5 protocol
+# (BiGym 2.0 paper, Appendix D-C / Table A5): 60 demos of that task, 30k updates,
+# global batch 48, 1k warmup, cosine decay to 0.1x, score = last five checkpoints.
+#
+#   python scripts/train.py --task move_plate                     # three cameras (main result)
+#   python scripts/train.py --task move_plate --cameras head      # head only (ablation)
+#
+# Architecture and loss follow pt_419h (Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse),
+# so a head-only run with --init-checkpoint pt_419h differs from the scratch run only in its start.
+
+main:
+  task: null                       # --task
+  data_root: ${oc.env:BIGYM2_PREPARED,data/bigym2/prepared84}   # prepare_bigym2.py output; relative to the repo
+  text_cache: data/cache/bigym2    # scripts/cache_text_embeddings.py; relative to the repo
+  save_root: log/bigym2            # relative to the repo
+  max_steps: 30000
+  batch_size: 48                   # per optimizer step
+  micro_batch_size: 48             # lower it if the GPU runs out of memory; gradients accumulate
+  action_chunk: 50
+  action_history: 100
+  seed: 1000                       # π0.5's training seed in the paper
+  dtype: bf16                      # autocast; weights and optimizer stay fp32
+  num_workers: 8
+  log_every: 50
+  checkpoint_every: 5000           # learning curve
+  final_checkpoints: 5             # plus the last five, 1000 steps apart: 26k ... 30k, the ones scored
+  final_checkpoint_spacing: 1000
+  gradient:
+    grad_clip_norm: 1.0            # ControlNet
+    hand_grad_clip_norm: 1.0
+
+model:
+  cameras: [head, right_wrist, left_wrist]   # --cameras; order = token order in the ControlNet
+  fps: 30
+  motion_mask_mode: concat
+  dinov3_model_name: dinov3-vitl16-pretrain-lvd1689m
+  dinov3_checkpoint: null
+  text_feature_dim: 4096
+  controlnet_num_layers: 4
+  controlnet_scale: 1
+  detach_root_control_for_body: true
+  control_fusion_mode: both
+  enable_hand_head: true
+  hand_hidden_dim: 256
+  hand_num_layers: 4
+  hand_num_heads: 4
+  hand_ffn_dim: 1024
+  hand_init_seed: 3407
+  hand_control_mode: binary
+
+training:
+  loss:
+    motion_loss_type: mse
+    mse_weights:
+      root: 4.0
+      body: 1.0
+      hand: 1.0
+      hand_transition: 0.2
+  optimizer:
+    control_backbone_lr: 3.0e-5    # ControlNet transformer layers copied from Kimodo-G1
+    control_adapter_lr: 1.0e-4     # newly initialized image/token projections and zero-init fusion
+    hand_lr: 1.0e-4
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+  scheduler:
+    warmup_steps: 1000
+    min_lr_ratio: 0.1
