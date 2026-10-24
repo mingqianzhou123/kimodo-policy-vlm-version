@@ -5,8 +5,7 @@
         --out outputs/move_plate.json
 
 Fewer than 100 episodes is a smoke run: BiGym then produces no leaderboard record.
-The defaults are our v1 input setup (head camera only, re-rendered at 224x224, as
-pi0.5 did); BiGym treats any camera change as off-protocol and withholds the record.
+The env is the official one (three 84x84 cameras); the planner uses the head camera.
 """
 
 from __future__ import annotations
@@ -33,12 +32,10 @@ def main() -> None:
     parser.add_argument("--execution-frames", type=int, default=50)
     parser.add_argument("--diffusion-steps", type=int, default=10)
     parser.add_argument("--method", default="kimodo-vla")
-    parser.add_argument("--cameras", nargs="+", default=["head"])
-    parser.add_argument("--camera-size", type=int, default=224)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
-    env = make(args.task, camera_keys=tuple(args.cameras), camera_shape=(args.camera_size, args.camera_size))
+    env = make(args.task)
     try:
         policy = make_kimodo_policy(
             env,

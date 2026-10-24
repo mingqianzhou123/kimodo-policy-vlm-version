@@ -143,19 +143,10 @@ def training_episode(env, adapter: BiGym2Adapter, kimodo: KimodoFeatures, episod
     return record, steps
 
 
-def render_frames(render_env, episode: Mapping[str, np.ndarray], steps: np.ndarray, camera: str = "head") -> np.ndarray:
-    """``[len(steps), H, W, 3]`` images of ``camera`` at the given control steps, by kinematic replay.
+def demo_frames(episode: Mapping[str, np.ndarray], steps: np.ndarray) -> np.ndarray:
+    """``[len(steps), cameras, H, W, 3]`` recorded images of every camera at the given control steps.
 
-    ``render_env`` is ``make(task, camera_keys=(camera,), camera_shape=...)``; posing the
-    stored ``full_qpos`` reproduces the recorded scene without running physics.
+    These are the official observations (84x84), the same pixels every baseline
+    trains on; DINOv3's processor upsamples them to 224 inside the model.
     """
-    from bigym.loco.demos.kinematic import pose
-
-    render_env.reset(seed=int(np.asarray(episode["seed"]).reshape(-1)[0]))
-    inner = render_env.inner_env
-    qvel = episode.get("full_qvel")
-    frames = []
-    for step in steps:
-        pose(inner, episode["full_qpos"][step], None if qvel is None else qvel[step])
-        frames.append(np.asarray(inner.get_visual_obs()[f"rgb_{camera}"]).transpose(1, 2, 0))
-    return np.stack(frames)
+    return np.stack([episode["rgb_obs"].decode(int(step)).transpose(0, 2, 3, 1) for step in steps])

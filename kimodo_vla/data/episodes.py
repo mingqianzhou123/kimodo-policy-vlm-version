@@ -2,11 +2,12 @@
 
 A benchmark's preparation script writes one pair of files per demonstration:
 
-* ``<name>.pt``: ``task``, ``instruction``, ``fps`` and, at model rate (``T`` frames),
+* ``<name>.pt``: ``task``, ``instruction``, ``fps``, ``cameras`` (names, in frame order)
+  and, at model rate (``T`` frames),
   ``observed_motion [T, 417]`` with ``observed_mask [417]`` (what the policy is
   conditioned on), ``target_motion [T, 417]`` (what it should output) and
   ``hand [T, 2]`` (gripper commands). Motion features are unnormalized.
-* ``<name>.frames.npy``: ``[T, H, W, 3]`` uint8, the camera image at every frame.
+* ``<name>.frames.npy``: ``[T, cameras, H, W, 3]`` uint8, every camera's image at every frame.
 
 ``KimodoWindowDataset`` cuts these into the samples ``KimodoPolicy`` trains on,
 with the same keys and conventions as the original repository's loader.
@@ -28,8 +29,9 @@ PLANAR_ROOT_FEATURES = (0, 2)  # smooth_root_pos x and z (Kimodo is y-up)
 def save_episode(stem: Path, record: Mapping, frames: np.ndarray) -> None:
     stem.parent.mkdir(parents=True, exist_ok=True)
     frames = np.ascontiguousarray(frames, dtype=np.uint8)
-    if frames.ndim != 4 or frames.shape[0] != record["target_motion"].shape[0] or frames.shape[-1] != 3:
-        raise ValueError(f"frames must be [T, H, W, 3] with T = {record['target_motion'].shape[0]}, got {frames.shape}")
+    expected = (record["target_motion"].shape[0], len(record["cameras"]))
+    if frames.ndim != 5 or frames.shape[:2] != expected or frames.shape[-1] != 3:
+        raise ValueError(f"frames must be [T, cameras, H, W, 3] with (T, cameras) = {expected}, got {frames.shape}")
     torch.save(dict(record), stem.with_suffix(".pt"))
     np.save(stem.with_suffix(".frames.npy"), frames)
 
@@ -49,7 +51,11 @@ def canonicalize_window_translation(gt_motion, condition_motion, condition_mask,
 
 
 class KimodoWindowDataset(Dataset):
-    """Every (episode, cut) with a full future chunk; history is left-padded at the start."""
+    """Every (episode, cut) with a full future chunk; history is left-padded at the start.
+
+    ``egoview`` is ``[3, H, W]`` for one camera (what KimodoPolicy takes today) and
+    ``[len(cameras), 3, H, W]`` for several.
+    """
 
     def __init__(
         self,
@@ -59,15 +65,18 @@ class KimodoWindowDataset(Dataset):
         action_chunk: int = 50,
         text_embeddings: Mapping[str, torch.Tensor] | None = None,
         tasks: Sequence[str] | None = None,
+        cameras: Sequence[str] = ("head",),
     ):
         self.history, self.chunk = int(action_history), int(action_chunk)
         self.text_embeddings = dict(text_embeddings or {})
+        self.cameras = tuple(cameras)
         self.episodes: list[dict] = []
         self.frame_paths: list[Path] = []
         for path in sorted(p for root in roots for p in Path(root).rglob("*.pt")):
             record = torch.load(path, map_location="cpu", weights_only=True)
             if tasks is not None and record["task"] not in tasks:
                 continue
+            record["camera_index"] = [record["cameras"].index(c) for c in self.cameras]
             self.episodes.append(record)
             self.frame_paths.append(path.with_suffix(".frames.npy"))
         if not self.episodes:
@@ -85,7 +94,9 @@ class KimodoWindowDataset(Dataset):
     def _frame(self, e: int, cut: int) -> torch.Tensor:
         if e not in self._frames:  # memory-mapped per worker; only the touched frames are read
             self._frames[e] = np.load(self.frame_paths[e], mmap_mode="r")
-        return torch.from_numpy(np.array(self._frames[e][cut])).permute(2, 0, 1).contiguous()
+        images = torch.from_numpy(np.array(self._frames[e][cut, self.episodes[e]["camera_index"]]))
+        images = images.permute(0, 3, 1, 2).contiguous()
+        return images[0] if len(self.cameras) == 1 else images
 
     def __getitem__(self, i: int) -> dict:
         e, cut = self.index[i]

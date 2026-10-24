@@ -36,7 +36,7 @@ kimodo_vla/
       demos.py      # 演示数据 → 全身动作轨迹（实际执行的 / 操作员指令的）
       policy.py     # make_policy / make_kimodo_policy：交给 BiGym 官方评测器
 scripts/
-  prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 224 头部图像）
+  prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 三路官方 84×84 图像）
   check_bigym2_roundtrip.py # 动作来回转换检查
   eval_bigym2.py            # 按官方协议评测一个 checkpoint
 tests/              # 见第 7 节
@@ -154,10 +154,16 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 - [ ] 训练脚本 `train.py`。
 - [x] 动作来回转换检查（`scripts/check_bigym2_roundtrip.py`，见第 10 节）。
 - [ ] 文本 embedding：用 LLM2Vec 给 20 个任务指令预先算好。
-- [x] 第一版输入：只用头部相机，224×224（从仿真状态重新渲染，和 π0.5 一样在论文里披露）。
-      其他 baseline（ACT、DP、三个 RL 方法、编程 agent）都是 3 路 84×84。
-- [ ] 手腕相机：第二版再做，作为消融。需要改模型结构，因为 Kimodo-Policy 只接一路图像。
-- [ ] 待确认：官方 runner 发现相机设置被改动就不出排行榜记录，要问作者 π0.5 的分数是怎么报的。
+- [x] 输入图像：只用头部相机，官方 84×84，由 DINOv3 预处理在模型内部放大到 224。
+      BiGym 作者澄清：所有方法拿到的都是同样的 84×84 原始数据，π0.5 的 224 也只是模型内部放大，
+      不是重新渲染。评测用官方相机设置，所以官方 runner 会正常出排行榜记录。
+- [x] 训练方式：只用 BiGym 演示从零训练 ControlNet 和手部头，不用我们的 VLA 预训练权重；
+      Kimodo-G1、DINOv3、LLM2Vec 保持冻结。ControlNet 的注入层初始为零，所以训练从原版 Kimodo-G1 起步。
+      用 pt_419h 初始化的一组作为对照。
+- [ ] 手腕相机：在 ControlNet 里改成接三路图像（从零训练，不浪费预训练权重），再做一路/三路消融。
+      训练数据已经存了三路。
+      BiGym 作者确认 π0.5 三路相机都用了，ACT、DP 等也是三路，所以只用头部相机的第一版
+      看到的信息比所有 baseline 都少，手腕相机的优先级要提高。
 
 ## 10. 动作来回转换检查的结论
 
@@ -195,7 +201,9 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 - `<演示名>.pt`（30Hz）：`observed_motion` 是模型看到的历史，由官方观测经 `to_observation`
   和 `KimodoFeatures.history` 得到，和评测走同一段代码；`target_motion` 是要学的目标，
   即操作员指令（见第 10 节）；`hand` 是夹爪指令。
-- `<演示名>.frames.npy`：每个 30Hz 帧对应的头部相机图像，按 224×224 从仿真状态重新渲染。
+- `<演示名>.frames.npy`：每个 30Hz 帧对应的三路相机图像（头部、右腕、左腕），直接取数据集里
+  记录的官方 84×84 图像。`KimodoWindowDataset(cameras=...)` 选用哪几路：一路时 `egoview` 是
+  `[3, H, W]`（现在的 KimodoPolicy），多路时是 `[路数, 3, H, W]`，留给三路输入的 ControlNet 和一路/三路消融。
 
 每个样本 = 100 帧历史 + 50 帧未来 + 切点处的图像，键名和约定与旧仓库的训练数据完全一致，
 `KimodoPolicy.training_kimodo_policy_controlnet` 可以直接用。
@@ -203,8 +211,8 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 **训练和评测一致性**（2026-10-25，A800 上用 move_plate、pick_box 的真实演示验证）：
 - 训练窗口的历史条件与评测时 planner 构造的完全相同：分别对比 22 个和 74 个切点，差值为 0
   （`tests/test_episodes.py` 用合成数据做同样的检查）。
-- 预处理渲染的图像与环境实时渲染的图像逐像素相同：平均差 0–0.001。
+- 训练文件里的三路图像与官方环境评测时实时给出的观测逐像素相同（差为 0）。
 
-**规模**：5 个任务 300 条演示，占 19GB，可切出 112,683 个训练窗口（pick_box 演示最长，独占 57,643 个）。
-20 个任务按这 5 个任务的平均估算，约 80GB。窗口数和演示长度成正比，多任务训练时要考虑按任务均衡采样。
+**规模**：5 个任务 300 条演示，三路 84×84 图像共 8GB，可切出 112,683 个训练窗口（pick_box 演示最长，独占 57,643 个）。
+20 个任务按这 5 个任务的平均估算，约 32GB。窗口数和演示长度成正比，多任务训练时要考虑按任务均衡采样。
 \n

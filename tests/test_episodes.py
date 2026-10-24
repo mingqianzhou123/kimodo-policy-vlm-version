@@ -41,9 +41,12 @@ def write_dataset(tmp_path, observations, planner):
     target = observed + 1.0  # any distinct values; only slicing is under test here
     hand = torch.zeros(frames, 2)
     hand[frames // 2 :, 0] = 1
-    images = np.broadcast_to(np.arange(frames, dtype=np.uint8)[:, None, None, None], (frames, 4, 4, 3))
+    # Pixel value = frame index + 100 * camera index, to check which image a sample gets.
+    images = np.arange(frames, dtype=np.uint8)[:, None] + np.array([0, 100, 200], dtype=np.uint8)[None, :]
+    images = np.broadcast_to(images[:, :, None, None, None], (frames, 3, 4, 4, 3))
     record = {
         "task": "toy", "episode_id": "ep0", "instruction": "pick it", "fps": 30.0,
+        "cameras": ["head", "right_wrist", "left_wrist"],
         "observed_motion": observed, "observed_mask": mask[0].clone(), "target_motion": target, "hand": hand,
     }
     save_episode(tmp_path / "toy" / "ep0", record, images)
@@ -92,3 +95,11 @@ def test_training_history_equals_planner_history(tmp_path):
         torch.testing.assert_close(sample["condition_motion"][100 - n : 100][mask], motion[mask], atol=1e-5, rtol=0)
         checked += 1
     assert checked >= 5
+
+
+def test_camera_selection(tmp_path):
+    _, record = write_dataset(tmp_path, synthetic_episode(steps=200), stub_planner())
+    both = KimodoWindowDataset([tmp_path], cameras=("head", "left_wrist"))
+    images = both[10]["egoview"]
+    assert images.shape == (2, 3, 4, 4)
+    assert int(images[0, 0, 0, 0]) == 10 and int(images[1, 0, 0, 0]) == 210
