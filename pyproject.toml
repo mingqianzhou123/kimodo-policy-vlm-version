@@ -7,7 +7,8 @@ name = "kimodo-vla"
 version = "0.1.0"
 description = "Kimodo-Policy with a benchmark-agnostic agent and thin benchmark adapters"
 requires-python = ">=3.10,<3.13"
-# Versions follow the environment the released Kimodo-Policy checkpoints were trained in.
+# Versions follow the environment the released Kimodo-Policy checkpoints were trained in;
+# transformers and peft are pinned because they define the DINOv3 and LLM2Vec preprocessing.
 dependencies = [
     "numpy>=1.26",
     "scipy>=1.11",
@@ -16,14 +17,15 @@ dependencies = [
     "omegaconf>=2.3",
     "pydantic>=2",
     "safetensors>=0.4",
-    "transformers>=4.43",
-    "peft>=0.12",
+    "transformers==5.1.0",
+    "peft==0.18.1",
     "tqdm",
 ]
 
 [project.optional-dependencies]
 # BiGym 2.0 pins mujoco<3.9; nothing in kimodo_vla itself imports mujoco.
-bigym2 = ["bigym @ git+https://github.com/swirl-uk/BiGym2.git"]
+# Pinned: benchmark numbers are only comparable on the same BiGym substrate.
+bigym2 = ["bigym @ git+https://github.com/swirl-uk/BiGym2.git@d71501359b215b9d78e27dcb70b220412d474dfa"]
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
