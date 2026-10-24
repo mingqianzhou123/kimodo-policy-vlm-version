@@ -3,7 +3,9 @@
     python scripts/summarize_bigym2.py log/bigym2/main9 --out log/bigym2/main9/results.md
 
 A run is a directory with ``config.json`` and ``eval/checkpoint_<step>.json``
-(``scripts/eval_run.py``); its name is ``<task>_<variant>``. The headline is the
+(``scripts/eval_run.py``); its name is ``<task>_<variant>``. Each evaluation setting
+gets its own column: ``eval/`` replans after the whole 1.67 s chunk, ``eval_exec<n>/``
+after n frames at 30 Hz (10 = 0.33 s). The headline is the
 paper's: success over the run's last five checkpoints (26k-30k), pooled over their
 episodes, as for π0.5. Next to it: the final checkpoint, the best checkpoint (it
 consults the evaluation seeds, so appendix only) and the fall rate. A second table
@@ -26,21 +28,33 @@ PI05_MEAN = 75  # as reported; the mean of the rounded entries above is 74.4
 VARIANT_ORDER = ("3cam", "head", "head_pt419h")
 
 
-def load_run(run_dir: Path) -> dict:
+def execution_frames(eval_dir: Path) -> int:
+    return 50 if eval_dir.name == "eval" else int(eval_dir.name.removeprefix("eval_exec"))
+
+
+def load_run(run_dir: Path) -> list[dict]:
+    """One entry per evaluation setting of the run (the default one even before it has results)."""
     config = json.loads((run_dir / "config.json").read_text())
     task = config["main"]["task"]
+    variant = run_dir.name.removeprefix(f"{task}_")
     saved = sorted(int(p.name.removeprefix("checkpoint_")) for p in run_dir.glob("checkpoint_*") if p.is_dir())
-    evals = {}
-    for path in (run_dir / "eval").glob("checkpoint_*.json"):
-        result = json.loads(path.read_text())
-        records = result["episode_records"]
-        evals[int(path.stem.removeprefix("checkpoint_"))] = {
-            "success": sum(r["success"] for r in records),
-            "fell": sum(r["fell"] for r in records),
-            "episodes": len(records),
-        }
-    return {"task": task, "variant": run_dir.name.removeprefix(f"{task}_"), "saved": saved, "evals": evals,
-            "max_steps": config["main"]["max_steps"], "final_checkpoints": config["main"]["final_checkpoints"]}
+    entries = []
+    for eval_dir in [run_dir / "eval", *sorted(run_dir.glob("eval_exec*"))]:
+        evals = {}
+        for path in eval_dir.glob("checkpoint_*.json"):
+            records = json.loads(path.read_text())["episode_records"]
+            evals[int(path.stem.removeprefix("checkpoint_"))] = {
+                "success": sum(r["success"] for r in records),
+                "fell": sum(r["fell"] for r in records),
+                "episodes": len(records),
+            }
+        frames = execution_frames(eval_dir)
+        entries.append({
+            "task": task, "variant": f"{variant}, replan {frames / 30:.2f}s", "base": variant, "frames": frames,
+            "saved": saved, "evals": evals,
+            "max_steps": config["main"]["max_steps"], "final_checkpoints": config["main"]["final_checkpoints"],
+        })
+    return entries
 
 
 def headline(run: dict) -> dict | None:
@@ -75,10 +89,11 @@ def main() -> None:
     parser.add_argument("--out", type=Path, help="also write the tables here (markdown) and the numbers next to it (.json)")
     args = parser.parse_args()
 
-    runs = [load_run(p.parent) for p in sorted(args.root.glob("*/config.json"))]
+    runs = [entry for p in sorted(args.root.glob("*/config.json")) for entry in load_run(p.parent)]
     tasks = [t for t in PI05 if any(r["task"] == t for r in runs)] + sorted({r["task"] for r in runs} - set(PI05))
-    variants = [v for v in VARIANT_ORDER if any(r["variant"] == v for r in runs)]
-    variants += sorted({r["variant"] for r in runs} - set(variants))
+    order = {v: i for i, v in enumerate(VARIANT_ORDER)}
+    columns = sorted({(order.get(r["base"], len(order)), r["base"], -r["frames"], r["variant"]) for r in runs})
+    variants = [column[-1] for column in columns]
     by_key = {(r["task"], r["variant"]): r for r in runs}
     scores = {key: headline(run) for key, run in by_key.items()}
 
