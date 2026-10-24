@@ -13,7 +13,7 @@ scratch unless ``--init-checkpoint`` is given. Samples are the task's
 ``KimodoWindowDataset`` windows, shuffled uniformly; the target is the operator's
 command (``demos.commanded_motion``, written by ``prepare_bigym2.py``).
 
-A run directory ``<save_root>/<task>_<n>cam_<time>/`` holds ``config.json``,
+A run directory (``--run-dir``, or ``<save_root>/<task>_<n>cam_<time>/``) holds ``config.json``,
 ``train.log``, ``metrics.jsonl``, ``resume.pt`` (latest optimizer state) and
 ``checkpoint_<step>/{training_state.pt, config.json}``, which
 ``KimodoPlanner.from_checkpoint`` and ``scripts/eval_bigym2.py`` read;
@@ -76,9 +76,12 @@ def load_config(args) -> tuple:
         config.initialization = {"checkpoint": str(Path(args.init_checkpoint).expanduser().resolve())}
         check_initialization(config)
 
-    name = args.name or f"{config.main.task}_{len(config.model.cameras)}cam{'_init' if args.init_checkpoint else ''}"
-    run_dir = Path(config.main.save_root) / f"{name}_{datetime.now():%Y-%m-%d_%H-%M-%S}"
-    run_dir.mkdir(parents=True)
+    if args.run_dir:
+        run_dir = Path(args.run_dir).expanduser().resolve()
+    else:
+        name = args.name or f"{config.main.task}_{len(config.model.cameras)}cam{'_init' if args.init_checkpoint else ''}"
+        run_dir = Path(config.main.save_root) / f"{name}_{datetime.now():%Y-%m-%d_%H-%M-%S}"
+    run_dir.mkdir(parents=True)  # never mixes two runs; continue one with --resume
     (run_dir / "config.json").write_text(json.dumps(OmegaConf.to_container(config, resolve=True), indent=2))
     return config, run_dir
 
@@ -200,6 +203,7 @@ def main() -> None:
     parser.add_argument("--init-checkpoint", help="start ControlNet and hand head from this checkpoint directory")
     parser.add_argument("--resume", help="run directory to continue")
     parser.add_argument("--name", help="run directory prefix; default <task>_<n>cam")
+    parser.add_argument("--run-dir", help="exact run directory instead of <save_root>/<name>_<time>; must not exist")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("overrides", nargs="*", help="config fields, e.g. main.max_steps=200")
     args = parser.parse_args()
