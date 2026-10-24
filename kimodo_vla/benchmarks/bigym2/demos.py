@@ -9,20 +9,26 @@ whole-body pose trajectory; there are two ways to read one off a demo:
 * ``commanded_motion``: what the operator asked for: the arm and torso-pitch
   targets, and the pelvis path integrated from the base velocity commands.
 
-Which one makes the better training target is exactly what
-``scripts/check_bigym2_roundtrip.py`` measures.
+``scripts/check_bigym2_roundtrip.py`` showed the commanded one is the right
+training target (executed motion applies arm sag twice and fails almost every
+task). ``training_episode`` turns a demo into the files ``kimodo_vla.data``
+trains on.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from types import SimpleNamespace
 from typing import Mapping
 
 import mujoco
 import numpy as np
+import torch
 
 from kimodo_vla.benchmarks.bigym2.adapter import ARM_JOINT_NAMES, BiGym2Adapter
 from kimodo_vla.core.types import G1_JOINT_NAMES, joint_indices, yaw_matrix, yaw_of
+from kimodo_vla.model.features import KimodoFeatures
+from kimodo_vla.motion.g1_reference import resample_hand_binary
 
 
 @dataclass
@@ -96,3 +102,60 @@ def commanded_motion(executed: DemoMotion, episode: Mapping[str, np.ndarray], ac
         root_rot=np.stack([yaw_matrix(float(y)) for y in yaw]),
         joint_pos=joint_pos,
     )
+
+
+def training_episode(env, adapter: BiGym2Adapter, kimodo: KimodoFeatures, episode: Mapping[str, np.ndarray],
+                     action_stats: Mapping[str, list]) -> tuple[dict, np.ndarray]:
+    """One demo as a training record at model rate, plus the control step whose image goes with each frame.
+
+    The history goes through the same ``to_observation`` and ``KimodoFeatures.history``
+    calls as evaluation, so training sees exactly what the policy will see.
+    """
+    no_images = np.zeros((0, 3, 1, 1), np.uint8)
+    observations = []
+    for step, low_dim_obs in enumerate(episode["low_dim_obs"]):
+        obs = adapter.to_observation(SimpleNamespace(low_dim_obs=low_dim_obs, rgb_obs=no_images))
+        obs.step = step
+        observations.append(obs)
+    first_heading = yaw_matrix(float(yaw_of(observations[0].root_rot)))
+    observed, mask, _, _ = kimodo.history(observations, first_heading)
+
+    commanded = commanded_motion(executed_motion(env, episode, action_stats), episode, action_stats, adapter)
+    target = kimodo.target(commanded.joint_pos, commanded.root_pos, commanded.root_rot, first_heading)
+    hand = resample_hand_binary(commanded.hand, adapter.control_fps, kimodo.model_fps)
+    if not (observed.shape == target.shape and hand.shape[0] == target.shape[0]):
+        raise RuntimeError(f"length mismatch: observed {tuple(observed.shape)}, target {tuple(target.shape)}, hand {tuple(hand.shape)}")
+
+    # Frame k of the model-rate grid is control step round(k * control / model): the step at which
+    # evaluation makes its k-th cut (round(step * model / control) == k).
+    steps = np.minimum(
+        np.round(np.arange(target.shape[0]) * adapter.control_fps / kimodo.model_fps).astype(int),
+        len(observations) - 1,
+    )
+    record = {  # the caller adds "task" and "episode_id"
+        "instruction": adapter.instruction,
+        "fps": kimodo.model_fps,
+        "observed_motion": observed.float(),
+        "observed_mask": mask[0].clone(),
+        "target_motion": target.float(),
+        "hand": torch.as_tensor(hand, dtype=torch.float32),
+    }
+    return record, steps
+
+
+def render_frames(render_env, episode: Mapping[str, np.ndarray], steps: np.ndarray, camera: str = "head") -> np.ndarray:
+    """``[len(steps), H, W, 3]`` images of ``camera`` at the given control steps, by kinematic replay.
+
+    ``render_env`` is ``make(task, camera_keys=(camera,), camera_shape=...)``; posing the
+    stored ``full_qpos`` reproduces the recorded scene without running physics.
+    """
+    from bigym.loco.demos.kinematic import pose
+
+    render_env.reset(seed=int(np.asarray(episode["seed"]).reshape(-1)[0]))
+    inner = render_env.inner_env
+    qvel = episode.get("full_qvel")
+    frames = []
+    for step in steps:
+        pose(inner, episode["full_qpos"][step], None if qvel is None else qvel[step])
+        frames.append(np.asarray(inner.get_visual_obs()[f"rgb_{camera}"]).transpose(1, 2, 0))
+    return np.stack(frames)

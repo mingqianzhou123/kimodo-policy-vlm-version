@@ -49,7 +49,7 @@ class BiGym2Adapter:
     pitch_command: bool          # True on the 14 tasks whose action has a torso-pitch slot
     action_low: np.ndarray
     action_high: np.ndarray
-    cameras: tuple[str, ...] = CAMERA_NAMES  # () for state-only tools such as demo replay
+    cameras: tuple[str, ...] = CAMERA_NAMES  # a subset in BiGym's order; () for state-only tools
     control_fps: float = CONTROL_FPS
     # rad/s of yaw-rate command per rad of heading error. Off: replaying the operator's
     # commands through the adapter, gain 2 cut move_plate from 97% to 23% success and
@@ -62,8 +62,8 @@ class BiGym2Adapter:
         if env.config.frame_stack != 1 or env.config.normalize_low_dim_obs:
             raise ValueError("BiGym2Adapter expects frame_stack=1 and raw low_dim_obs")
         cameras = tuple(env.config.camera_keys)
-        if cameras not in (CAMERA_NAMES, ()):
-            raise ValueError(f"unexpected camera order: {cameras}")
+        if cameras != tuple(c for c in CAMERA_NAMES if c in cameras):  # any subset, in BiGym's order
+            raise ValueError(f"unexpected cameras: {cameras}")
         layout = env.wholebody_action_layout()
         if tuple(layout["limb_names"]) != ARM_JOINT_NAMES:
             raise ValueError(f"unexpected BiGym arm order: {layout['limb_names']}")

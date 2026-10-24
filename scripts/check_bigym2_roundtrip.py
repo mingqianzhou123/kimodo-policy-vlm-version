@@ -29,16 +29,9 @@ from kimodo_vla.benchmarks.base import AgentPolicy
 from kimodo_vla.benchmarks.bigym2.adapter import ARM_JOINT_NAMES, BiGym2Adapter
 from kimodo_vla.benchmarks.bigym2.demos import DemoMotion, commanded_motion, executed_motion
 from kimodo_vla.core.agent import Agent
-from kimodo_vla.core.types import ActionChunk, G1_JOINT_NAMES, joint_indices
-from kimodo_vla.model.planner import G1_XML_PATH
-from kimodo_vla.motion.g1_reference import (
-    HumanoidArenaActionDecoder,
-    resample_hand_binary,
-    resample_hand_binary_chunk,
-    resample_motion,
-    resample_motion_chunk,
-)
-from kimodo_vla.skeleton.definitions import G1Skeleton34
+from kimodo_vla.core.types import ActionChunk, joint_indices
+from kimodo_vla.model.features import KimodoFeatures
+from kimodo_vla.motion.g1_reference import resample_hand_binary, resample_hand_binary_chunk, resample_motion_chunk
 
 MODES = ("replay", "executed", "commanded", "direct")
 
@@ -50,11 +43,8 @@ class DemoPlanner:
 
     def __init__(self, motion: DemoMotion, control_fps=50.0, model_fps=30.0, chunk=50):
         self.control_fps, self.model_fps, self.chunk = control_fps, model_fps, chunk
-        self.codec = HumanoidArenaActionDecoder(G1Skeleton34(), G1_XML_PATH, fps=control_fps)
-        pose = self.codec.decode_joint_configuration_pose(
-            motion.joint_pos, motion.root_pos, root_rotation_matrices=motion.root_rot, joint_names=G1_JOINT_NAMES
-        )
-        self.rot, self.root = resample_motion(pose["local_rot_mats"], pose["root_positions"], control_fps, model_fps)
+        self.kimodo = KimodoFeatures(control_fps, model_fps)
+        self.rot, self.root = self.kimodo.motion(motion.joint_pos, motion.root_pos, motion.root_rot)
         self.hand = resample_hand_binary(motion.hand, control_fps, model_fps)
         self.reset()
 
@@ -75,7 +65,7 @@ class DemoPlanner:
             previous_local_rot_mat=previous_rot, previous_root_position=self.root[before],
         )
         control_hand = resample_hand_binary_chunk(hand, self.model_fps, self.control_fps, previous_hand_binary=previous_hand)
-        actions = self.codec.encode(control_rot, control_root, previous_root_position=self.root[before], hand_binary=control_hand)
+        actions = self.kimodo.codec.encode(control_rot, control_root, previous_root_position=self.root[before], hand_binary=control_hand)
         self._previous_rot, self._previous_hand = rot[-1], hand[-1]
         return ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
 

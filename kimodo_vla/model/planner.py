@@ -16,46 +16,10 @@ from typing import Sequence
 import numpy as np
 import torch
 
-from kimodo_vla.core.types import ActionChunk, G1_JOINT_INDEX, G1_JOINT_NAMES, Observation, yaw_matrix, yaw_of
+from kimodo_vla.core.types import ActionChunk, Observation, yaw_matrix, yaw_of
+from kimodo_vla.model.features import KimodoFeatures
 from kimodo_vla.model.kimodo_policy import KimodoPolicy, KimodoPolicyConfig
-from kimodo_vla.motion.g1_reference import (
-    HumanoidArenaActionDecoder,
-    _interpolate_motion,
-    resample_hand_binary_chunk,
-    resample_motion_chunk,
-)
-from kimodo_vla.motion.representation.kimodo_motionrep import KimodoMotionRep
-from kimodo_vla.skeleton.definitions import G1Skeleton34
-
-G1_XML_PATH = Path(__file__).resolve().parents[1] / "skeleton/assets/g1skel34/xml/g1.xml"
-
-
-def history_feature_mask(representation: KimodoMotionRep, joint_mask: np.ndarray) -> torch.Tensor:
-    """Which Kimodo features of a history frame are known from observations.
-
-    Root position is never observed (the policy only sees orientation), so the
-    mask covers the root heading plus the global rotation of every skeleton joint
-    the benchmark reports. Joints it does not report must still be filled with a
-    plausible value by the adapter, since they shift their children's rotations.
-    """
-    mask = torch.zeros(representation.motion_rep_dim, dtype=torch.bool)
-    mask[representation.slice_dict["global_root_heading"]] = True
-    rot = representation.slice_dict["global_rot_data"]
-    skeleton = representation.skeleton
-    observed: dict[str, bool] = {}
-    for j, name in enumerate(skeleton.bone_order_names):
-        parent = skeleton.bone_parents[name]
-        joint = name.replace("_skel", "_joint")
-        if parent is None:
-            observed[name] = True
-        elif joint in G1_JOINT_INDEX:
-            observed[name] = bool(joint_mask[G1_JOINT_INDEX[joint]])
-        else:  # toe and hand end points carry no joint of their own
-            observed[name] = observed[parent]
-        if observed[name]:
-            mask[rot.start + 6 * j : rot.start + 6 * j + 6] = True
-    return mask
-
+from kimodo_vla.motion.g1_reference import resample_hand_binary_chunk, resample_motion_chunk
 
 def load_text_embeddings(cache_dir: str | Path) -> dict[str, torch.Tensor]:
     """Read ``*.pt`` files of ``{task_id, instruction, embedding[, task_name]}``.
@@ -113,8 +77,7 @@ class KimodoPlanner:
         self.history_frames = model.config.action_history
         # Margin: the newest observation is dropped at the prediction cut, and the grid may not align with the window.
         self.history_steps = math.ceil(self.history_frames * self.control_fps / self.model_fps) + 3
-        self.codec = HumanoidArenaActionDecoder(G1Skeleton34(), G1_XML_PATH, fps=self.control_fps)
-        self.state_representation = KimodoMotionRep(G1Skeleton34(), fps=self.model_fps, stats_path=None)
+        self.kimodo = KimodoFeatures(self.control_fps, self.model_fps)
         self.reset()
 
     @classmethod
@@ -163,54 +126,15 @@ class KimodoPlanner:
         self._previous_rot: torch.Tensor | None = None
         self._previous_root: torch.Tensor | None = None
 
-    def encode_history(self, history: Sequence[Observation]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Observations at control rate -> Kimodo features at model rate.
+    def condition_history(self, history: Sequence[Observation]):
+        """The model's history condition ``(motion [H', D], mask [H', D])`` plus the last observed pose.
 
-        Returns ``(features [T, D], feature_mask [T, D], local_rot_mats, root_positions)``;
-        rotations are relative to the episode's first heading, root position is zero.
+        The newest observation sits at the prediction cut, and training conditions
+        on frames ``[cut - H, cut)``, so it is left out (``KimodoWindowDataset`` slices
+        the same way).
         """
-        relative = self._first_heading.T
-        rots = torch.from_numpy(np.stack([relative @ o.root_rot for o in history])).float()
-        joints = torch.from_numpy(np.stack([o.joint_pos for o in history])).float()
-        frames = joints.shape[0]
-        if frames < 5:  # the smooth-root solver needs a few samples; pad, then drop the padding
-            pad = 5 - frames
-            joints = torch.cat((joints, joints[-1:].expand(pad, -1)))
-            rots = torch.cat((rots, rots[-1:].expand(pad, -1, -1)))
-        decoded = self.codec.decode_joint_configuration(
-            joints,
-            torch.zeros(joints.shape[0], 3),
-            root_rotation_matrices=rots,
-            joint_names=G1_JOINT_NAMES,
-        )
-        local_rot, root_pos = self._to_model_rate(
-            decoded["local_rot_mats"][:frames], decoded["root_positions"][:frames], history[0].step
-        )
-        features = self._features(local_rot, root_pos)
-        mask = history_feature_mask(self.state_representation, history[-1].joint_mask)
-        return features, mask.expand_as(features), local_rot, root_pos
-
-    def _to_model_rate(self, local_rot: torch.Tensor, root_pos: torch.Tensor, first_step: int):
-        """Resample onto the model-rate grid anchored at the episode start.
-
-        Training resamples whole episodes, so the grid must not shift with the
-        window; with ``first_step == 0`` this equals ``resample_motion``.
-        """
-        last_step = first_step + local_rot.shape[0] - 1
-        ratio = self.model_fps / self.control_fps
-        first_k = math.ceil(first_step * ratio - 1e-6)
-        last_k = int(round(last_step * ratio))
-        times = torch.arange(first_k, last_k + 1, dtype=torch.float32) / self.model_fps
-        positions = (times * self.control_fps - first_step).clamp(0, local_rot.shape[0] - 1)
-        return _interpolate_motion(local_rot, root_pos, positions)
-
-    def _features(self, local_rot: torch.Tensor, root_pos: torch.Tensor) -> torch.Tensor:
-        frames = local_rot.shape[0]
-        if frames < 5:
-            pad = 5 - frames
-            local_rot = torch.cat((local_rot, local_rot[-1:].expand(pad, -1, -1, -1)))
-            root_pos = torch.cat((root_pos, root_pos[-1:].expand(pad, -1)))
-        return self.state_representation(local_rot, root_pos, to_normalize=False).cpu()[:frames]
+        features, mask, local_rot, root = self.kimodo.history(history, self._first_heading)
+        return features[:-1][-self.history_frames :], mask[:-1][-self.history_frames :], local_rot[-1], root[-1]
 
     def _text_embedding(self, instruction: str) -> torch.Tensor | None:
         embedding = self.text_embeddings.get(instruction.strip())
@@ -226,10 +150,9 @@ class KimodoPlanner:
         device = self.model.device
         dtype = next(self.model.controlnet.parameters()).dtype
 
-        features, mask, state_rot, state_root = self.encode_history(history)
-        # The newest observation sits at the prediction cut; training conditions on [cut - H, cut).
-        history_motion = features[:-1][-self.history_frames :].unsqueeze(0).to(device)
-        history_mask = mask[:-1][-self.history_frames :].unsqueeze(0).to(device)
+        motion, mask, last_rot, last_root = self.condition_history(history)
+        history_motion = motion.unsqueeze(0).to(device)
+        history_mask = mask.unsqueeze(0).to(device)
         hand_history = self._hand_history[:, -history_motion.shape[1] :]
         if hand_history.shape[1] < history_motion.shape[1]:
             pad = torch.zeros(1, history_motion.shape[1] - hand_history.shape[1], 2)
@@ -260,8 +183,8 @@ class KimodoPlanner:
         hand = output["hand_binary"][:n].float().cpu()
 
         # Continue from the last target actually handed out; fall back to the measurement at reset.
-        previous_rot = self._previous_rot if self._previous_rot is not None else state_rot[-1]
-        previous_root = self._previous_root if self._previous_root is not None else state_root[-1]
+        previous_rot = self._previous_rot if self._previous_rot is not None else last_rot
+        previous_root = self._previous_root if self._previous_root is not None else last_root
         if output.get("history_last_root_position") is not None:
             # Root x/z is window-relative: the first delta must start from this window's history end.
             previous_root = output["history_last_root_position"].float().cpu().reshape(3)
@@ -275,7 +198,7 @@ class KimodoPlanner:
         control_hand = resample_hand_binary_chunk(
             hand, source_fps=self.model_fps, target_fps=self.control_fps, previous_hand_binary=previous_hand
         )
-        actions = self.codec.encode(control_rot, control_root, previous_root_position=previous_root, hand_binary=control_hand)
+        actions = self.kimodo.codec.encode(control_rot, control_root, previous_root_position=previous_root, hand_binary=control_hand)
 
         chunk = ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
         chunk.root_rot = np.einsum("ij,tjk->tik", self._first_heading, chunk.root_rot).astype(np.float32)

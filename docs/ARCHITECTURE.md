@@ -23,9 +23,12 @@ kimodo_vla/
     types.py        # Observation、ActionChunk、Planner 接口：全仓库唯一的约定
     agent.py        # Agent：保留最近观测，计划用完就重新规划（与 benchmark、模型都无关）
   model/
+    features.py     # 位姿轨迹 → Kimodo 特征：评测（planner）和训练数据共用同一份转换
     planner.py      # KimodoPlanner：把 KimodoPolicy 包成 Planner（以后 VLM 版本并列放这里）
     kimodo_policy.py, modules/   # 从旧仓库原样迁入，只改了 import 路径
   motion/ skeleton/ utils/       # G1 运动表示、正运动学、几何工具（原样迁入）
+  data/
+    episodes.py     # 训练文件格式 + KimodoWindowDataset（与 benchmark 无关）
   benchmarks/
     base.py         # BenchmarkAdapter 接口 + AgentPolicy（把 Agent 和适配器拼成 policy）
     bigym2/
@@ -33,7 +36,9 @@ kimodo_vla/
       demos.py      # 演示数据 → 全身动作轨迹（实际执行的 / 操作员指令的）
       policy.py     # make_policy / make_kimodo_policy：交给 BiGym 官方评测器
 scripts/
-  eval_bigym2.py    # 按官方协议评测一个 checkpoint
+  prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 224 头部图像）
+  check_bigym2_roundtrip.py # 动作来回转换检查
+  eval_bigym2.py            # 按官方协议评测一个 checkpoint
 tests/              # 见第 7 节
 ```
 
@@ -145,8 +150,8 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 
 ## 9. 还没做的
 
-- [ ] 训练：`data/sources/bigym2.py`（演示 → Kimodo 训练样本，观测要走同一个 `to_observation`，
-      保证训练和评测的掩码一致）和 `train.py`。
+- [x] 训练数据：`scripts/prepare_bigym2.py` + `data/episodes.py`，见第 11 节。
+- [ ] 训练脚本 `train.py`。
 - [x] 动作来回转换检查（`scripts/check_bigym2_roundtrip.py`，见第 10 节）。
 - [ ] 文本 embedding：用 LLM2Vec 给 20 个任务指令预先算好。
 - [x] 第一版输入：只用头部相机，224×224（从仿真状态重新渲染，和 π0.5 一样在论文里披露）。
@@ -181,3 +186,25 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
    它转身和走动多，30Hz 重采样会把路线磨平。所以这套接口的成功率上限约为 94%（5 个任务平均）。
 5. pick_box 直接给 50Hz 也只有 90%：抱 3kg 箱子对接触很敏感，指令上的微小差别就可能失败。
 
+
+
+## 11. 训练数据
+
+**流程**：`prepare_bigym2.py` 把每条演示转成两个文件，`KimodoWindowDataset` 再从中切窗口：
+
+- `<演示名>.pt`（30Hz）：`observed_motion` 是模型看到的历史，由官方观测经 `to_observation`
+  和 `KimodoFeatures.history` 得到，和评测走同一段代码；`target_motion` 是要学的目标，
+  即操作员指令（见第 10 节）；`hand` 是夹爪指令。
+- `<演示名>.frames.npy`：每个 30Hz 帧对应的头部相机图像，按 224×224 从仿真状态重新渲染。
+
+每个样本 = 100 帧历史 + 50 帧未来 + 切点处的图像，键名和约定与旧仓库的训练数据完全一致，
+`KimodoPolicy.training_kimodo_policy_controlnet` 可以直接用。
+
+**训练和评测一致性**（2026-10-25，A800 上用 move_plate、pick_box 的真实演示验证）：
+- 训练窗口的历史条件与评测时 planner 构造的完全相同：分别对比 22 个和 74 个切点，差值为 0
+  （`tests/test_episodes.py` 用合成数据做同样的检查）。
+- 预处理渲染的图像与环境实时渲染的图像逐像素相同：平均差 0–0.001。
+
+**规模**：5 个任务 300 条演示，占 19GB，可切出 112,683 个训练窗口（pick_box 演示最长，独占 57,643 个）。
+20 个任务按这 5 个任务的平均估算，约 80GB。窗口数和演示长度成正比，多任务训练时要考虑按任务均衡采样。
+\n
