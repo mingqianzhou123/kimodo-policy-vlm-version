@@ -27,13 +27,17 @@ kimodo_vla/
     planner.py      # KimodoPlanner：把 KimodoPolicy 包成 Planner（以后 VLM 版本并列放这里）
     kimodo_policy.py, modules/   # 从旧仓库原样迁入，只改了 import 路径
   motion/ skeleton/ utils/       # G1 运动表示、正运动学、几何工具（原样迁入）
+  controllers/
+    groot_wbc.py    # GR00T 系下肢控制器：骨盆轨迹 ↔ 底盘速度/转向角速度/高度指令（双向）
   data/
     episodes.py     # 训练文件格式 + KimodoWindowDataset（与 benchmark 无关）
+    build.py        # 一条演示 → 训练文件（历史、目标、手、帧对齐；与 benchmark 无关）
   benchmarks/
-    base.py         # BenchmarkAdapter 接口 + AgentPolicy（把 Agent 和适配器拼成 policy）
+    base.py         # BenchmarkAdapter、Demonstration 接口 + AgentPolicy（把 Agent 和适配器拼成 policy）
+    replay.py       # DemoPlanner / DirectPlanner：把演示当成「完美预测」回放，检查动作接口
     bigym2/
-      adapter.py    # BiGym 2.0 观测/动作的双向翻译
-      demos.py      # 演示数据 → 全身动作轨迹（实际执行的 / 操作员指令的）
+      adapter.py    # BiGym 2.0 观测/动作的双向翻译（动作只管 BiGym 的布局和归一化）
+      demos.py      # 读 BiGym 演示：实际执行的动作、操作员指令、图像（BiGym2Demo）
       policy.py     # make_policy / make_kimodo_policy：交给 BiGym 官方评测器
 scripts/
   prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 三路官方 84×84 图像）
@@ -42,7 +46,8 @@ scripts/
 tests/              # 见第 7 节
 ```
 
-依赖方向只有一条：`benchmarks → core ← model`。`core/` 和 `model/` 里不出现任何 benchmark 名字。
+依赖方向只有一条：`benchmarks → core ← model`，`benchmarks → controllers、data`。
+`core/`、`model/`、`controllers/`、`data/` 里不出现任何 benchmark 名字。
 
 ## 3. 三个约定（`core/types.py`）
 
@@ -78,27 +83,50 @@ class Planner(Protocol):             # 模型侧唯一需要实现的接口
 
 `ActionChunk.from_array40 / to_array40` 和旧仓库的 40 维动作互转，旧数据和旧 checkpoint 可以直接用。
 
-## 4. Benchmark 适配器（`benchmarks/base.py`）
+## 4. 接一个新 benchmark
+
+两个接口在 `benchmarks/base.py`：
 
 ```python
-class BenchmarkAdapter(Protocol):
+class BenchmarkAdapter(Protocol):     # 评测：原始观测 → Observation，ActionChunk → 环境动作
     control_fps: float
     def reset(self) -> None: ...
     def to_observation(self, raw_obs) -> Observation: ...
     def to_env_action(self, target: ActionChunk, obs: Observation) -> np.ndarray: ...
+
+class Demonstration(Protocol):        # 训练数据：一条演示
+    instruction: str
+    control_fps: float
+    cameras: Sequence[str]
+    def observations(self) -> list[Observation]: ...   # 每个控制步过一遍 to_observation
+    def commanded_motion(self) -> DemoMotion: ...       # 操作员的指令（不是机器人实际执行的动作，见第 10 节）
+    def images(self, steps) -> np.ndarray: ...          # [len(steps), 相机, H, W, 3]
 ```
 
-`AgentPolicy(agent, adapter)` 把两者拼成 `policy(raw_obs) -> env_action`，带 `reset()`。
+`AgentPolicy(agent, adapter)` 把 Agent 和适配器拼成 `policy(raw_obs) -> env_action`，带 `reset()`。
 
-**接一个新 benchmark = 新建 `benchmarks/<name>/adapter.py`（实现上面 3 个函数）
-+ 一个入口函数**。不需要改 `core/`、`model/`。
+清单（不需要改 `core/`、`model/`、`controllers/`、`data/`）：
+
+1. **`benchmarks/<name>/adapter.py`**：实现 `BenchmarkAdapter`。动作里底盘那部分调控制器模块，
+   比如 GR00T 系（GR00T-WBC、GR00T Balance/Walk）就用 `controllers.groot_wbc.BaseCommander`，
+   适配器自己只管动作布局和归一化。以后换底层控制器，只改 `to_env_action` 里这一行调用。
+2. **`benchmarks/<name>/demos.py`**：读这个 benchmark 的演示，每条包成一个 `Demonstration`。
+   如果演示里存的是底盘速度指令，用 `controllers.groot_wbc.pelvis_path` 积分成骨盆轨迹。
+3. **两个薄脚本**：`scripts/prepare_<name>.py`（加载演示 → `data.build.training_episode` →
+   `save_episode`）和 `scripts/check_<name>_roundtrip.py`（用 `benchmarks.replay` 的
+   `DemoPlanner` / `DirectPlanner` 回放演示，统计这个 benchmark 自己的成功判定）。
+   评测脚本照 `eval_<name>.py` 写一个入口即可。不做跨 benchmark 的统一入口。
+4. **`pyproject.toml`**：在 `[project.optional-dependencies]` 加一组 `<name> = [...]`，锁定版本。
+5. **必需的测试**：`tests/test_<name>_adapter.py` 在真实环境里检查观测读数和仿真器一致
+   （参考 `test_bigym2_adapter.py`）；再在真实演示上跑一次来回转换检查，结果记到本文档
+   （参考第 10 节）。
 
 ## 5. BiGym 2.0 适配器具体做什么
 
 | 方向 | 内容 |
 |---|---|
 | 观测 | `low_dim_obs` 按官方布局取出：骨盆 x/y/z/yaw、14 个手臂关节、（开启躯干俯仰的 14 个任务）3 个腰关节、2 个夹爪。腿部关节和（其余任务的）腰关节 `joint_mask=False`、值填 0。实测 WBC 接管腰部时，腰俯仰也只在 0.06 rad 以内。骨盆横滚和俯仰角在官方观测里拿不到，按 0 处理。`rgb_obs` 拆成 head / right_wrist / left_wrist 三张图 |
-| 动作 | `vx, vy` = 第 0 帧位移 × 50Hz；`wz` = 上一步目标朝向到第 0 帧目标朝向的变化率（和位移一样用向后差分，纯前馈，不做朝向闭环）；`height` 直接给；`torso pitch` 取目标腰俯仰关节；14 个手臂关节直接给；手闭合度 ≥ 0.5 → 夹爪合。最后按 `env.wholebody_action_layout()` 归一化到 [-1, 1] |
+| 动作 | 底盘指令由 `controllers.groot_wbc` 算：`vx, vy` = 第 0 帧位移 × 50Hz；`wz` = 上一步目标朝向到第 0 帧目标朝向的变化率（和位移一样用向后差分，纯前馈，不做朝向闭环）；`height` 直接给。适配器负责其余部分：`torso pitch` 取目标腰俯仰关节；14 个手臂关节直接给；手闭合度 ≥ 0.5 → 夹爪合。最后按 `env.wholebody_action_layout()` 归一化到 [-1, 1] |
 | 语言 | 用 BiGym 自带的 `task_instructions.yaml`，和演示数据里的指令一致 |
 
 BiGym 是纯 Python + MuJoCo，模型和环境在同一个进程里跑，不需要 HTTP 服务。
@@ -130,7 +158,7 @@ MUJOCO_GL=egl python scripts/eval_bigym2.py --task move_plate \
 
 ```bash
 pip install -e ".[bigym2,dev]"
-pytest                                                    # 类型、Agent、历史编码、BiGym 适配器
+pytest                                                    # 类型、Agent、历史编码、训练文件、GR00T 指令互逆、BiGym 适配器
 KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   # 与旧推理流程对比
 ```
 
@@ -190,7 +218,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 
 1. **训练目标必须用操作员的指令，不能用机器人实际执行出来的动作。** 把实际动作当目标，
    手臂会再叠加一次重力下垂（平均误差 0.02 rad），除了够取任务以外基本全部失败。
-   `demos.commanded_motion` 就是训练要用的目标。
+   `bigym2/demos.commanded_motion` 就是训练要用的目标（对应 `Demonstration.commanded_motion`）。
 2. **朝向闭环有害，已关闭。** 增益为 2 时 move_plate 掉到 23%，pick_box 掉到 2%：
    它会去纠正 WBC 本来就有的朝向漂移，结果走出和演示不一样的路线。
 3. **转向角速度要和平移一样用向后差分。** 原来用的是向前差分，比操作员提前一步，
@@ -203,7 +231,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest tests/test_port_equivalence.py   #
 
 ## 11. 训练数据
 
-**流程**：`prepare_bigym2.py` 把每条演示转成两个文件，`KimodoWindowDataset` 再从中切窗口：
+**流程**：`prepare_bigym2.py` 把每条演示包成 `BiGym2Demo`，交给 `data/build.training_episode` 转成两个文件，`KimodoWindowDataset` 再从中切窗口：
 
 - `<演示名>.pt`（30Hz）：`observed_motion` 是模型看到的历史，由官方观测经 `to_observation`
   和 `KimodoFeatures.history` 得到，和评测走同一段代码；`target_motion` 是要学的目标，

@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from kimodo_vla.core.types import G1_JOINT_INDEX, Observation, yaw_matrix
+from kimodo_vla.data.build import DemoMotion, training_episode
 from kimodo_vla.data.episodes import KimodoWindowDataset, save_episode
 from kimodo_vla.model.planner import KimodoPlanner
 
@@ -103,3 +104,44 @@ def test_camera_selection(tmp_path):
     images = both[10]["egoview"]
     assert images.shape == (2, 3, 4, 4)
     assert int(images[0, 0, 0, 0]) == 10 and int(images[1, 0, 0, 0]) == 210
+
+
+class SyntheticDemo:
+    """A ``benchmarks.base.Demonstration`` whose commands are exactly what it observed."""
+
+    instruction, control_fps, cameras = "pick it", 50.0, ("head", "right_wrist")
+
+    def __init__(self, observations):
+        self._observations = observations
+
+    def observations(self):
+        return self._observations
+
+    def commanded_motion(self):
+        obs = self._observations
+        return DemoMotion(
+            root_pos=np.stack([o.root_pos for o in obs]), root_rot=np.stack([o.root_rot for o in obs]),
+            joint_pos=np.stack([o.joint_pos for o in obs]), hand=np.zeros((len(obs), 2), np.float32),
+        )
+
+    def images(self, steps):  # pixel value = control step
+        return np.broadcast_to(steps.astype(np.uint8)[:, None, None, None, None], (len(steps), 2, 4, 4, 3))
+
+
+def test_training_episode_from_a_demonstration(tmp_path):
+    planner = stub_planner()
+    observations = synthetic_episode(steps=200)
+    record, frames = training_episode(SyntheticDemo(observations), planner.kimodo, task="toy", episode_id="ep0")
+    frames_count = record["target_motion"].shape[0]
+    assert record["observed_motion"].shape == (frames_count, 417) and record["hand"].shape == (frames_count, 2)
+    assert record["cameras"] == ["head", "right_wrist"] and record["task"] == "toy"
+    # Model frame k carries the image of control step round(k * 50 / 30).
+    assert frames.shape[:2] == (frames_count, 2)
+    assert [int(frames[k, 0, 0, 0, 0]) for k in (0, 1, 2, 3)] == [0, 2, 3, 5]
+    # Commands equal to the observation: the target's rotations are the observed history's.
+    rot = planner.kimodo.representation.slice_dict["global_rot_data"]
+    observed_mask = record["observed_mask"][rot]
+    torch.testing.assert_close(record["target_motion"][:, rot][:, observed_mask],
+                               record["observed_motion"][:, rot][:, observed_mask], atol=1e-5, rtol=0)
+    save_episode(tmp_path / "toy" / "ep0", record, frames)
+    assert len(KimodoWindowDataset([tmp_path])) == frames_count - 50 + 1

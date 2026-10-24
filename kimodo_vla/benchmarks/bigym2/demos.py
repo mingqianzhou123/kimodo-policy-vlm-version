@@ -11,34 +11,22 @@ whole-body pose trajectory; there are two ways to read one off a demo:
 
 ``scripts/check_bigym2_roundtrip.py`` showed the commanded one is the right
 training target (executed motion applies arm sag twice and fails almost every
-task). ``training_episode`` turns a demo into the files ``kimodo_vla.data``
-trains on.
+task). ``BiGym2Demo`` hands a demo to ``kimodo_vla.data.build.training_episode``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from types import SimpleNamespace
-from typing import Mapping
+from typing import Any, Mapping, Sequence
 
 import mujoco
 import numpy as np
-import torch
 
 from kimodo_vla.benchmarks.bigym2.adapter import ARM_JOINT_NAMES, BiGym2Adapter
-from kimodo_vla.core.types import G1_JOINT_NAMES, joint_indices, yaw_matrix, yaw_of
-from kimodo_vla.model.features import KimodoFeatures
-from kimodo_vla.motion.g1_reference import resample_hand_binary
-
-
-@dataclass
-class DemoMotion:
-    """Row ``t`` is the pose at control step ``t`` of the episode (50 Hz)."""
-
-    root_pos: np.ndarray   # (T, 3)
-    root_rot: np.ndarray   # (T, 3, 3)
-    joint_pos: np.ndarray  # (T, 29) G1_JOINT_NAMES order
-    hand: np.ndarray       # (T, 2) commanded gripper, 0 open / 1 closed
+from kimodo_vla.controllers.groot_wbc import BaseCommand, pelvis_path
+from kimodo_vla.core.types import G1_JOINT_NAMES, Observation, joint_indices, yaw_of
+from kimodo_vla.data.build import DemoMotion
 
 
 def raw_actions(episode: Mapping[str, np.ndarray], action_stats: Mapping[str, list]) -> np.ndarray:
@@ -80,67 +68,15 @@ def commanded_motion(executed: DemoMotion, episode: Mapping[str, np.ndarray], ac
     """``executed`` with the arms, torso pitch and pelvis path replaced by the commands."""
     raw = raw_actions(episode, action_stats)
     raw[0] = raw[1]
-    dt = 1.0 / adapter.control_fps
-    vx, vy, height, wz = raw[:, 0], raw[:, 1], raw[:, 2], raw[:, 3]
     base_dim = 5 if adapter.pitch_command else 4
-
-    yaw = yaw_of(executed.root_rot[0]) + np.concatenate([[0.0], np.cumsum(wz[1:]) * dt])
-    root_pos = np.zeros_like(executed.root_pos)
-    root_pos[0] = executed.root_pos[0]
-    for t in range(1, len(raw)):
-        heading = yaw_matrix(float(yaw[t]))[:2, :2]
-        root_pos[t, :2] = root_pos[t - 1, :2] + heading @ np.array([vx[t], vy[t]]) * dt
-    root_pos[:, 2] = height
+    base = BaseCommand(vx=raw[:, 0], vy=raw[:, 1], yaw_rate=raw[:, 3], height=raw[:, 2])
+    root_pos, root_rot = pelvis_path(base, executed.root_pos[0], yaw_of(executed.root_rot[0]), adapter.control_fps)
 
     joint_pos = executed.joint_pos.copy()
     joint_pos[:, joint_indices(ARM_JOINT_NAMES)] = raw[:, base_dim : base_dim + 14]
     if adapter.pitch_command:
         joint_pos[:, joint_indices(["waist_pitch_joint"])[0]] = raw[:, 4]
-    return replace(
-        executed,
-        root_pos=root_pos.astype(np.float32),
-        root_rot=np.stack([yaw_matrix(float(y)) for y in yaw]),
-        joint_pos=joint_pos,
-    )
-
-
-def training_episode(env, adapter: BiGym2Adapter, kimodo: KimodoFeatures, episode: Mapping[str, np.ndarray],
-                     action_stats: Mapping[str, list]) -> tuple[dict, np.ndarray]:
-    """One demo as a training record at model rate, plus the control step whose image goes with each frame.
-
-    The history goes through the same ``to_observation`` and ``KimodoFeatures.history``
-    calls as evaluation, so training sees exactly what the policy will see.
-    """
-    no_images = np.zeros((0, 3, 1, 1), np.uint8)
-    observations = []
-    for step, low_dim_obs in enumerate(episode["low_dim_obs"]):
-        obs = adapter.to_observation(SimpleNamespace(low_dim_obs=low_dim_obs, rgb_obs=no_images))
-        obs.step = step
-        observations.append(obs)
-    first_heading = yaw_matrix(float(yaw_of(observations[0].root_rot)))
-    observed, mask, _, _ = kimodo.history(observations, first_heading)
-
-    commanded = commanded_motion(executed_motion(env, episode, action_stats), episode, action_stats, adapter)
-    target = kimodo.target(commanded.joint_pos, commanded.root_pos, commanded.root_rot, first_heading)
-    hand = resample_hand_binary(commanded.hand, adapter.control_fps, kimodo.model_fps)
-    if not (observed.shape == target.shape and hand.shape[0] == target.shape[0]):
-        raise RuntimeError(f"length mismatch: observed {tuple(observed.shape)}, target {tuple(target.shape)}, hand {tuple(hand.shape)}")
-
-    # Frame k of the model-rate grid is control step round(k * control / model): the step at which
-    # evaluation makes its k-th cut (round(step * model / control) == k).
-    steps = np.minimum(
-        np.round(np.arange(target.shape[0]) * adapter.control_fps / kimodo.model_fps).astype(int),
-        len(observations) - 1,
-    )
-    record = {  # the caller adds "task" and "episode_id"
-        "instruction": adapter.instruction,
-        "fps": kimodo.model_fps,
-        "observed_motion": observed.float(),
-        "observed_mask": mask[0].clone(),
-        "target_motion": target.float(),
-        "hand": torch.as_tensor(hand, dtype=torch.float32),
-    }
-    return record, steps
+    return replace(executed, root_pos=root_pos, root_rot=root_rot, joint_pos=joint_pos)
 
 
 def demo_frames(episode: Mapping[str, np.ndarray], steps: np.ndarray) -> np.ndarray:
@@ -150,3 +86,38 @@ def demo_frames(episode: Mapping[str, np.ndarray], steps: np.ndarray) -> np.ndar
     trains on; DINOv3's processor upsamples them to 224 inside the model.
     """
     return np.stack([episode["rgb_obs"].decode(int(step)).transpose(0, 2, 3, 1) for step in steps])
+
+
+@dataclass
+class BiGym2Demo:
+    """One BiGym demo as a ``benchmarks.base.Demonstration``."""
+
+    env: Any
+    adapter: BiGym2Adapter
+    episode: Mapping[str, np.ndarray]
+    action_stats: Mapping[str, list]
+    cameras: Sequence[str]  # the dataset's camera_keys, in rgb_obs order
+
+    @property
+    def instruction(self) -> str:
+        return self.adapter.instruction
+
+    @property
+    def control_fps(self) -> float:
+        return self.adapter.control_fps
+
+    def observations(self) -> list[Observation]:
+        no_images = np.zeros((0, 3, 1, 1), np.uint8)
+        observations = []
+        for step, low_dim_obs in enumerate(self.episode["low_dim_obs"]):
+            obs = self.adapter.to_observation(SimpleNamespace(low_dim_obs=low_dim_obs, rgb_obs=no_images))
+            obs.step = step
+            observations.append(obs)
+        return observations
+
+    def commanded_motion(self) -> DemoMotion:
+        executed = executed_motion(self.env, self.episode, self.action_stats)
+        return commanded_motion(executed, self.episode, self.action_stats, self.adapter)
+
+    def images(self, steps: np.ndarray) -> np.ndarray:
+        return demo_frames(self.episode, steps)
