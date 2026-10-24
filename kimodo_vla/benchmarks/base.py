@@ -33,6 +33,7 @@ class Demonstration(Protocol):
     instruction: str
     control_fps: float
     cameras: Sequence[str]  # names, in the order of ``images``
+    hand_mode: str          # "binary" (open/closed) or "continuous" (closure in [0, 1])
 
     def observations(self) -> list[Observation]:
         """``to_observation`` at every control step, ``step`` filled in; images may be left out."""

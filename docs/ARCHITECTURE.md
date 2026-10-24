@@ -363,7 +363,7 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest   # 另外跑与旧代码的对比
 | 通用服务 | `benchmarks/server.py`、`Agent.observe/replan` | `test_server.py`：真实 HTTP，两种编码、错误返回 |
 | Arena | `benchmarks/arena/`、`scripts/serve_arena.py` | `test_arena_port.py`：同一串请求喂给旧服务和新服务，SONIC、SONIC + RTC、TWIST2 三种设置，40 维回复差 < 1e-5 |
 | SIMPLE | `benchmarks/simple/`、`controllers/decoupled_wbc.py`、`scripts/serve_simple.py` | `test_simple_port.py`：二值手、连续手两种权重，40 维和 36 维回复差 < 1e-5；手部防抖状态机用 400 次随机重规划逐帧对比，完全一致 |
-| ToolBench | `benchmarks/toolbench/`、`scripts/serve_toolbench.py` | `test_toolbench_adapter.py`：32 维状态读取、补全的历史、36 维布局、会话规则（409、`/release`、`/info`）。没有旧代码可比 |
+| ToolBench | `benchmarks/toolbench/`、`scripts/serve_toolbench.py`、`scripts/prepare_toolbench.py` | `test_toolbench_adapter.py`：32 维状态读取、补全的历史、36 维布局、会话规则（409、`/release`、`/info`）。`test_toolbench_demos.py`：训练数据里的历史和评测时适配器报告的逐步相同；从演示的指令轨迹重建出的 36 维指令就是记录下来的指令。没有旧代码可比 |
 
 ToolBench 每次请求只给一个状态，评测器却在两次请求之间执行完整段动作。适配器把中间这些步用我们发出的
 目标补上（朝向也用我们发出的目标朝向），这样历史仍然每个控制步一条。训练数据必须按同样方式构造。
@@ -375,7 +375,26 @@ ToolBench 每次请求只给一个状态，评测器却在两次请求之间执�
 
 - SIMPLE 同进程评测：旧代码的 `--eval` 在 SIMPLE 自己的环境里跑仿真和模型。新代码的 `ChunkPolicy` 可以直接调用，
   但还需要在 SIMPLE 的评测循环里接上（它的环境依赖和我们的不同，要实际装环境才能做）。
-- ToolBench 的训练数据（`benchmarks/toolbench/demos.py`、`scripts/prepare_toolbench.py`）和演示回放检查。
-  回放检查要决定：转向开关怎么设、`root_boundary` 用哪个（现在先按 SIMPLE 用外推）、手的闭合姿态
-  （现在先用 SIMPLE 遥操作的姿态）。
+- ToolBench 在仿真里的演示回放检查（成功率）。需要在 A800 上装 ToolBench 的仿真环境，并把录制时的场景
+  （`episodes.jsonl` 里的 `dr_state_dict`）恢复出来；`root_boundary` 等这个检查再定（现在先按 SIMPLE 用外推）。
+
+### ToolBench 训练数据（2026-10-26）
+
+读 ToolBook（`snupilab/humanoidtoolbench-teleop`，revision 8b2cd31e）的 `raw/` 录制，`scripts/prepare_toolbench.py`
+生成和 BiGym 同格式的训练文件。看了 12 条真实演示后定下的几点：
+
+- **训练目标是操作员指令**（和 BiGym 一样）：手臂、躯干、手来自 `action`，骨盆高度和行走来自 `teleop.*`。
+  录制的第 t 行是第 t+1 步的目标。HumanoidToolBench 官方 ACT 模型的数据说明也是这么转换的。
+- **转向开关照操作员的用法**：操作员只在转身时打开开关（0–5% 的帧），值就是转身角速度，其余时间为 0，
+  朝向不被跟踪、会自然漂移约 ±0.3 rad。所以默认 `turn="operator"`：规划出的朝向在转、且角速度 ≥ 0.1 rad/s
+  时才开；一直开等于朝向闭环，BiGym 上证明有害。12 条演示里我们和操作员的开关在 98.8–100% 的帧上一致。
+- **目标朝向是世界系的绝对角**：三个场景都让机器人以 -90° 出生，适配器加上这个固定偏移。
+- **手的闭合姿态是 ToolBench 自己的**：操作员的手指令基本是开/合两种，中间有很短的过渡；闭合姿态和 SIMPLE 不同
+  （右手有一部分录制用了 SIMPLE 的姿态，换算后拇指最多差 0.5 rad）。闭合度按连续值存。
+- **历史和评测一致**：评测器每段动作只给一次状态，所以训练历史也是每 83 步（50 个模型帧）一个实测状态、
+  中间用指令补齐，朝向一律用指令朝向。
+- **图像**：头部相机 360×640，训练数据和评测时都先缩到 224×224（同一个函数），所以 DINOv3 看到的像素相同。
+  一条 21 秒的演示约 97MB，全部 ToolBook 估计 350–400GB。
+
+把演示的指令经适配器换回 36 维指令（不跑仿真）：速度、朝向、手臂与记录的差 < 3e-6。
 

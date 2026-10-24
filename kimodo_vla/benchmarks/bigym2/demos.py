@@ -97,6 +97,7 @@ class BiGym2Demo:
     episode: Mapping[str, np.ndarray]
     action_stats: Mapping[str, list]
     cameras: Sequence[str]  # the dataset's camera_keys, in rgb_obs order
+    hand_mode = "binary"    # two-finger grippers
 
     @property
     def instruction(self) -> str:

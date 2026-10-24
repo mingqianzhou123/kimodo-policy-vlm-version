@@ -9,17 +9,16 @@ import numpy as np
 import pytest
 
 from kimodo_vla.benchmarks.server import NUMPY_JSON, make_server
-from kimodo_vla.benchmarks.simple import hands
-from kimodo_vla.benchmarks.toolbench.adapter import ToolBenchAdapter
+from kimodo_vla.benchmarks.toolbench.adapter import CLOSED_HANDS, SPAWN_YAW, measured_observation
 from kimodo_vla.benchmarks.toolbench.policy import make_policy, routes
 from kimodo_vla.core.types import G1_JOINT_INDEX, ActionChunk, yaw_matrix, yaw_of
 
 
 def state(arm=0.1, closure=(1.0, 0.0)):
     values = np.zeros(32, np.float32)
-    left = hands.CONTINUOUS_LEFT_CLOSE * closure[0]
+    left = CLOSED_HANDS[0] * closure[0]
     values[0:7] = np.concatenate([left[:3], left[5:7], left[3:5]])  # the command order: thumb, middle, index
-    values[7:14] = hands.CONTINUOUS_RIGHT_CLOSE * closure[1]
+    values[7:14] = CLOSED_HANDS[1] * closure[1]
     values[14:28] = arm + 0.01 * np.arange(14)
     values[28:31] = [0.01, 0.02, 0.03]
     values[31] = 0.74
@@ -54,7 +53,7 @@ class TurningPlanner:
 
 
 def test_state_layout():
-    obs = ToolBenchAdapter().measured(state(), "x", None)
+    obs = measured_observation(state(), 0.0, "x")
     assert obs.joint_pos[G1_JOINT_INDEX["left_shoulder_pitch_joint"]] == pytest.approx(0.1)
     assert obs.joint_pos[G1_JOINT_INDEX["right_wrist_yaw_joint"]] == pytest.approx(0.23)
     assert obs.joint_pos[G1_JOINT_INDEX["waist_roll_joint"]] == pytest.approx(0.01)
@@ -76,7 +75,7 @@ def test_history_is_filled_with_the_sent_targets_and_heading():
     # The newest observation is measured, facing the last heading we commanded.
     assert history[-1].joint_pos[G1_JOINT_INDEX["left_shoulder_pitch_joint"]] == pytest.approx(0.2)
     assert float(yaw_of(history[-1].root_rot)) == pytest.approx(0.1, abs=1e-6)
-    assert float(second[0, 35]) == pytest.approx(0.12, abs=1e-6)
+    assert float(second[0, 35]) == pytest.approx(0.12 + SPAWN_YAW, abs=1e-6)  # absolute: the robot spawns facing -90 degrees
 
 
 def test_command_layout():
@@ -87,10 +86,11 @@ def test_command_layout():
     np.testing.assert_allclose(command[0, 14], joints[G1_JOINT_INDEX["left_shoulder_pitch_joint"]], atol=1e-6)
     np.testing.assert_allclose(command[0, 27], joints[G1_JOINT_INDEX["right_wrist_yaw_joint"]], atol=1e-6)
     np.testing.assert_allclose(command[0, 28:31], joints[[G1_JOINT_INDEX[n] for n in ("waist_roll_joint", "waist_pitch_joint", "waist_yaw_joint")]], atol=1e-6)
-    np.testing.assert_allclose(command[0, 31:35], [0.72, 0.3, 0.1, 1.0], atol=1e-5)
-    left = hands.CONTINUOUS_LEFT_CLOSE * 0.5
+    # Turning at 1 rad/s: the operator-style flag is the rate.
+    np.testing.assert_allclose(command[0, 31:35], [0.72, 0.3, 0.1, 1.0], atol=1e-4)
+    left = CLOSED_HANDS[0] * 0.5
     np.testing.assert_allclose(command[0, 0:7], np.concatenate([left[:3], left[5:7], left[3:5]]), atol=1e-6)
-    np.testing.assert_allclose(command[0, 7:14], hands.CONTINUOUS_RIGHT_CLOSE * 0.5, atol=1e-6)
+    np.testing.assert_allclose(command[0, 7:14], CLOSED_HANDS[1] * 0.5, atol=1e-6)
 
 
 @pytest.fixture

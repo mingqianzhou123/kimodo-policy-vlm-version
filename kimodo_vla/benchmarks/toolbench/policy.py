@@ -22,8 +22,8 @@ SESSION_IDLE_SECONDS = 60.0
 ANONYMOUS_SESSION = "anonymous"
 
 
-def make_policy(planner, hand_mode: str = "continuous", turn_flag: float = 1.0) -> ChunkPolicy:
-    return ChunkPolicy(Agent(planner), ToolBenchAdapter(hand_mode, turn_flag))
+def make_policy(planner, turn: str | float = "operator") -> ChunkPolicy:
+    return ChunkPolicy(Agent(planner), ToolBenchAdapter(turn))
 
 
 def routes(policy: ChunkPolicy, *, name: str = "kimodo-vla", checkpoint: str | None = None,
@@ -85,15 +85,15 @@ def make_kimodo_policy(
     execution_frames: int = 50,
     diffusion_steps: int = 10,
     rtc: bool = False,
-    turn_flag: float = 1.0,
+    turn: str | float = "operator",
     root_boundary: str = "extrapolate",
 ) -> ChunkPolicy:
-    """``turn_flag`` and ``root_boundary`` are first guesses (SIMPLE's controller family, heading tracked);
-    the round-trip check on ToolBench demos decides them."""
+    """``root_boundary`` follows SIMPLE (same controller, no root position in the state) until the
+    round-trip check on ToolBook demos says otherwise."""
     from kimodo_vla.model.planner import KimodoPlanner
 
     planner = KimodoPlanner.from_checkpoint(
         checkpoint_dir, text_embedding_cache, device=device, dtype=dtype, control_fps=CONTROL_FPS,
         execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc=rtc, root_boundary=root_boundary,
     )
-    return make_policy(planner, planner.hand_mode, turn_flag)
+    return make_policy(planner, turn)

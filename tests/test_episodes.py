@@ -109,7 +109,7 @@ def test_camera_selection(tmp_path):
 class SyntheticDemo:
     """A ``benchmarks.base.Demonstration`` whose commands are exactly what it observed."""
 
-    instruction, control_fps, cameras = "pick it", 50.0, ("head", "right_wrist")
+    instruction, control_fps, cameras, hand_mode = "pick it", 50.0, ("head", "right_wrist"), "binary"
 
     def __init__(self, observations):
         self._observations = observations

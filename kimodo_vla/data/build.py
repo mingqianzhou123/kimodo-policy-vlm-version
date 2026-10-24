@@ -14,7 +14,7 @@ import torch
 
 from kimodo_vla.core.types import yaw_matrix, yaw_of
 from kimodo_vla.model.features import KimodoFeatures
-from kimodo_vla.motion.g1_reference import resample_hand_binary
+from kimodo_vla.motion.g1_reference import resample_hand_binary, resample_hand_continuous
 
 if TYPE_CHECKING:
     from kimodo_vla.benchmarks.base import Demonstration
@@ -27,7 +27,7 @@ class DemoMotion:
     root_pos: np.ndarray   # (T, 3)
     root_rot: np.ndarray   # (T, 3, 3)
     joint_pos: np.ndarray  # (T, 29) G1_JOINT_NAMES order
-    hand: np.ndarray       # (T, 2) commanded closure, 0 open / 1 closed
+    hand: np.ndarray       # (T, 2) commanded closure, 0 open / 1 closed (in between for continuous hands)
 
 
 def training_episode(demo: "Demonstration", kimodo: KimodoFeatures, *, task: str, episode_id: str) -> tuple[dict, np.ndarray]:
@@ -44,7 +44,8 @@ def training_episode(demo: "Demonstration", kimodo: KimodoFeatures, *, task: str
 
     commanded = demo.commanded_motion()
     target = kimodo.target(commanded.joint_pos, commanded.root_pos, commanded.root_rot, first_heading)
-    hand = resample_hand_binary(commanded.hand, demo.control_fps, kimodo.model_fps)
+    resample_hand = resample_hand_continuous if demo.hand_mode == "continuous" else resample_hand_binary
+    hand = resample_hand(commanded.hand, demo.control_fps, kimodo.model_fps)
     if not (observed.shape == target.shape and hand.shape[0] == target.shape[0]):
         raise RuntimeError(f"length mismatch: observed {tuple(observed.shape)}, target {tuple(target.shape)}, hand {tuple(hand.shape)}")
 

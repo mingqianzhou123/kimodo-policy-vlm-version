@@ -81,9 +81,18 @@ def pelvis_path(commands: BaseCommand, start_pos: np.ndarray, start_yaw: float, 
     difference of ``base_command``), so row 0 is the start pose and its velocity and
     yaw rate are unused; the height is taken as commanded on every row.
     """
-    dt = 1.0 / fps
     vx, vy, yaw_rate, height = commands
-    yaw = start_yaw + np.concatenate([[0.0], np.cumsum(yaw_rate[1:]) * dt])
+    yaw = start_yaw + np.concatenate([[0.0], np.cumsum(yaw_rate[1:]) * (1.0 / fps)])
+    return path_from_headings(vx, vy, yaw, height, start_pos, fps)
+
+
+def path_from_headings(vx: np.ndarray, vy: np.ndarray, yaw: np.ndarray, height: np.ndarray, start_pos: np.ndarray,
+                       fps: float) -> tuple[np.ndarray, np.ndarray]:
+    """Integrate body-frame velocities along given headings (``(T,)`` each), as ``pelvis_path``.
+
+    Row ``t`` moves from pose ``t - 1`` to pose ``t`` in heading ``yaw[t]``; row 0 is ``start_pos``.
+    """
+    dt = 1.0 / fps
     root_pos = np.zeros((len(height), 3), np.float32)
     root_pos[0] = start_pos
     for t in range(1, len(height)):
