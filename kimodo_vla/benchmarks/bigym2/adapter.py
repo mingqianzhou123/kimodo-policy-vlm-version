@@ -35,12 +35,15 @@ CAMERA_NAMES = ("head", "right_wrist", "left_wrist")
 CONTROL_FPS = 50.0
 
 
-def task_instruction(task: str) -> str:
-    """The sentence BiGym stamps into its LeRobot demonstrations for ``task``."""
+def task_instructions() -> dict[str, str]:
+    """Task name -> the sentence BiGym stamps into its LeRobot demonstrations (``task_instructions.yaml``)."""
     import bigym.loco.demos as demos
 
-    table = yaml.safe_load((Path(demos.__file__).parent / "task_instructions.yaml").read_text())
-    return table[task.removesuffix("_g1")]
+    return yaml.safe_load((Path(demos.__file__).parent / "task_instructions.yaml").read_text())
+
+
+def task_instruction(task: str) -> str:
+    return task_instructions()[task.removesuffix("_g1")]
 
 
 @dataclass
