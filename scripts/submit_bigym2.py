@@ -7,7 +7,7 @@
         --variants 3cam --gpus-per-train 8 --execution-frames 50 --eval-watch
 
 Per (task, variant) the run directory is ``<out>/<task>_<variant>``: one training job
-(``--gpus-per-train`` GPUs; ``torchrun`` above one), then per evaluation setting two
+(``--gpus-per-train`` GPUs; ``torch.distributed.run`` above one), then per evaluation setting two
 evaluation jobs that start once it succeeds, each scoring five checkpoints at a time on
 1 GPU: the scored ones (the headline) and the rest (learning curve). With
 ``--eval-watch`` there is instead one evaluation job per setting that starts with the
@@ -99,7 +99,8 @@ def main() -> None:
     final = score_steps(config)
     curve = [s for s in steps if s not in final]
     gpus = args.gpus_per_train
-    trainer = ["python"] if gpus == 1 else ["torchrun", "--standalone", f"--nproc_per_node={gpus}"]
+    # torchrun's launcher script points at the login node's Python; the module works on every node
+    trainer = ["python"] if gpus == 1 else ["python", "-m", "torch.distributed.run", "--standalone", f"--nproc_per_node={gpus}"]
     config_args = [] if args.config.resolve() == DEFAULT_CONFIG else ["--config", str(args.config.resolve())]
     queued = queued_jobs()
     for task in args.tasks:
