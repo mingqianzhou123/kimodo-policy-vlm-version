@@ -1,12 +1,14 @@
-"""Migration check: feed the same episode to the original HumanoidArena runtime and to Agent+KimodoPlanner.
+"""Migration check: feed the same episode to the original HumanoidArena runtime and to KimodoPlanner.
 
 A fake model records its inputs and returns input-dependent outputs, so the history
 encoding is compared without checkpoints. Actions and the hand history differ on
 purpose (KimodoPlanner samples predictions at the true control time, the original ran
-one model frame behind; see tests/test_planner_timing.py), so only their size is checked.
+one model frame behind; see tests/test_planner_timing.py), and so do the moments plans
+run out; the new planner is therefore asked to plan at the steps the original did.
 """
 
 import base64
+from collections import deque
 import os
 import sys
 import threading
@@ -22,7 +24,6 @@ if not OLD_REPO:
 sys.path.insert(0, OLD_REPO)
 import evaluation.humanoidarena_server as arena  # noqa: E402
 
-from kimodo_vla.core.agent import Agent  # noqa: E402
 from kimodo_vla.core.types import ActionChunk, Observation, yaw_matrix, G1_JOINT_NAMES  # noqa: E402
 from kimodo_vla.model.planner import KimodoPlanner  # noqa: E402
 from kimodo_vla.motion.representation.kimodo_motionrep import KimodoMotionRep  # noqa: E402
@@ -110,8 +111,8 @@ def test_planner_matches_original_runtime():
     # Original runtime: the client sends every state since its previous request.
     old_model = FakeModel()
     rt = old_runtime(old_model)
-    old_actions, pending, cursor, plan = [], [], 0, None
-    for yaw, joints, image in data:
+    pending, cursor, plan, plan_steps = [], 0, None, []
+    for step, (yaw, joints, image) in enumerate(data):
         relative = first.T @ yaw_matrix(yaw)
         pending.append(np.concatenate([relative[:, :2].reshape(6), joints, np.zeros(29, np.float32)]))
         if plan is None or cursor >= len(plan):
@@ -124,23 +125,21 @@ def test_planner_matches_original_runtime():
                 },
             }
             plan, cursor, pending = rt.infer(payload), 0, []
-        old_actions.append(plan[cursor])
+            plan_steps.append(step)
         cursor += 1
 
-    # New code path.
+    # New code path, planning at the same steps.
     new_model = FakeModel()
     planner = KimodoPlanner(new_model, {"do it": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=50)
-    agent = Agent(planner)
-    agent.reset()
-    new_actions = []
-    for yaw, joints, image in data:
-        obs = Observation(
+    planner.reset()
+    history = deque(maxlen=planner.history_steps)
+    for step, (yaw, joints, image) in enumerate(data):
+        history.append(Observation(
             images={"head": image}, root_pos=np.zeros(3, np.float32), root_rot=yaw_matrix(yaw),
-            joint_pos=joints, joint_mask=np.ones(29, bool), hand=np.zeros(2, np.float32), instruction="do it",
-        )
-        target = agent.step(obs)[0:1]
-        target.root_rot = np.einsum("ij,tjk->tik", first.T, target.root_rot)
-        new_actions.append(target.to_array40()[0])
+            joint_pos=joints, joint_mask=np.ones(29, bool), hand=np.zeros(2, np.float32), instruction="do it", step=step,
+        ))
+        if step in plan_steps:
+            planner.plan(list(history))
 
     assert len(old_model.calls) == len(new_model.calls), (len(old_model.calls), len(new_model.calls))
     worst = {}
@@ -150,10 +149,8 @@ def test_planner_matches_original_runtime():
                 raise AssertionError(f"call {i} {key}: shape {tuple(a[key].shape)} vs {tuple(b[key].shape)}")
             diff = float((a[key].float() - b[key].float()).abs().max()) if a[key].numel() else 0.0
             worst[key] = max(worst.get(key, 0.0), diff)
-    action_diff = float(np.abs(np.stack(old_actions) - np.stack(new_actions)).max())
     print(f"plans: {len(new_model.calls)}  history length per plan: {[c['motion'].shape[1] for c in new_model.calls]}")
     print("max |old - new| model inputs:", {k: f"{v:.2e}" for k, v in worst.items()})
-    print(f"max |old - new| over {len(new_actions)} executed 40-D actions: {action_diff:.2e}")
     assert all(v < 1e-4 for v in worst.values())
     assert all(a["hand"].shape == b["hand"].shape for a, b in zip(old_model.calls, new_model.calls))
 
