@@ -18,7 +18,13 @@ import numpy as np
 from kimodo_vla.core.types import ActionChunk
 from kimodo_vla.data.build import DemoMotion
 from kimodo_vla.model.features import KimodoFeatures
-from kimodo_vla.motion.g1_reference import resample_hand_binary, resample_hand_binary_chunk, resample_motion_chunk
+from kimodo_vla.motion.g1_reference import (
+    resample_hand_binary,
+    resample_hand_binary_chunk,
+    resample_hand_continuous,
+    resample_hand_continuous_chunk,
+    resample_motion_chunk,
+)
 
 
 class DemoPlanner:
@@ -26,11 +32,12 @@ class DemoPlanner:
 
     history_steps = 2
 
-    def __init__(self, motion: DemoMotion, control_fps=50.0, model_fps=30.0, chunk=50):
+    def __init__(self, motion: DemoMotion, control_fps=50.0, model_fps=30.0, chunk=50, hand_mode="binary"):
         self.control_fps, self.model_fps, self.chunk = control_fps, model_fps, chunk
+        self.continuous = hand_mode == "continuous"
         self.kimodo = KimodoFeatures(control_fps, model_fps)
         self.rot, self.root = self.kimodo.motion(motion.joint_pos, motion.root_pos, motion.root_rot)
-        self.hand = resample_hand_binary(motion.hand, control_fps, model_fps)
+        self.hand = (resample_hand_continuous if self.continuous else resample_hand_binary)(motion.hand, control_fps, model_fps)
         self.reset()
 
     def reset(self, seed=None):
@@ -49,7 +56,10 @@ class DemoPlanner:
             rot, root, self.model_fps, self.control_fps,
             previous_local_rot_mat=previous_rot, previous_root_position=self.root[before],
         )
-        control_hand = resample_hand_binary_chunk(hand, self.model_fps, self.control_fps, previous_hand_binary=previous_hand)
+        if self.continuous:
+            control_hand = resample_hand_continuous_chunk(hand, self.model_fps, self.control_fps, previous_hand_closure=previous_hand)
+        else:
+            control_hand = resample_hand_binary_chunk(hand, self.model_fps, self.control_fps, previous_hand_binary=previous_hand)
         actions = self.kimodo.codec.encode(control_rot, control_root, previous_root_position=self.root[before], hand_binary=control_hand)
         self._previous_rot, self._previous_hand = rot[-1], hand[-1]
         return ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)

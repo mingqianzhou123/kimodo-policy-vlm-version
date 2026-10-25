@@ -54,7 +54,8 @@ def _env(condition: str):
 
         sonic_config = _make_sonic_config()
         env = gym.make(canonical_env_id(condition), split="train", sim_mode="mujoco",
-                       physics_dt=sonic_config["SIMULATE_DT"], headless=True, sonic_config=sonic_config)
+                       physics_dt=sonic_config["SIMULATE_DT"], headless=True, sonic_config=sonic_config,
+                       disable_env_checker=True)  # it requires images, which this replay never renders
         _ENVS[condition] = (TimeLimit(env, max_episode_steps=100_000), sonic_config)
     return _ENVS[condition]
 
@@ -84,7 +85,8 @@ def _commands(mode: str, demo, motion):
                 return chunk
 
         return Recorded()
-    planner = DemoPlanner(motion) if mode == "kimodo" else DirectPlanner(motion, chunk=demo.request_interval)
+    planner = (DemoPlanner(motion, hand_mode=demo.hand_mode) if mode == "kimodo"
+               else DirectPlanner(motion, chunk=demo.request_interval))
     return make_policy(planner, turn=1.0 if mode == "always" else "operator")
 
 
