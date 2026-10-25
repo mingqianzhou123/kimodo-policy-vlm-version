@@ -91,14 +91,15 @@ class DirectPlanner:
 
 _CACHE: dict = {}
 _YAW_GAIN: float | None = None
+_CHUNK = 50
 
 
-def _init_worker(yaw_gain: float) -> None:
+def _init_worker(yaw_gain: float, chunk: int) -> None:
     import torch
 
-    global _YAW_GAIN
+    global _YAW_GAIN, _CHUNK
     torch.set_num_threads(1)  # many workers share the host; the default oversubscribes it
-    _YAW_GAIN = yaw_gain
+    _YAW_GAIN, _CHUNK = yaw_gain, chunk
 
 
 def _task_state(data_dir: Path, task: str):
@@ -138,8 +139,11 @@ def run_one(job):
         env.set_action_stats(official_stats["min"], official_stats["max"])
     else:
         motion = executed if mode == "executed" else commanded_motion(executed, episode, stats, adapter)
-        planner_type = DirectPlanner if mode == "direct" else DemoPlanner
-        policy = AgentPolicy(Agent(planner_type(motion, control_fps=adapter.control_fps)), adapter)
+        if mode == "direct":
+            planner = DirectPlanner(motion, control_fps=adapter.control_fps)
+        else:
+            planner = DemoPlanner(motion, control_fps=adapter.control_fps, chunk=_CHUNK)
+        policy = AgentPolicy(Agent(planner), adapter)
         policy.reset()
         timestep = SimpleNamespace(low_dim_obs=episode["low_dim_obs"][0], rgb_obs=np.zeros((0, 3, 84, 84), np.uint8))
         while True:
@@ -184,11 +188,12 @@ def main() -> None:
     parser.add_argument("--modes", nargs="+", default=list(MODES), choices=MODES)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--yaw-gain", type=float, default=BiGym2Adapter.yaw_gain)
+    parser.add_argument("--chunk", type=int, default=50, help="model frames per plan (execution_frames of KimodoPlanner)")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
     jobs = [(str(args.data_dir), task, i, mode) for task in args.tasks for i in range(args.episodes) for mode in args.modes]
-    with mp.get_context("spawn").Pool(args.workers, initializer=_init_worker, initargs=(args.yaw_gain,)) as pool:
+    with mp.get_context("spawn").Pool(args.workers, initializer=_init_worker, initargs=(args.yaw_gain, args.chunk)) as pool:
         results = []
         # Jobs are task-major; contiguous chunks keep each worker on few tasks, so fewer
         # workers read a task's whole dataset (images included) from disk.
