@@ -68,6 +68,12 @@ def condition(name: str) -> tuple[str, int, str]:
     return RENAMED.get(scenario, scenario), int(level), mode
 
 
+def canonical(name: str) -> str:
+    """``"G1HookRetrieve-L0-R-v0"`` -> ``"G1BallRetrieve-L0-R"``: the evaluator's condition name."""
+    scenario, level, mode = condition(name)
+    return f"{scenario}-L{level}-{mode}"
+
+
 def instruction(name: str) -> str:
     scenario, level, _ = condition(name)
     return INSTRUCTIONS[scenario][0 if level == 0 else 1]

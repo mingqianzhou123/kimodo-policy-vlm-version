@@ -47,7 +47,7 @@ def prepare_one(job) -> str:
 
     start = time.time()
     recording = Path(recording)
-    condition = recording.parent.name.removesuffix("-v0")
+    condition = demos.canonical(recording.parent.name)
     stem = Path(out_dir) / condition / f"{name}_{episode:06d}"
     if stem.with_suffix(".frames.npy").exists():
         return f"{stem.name}: exists"

@@ -138,8 +138,7 @@ class ToolBenchAdapter:
     def to_response(self, chunk: ActionChunk, request: Mapping[str, Any]) -> np.ndarray:
         rows = chunk.to_array40()
         heading = decoupled_wbc.headings(rows)
-        flags = (decoupled_wbc.operator_turn_flags(heading, self.control_fps, self._heading)
-                 if self.turn == "operator" else self.turn)
+        flags = decoupled_wbc.operator_turn_flags(heading, self.control_fps) if self.turn == "operator" else self.turn
         command = decoupled_wbc.encode(rows, self.control_fps, hand_targets, flags, heading_offset=SPAWN_YAW)
         self._sent = chunk
         self._heading = float(heading[-1])

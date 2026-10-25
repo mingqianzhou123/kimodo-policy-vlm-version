@@ -28,6 +28,12 @@ def recording(steps=500, seed=0):
     return {"observation.state": state, "action": action, "teleop.navigate_command": nav, "teleop.base_height_command": height}
 
 
+def test_recording_names():
+    assert demos.canonical("G1HookRetrieve-L0-R-v0") == "G1BallRetrieve-L0-R"
+    assert demos.canonical("G1IceBreak-L2-S-v0") == "G1IceBreak-L2-S"
+    assert demos.instruction("G1StickMove-L0-S-v0") == "Pick the tool for moving the ball to the target."
+
+
 @pytest.mark.parametrize("interval", [83, 30])
 def test_adapter_reports_what_training_saw_and_sends_the_recorded_commands(interval):
     columns = recording()

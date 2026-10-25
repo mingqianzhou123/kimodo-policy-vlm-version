@@ -10,6 +10,8 @@ own agent and decoupled WBC for the demo's length:
 * ``direct``    the commanded motion through ToolBenchAdapter at 50 Hz (``DirectPlanner``)
 * ``kimodo``    the commanded motion through Kimodo's 30 Hz chunks (``DemoPlanner``), as evaluation
 * ``always``    ``direct`` with the turn flag always on (heading feedback)
+* ``jitter``    ``recorded`` with 3e-6 m/s of noise on vx, vy (float32 rounding size): how far a
+  contact-rich walk drifts from differences this small, the floor of this check
 
 Reported per mode: falls, and how far the executed pelvis path, heading and arms
 end up from the ``recorded`` run; for ``recorded`` itself, how far the executed
@@ -31,7 +33,7 @@ from pathlib import Path
 
 import numpy as np
 
-MODES = ("recorded", "direct", "kimodo", "always")
+MODES = ("recorded", "direct", "kimodo", "always", "jitter")
 FELL_HEIGHT = 0.45  # pelvis below this: on the floor
 _ENVS: dict = {}
 
@@ -70,8 +72,10 @@ def _commands(mode: str, demo, motion):
     from kimodo_vla.benchmarks.replay import DemoPlanner, DirectPlanner
     from kimodo_vla.benchmarks.toolbench.policy import make_policy
 
-    if mode == "recorded":
+    if mode in ("recorded", "jitter"):
         rows, interval = demo.recorded_commands(), demo.request_interval
+        if mode == "jitter":
+            rows[:, 32:34] += np.random.default_rng(0).uniform(-3e-6, 3e-6, rows[:, 32:34].shape).astype(np.float32)
 
         class Recorded:
             step = 0
@@ -91,6 +95,17 @@ def _commands(mode: str, demo, motion):
 
 
 def run_one(job) -> dict:
+    """One replay; a failure is reported as a row instead of stopping the whole check."""
+    try:
+        return _run_one(job)
+    except Exception as exc:  # noqa: BLE001
+        recording, episode, mode = job
+        return {"condition": Path(recording).parent.name, "recording": recording, "episode": episode, "mode": mode,
+                "error": f"{type(exc).__name__}: {exc}", "fell": None, "steps": 0, "demo_steps": 0, "pose": [], "arms": [],
+                "commanded_xy": [], "seconds": 0.0}
+
+
+def _run_one(job) -> dict:
     recording, episode, mode = job
     from humanoidtoolbench.policies import make_humanoid_policy_agent
     from humanoidtoolbench.policies.remote_humanoid import RemoteChunkPolicy
@@ -99,7 +114,7 @@ def run_one(job) -> dict:
 
     start = time.time()
     recording = Path(recording)
-    condition = recording.parent.name.removesuffix("-v0")
+    condition = demos.canonical(recording.parent.name)
     demo = demos.ToolBenchDemo(demos.read_recording(recording, episode), demos.instruction(recording.parent.name))
     motion = demo.commanded_motion()
     spawn = json.loads(next(e for e in demos.episodes(recording) if e["episode_index"] == episode)["environment_config"])
@@ -161,9 +176,12 @@ def summarize(results: list[dict]) -> list[dict]:
     rows = []
     reference = {(r["recording"], r["episode"]): r for r in results if r["mode"] == "recorded"}
     for r in results:
+        if r.get("error"):
+            rows.append({k: r[k] for k in ("condition", "episode", "mode", "error")})
+            continue
         ref = reference.get((r["recording"], r["episode"]))
         pose, ref_pose = np.asarray(r["pose"]), np.asarray(ref["pose"]) if ref else None
-        n = min(len(pose), len(ref_pose)) if ref else 0
+        n = min(len(pose), len(ref_pose)) if ref and len(ref_pose) else 0
         row = {k: r[k] for k in ("condition", "episode", "mode", "fell", "steps", "demo_steps")}
         if n:
             row["drift_end_m"] = float(np.linalg.norm(pose[n - 1, :2] - ref_pose[n - 1, :2]))
@@ -180,10 +198,18 @@ def summarize(results: list[dict]) -> list[dict]:
     print(f"{'condition':18s} {'mode':9s} {'fell':>5s} {'drift end/max (m)':>18s} {'heading max':>12s} {'arm err':>8s} {'exec vs cmd (m)':>16s}")
     for mode in MODES:
         for row in (r for r in rows if r["mode"] == mode):
-            print(f"{row['condition']:18s} {mode:9s} {str(row['fell']):>5s} "
+            print(f"{row['condition']:18s} {mode:9s} {str(row.get('fell', 'error')):>5s} "
                   f"{row.get('drift_end_m', float('nan')):8.3f}/{row.get('drift_max_m', float('nan')):<8.3f} "
                   f"{row.get('heading_diff_max', float('nan')):12.3f} {row.get('arm_err', float('nan')):8.4f} "
                   f"{row.get('executed_vs_commanded_end_m', float('nan')):8.3f} of {row.get('commanded_distance_m', float('nan')):.2f}")
+    print(f"\n{'mode':9s} {'runs':>5s} {'errors':>6s} {'fell':>5s} {'drift end (m)':>14s} {'heading max':>12s} {'arm err':>8s}")
+    for mode in MODES:
+        ok = [r for r in rows if r["mode"] == mode and "error" not in r]
+        if not ok and not any(r["mode"] == mode for r in rows):
+            continue
+        mean = lambda key: np.mean([r[key] for r in ok if key in r]) if any(key in r for r in ok) else float("nan")  # noqa: E731
+        print(f"{mode:9s} {len(ok):5d} {sum(r['mode'] == mode and 'error' in r for r in rows):6d} "
+              f"{sum(bool(r['fell']) for r in ok):5d} {mean('drift_end_m'):14.3f} {mean('heading_diff_max'):12.3f} {mean('arm_err'):8.4f}")
     return rows
 
 
@@ -214,7 +240,8 @@ def main() -> None:
         for result in pool.imap_unordered(run_one, jobs):
             results.append(result)
             print(f"{len(results)}/{len(jobs)} {result['condition']} ep{result['episode']} {result['mode']}: "
-                  f"{result['steps']}/{result['demo_steps']} steps, fell={result['fell']} ({result['seconds']}s)", flush=True)
+                  + (f"ERROR {result['error']}" if result.get("error") else
+                     f"{result['steps']}/{result['demo_steps']} steps, fell={result['fell']} ({result['seconds']}s)"), flush=True)
     rows = summarize(results)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({"runs": results, "summary": rows}))

@@ -73,12 +73,17 @@ def headings(actions40: np.ndarray) -> np.ndarray:
     return np.arctan2(rotation[:, 1, 0], rotation[:, 0, 0])
 
 
-def operator_turn_flags(heading: np.ndarray, fps: float, previous_heading: float) -> np.ndarray:
-    """The flag as HumanoidToolBench's operators set it: the turning rate while it is at least
-    ``TURN_THRESHOLD``, else 0. A backward difference, from the previous step's heading (as ``groot_wbc``)."""
-    rate = np.diff(np.concatenate([[previous_heading], heading]))
-    rate = (rate + np.pi) % (2 * np.pi) - np.pi
-    rate = rate * float(fps)
+def operator_turn_flags(heading: np.ndarray, fps: float) -> np.ndarray:
+    """The flag as HumanoidToolBench's operators set it: the rate at which the target heading moves
+    on to the next step, while it is at least ``TURN_THRESHOLD``, else 0.
+
+    A forward difference, unlike the yaw rate of ``groot_wbc``: in ToolBook the flag of row t is the
+    change from row t to t + 1 (21 of 14,258 rows disagree with a backward difference, 1 with this).
+    The last row, whose next heading is not planned yet, repeats the rate before it.
+    """
+    rate = np.diff(heading)
+    rate = np.append(rate, rate[-1] if len(rate) else 0.0)
+    rate = ((rate + np.pi) % (2 * np.pi) - np.pi) * float(fps)
     return np.where(np.abs(rate) >= TURN_THRESHOLD, rate, 0.0).astype(np.float32)
 
 
