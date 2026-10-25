@@ -57,6 +57,8 @@ def sbatch(args, name: str, command: str, *, cpus: int, mem: str, time: str, aft
     ]
     if after:
         options.append(f"--dependency=afterok:{after}")
+    if args.exclude:
+        options.append(f"--exclude={args.exclude}")
     wrapped = f"source {shlex.quote(args.env_script)} && cd {shlex.quote(str(REPO))} && {command}"
     if args.dry_run:
         print(f"sbatch {' '.join(options)} --wrap {shlex.quote(wrapped)}")
@@ -74,6 +76,7 @@ def main() -> None:
     parser.add_argument("--pt419h", help="pt_419h checkpoint directory (variant head_pt419h)")
     parser.add_argument("--env-script", default=os.environ.get("KIMODO_ENV_SCRIPT"), help="sourced by every job; default $KIMODO_ENV_SCRIPT")
     parser.add_argument("--partition", default="train")
+    parser.add_argument("--exclude", help="nodes to avoid, e.g. gpu27 (sbatch --exclude)")
     parser.add_argument("--dry-run", action="store_true", help="print the sbatch commands only")
     args = parser.parse_args()
     if not args.env_script:
