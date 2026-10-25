@@ -19,6 +19,8 @@ import argparse
 import json
 from pathlib import Path
 
+from run_config import score_steps  # scripts/ is on sys.path when run as a script
+
 # BiGym 2.0 paper, Table II: π0.5, one run per task, last five checkpoints pooled.
 PI05 = {
     "pick_box": 19, "reach_target_multi_modal": 90, "reach_target_dual": 58,
@@ -31,14 +33,6 @@ VARIANT_ORDER = ("3cam", "head", "head_pt419h")
 
 def execution_frames(eval_dir: Path) -> int:
     return 50 if eval_dir.name == "eval" else int(eval_dir.name.removeprefix("eval_exec"))
-
-
-def score_steps(main: dict) -> list[int]:
-    """As ``train.score_steps``, on a run's saved config."""
-    if main.get("score_checkpoints"):
-        return sorted(int(s) for s in main["score_checkpoints"])
-    spacing = main.get("final_checkpoint_spacing", 1000)
-    return sorted(main["max_steps"] - i * spacing for i in range(main["final_checkpoints"]))
 
 
 def load_run(run_dir: Path) -> list[dict]:

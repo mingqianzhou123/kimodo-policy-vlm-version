@@ -36,7 +36,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
 from eval_run import DEFAULT_EXECUTION_FRAMES, eval_dir  # noqa: E402
 from summarize_bigym2 import PI05  # noqa: E402  the paper's nine main tasks
-from train import DEFAULT_CONFIG, checkpoint_steps, load_yaml, score_steps  # noqa: E402
+from run_config import DEFAULT_CONFIG, checkpoint_steps, load_yaml, score_steps  # noqa: E402
 
 VARIANTS = {
     "3cam": [],
@@ -95,8 +95,8 @@ def main() -> None:
     (args.out / "slurm").mkdir(parents=True, exist_ok=True)
 
     config = load_yaml(args.config.expanduser().resolve())
-    steps = sorted(checkpoint_steps(config))
-    final = score_steps(config)
+    steps = sorted(checkpoint_steps(config.main))
+    final = score_steps(config.main)
     curve = [s for s in steps if s not in final]
     gpus = args.gpus_per_train
     # torchrun's launcher script points at the login node's Python; the module works on every node

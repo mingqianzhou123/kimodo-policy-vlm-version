@@ -46,9 +46,8 @@ from torch.utils.data import DataLoader, DistributedSampler
 from kimodo_vla.data.episodes import KimodoWindowDataset
 from kimodo_vla.model.kimodo_policy import KimodoPolicy, KimodoPolicyConfig
 from kimodo_vla.model.planner import load_text_embeddings
+from run_config import DEFAULT_CONFIG, REPO, checkpoint_steps, load_yaml  # scripts/ is on sys.path when run as a script
 
-REPO = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = REPO / "configs" / "bigym2.yaml"
 # Fields an --init-checkpoint must share with this run for its weights to mean the same thing.
 ARCHITECTURE_FIELDS = (
     "fps", "motion_mask_mode", "dinov3_model_name", "controlnet_num_layers", "controlnet_scale",
@@ -57,13 +56,6 @@ ARCHITECTURE_FIELDS = (
 )
 
 log = logging.getLogger("train")
-
-
-def load_yaml(path: Path):
-    """A config file, on top of the one it names as ``_base_`` (relative to it), if any."""
-    config = OmegaConf.load(path)
-    base = config.pop("_base_", None)
-    return OmegaConf.merge(load_yaml(path.parent / base), config) if base else config
 
 
 def load_config(args, rank: int = 0) -> tuple:
@@ -189,21 +181,6 @@ def lr_schedule(config):
     return factor
 
 
-def score_steps(config) -> list[int]:
-    """The checkpoints the headline score pools: ``main.score_checkpoints``, else the last ``final_checkpoints``."""
-    main = config.main
-    if main.get("score_checkpoints"):
-        return sorted(int(s) for s in main.score_checkpoints)
-    return sorted(main.max_steps - i * main.final_checkpoint_spacing for i in range(main.final_checkpoints))
-
-
-def checkpoint_steps(config) -> set[int]:
-    main = config.main
-    steps = set(range(main.checkpoint_every, main.max_steps + 1, main.checkpoint_every))
-    steps.update(score_steps(config))
-    return {s for s in steps if 0 < s <= main.max_steps}
-
-
 def batches(dataset, config, start_step: int, rank: int = 0, world: int = 1):
     """Endless shuffled micro-batches of this rank; each pass over the windows gets its own seed."""
     for epoch in itertools.count():
@@ -305,7 +282,7 @@ def main() -> None:
              sum(p.numel() for p in control_params) / 1e6, sum(p.numel() for p in hand_params) / 1e6)
     accumulation = main_cfg.batch_size // (main_cfg.micro_batch_size * world)
     autocast = torch.autocast(device.type, dtype=torch.bfloat16, enabled=main_cfg.dtype == "bf16")
-    saves = checkpoint_steps(config)
+    saves = checkpoint_steps(config.main)
     data = batches(dataset, config, step, rank, world)
     metrics_file = open(run_dir / "metrics.jsonl", "a") if rank == 0 else None
     window_start, window_data = time.time(), 0.0
