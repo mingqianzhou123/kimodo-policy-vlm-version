@@ -63,5 +63,8 @@ def test_adapter_reports_what_training_saw_and_sends_the_recorded_commands(inter
     np.testing.assert_allclose(command[:, 14:21], demo.command[steps, 15:22], atol=1e-6)     # left arm
     np.testing.assert_allclose(command[:, 28:31], demo.command[steps][:, [13, 14, 12]], atol=1e-6)  # torso
     np.testing.assert_allclose(command[:, 7:14], CLOSED_HANDS[1] * motion.hand[steps, 1:], atol=1e-6)
+    recorded = demo.recorded_commands()[steps]  # ToolBench's own reading of the recording
+    np.testing.assert_allclose(command[:, :34], recorded[:, :34], atol=1e-4)
+    np.testing.assert_allclose(command[:, 35], recorded[:, 35], atol=1e-5)
     turning = np.abs(demo.nav[steps, 2]) >= 0.1
     assert np.mean((np.abs(command[:, 34]) >= 0.1) == turning) > 0.99  # the flag is on exactly while the operator turned

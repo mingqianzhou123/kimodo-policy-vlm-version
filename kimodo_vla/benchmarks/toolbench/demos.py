@@ -137,6 +137,18 @@ class ToolBenchDemo:
         return np.concatenate([action_hands_to_natural(self.command[:, 22:29]),
                                action_hands_to_natural(self.command[:, 36:43])], axis=1)
 
+    def recorded_commands(self) -> np.ndarray:
+        """``(T, 36)``: row ``t`` is the operator's decoupled-WBC command for step ``t``, as ToolBench's
+        released ACT model converts a recording (its ``action_contract.json``)."""
+        command = np.zeros((len(self), decoupled_wbc.DIMENSION), np.float32)
+        command[:, 0:14] = decoupled_wbc.natural_to_command_order(self.commanded_hands())
+        command[:, 14:21] = self.command[:, 15:22]
+        command[:, 21:28] = self.command[:, 29:36]
+        command[:, 28:31] = self.command[:, [13, 14, 12]]  # torso roll, pitch, yaw
+        command[:, 31] = self.height
+        command[:, 32:36] = self.nav
+        return command
+
     def commanded_motion(self) -> DemoMotion:
         joint_pos = np.zeros((len(self), 29), np.float32)
         body = joint_indices(BODY_JOINT_NAMES)
