@@ -1,12 +1,15 @@
-"""Train Kimodo-Policy's ControlNet and hand head on one BiGym 2.0 task (one GPU).
+"""Train Kimodo-Policy's ControlNet and hand head on one BiGym 2.0 task (one or several GPUs).
 
     python scripts/train.py --task move_plate                       # three cameras
     python scripts/train.py --task move_plate --cameras head        # head only
     python scripts/train.py --task move_plate --cameras head --init-checkpoint <pt_419h checkpoint dir>
     python scripts/train.py --task move_plate main.max_steps=200    # any config field, OmegaConf dotlist
     python scripts/train.py --resume log/bigym2/<run>
+    torchrun --standalone --nproc_per_node=8 scripts/train.py --task move_plate --config configs/bigym2_recipe.yaml
 
-Settings come from ``configs/bigym2.yaml``. Kimodo-G1, DINOv3 and LLM2Vec stay
+Settings come from ``configs/bigym2.yaml`` (a config may name another as ``_base_``
+and list only what differs, like ``configs/bigym2_recipe.yaml``). Under ``torchrun``
+every GPU takes ``main.micro_batch_size`` samples of each ``main.batch_size`` batch. Kimodo-G1, DINOv3 and LLM2Vec stay
 frozen (LLM2Vec only through the cached embeddings of
 ``scripts/cache_text_embeddings.py``); the ControlNet and hand head start from
 scratch unless ``--init-checkpoint`` is given. Samples are the task's
@@ -23,6 +26,7 @@ A run directory (``--run-dir``, or ``<save_root>/<task>_<n>cam_<time>/``) holds 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import itertools
 import json
 import logging
@@ -33,9 +37,11 @@ from datetime import datetime
 from pathlib import Path
 
 import torch
+import torch.distributed as dist
 from omegaconf import OmegaConf
+from torch.nn.parallel import DistributedDataParallel
 from torch.optim.lr_scheduler import LambdaLR
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, DistributedSampler
 
 from kimodo_vla.data.episodes import KimodoWindowDataset
 from kimodo_vla.model.kimodo_policy import KimodoPolicy, KimodoPolicyConfig
@@ -53,23 +59,31 @@ ARCHITECTURE_FIELDS = (
 log = logging.getLogger("train")
 
 
-def load_config(args) -> tuple:
-    """``(config, run_dir)``; a resumed run reads its own ``config.json`` and takes no overrides."""
+def load_yaml(path: Path):
+    """A config file, on top of the one it names as ``_base_`` (relative to it), if any."""
+    config = OmegaConf.load(path)
+    base = config.pop("_base_", None)
+    return OmegaConf.merge(load_yaml(path.parent / base), config) if base else config
+
+
+def load_config(args, rank: int = 0) -> tuple:
+    """``(config, run_dir)``; a resumed run reads its own ``config.json`` and takes no overrides.
+
+    Only rank 0 creates the run directory; with several processes, call ``share_run_dir`` next.
+    """
     if args.resume:
         if args.task or args.cameras or args.init_checkpoint or args.overrides:
             raise SystemExit("--resume continues a run as configured; drop the other options")
         run_dir = Path(args.resume).expanduser().resolve()
         return OmegaConf.create(json.loads((run_dir / "config.json").read_text())), run_dir
 
-    config = OmegaConf.merge(OmegaConf.load(args.config), OmegaConf.from_dotlist(args.overrides))
+    config = OmegaConf.merge(load_yaml(args.config), OmegaConf.from_dotlist(args.overrides))
     if args.task:
         config.main.task = args.task
     if args.cameras:
         config.model.cameras = list(args.cameras)
     if not config.main.task:
         raise SystemExit("no task: pass --task")
-    if config.main.batch_size % config.main.micro_batch_size:
-        raise SystemExit("main.batch_size must be a multiple of main.micro_batch_size")
     for key in ("data_root", "text_cache", "save_root"):
         config.main[key] = str((REPO / os.path.expanduser(config.main[key])).resolve())
     if args.init_checkpoint:
@@ -81,9 +95,18 @@ def load_config(args) -> tuple:
     else:
         name = args.name or f"{config.main.task}_{len(config.model.cameras)}cam{'_init' if args.init_checkpoint else ''}"
         run_dir = Path(config.main.save_root) / f"{name}_{datetime.now():%Y-%m-%d_%H-%M-%S}"
-    run_dir.mkdir(parents=True)  # never mixes two runs; continue one with --resume
-    (run_dir / "config.json").write_text(json.dumps(OmegaConf.to_container(config, resolve=True), indent=2))
+    if rank == 0:
+        run_dir.mkdir(parents=True)  # never mixes two runs; continue one with --resume
+        (run_dir / "config.json").write_text(json.dumps(OmegaConf.to_container(config, resolve=True), indent=2))
     return config, run_dir
+
+
+def share_run_dir(run_dir: Path) -> Path:
+    """Rank 0's run directory (its name may carry rank 0's clock), once it exists."""
+    shared = [str(run_dir)]
+    dist.broadcast_object_list(shared, src=0)
+    dist.barrier()
+    return Path(shared[0])
 
 
 def build_model(config) -> KimodoPolicy:
@@ -166,23 +189,31 @@ def lr_schedule(config):
     return factor
 
 
+def score_steps(config) -> list[int]:
+    """The checkpoints the headline score pools: ``main.score_checkpoints``, else the last ``final_checkpoints``."""
+    main = config.main
+    if main.get("score_checkpoints"):
+        return sorted(int(s) for s in main.score_checkpoints)
+    return sorted(main.max_steps - i * main.final_checkpoint_spacing for i in range(main.final_checkpoints))
+
+
 def checkpoint_steps(config) -> set[int]:
     main = config.main
     steps = set(range(main.checkpoint_every, main.max_steps + 1, main.checkpoint_every))
-    steps.update(main.max_steps - i * main.final_checkpoint_spacing for i in range(main.final_checkpoints))
-    return {s for s in steps if s > 0}
+    steps.update(score_steps(config))
+    return {s for s in steps if 0 < s <= main.max_steps}
 
 
-def batches(dataset, config, start_step: int):
-    """Endless shuffled micro-batches; each pass over the windows gets its own seed."""
+def batches(dataset, config, start_step: int, rank: int = 0, world: int = 1):
+    """Endless shuffled micro-batches of this rank; each pass over the windows gets its own seed."""
     for epoch in itertools.count():
-        generator = torch.Generator().manual_seed(config.main.seed * 1_000_003 + start_step * 1_009 + epoch)
+        seed = config.main.seed * 1_000_003 + start_step * 1_009 + epoch
+        sampler = DistributedSampler(dataset, num_replicas=world, rank=rank, shuffle=True, seed=seed, drop_last=True)
         loader = DataLoader(
             dataset,
             batch_size=config.main.micro_batch_size,
-            shuffle=True,
+            sampler=sampler,
             drop_last=True,
-            generator=generator,
             num_workers=config.main.num_workers,
             pin_memory=True,
         )
@@ -208,16 +239,27 @@ def main() -> None:
     parser.add_argument("overrides", nargs="*", help="config fields, e.g. main.max_steps=200")
     args = parser.parse_args()
 
-    config, run_dir = load_config(args)
+    world, rank = int(os.environ.get("WORLD_SIZE", 1)), int(os.environ.get("RANK", 0))
+    device = torch.device(args.device)
+    if world > 1:  # under torchrun
+        device = torch.device("cuda", int(os.environ["LOCAL_RANK"]))
+        torch.cuda.set_device(device)
+        dist.init_process_group("nccl")
+    config, run_dir = load_config(args, rank)
+    if world > 1:
+        run_dir = share_run_dir(run_dir)
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.INFO if rank == 0 else logging.WARNING,
         format="%(asctime)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[logging.StreamHandler(), logging.FileHandler(run_dir / "train.log")],
+        handlers=[logging.StreamHandler()] + ([logging.FileHandler(run_dir / "train.log")] if rank == 0 else []),
     )
-    main_cfg, device = config.main, torch.device(args.device)
+    main_cfg = config.main
+    if main_cfg.batch_size % (main_cfg.micro_batch_size * world):
+        raise SystemExit(f"main.batch_size {main_cfg.batch_size} is not a multiple of micro_batch_size x {world} GPUs")
     cameras = list(config.model.cameras)
-    torch.manual_seed(main_cfg.seed)
+    augmentation = config.training.get("augmentation") or {}
+    torch.manual_seed(main_cfg.seed)  # the same initial weights on every rank
 
     text = load_text_embeddings(main_cfg.text_cache)
     dataset = KimodoWindowDataset(
@@ -226,16 +268,20 @@ def main() -> None:
         action_chunk=main_cfg.action_chunk,
         text_embeddings=text,
         cameras=cameras,
+        image_shift=augmentation.get("image_shift", 0),
+        proprio_mask_prob=augmentation.get("proprio_mask_prob", 0.0),
     )
     instruction = dataset.episodes[0]["instruction"]
     if instruction not in text:
         raise SystemExit(f"no cached text embedding for {instruction!r} in {main_cfg.text_cache}")
-    log.info("%s: %d demos, %d windows, cameras %s, run %s", main_cfg.task, len(dataset.episodes), len(dataset), cameras, run_dir)
+    log.info("%s: %d demos, %d windows, cameras %s, %d GPU(s), augmentation %s, run %s", main_cfg.task,
+             len(dataset.episodes), len(dataset), cameras, world, dict(augmentation), run_dir)
 
     model = build_model(config)
     if "initialization" in config and not args.resume:
         initialize_from(model, config)
-        (run_dir / "config.json").write_text(json.dumps(OmegaConf.to_container(config, resolve=True), indent=2))
+        if rank == 0:
+            (run_dir / "config.json").write_text(json.dumps(OmegaConf.to_container(config, resolve=True), indent=2))
         log.info("initialized ControlNet and hand head from %s", config.initialization.checkpoint)
     model.to(device).train()
     groups = param_groups(model, config)
@@ -250,42 +296,50 @@ def main() -> None:
         scheduler.load_state_dict(state["scheduler"])
         step = int(state["global_step"])
         log.info("resumed at step %d", step)
+    forward = DistributedDataParallel(model, device_ids=[device.index]) if world > 1 else model
+    torch.manual_seed(main_cfg.seed + 7919 * rank)  # different diffusion noise and augmentation per rank
 
     hand_params = [p for g in groups if g["name"].startswith("hand") for p in g["params"]]
     control_params = [p for g in groups if not g["name"].startswith("hand") for p in g["params"]]
     log.info("trainable parameters: ControlNet %.1fM, hand head %.1fM",
              sum(p.numel() for p in control_params) / 1e6, sum(p.numel() for p in hand_params) / 1e6)
-    accumulation = main_cfg.batch_size // main_cfg.micro_batch_size
+    accumulation = main_cfg.batch_size // (main_cfg.micro_batch_size * world)
     autocast = torch.autocast(device.type, dtype=torch.bfloat16, enabled=main_cfg.dtype == "bf16")
     saves = checkpoint_steps(config)
-    data = batches(dataset, config, step)
-    metrics_file = open(run_dir / "metrics.jsonl", "a")
+    data = batches(dataset, config, step, rank, world)
+    metrics_file = open(run_dir / "metrics.jsonl", "a") if rank == 0 else None
     window_start, window_data = time.time(), 0.0
 
     while step < main_cfg.max_steps:
         optimizer.zero_grad(set_to_none=True)
         losses: dict[str, float] = {}
-        for _ in range(accumulation):
+        for micro in range(accumulation):
             data_start = time.time()
             batch = {k: v.to(device, non_blocking=True) if torch.is_tensor(v) else v for k, v in next(data).items()}
             window_data += time.time() - data_start
-            with autocast:
-                output = model(
-                    batch["instruction"],
-                    batch["egoview"],
-                    batch["gt_motion"],
-                    batch["gt_mask"],
-                    condition_motion=batch["condition_motion"],
-                    condition_motion_mask=batch["condition_motion_mask"],
-                    gt_hand=batch["gt_hand"],
-                    gt_hand_mask=batch["gt_hand_mask"],
-                    text_feat=batch["text_embedding"],
-                    text_length=batch["text_length"],
-                )
-            (output["loss"] / accumulation).backward()
+            sync = forward.no_sync() if world > 1 and micro < accumulation - 1 else contextlib.nullcontext()
+            with sync:
+                with autocast:
+                    output = forward(
+                        batch["instruction"],
+                        batch["egoview"],
+                        batch["gt_motion"],
+                        batch["gt_mask"],
+                        condition_motion=batch["condition_motion"],
+                        condition_motion_mask=batch["condition_motion_mask"],
+                        gt_hand=batch["gt_hand"],
+                        gt_hand_mask=batch["gt_hand_mask"],
+                        text_feat=batch["text_embedding"],
+                        text_length=batch["text_length"],
+                    )
+                (output["loss"] / accumulation).backward()
             for key, value in output.items():
                 if key.endswith("loss") and torch.is_tensor(value) and value.ndim == 0:
                     losses[key] = losses.get(key, 0.0) + float(value.detach()) / accumulation
+        if world > 1:  # log the mean over ranks; every rank then agrees on the NaN check
+            values = torch.tensor(list(losses.values()), device=device)
+            dist.all_reduce(values)
+            losses = dict(zip(losses, (values / world).tolist()))
         if not math.isfinite(losses["loss"]):
             raise SystemExit(f"step {step + 1}: loss is {losses['loss']}")
         control_norm = float(torch.nn.utils.clip_grad_norm_(control_params, main_cfg.gradient.grad_clip_norm))
@@ -294,7 +348,7 @@ def main() -> None:
         scheduler.step()
         step += 1
 
-        if step % main_cfg.log_every == 0 or step == main_cfg.max_steps:
+        if rank == 0 and (step % main_cfg.log_every == 0 or step == main_cfg.max_steps):
             seconds = (time.time() - window_start) / main_cfg.log_every
             lrs = {g["name"]: g["lr"] for g in optimizer.param_groups}
             record = {"step": step, **losses, "grad_control": control_norm, "grad_hand": hand_norm,
@@ -308,7 +362,7 @@ def main() -> None:
                      control_norm, hand_norm, lrs["adapter"], seconds, record["data_s_per_step"], eta)
             window_start, window_data = time.time(), 0.0
 
-        if step in saves:
+        if rank == 0 and step in saves:
             trainable = {n: p.detach().cpu() for n, p in model.named_parameters() if p.requires_grad}
             checkpoint = run_dir / f"checkpoint_{step}"
             checkpoint.mkdir(exist_ok=True)
@@ -317,7 +371,11 @@ def main() -> None:
             save(run_dir / "resume.pt", {"global_step": step, "model": trainable,
                                          "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict()})
             log.info("saved %s", checkpoint)
-    metrics_file.close()
+    if metrics_file:
+        metrics_file.close()
+    if world > 1:
+        dist.barrier()
+        dist.destroy_process_group()
 
 
 if __name__ == "__main__":

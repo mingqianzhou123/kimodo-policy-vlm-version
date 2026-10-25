@@ -1,0 +1,23 @@
+# Kimodo-VLA on BiGym 2.0 under the offline imitation-learning baselines' conditions
+# (ACT, Diffusion Policy; BiGym 2.0 paper Section III-E and Appendix D, docs/official_configuration.md
+# "Baseline training recipe v1"): their augmentation and their budget of 101k updates x 256
+# samples, checkpoints every 5000 steps, headline = the last five (80k-100k). One training seed.
+# Everything else is configs/bigym2.yaml.
+#
+#   torchrun --standalone --nproc_per_node=8 scripts/train.py --task move_plate --config configs/bigym2_recipe.yaml
+
+_base_: bigym2.yaml
+
+main:
+  max_steps: 101000
+  batch_size: 256
+  micro_batch_size: 32             # x 8 GPUs
+  num_workers: 6                   # per GPU
+  checkpoint_every: 5000
+  final_checkpoints: 0
+  score_checkpoints: [80000, 85000, 90000, 95000, 100000]
+
+training:
+  augmentation:
+    image_shift: 8                 # recipe: random shift, pad 8, edge replication, per sample and view
+    proprio_mask_prob: 0.2         # recipe: mode sample_preserve_base, probability 0.2

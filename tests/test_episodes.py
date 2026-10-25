@@ -103,3 +103,31 @@ def test_camera_selection(tmp_path):
     images = both[10]["egoview"]
     assert images.shape == (2, 3, 4, 4)
     assert int(images[0, 0, 0, 0]) == 10 and int(images[1, 0, 0, 0]) == 210
+
+
+def test_image_shift_is_a_crop_of_the_padded_image(tmp_path):
+    write_dataset(tmp_path, synthetic_episode(steps=200), stub_planner())
+    dataset = KimodoWindowDataset([tmp_path], image_shift=2)
+    images = torch.arange(2 * 3 * 6 * 6, dtype=torch.uint8).reshape(2, 3, 6, 6)
+    padded = torch.nn.functional.pad(images.float(), (2, 2, 2, 2), mode="replicate")
+    for _ in range(20):
+        shifted = dataset._shift(images)
+        assert shifted.shape == images.shape and shifted.dtype == torch.uint8
+        for view in range(2):
+            crops = [padded[view, :, dy : dy + 6, dx : dx + 6] for dy in range(5) for dx in range(5)]
+            assert any(torch.equal(shifted[view].float(), crop) for crop in crops)
+
+
+def test_proprio_masking_keeps_only_the_base(tmp_path):
+    _, record = write_dataset(tmp_path, synthetic_episode(steps=400), stub_planner())
+    plain = KimodoWindowDataset([tmp_path])
+    masked = KimodoWindowDataset([tmp_path], proprio_mask_prob=1.0)
+    representation = stub_planner().kimodo.representation
+    heading = representation.slice_dict["global_root_heading"]
+    i = len(plain) - 1  # a late cut: the whole 100-frame history is real
+    a, b = plain[i]["condition_motion_mask"], masked[i]["condition_motion_mask"]
+    assert bool(a[:100].any(dim=1).all())
+    assert torch.equal(a[100:], b[100:])  # the future carries no condition either way
+    assert bool(b[:100, heading].all())  # the base stays observed
+    assert int(b[:100].sum()) < int(a[:100].sum())  # the arm joints do not
+    assert bool((b <= a).all())
