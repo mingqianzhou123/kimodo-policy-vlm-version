@@ -24,6 +24,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import torch
 
 from kimodo_vla.benchmarks.base import AgentPolicy
 from kimodo_vla.benchmarks.bigym2.adapter import ARM_JOINT_NAMES, BiGym2Adapter
@@ -31,13 +32,17 @@ from kimodo_vla.benchmarks.bigym2.demos import DemoMotion, commanded_motion, exe
 from kimodo_vla.core.agent import Agent
 from kimodo_vla.core.types import ActionChunk, joint_indices
 from kimodo_vla.model.features import KimodoFeatures
-from kimodo_vla.motion.g1_reference import resample_hand_binary, resample_hand_binary_chunk, resample_motion_chunk
+from kimodo_vla.motion.g1_reference import _interpolate_motion, resample_hand_binary
 
 MODES = ("replay", "executed", "commanded", "direct")
 
 
 class DemoPlanner:
-    """A Planner that 'predicts' a recorded motion, chunked exactly like KimodoPlanner."""
+    """A Planner that 'predicts' a recorded motion and samples it like KimodoPlanner.
+
+    The recorded motion is resampled to the model rate, then read at the true time of
+    each control step the plan covers (``chunk`` model frames per plan).
+    """
 
     history_steps = 2
 
@@ -46,27 +51,18 @@ class DemoPlanner:
         self.kimodo = KimodoFeatures(control_fps, model_fps)
         self.rot, self.root = self.kimodo.motion(motion.joint_pos, motion.root_pos, motion.root_rot)
         self.hand = resample_hand_binary(motion.hand, control_fps, model_fps)
-        self.reset()
 
     def reset(self, seed=None):
-        self._previous_rot = None
-        self._previous_hand = None
+        pass
 
     def plan(self, history):
-        last = len(self.rot) - 1  # past the end of the demo, hold its final pose
-        k = int(round(history[-1].step * self.model_fps / self.control_fps))
-        before = min(max(k - 1, 0), last)
-        idx = np.clip(np.arange(k, k + self.chunk), 0, last)
-        rot, root, hand = self.rot[idx], self.root[idx], self.hand[idx]
-        previous_rot = self.rot[before] if self._previous_rot is None else self._previous_rot
-        previous_hand = self.hand[before] if self._previous_hand is None else self._previous_hand
-        control_rot, control_root = resample_motion_chunk(
-            rot, root, self.model_fps, self.control_fps,
-            previous_local_rot_mat=previous_rot, previous_root_position=self.root[before],
-        )
-        control_hand = resample_hand_binary_chunk(hand, self.model_fps, self.control_fps, previous_hand_binary=previous_hand)
-        actions = self.kimodo.codec.encode(control_rot, control_root, previous_root_position=self.root[before], hand_binary=control_hand)
-        self._previous_rot, self._previous_hand = rot[-1], hand[-1]
+        ratio = self.model_fps / self.control_fps
+        step, last = history[-1].step, len(self.rot) - 1  # past the end of the demo, hold its final pose
+        steps = int(round(self.chunk / ratio))
+        times = (torch.arange(step, step + steps + 1, dtype=torch.float32) * ratio).clamp(0, last)
+        rot, root = _interpolate_motion(self.rot, self.root, times)  # row 0: now
+        hand = self.hand[times[1:].round().long()]
+        actions = self.kimodo.codec.encode(rot[1:], root[1:], previous_root_position=root[0], hand_binary=hand)
         return ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
 
 

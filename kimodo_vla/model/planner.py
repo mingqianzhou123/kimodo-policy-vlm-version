@@ -2,8 +2,10 @@
 
 Ported from ``evaluation/humanoidarena_server.py`` of the original repository
 (``KimodoHumanoidArenaRuntime.infer``), with the HTTP layer, RTC and trace
-flags removed. With every joint observed it feeds the model exactly what the
-original runtime did, so released checkpoints behave the same.
+flags removed. With every joint observed it feeds the model the same motion
+history as the original runtime. Two deliberate differences: predictions are
+sampled at the true time of each control step (the original ran one model frame
+behind), and the hand history is indexed by model frame.
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ import torch
 from kimodo_vla.core.types import ActionChunk, Observation, yaw_matrix, yaw_of
 from kimodo_vla.model.features import KimodoFeatures
 from kimodo_vla.model.kimodo_policy import KimodoPolicy, KimodoPolicyConfig
-from kimodo_vla.motion.g1_reference import resample_hand_binary_chunk, resample_motion_chunk
+from kimodo_vla.motion.g1_reference import _interpolate_motion
 
 def load_text_embeddings(cache_dir: str | Path) -> dict[str, torch.Tensor]:
     """Read ``*.pt`` files of ``{task_id, instruction, embedding[, task_name]}``.
@@ -128,9 +130,7 @@ class KimodoPlanner:
         self.seed = seed
         self.num_plans = 0
         self._first_heading: np.ndarray | None = None
-        self._hand_history = torch.zeros(1, 0, 2)
-        self._previous_rot: torch.Tensor | None = None
-        self._previous_root: torch.Tensor | None = None
+        self._hand_track = torch.zeros(0, 2)  # commanded hand at every model frame since the episode start
 
     def condition_history(self, history: Sequence[Observation]):
         """The model's history condition ``(motion [H', D], mask [H', D])`` plus the last observed pose.
@@ -153,6 +153,29 @@ class KimodoPlanner:
             raise KeyError(f"no cached text embedding for {instruction!r}")
         return embedding
 
+    def control_offsets(self, step: int, frames: int) -> torch.Tensor:
+        """Model-frame offsets from prediction frame 0 of the current control step and of the ones the plan covers.
+
+        Frame 0 is at model time ``round(step * model_fps / control_fps)``, the history
+        frame left out at the cut (``condition_history``). Row 0 is the current step;
+        rows 1.. are the next steps, as many as ``execution_frames`` model frames last,
+        but never past the last predicted frame.
+        """
+        ratio = self.model_fps / self.control_fps
+        now = step * ratio - int(round(step * ratio))
+        steps = min(int(round(self.execution_frames / ratio)), int(math.floor((frames - 1 - now) / ratio + 1e-6)))
+        return now + torch.arange(steps + 1, dtype=torch.float32) * ratio
+
+    def hand_history(self, cut: int, frames: int) -> torch.Tensor:
+        """``[1, frames, 2]``: the hand commands of model frames ``[cut - frames, cut)``, zeros before the first plan."""
+        track = self._hand_track[:cut]
+        if track.shape[0] < cut:
+            track = torch.cat((track, torch.zeros(cut - track.shape[0], 2)))
+        history = track[max(0, cut - frames) :]
+        if history.shape[0] < frames:
+            history = torch.cat((torch.zeros(frames - history.shape[0], 2), history))
+        return history.unsqueeze(0)
+
     @torch.inference_mode()
     def plan(self, history: Sequence[Observation]) -> ActionChunk:
         obs = history[-1]
@@ -160,15 +183,11 @@ class KimodoPlanner:
             self._first_heading = yaw_matrix(float(yaw_of(history[0].root_rot)))
         device = self.model.device
         dtype = next(self.model.controlnet.parameters()).dtype
+        cut = int(round(obs.step * self.model_fps / self.control_fps))
 
-        motion, mask, last_rot, last_root = self.condition_history(history)
+        motion, mask, _, _ = self.condition_history(history)
         history_motion = motion.unsqueeze(0).to(device)
         history_mask = mask.unsqueeze(0).to(device)
-        hand_history = self._hand_history[:, -history_motion.shape[1] :]
-        if hand_history.shape[1] < history_motion.shape[1]:
-            pad = torch.zeros(1, history_motion.shape[1] - hand_history.shape[1], 2)
-            hand_history = torch.cat((pad, hand_history), dim=1)
-
         text = self._text_embedding(obs.instruction)
         generator = None
         if self.seed is not None:
@@ -183,38 +202,32 @@ class KimodoPlanner:
             diffusion_steps=self.diffusion_steps,
             squeeze_batch=True,
             text_feat=None if text is None else text.to(device=device, dtype=dtype),
-            hand_history=hand_history.to(device),
+            hand_history=self.hand_history(cut, history_motion.shape[1]).to(device),
             generator=generator,
         )
+        local_rot = output["local_rot_mats"].float().cpu()
+        root_pos = output["root_positions"].float().cpu()
+        hand = output["hand_binary"].float().cpu()
+        # Root x/z is window-relative; the history's last frame (model time cut - 1) anchors it.
+        before = output.get("history_last_root_position")
+        before = root_pos[:1] if before is None else before.float().cpu().reshape(1, 3)
 
-        n = self.execution_frames
-        local_rot = output["local_rot_mats"][:n].float().cpu()
-        root_pos = output["root_positions"][:n].float().cpu()
-        hand = output["hand_binary"][:n].float().cpu()
-
-        # Continue from the last target actually handed out; fall back to the measurement at reset.
-        previous_rot = self._previous_rot if self._previous_rot is not None else last_rot
-        previous_root = self._previous_root if self._previous_root is not None else last_root
-        if output.get("history_last_root_position") is not None:
-            # Root x/z is window-relative: the first delta must start from this window's history end.
-            previous_root = output["history_last_root_position"].float().cpu().reshape(3)
-        previous_hand = self._hand_history[0, -1] if self._hand_history.shape[1] else torch.zeros(2)
-
-        control_rot, control_root = resample_motion_chunk(
-            local_rot, root_pos,
-            source_fps=self.model_fps, target_fps=self.control_fps,
-            previous_local_rot_mat=previous_rot, previous_root_position=previous_root,
+        # Sample the prediction at the true time of each control step. Spreading the frames
+        # over round(n * 5/3) steps from the previous plan's last frame instead lagged one
+        # model frame behind the clock: with perfect predictions that cost drawer_top_open
+        # and move_plate 30 points at 10-frame plans and pick_box 10 points at 50.
+        offsets = self.control_offsets(obs.step, local_rot.shape[0])
+        control_rot, control_root = _interpolate_motion(
+            torch.cat((local_rot[:1], local_rot)), torch.cat((before, root_pos)), offsets + 1.0
         )
-        control_hand = resample_hand_binary_chunk(
-            hand, source_fps=self.model_fps, target_fps=self.control_fps, previous_hand_binary=previous_hand
+        control_hand = hand[offsets[1:].round().clamp(0, hand.shape[0] - 1).long()]
+        actions = self.kimodo.codec.encode(
+            control_rot[1:], control_root[1:], previous_root_position=control_root[0], hand_binary=control_hand
         )
-        actions = self.kimodo.codec.encode(control_rot, control_root, previous_root_position=previous_root, hand_binary=control_hand)
 
         chunk = ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
         chunk.root_rot = np.einsum("ij,tjk->tik", self._first_heading, chunk.root_rot).astype(np.float32)
 
-        self._hand_history = torch.cat((self._hand_history, hand.unsqueeze(0)), dim=1)[:, -self.history_frames :]
-        self._previous_rot = local_rot[-1].clone()
-        self._previous_root = root_pos[-1].clone()
+        self._hand_track = torch.cat((self.hand_history(cut, cut)[0], hand))  # the next plan overwrites from its own cut
         self.num_plans += 1
         return chunk
