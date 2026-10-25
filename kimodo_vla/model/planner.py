@@ -53,7 +53,36 @@ def _episode_noise_seed(episode_seed: int, plan_index: int) -> int:
     return (value ^ (value >> 31)) & ((1 << 63) - 1)
 
 
+def _crossfade(old: ActionChunk, new: ActionChunk, steps: int) -> ActionChunk:
+    """``new``, eased in from ``old`` (the same control steps) over its first ``steps`` frames."""
+    k = min(steps, len(old), len(new))
+    out = ActionChunk(new.root_delta_xy.copy(), new.root_height.copy(), new.root_rot.copy(),
+                      new.joint_pos.copy(), new.hand.copy(), new.fps, dict(new.meta))
+    if k == 0:
+        return out
+    w = 0.5 * (1.0 + np.cos(np.pi * np.arange(1, k + 1) / (k + 1)))  # weight of the old plan, 1 -> 0
+    for name in ("root_delta_xy", "root_height", "joint_pos"):
+        a, b = getattr(old, name)[:k], getattr(out, name)[:k]
+        weight = w.reshape((k,) + (1,) * (a.ndim - 1))
+        getattr(out, name)[:k] = weight * a + (1 - weight) * b
+    mixed = w[:, None, None] * old.root_rot[:k] + (1 - w[:, None, None]) * out.root_rot[:k]
+    u, _, vt = np.linalg.svd(mixed)  # back to the nearest rotation
+    out.root_rot[:k] = (u @ vt).astype(np.float32)
+    out.hand[:k] = np.where(w[:, None] >= 0.5, old.hand[:k], out.hand[:k])
+    return out
+
+
 class KimodoPlanner:
+    """Kimodo-Policy as a ``Planner``.
+
+    Options for replanning before a plan runs out (all off by default):
+    ``noise="fixed"`` starts every plan of an episode from the same diffusion noise;
+    ``rtc_overlap_frames`` > 0 guides each prediction towards the previous plan's
+    unexecuted frames (real-time chunking, built into ``predict_future``; the original
+    runtime used 12 overlap frames, 1 frozen); ``blend_steps`` > 0 cross-fades the first
+    control targets of a new plan from the previous plan's targets for the same steps.
+    """
+
     def __init__(
         self,
         model: KimodoPolicy,
@@ -63,6 +92,10 @@ class KimodoPlanner:
         execution_frames: int = 0,
         diffusion_steps: int = 10,
         cameras: Sequence[str] = ("head",),
+        noise: str = "per_plan",
+        rtc_overlap_frames: int = 0,
+        rtc_frozen_frames: int = 1,
+        blend_steps: int = 0,
     ):
         if model.config.hand_control_mode != "binary":
             raise NotImplementedError("KimodoPlanner currently supports binary hand control only")
@@ -75,6 +108,12 @@ class KimodoPlanner:
         self.model_fps = float(model.fps)
         self.diffusion_steps = int(diffusion_steps)
         self.cameras = tuple(cameras)
+        if noise not in ("per_plan", "fixed"):
+            raise ValueError(f"noise must be 'per_plan' or 'fixed', got {noise!r}")
+        self.noise = noise
+        self.rtc_overlap_frames = int(rtc_overlap_frames)
+        self.rtc_frozen_frames = int(rtc_frozen_frames)
+        self.blend_steps = int(blend_steps)
         chunk = model.config.action_chunk
         self.execution_frames = chunk if execution_frames == 0 else int(execution_frames)
         if not 0 < self.execution_frames <= chunk:
@@ -131,6 +170,8 @@ class KimodoPlanner:
         self.num_plans = 0
         self._first_heading: np.ndarray | None = None
         self._hand_track = torch.zeros(0, 2)  # commanded hand at every model frame since the episode start
+        self._previous: tuple | None = None  # (cut, future features, clean hand) of the last prediction
+        self._tail: tuple[int, ActionChunk] | None = None  # (first step, targets) the last plan did not execute
 
     def condition_history(self, history: Sequence[Observation]):
         """The model's history condition ``(motion [H', D], mask [H', D])`` plus the last observed pose.
@@ -153,7 +194,7 @@ class KimodoPlanner:
             raise KeyError(f"no cached text embedding for {instruction!r}")
         return embedding
 
-    def control_offsets(self, step: int, frames: int) -> torch.Tensor:
+    def control_offsets(self, step: int, frames: int, execution_frames: int | None = None) -> torch.Tensor:
         """Model-frame offsets from prediction frame 0 of the current control step and of the ones the plan covers.
 
         Frame 0 is at model time ``round(step * model_fps / control_fps)``, the history
@@ -163,7 +204,8 @@ class KimodoPlanner:
         """
         ratio = self.model_fps / self.control_fps
         now = step * ratio - int(round(step * ratio))
-        steps = min(int(round(self.execution_frames / ratio)), int(math.floor((frames - 1 - now) / ratio + 1e-6)))
+        execution_frames = self.execution_frames if execution_frames is None else execution_frames
+        steps = min(int(round(execution_frames / ratio)), int(math.floor((frames - 1 - now) / ratio + 1e-6)))
         return now + torch.arange(steps + 1, dtype=torch.float32) * ratio
 
     def hand_history(self, cut: int, frames: int) -> torch.Tensor:
@@ -192,7 +234,17 @@ class KimodoPlanner:
         generator = None
         if self.seed is not None:
             generator = torch.Generator(device=device)
-            generator.manual_seed(_episode_noise_seed(self.seed, self.num_plans))
+            generator.manual_seed(_episode_noise_seed(self.seed, 0 if self.noise == "fixed" else self.num_plans))
+        rtc = {}
+        if self.rtc_overlap_frames and self._previous is not None:
+            previous_cut, previous_motion, previous_hand = self._previous
+            shift = cut - previous_cut  # the previous plan's frame for this plan's frame 0
+            reference = previous_motion[shift : shift + self.rtc_overlap_frames]
+            if 0 <= shift and reference.shape[0]:
+                rtc = dict(rtc_motion_reference=reference.unsqueeze(0).to(device),
+                           rtc_overlap_frames=self.rtc_overlap_frames, rtc_frozen_frames=self.rtc_frozen_frames)
+                if previous_hand is not None:
+                    rtc["rtc_hand_reference"] = previous_hand[shift : shift + reference.shape[0]].unsqueeze(0).to(device)
 
         output = self.model.predict_future(
             instruction=obs.instruction,
@@ -204,7 +256,10 @@ class KimodoPlanner:
             text_feat=None if text is None else text.to(device=device, dtype=dtype),
             hand_history=self.hand_history(cut, history_motion.shape[1]).to(device),
             generator=generator,
+            **rtc,
         )
+        hand_clean = output.get("hand_clean")
+        self._previous = (cut, output["motion_features"].float().cpu(), None if hand_clean is None else hand_clean.float().cpu())
         local_rot = output["local_rot_mats"].float().cpu()
         root_pos = output["root_positions"].float().cpu()
         hand = output["hand_binary"].float().cpu()
@@ -216,7 +271,9 @@ class KimodoPlanner:
         # over round(n * 5/3) steps from the previous plan's last frame instead lagged one
         # model frame behind the clock: with perfect predictions that cost drawer_top_open
         # and move_plate 30 points at 10-frame plans and pick_box 10 points at 50.
-        offsets = self.control_offsets(obs.step, local_rot.shape[0])
+        frames = local_rot.shape[0]
+        offsets = self.control_offsets(obs.step, frames, execution_frames=frames)  # all of it; the rest is the tail
+        steps = len(self.control_offsets(obs.step, frames)) - 1
         control_rot, control_root = _interpolate_motion(
             torch.cat((local_rot[:1], local_rot)), torch.cat((before, root_pos)), offsets + 1.0
         )
@@ -225,8 +282,12 @@ class KimodoPlanner:
             control_rot[1:], control_root[1:], previous_root_position=control_root[0], hand_binary=control_hand
         )
 
-        chunk = ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
-        chunk.root_rot = np.einsum("ij,tjk->tik", self._first_heading, chunk.root_rot).astype(np.float32)
+        full = ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
+        full.root_rot = np.einsum("ij,tjk->tik", self._first_heading, full.root_rot).astype(np.float32)
+        chunk = full[:steps]
+        if self.blend_steps and self._tail is not None and self._tail[0] == obs.step + 1:
+            chunk = _crossfade(self._tail[1], chunk, self.blend_steps)
+        self._tail = (obs.step + 1 + steps, full[steps:])
 
         self._hand_track = torch.cat((self.hand_history(cut, cut)[0], hand))  # the next plan overwrites from its own cut
         self.num_plans += 1

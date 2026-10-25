@@ -25,24 +25,32 @@ def height(frames: torch.Tensor) -> torch.Tensor:
 
 
 class FakeModel(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, disagree: float = 0.0):
         super().__init__()
         self.controlnet = torch.nn.Linear(1, 1)
         self.fps = MODEL_FPS
         self.config = SimpleNamespace(action_chunk=50, action_history=100, hand_control_mode="binary")
         self.text_encoder = None
         self.calls = []
+        self.disagree = disagree  # height offset that flips sign with every plan
+        self.seeds, self.references = [], []
 
     @property
     def device(self):
         return torch.device("cpu")
 
-    def predict_future(self, *, history_motion, hand_history, **_):
+    def predict_future(self, *, history_motion, hand_history, generator=None, rtc_motion_reference=None, **_):
         cut = history_motion.shape[1]  # valid while the history is shorter than action_history
+        self.seeds.append(None if generator is None else generator.initial_seed())
+        self.references.append(None if rtc_motion_reference is None else (cut, rtc_motion_reference[0, :, 0].clone()))
+        offset = self.disagree * (-1) ** len(self.calls)
         self.calls.append((cut, hand_history[0].clone()))
         frames = torch.arange(cut, cut + 50, dtype=torch.float32)
-        root = torch.stack([torch.zeros(50), height(frames), torch.zeros(50)], dim=1)
+        root = torch.stack([torch.zeros(50), height(frames) + offset, torch.zeros(50)], dim=1)
+        features = torch.zeros(50, 417)
+        features[:, 0] = frames  # lets the test check which frames RTC is handed
         return dict(
+            motion_features=features,
             local_rot_mats=torch.eye(3).repeat(50, 34, 1, 1),
             root_positions=root,
             hand_binary=(frames >= MODEL_FPS).float().unsqueeze(1).expand(-1, 2).clone(),
@@ -57,13 +65,20 @@ def observation():
     )
 
 
-@pytest.mark.parametrize("execution_frames", [10, 50])
-def test_targets_follow_the_control_clock(execution_frames):
+def run(model, steps=160, seed=None, **options):
+    agent = Agent(KimodoPlanner(model, {"go": torch.zeros(1, 8)}, control_fps=CONTROL_FPS, **options))
+    agent.reset(seed)
+    return agent, np.array([agent.step(observation()).root_height[0] for _ in range(steps)])
+
+
+@pytest.mark.parametrize("options", [
+    dict(execution_frames=10), dict(execution_frames=50),
+    dict(execution_frames=10, noise="fixed", rtc_overlap_frames=12, blend_steps=8),  # a consistent model is left alone
+])
+def test_targets_follow_the_control_clock(options):
     model = FakeModel()
-    agent = Agent(KimodoPlanner(model, {"go": torch.zeros(1, 8)}, control_fps=CONTROL_FPS, execution_frames=execution_frames))
-    agent.reset()
     steps = 160  # the history stays shorter than action_history, so the fake model can read the cut
-    targets = np.array([agent.step(observation()).root_height[0] for _ in range(steps)])
+    agent, targets = run(model, steps, **options)
     expected = height(torch.arange(1, steps + 1) * MODEL_FPS / CONTROL_FPS).numpy()  # target of step t is for t + 1
     assert agent.num_plans >= 2
     np.testing.assert_allclose(targets, expected, atol=1e-5)
@@ -71,3 +86,26 @@ def test_targets_follow_the_control_clock(execution_frames):
     for cut, hand in model.calls:  # the hand history is what earlier plans commanded for those frames
         frames = torch.arange(cut - hand.shape[0], cut)
         np.testing.assert_array_equal(hand[:, 0].numpy(), (frames >= MODEL_FPS).float().numpy())
+
+
+def test_fixed_noise_reuses_the_first_plans_seed():
+    fixed, per_plan = FakeModel(), FakeModel()
+    run(fixed, seed=7, execution_frames=10, noise="fixed")
+    run(per_plan, seed=7, execution_frames=10)
+    assert len(set(fixed.seeds)) == 1 and fixed.seeds[0] == per_plan.seeds[0]
+    assert len(set(per_plan.seeds)) == len(per_plan.seeds)
+
+
+def test_rtc_reference_is_the_previous_plan_at_the_same_frames():
+    model = FakeModel()
+    run(model, execution_frames=10, rtc_overlap_frames=12)
+    assert model.references[0] is None
+    for cut, frames in model.references[1:]:
+        np.testing.assert_array_equal(frames.numpy(), np.arange(cut, cut + 12))
+
+
+def test_blending_removes_the_jump_between_disagreeing_plans():
+    _, raw = run(FakeModel(disagree=0.01), execution_frames=10)
+    _, blended = run(FakeModel(disagree=0.01), execution_frames=10, blend_steps=8)
+    assert np.abs(np.diff(raw)).max() > 0.015  # a 0.02 jump at every replan
+    assert np.abs(np.diff(blended)).max() < 0.006
