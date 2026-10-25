@@ -44,6 +44,7 @@ def make_kimodo_policy(
     execution_frames: int = 15,
     diffusion_steps: int = 10,
     rtc: bool = False,
+    timing: str = "exact",
 ) -> ChunkPolicy:
     from kimodo_vla.model.planner import KimodoPlanner
 
@@ -56,6 +57,7 @@ def make_kimodo_policy(
         execution_frames=execution_frames,
         diffusion_steps=diffusion_steps,
         rtc=rtc,
+        timing=timing,
         root_boundary=ROOT_BOUNDARY[controller],
     )
     return make_policy(planner)

@@ -46,9 +46,17 @@ kimodo_vla/
       policy.py     # make_policy / make_kimodo_policy：交给 BiGym 官方评测器
 scripts/
   prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 三路官方 84×84 图像）
+  cache_text_embeddings.py  # 20 个任务指令的 LLM2Vec embedding
+  train.py                  # 训练一个任务（第 12 节）
+  submit_bigym2.py          # 把主表 27 个训练和随后的评测提交到 Slurm 集群
+  eval_run.py               # 评测一个 run 的若干 checkpoint（同一张卡上并行）
+  summarize_bigym2.py       # 汇总成论文主表格式（旁边列 π0.5）
+  gpu_queue.py              # 不走集群时：把一批任务排到单机上没人用的 GPU
   check_bigym2_roundtrip.py # 动作来回转换检查
   eval_bigym2.py            # 按官方协议评测一个 checkpoint
   serve_arena.py / serve_simple.py / serve_toolbench.py   # 起 HTTP 服务，等对方评测器来调
+configs/
+  bigym2.yaml               # 训练的唯一一份基础配置
 tests/              # 见第 7 节
 ```
 
@@ -163,9 +171,14 @@ MUJOCO_GL=egl python scripts/eval_bigym2.py --task move_plate \
 ## 6. KimodoPlanner 和旧仓库的关系
 
 `model/planner.py` 是旧仓库 `evaluation/humanoidarena_server.py` 里推理流程的移植，
-去掉了 HTTP、调试开关和事务快照。所有关节都可见时，它送进模型的输入和输出的动作
-与旧代码一致：`tests/test_port_equivalence.py` 用同一条 420 步轨迹对比三种设置
-（每次执行 50 帧；15 帧；15 帧 + RTC），动作最大差 6e-6。
+去掉了 HTTP、调试开关和事务快照。所有关节都可见时，它送进模型的输入和旧代码一致。
+
+输出的动作有两种取帧方式（`timing`）：
+- `"exact"`（默认）：按每个控制步的真实时间读预测（第 12 节末尾的规划器时间修正）。旧代码每段慢一个模型帧，
+  所以默认的动作和旧代码有意不同；`tests/test_port_equivalence.py` 只对比送进模型的输入（差 1.9e-6）。
+- `"original"`：照旧代码的方式取帧，用来和旧代码逐项对比、复现旧仓库的评测结果。同一条 420 步轨迹、三种设置
+  （每次执行 50 帧；15 帧；15 帧 + RTC）下动作最大差 6e-6；Arena、SIMPLE 的对比测试也用它。
+  Arena、SIMPLE 的入口和 `serve_*.py` 默认用 `exact`，`--timing original` 切回旧方式。
 
 RTC（实时分块融合：新一段动作的开头向上一段没执行完的尾巴靠拢，让两段衔接更平滑）保留为
 `KimodoPlanner(rtc=True, rtc_overlap_frames=12, rtc_frozen_frames=1, rtc_ramp_power=1.0)`，**默认关**。
@@ -180,7 +193,7 @@ RTC（实时分块融合：新一段动作的开头向上一段没执行完的�
 
 手部控制两种都支持：二值（BiGym、Arena、SIMPLE 二值权重），连续（SIMPLE 连续权重、ToolBench；历史条件用
 `Observation.hand` 里测到的闭合度）。另外两个按 benchmark 设的选项：`root_boundary`（每段第一帧位移从哪里算起，
-见第 12 节）和 `hand_filter`（SIMPLE 二值手的防抖）。
+见第 13 节）和 `hand_filter`（SIMPLE 二值手的防抖）。
 
 接入 VLM：新模型实现同一个 `Planner` 接口即可，Agent、适配器、评测脚本一行不改。
 
@@ -209,9 +222,13 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest   # 另外跑与旧代码的对比
 ## 9. 还没做的
 
 - [x] 训练数据：`scripts/prepare_bigym2.py` + `data/episodes.py`，见第 11 节。
-- [ ] 训练脚本 `train.py`。
+- [x] 训练脚本 `scripts/train.py` + `configs/bigym2.yaml`，见第 12 节。
 - [x] 动作来回转换检查（`scripts/check_bigym2_roundtrip.py`，见第 10 节）。
-- [ ] 文本 embedding：用 LLM2Vec 给 20 个任务指令预先算好。
+- [x] 文本 embedding：`scripts/cache_text_embeddings.py` 给 `task_instructions.yaml` 里 20 个任务的指令
+      各算一份 LLM2Vec embedding，存成 `<任务名>.pt`（格式同旧仓库，`planner.load_text_embeddings` 直接读）。
+      A800 上已生成在 `data/cache/bigym2`。新环境（transformers 5.1、peft 0.18）算出的结果和旧仓库缓存的
+      embedding 完全一致（同一句指令，最大差 0）；加载时打印的 LoRA「MISSING」是第一遍加载的提示，可以忽略。
+      这 20 句指令和论文附录里 π0.5 用的逐字相同。
 - [x] 输入图像：只用头部相机，官方 84×84，由 DINOv3 预处理在模型内部放大到 224。
       BiGym 作者澄清：所有方法拿到的都是同样的 84×84 原始数据，π0.5 的 224 也只是模型内部放大，
       不是重新渲染。评测用官方相机设置，所以官方 runner 会正常出排行榜记录。
@@ -234,15 +251,28 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest   # 另外跑与旧代码的对比
 
 做法：把演示里的动作当成「完美的模型预测」，走和正式评测完全相同的流程
 （Agent → 30Hz Kimodo 动作块 → 重采样 → 40 维编码 → 适配器 → BiGym），看还剩多少成功率。
-5 个任务 × 60 条演示，2026-10-24 在 A800 上跑。
+前 5 个任务 × 60 条演示，2026-10-24 在 A800 上跑；主表其余 6 个任务 2026-10-25 补跑（没测「实际执行」那一列）。
 
-| 任务 | 原样回放 | 实际执行的动作当目标 | 操作员指令当目标（30Hz 流程） | 指令直接给 50Hz |
-|---|---|---|---|---|
-| drawer_top_open | 100% | 0% | 97% | 100% |
-| flip_cup | 100% | 2% | 97% | 98% |
-| move_plate | 100% | 7% | 97% | 100% |
-| pick_box | 100% | 0% | 80% | 90% |
-| reach_target_single | 100% | 95% | 100% | 100% |
+「修正前」一列是 2026-10-25 之前的规划器：它把预测帧从上一段末尾开始摊到控制步上，每段都比实际时间
+慢约一个模型帧（33 毫秒），见第 12 节末尾。「修正后」是现在的规划器（按每个控制步的真实时间取帧），
+同一批演示，每 50 帧和每 10 帧重新预测一次结果完全相同。
+
+| 任务 | 原样回放 | 实际执行的动作当目标 | 操作员指令当目标（修正前） | 操作员指令当目标（修正后） | 指令直接给 50Hz |
+|---|---|---|---|---|---|
+| drawer_top_open | 100% | 0% | 97% | 97% | 100% |
+| flip_cup | 100% | 2% | 97% | 90% | 98% |
+| move_plate | 100% | 7% | 97% | 100% | 100% |
+| pick_box | 100% | 0% | 80% | 90% | 90% |
+| reach_target_single | 100% | 95% | 100% | 100% | 100% |
+| drawer_top_close | 100% | – | 100% | 100% | 100% |
+| move_two_plates | 100% | – | 92% | 93% | 100% |
+| reach_target_multi_modal | 100% | – | 100% | 100% | 100% |
+| reach_target_dual | 100% | – | 98% | 100% | 100% |
+| dishwasher_close | 100% | – | 83% | 87% | 98% |
+| dishwasher_load_cups | 100% | – | 97% | 93% | 100% |
+
+修正前每 10 帧重新预测时，drawer_top_open 和 move_plate 只剩 67%；修正后和每 50 帧一样。
+修正后手臂跟踪误差从约 0.007 rad 降到 0.001 rad。
 
 结论：
 
@@ -253,8 +283,11 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest   # 另外跑与旧代码的对比
    它会去纠正 WBC 本来就有的朝向漂移，结果走出和演示不一样的路线。
 3. **转向角速度要和平移一样用向后差分。** 原来用的是向前差分，比操作员提前一步，
    pick_box 因此少了约 12 个点（50Hz 直接给：78% → 90%）。
-4. **Kimodo 的 30Hz 表示带来的损失**：大部分任务只有 0–3 个点，pick_box 有 10 个点（90% → 80%），
-   它转身和走动多，30Hz 重采样会把路线磨平。所以这套接口的成功率上限约为 94%（5 个任务平均）。
+4. **规划器必须按控制步的真实时间取帧。** 以前 pick_box 少的 10 个点（80% vs 90%）原以为是 30Hz 表示
+   把路线磨平，其实是规划器慢一帧；修正后 pick_box 和直接给 50Hz 一样是 90%。
+   修正后仍和 50Hz 有差距的是 dishwasher_close（87% vs 98%）和 flip_cup（90% vs 98%），
+   flip_cup 和 dishwasher_load_cups 修正后反而低了 4–7 个点（每个任务 60 条，误差约 ±4 个点）。
+   论文主表 9 个任务上，这套接口的成功率上限约为 96%（修正前约 94%；π0.5 是 75%）。
 5. pick_box 直接给 50Hz 也只有 90%：抱 3kg 箱子对接触很敏感，指令上的微小差别就可能失败。
 
 
@@ -281,7 +314,61 @@ KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest   # 另外跑与旧代码的对比
 **规模**：5 个任务 300 条演示，三路 84×84 图像共 8GB，可切出 112,683 个训练窗口（pick_box 演示最长，独占 57,643 个）。
 20 个任务按这 5 个任务的平均估算，约 32GB。窗口数和演示长度成正比，多任务训练时要考虑按任务均衡采样。
 \n
-## 12. 四个 benchmark 共用一套接口
+
+## 12. 训练
+
+**协议**（2026-10-25 定，和论文里 π0.5 的做法对齐，见 BiGym 2.0 论文附录 D-C、Table A5）：
+每个任务单独训一个模型，只用该任务的 60 条演示；30k 步，每步 48 个样本，前 1k 步学习率线性升温，
+之后余弦降到 0.1 倍；保存 5k、10k……和最后 5 个（26k–30k，间隔 1k），评测这最后 5 个。
+主表是论文的 9 个任务：pick_box、reach_target_multi_modal、reach_target_dual、drawer_top_close、
+drawer_top_open、move_plate、move_two_plates、dishwasher_close、dishwasher_load_cups（π0.5 平均 75%）。
+这 9 个任务的训练数据都已在 A800 的 `prepared84` 里。
+
+```bash
+python scripts/train.py --task move_plate                    # 三路相机（主结果）
+python scripts/train.py --task move_plate --cameras head     # 只用头部（消融）
+python scripts/train.py --task move_plate --cameras head --init-checkpoint <pt_419h checkpoint>   # 对照
+python scripts/train.py --resume log/bigym2/<run>             # 中断后接着训
+```
+
+训练数据目录取环境变量 `BIGYM2_PREPARED`（A800 上由 `kimodo-vlm-env.sh` 设置）。其余设置都在 `configs/bigym2.yaml`，命令行可以用 `main.max_steps=200` 这种写法临时改。
+模型结构和损失权重沿用 pt_419h（4 层 ControlNet、root/body 梯度分开、root 损失权重 4、梯度裁剪 1.0），
+所以 pt_419h 对照和从零训练只差起点。学习率分组沿用旧仓库：从 Kimodo 复制来的 ControlNet 层 3e-5，
+新加的投影层和手部头 1e-4。样本是该任务所有训练窗口均匀打乱，不做图像增强（π0.5 也没写用了）。
+
+**输出**：`log/bigym2/<任务>_<路数>cam_<时间>/` 下有 `config.json`、`train.log`、`metrics.jsonl`、
+`resume.pt`（最新的优化器状态，用来接着训）和各个 `checkpoint_<步数>/`（只存 ControlNet 和手部头权重）。
+checkpoint 里的 `config.json` 写了 `model.cameras`，评测时 planner 据此取相机，直接给 `eval_bigym2.py` 用。
+
+**实测**（A800，move_plate，三路，每步 48）：显存 21.5GB，约 0.6 秒/步，30k 步约 5 小时。
+
+**批量跑**：`scripts/gpu_queue.py` 读一个任务清单（每行 `名字 命令`），一张卡跑一个，
+只用没人占的卡（显存占用低于 500MB；别人的进程即使闲着也占显存），有卡空出来就接着排。
+每个任务的输出、所在 GPU、退出码都记在日志目录里；队列本身挂了也不影响已经在跑的训练，
+重启队列会跳过已经结束和还在跑的。失败的不自动重试。
+
+**集群（Slurm）**：A800 登录节点上 `sbatch` 可以提交到 30 个计算节点（每个 8 张 A800）。
+`scripts/submit_bigym2.py` 给每个（任务，设置）提交 1 个训练作业（1 张卡），训练成功后自动接 2 个评测作业：
+最后 5 个 checkpoint（主表分数）和 5k–25k（学习曲线），每个作业在 1 张卡上同时评 5 个 checkpoint
+（每个评测进程约 3.3GB 显存），每个 checkpoint 100 回合。结果写在 `<run>/eval/checkpoint_<步数>.json`，
+`scripts/summarize_bigym2.py <目录>` 汇总成表。
+每个 checkpoint 评两种设置，在表里并列：默认执行完整个 50 帧（1.67 秒）再重新预测，结果在 `eval/`；每 10 帧（0.33 秒，接近 π0.5 的 0.32 秒）重新预测一次，结果在 `eval_exec10/`（`eval_run.py --execution-frames 10`）。重跑提交脚本只补缺的部分：还在队列里的同名作业直接沿用，训完的不重训，没训完的接着训，
+评过的 checkpoint 跳过。
+
+计算节点上没有登录节点本地那份 Python（`envs/kimodo` 指向登录节点的 `/var/tmp`），所以 A800 上另建了
+`.venv-cluster`：同一套已安装的包，换用共享盘上的 `envs/kimodo.shared`。`kimodo-vlm-env.sh` 会自动选。
+
+**2026-10-25 提交的正式训练**：主表 9 个任务 × 3 组（三路从零 = 主结果；只用头部从零 = 消融；
+只用头部从 pt_419h 起步 = 对照），共 27 个训练、108 个评测作业（两种重新预测间隔各 54 个），输出在 A800 的 `log/bigym2/main9/`。
+
+**规划器时间修正（2026-10-25）**：查「每 0.33 秒重新预测几乎全败」时发现，规划器把预测帧从上一段末尾开始
+摊到控制步上，每段都比实际时间慢约一个模型帧，10 帧还被拉成 17 步。现在按每个控制步的真实时间取帧
+（预测第 0 帧在模型帧 round(步数 × 0.6)，之前的时间用历史最后一帧的根位置），每段不超出最后一个预测帧，
+手部历史也按模型帧对齐。`tests/test_planner_timing.py` 在旧代码上会失败。修正前的评测结果保留在各 run 的
+`old_timing_eval*/` 里，主表全部用修正后的代码重新评测。修正只解决了一部分：真实模型每 0.33 秒重新预测
+仍然大幅掉分，原因是前后两次预测对不上（每次重新预测手臂指令跳动是平时的 5–20 倍），这是模型侧的问题。
+
+## 13. 四个 benchmark 共用一套接口
 
 目标：HumanoidArena、SIMPLE（旧仓库）、BiGym 2.0、HumanoidToolBench 共用同一个 Agent + Planner，
 换 benchmark 只换适配器。来源：旧仓库 `evaluation/humanoidarena_server.py`、`simple_server.py`

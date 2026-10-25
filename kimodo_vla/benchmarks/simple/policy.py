@@ -78,13 +78,14 @@ def make_kimodo_policy(
     execution_frames: int = 50,
     diffusion_steps: int = 10,
     rtc: bool = False,
+    timing: str = "exact",
     max_navigation_speed: float = 1.5,
 ) -> ChunkPolicy:
     from kimodo_vla.model.planner import KimodoPlanner
 
     planner = KimodoPlanner.from_checkpoint(
         checkpoint_dir, text_embedding_cache, device=device, dtype=dtype, control_fps=CONTROL_FPS,
-        execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc=rtc, root_boundary="extrapolate",
+        execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc=rtc, timing=timing, root_boundary="extrapolate",
     )
     debounce = hands.HandDebounce(CONTROL_FPS) if planner.hand_mode == "binary" else None
     planner.hand_filter = debounce

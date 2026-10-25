@@ -5,7 +5,7 @@
         --out outputs/move_plate.json
 
 Fewer than 100 episodes is a smoke run: BiGym then produces no leaderboard record.
-The env is the official one (three 84x84 cameras); the planner uses the head camera.
+The env is the official one (three 84x84 cameras); the checkpoint's ``model.cameras`` picks which ones the planner uses.
 """
 
 from __future__ import annotations

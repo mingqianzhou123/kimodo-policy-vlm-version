@@ -28,12 +28,14 @@ def main() -> None:
     parser.add_argument("--execution-frames", type=int, default=15)
     parser.add_argument("--diffusion-steps", type=int, default=10)
     parser.add_argument("--rtc", action="store_true")
+    parser.add_argument("--timing", choices=("exact", "original"), default="exact",
+                        help="'original' decodes plans as the original repository did, one model frame behind")
     args = parser.parse_args()
 
     policy = make_kimodo_policy(
         args.checkpoint, args.text_cache, controller=args.controller, device=args.device,
         dtype={"fp32": torch.float32, "bf16": torch.bfloat16}[args.dtype],
-        execution_frames=args.execution_frames, diffusion_steps=args.diffusion_steps, rtc=args.rtc,
+        execution_frames=args.execution_frames, diffusion_steps=args.diffusion_steps, rtc=args.rtc, timing=args.timing,
     )
     server = make_server(routes(policy), args.host, args.port, PLAIN_JSON)
     print(f"Serving on http://{args.host}:{server.server_port}", flush=True)

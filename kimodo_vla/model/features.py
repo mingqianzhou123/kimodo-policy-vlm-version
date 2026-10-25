@@ -48,6 +48,15 @@ def history_feature_mask(representation: KimodoMotionRep, joint_mask: np.ndarray
     return mask
 
 
+def lerp_rows(values: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
+    """``values [T, D]`` linearly interpolated at fractional row ``positions``, clamped to the ends."""
+    positions = positions.clamp(0, values.shape[0] - 1)
+    lower = positions.floor().long()
+    upper = (lower + 1).clamp(max=values.shape[0] - 1)
+    alpha = (positions - lower.float()).unsqueeze(-1)
+    return (1.0 - alpha) * values[lower] + alpha * values[upper]
+
+
 class KimodoFeatures:
     def __init__(self, control_fps: float, model_fps: float = 30.0):
         self.control_fps = float(control_fps)

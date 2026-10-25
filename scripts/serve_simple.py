@@ -29,12 +29,14 @@ def main() -> None:
     parser.add_argument("--execution-frames", type=int, default=50)
     parser.add_argument("--diffusion-steps", type=int, default=10)
     parser.add_argument("--rtc", action="store_true")
+    parser.add_argument("--timing", choices=("exact", "original"), default="exact",
+                        help="'original' decodes plans as the original repository did, one model frame behind")
     parser.add_argument("--max-navigation-speed", type=float, default=1.5)
     args = parser.parse_args()
 
     policy = make_kimodo_policy(
         args.checkpoint, args.text_cache, device=args.device, dtype={"fp32": torch.float32, "bf16": torch.bfloat16}[args.dtype],
-        execution_frames=args.execution_frames, diffusion_steps=args.diffusion_steps, rtc=args.rtc,
+        execution_frames=args.execution_frames, diffusion_steps=args.diffusion_steps, rtc=args.rtc, timing=args.timing,
         max_navigation_speed=args.max_navigation_speed,
     )
     server = make_server(routes(policy), args.host, args.port, NUMPY_JSON)

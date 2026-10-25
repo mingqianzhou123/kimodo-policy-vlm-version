@@ -3,8 +3,8 @@
 Handing the Agent a demo's own motion in place of a model prediction shows how
 much success survives the interface if the model predicted perfectly:
 
-* ``DemoPlanner`` goes through the exact evaluation path (30 Hz Kimodo chunks,
-  resampling to the control rate, 40-D encoding), like ``KimodoPlanner``;
+* ``DemoPlanner`` goes through the evaluation path (30 Hz Kimodo chunks read at the
+  true time of each control step, 40-D encoding), like ``KimodoPlanner``;
 * ``DirectPlanner`` hands the motion to the adapter at the control rate, skipping
   Kimodo's representation: the gap between the two is the model-rate loss.
 
@@ -14,21 +14,20 @@ See ``scripts/check_bigym2_roundtrip.py`` and ARCHITECTURE section 10.
 from __future__ import annotations
 
 import numpy as np
+import torch
 
 from kimodo_vla.core.types import ActionChunk
 from kimodo_vla.data.build import DemoMotion
-from kimodo_vla.model.features import KimodoFeatures
-from kimodo_vla.motion.g1_reference import (
-    resample_hand_binary,
-    resample_hand_binary_chunk,
-    resample_hand_continuous,
-    resample_hand_continuous_chunk,
-    resample_motion_chunk,
-)
+from kimodo_vla.model.features import KimodoFeatures, lerp_rows
+from kimodo_vla.motion.g1_reference import _interpolate_motion, resample_hand_binary, resample_hand_continuous
 
 
 class DemoPlanner:
-    """A Planner that 'predicts' a recorded motion, chunked exactly like KimodoPlanner."""
+    """A Planner that 'predicts' a recorded motion and samples it like KimodoPlanner.
+
+    The recorded motion is resampled to the model rate, then read at the true time of
+    each control step the plan covers (``chunk`` model frames per plan).
+    """
 
     history_steps = 2
 
@@ -38,30 +37,21 @@ class DemoPlanner:
         self.kimodo = KimodoFeatures(control_fps, model_fps)
         self.rot, self.root = self.kimodo.motion(motion.joint_pos, motion.root_pos, motion.root_rot)
         self.hand = (resample_hand_continuous if self.continuous else resample_hand_binary)(motion.hand, control_fps, model_fps)
-        self.reset()
 
     def reset(self, seed=None):
-        self._previous_rot = None
-        self._previous_hand = None
+        pass
 
     def plan(self, history):
-        last = len(self.rot) - 1  # past the end of the demo, hold its final pose
-        k = int(round(history[-1].step * self.model_fps / self.control_fps))
-        before = min(max(k - 1, 0), last)
-        idx = np.clip(np.arange(k, k + self.chunk), 0, last)
-        rot, root, hand = self.rot[idx], self.root[idx], self.hand[idx]
-        previous_rot = self.rot[before] if self._previous_rot is None else self._previous_rot
-        previous_hand = self.hand[before] if self._previous_hand is None else self._previous_hand
-        control_rot, control_root = resample_motion_chunk(
-            rot, root, self.model_fps, self.control_fps,
-            previous_local_rot_mat=previous_rot, previous_root_position=self.root[before],
-        )
+        ratio = self.model_fps / self.control_fps
+        step, last = history[-1].step, len(self.rot) - 1  # past the end of the demo, hold its final pose
+        steps = int(round(self.chunk / ratio))
+        times = (torch.arange(step, step + steps + 1, dtype=torch.float32) * ratio).clamp(0, last)
+        rot, root = _interpolate_motion(self.rot, self.root, times)  # row 0: now
         if self.continuous:
-            control_hand = resample_hand_continuous_chunk(hand, self.model_fps, self.control_fps, previous_hand_closure=previous_hand)
+            hand = lerp_rows(self.hand, times[1:])
         else:
-            control_hand = resample_hand_binary_chunk(hand, self.model_fps, self.control_fps, previous_hand_binary=previous_hand)
-        actions = self.kimodo.codec.encode(control_rot, control_root, previous_root_position=self.root[before], hand_binary=control_hand)
-        self._previous_rot, self._previous_hand = rot[-1], hand[-1]
+            hand = self.hand[times[1:].round().long()]
+        actions = self.kimodo.codec.encode(rot[1:], root[1:], previous_root_position=root[0], hand_binary=hand)
         return ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
 
 

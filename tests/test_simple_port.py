@@ -46,7 +46,7 @@ def test_simple_matches_original(hand_mode):
     old_model, new_model = FakeModel(hand_mode), FakeModel(hand_mode)
     rt, original = old_simple_runtime(old_model, 50, hand_mode)
     debounce = hands.HandDebounce(50.0) if hand_mode == "binary" else None
-    planner = KimodoPlanner(new_model, {"t": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=50,
+    planner = KimodoPlanner(new_model, {"t": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=50, timing="original",
                             root_boundary="extrapolate", hand_filter=debounce)
     handlers = routes(make_policy(planner, hand_mode, debounce))
     rt.reset(3)

@@ -31,7 +31,7 @@ def test_arena_server_matches_original(controller, rtc, monkeypatch):
     data = episode(steps=240)
     old_model, new_model = FakeModel(), FakeModel()
     rt = old_runtime(old_model, 15, rtc)
-    planner = KimodoPlanner(new_model, {"t": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=15, rtc=rtc,
+    planner = KimodoPlanner(new_model, {"t": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=15, rtc=rtc, timing="original",
                             root_boundary=ROOT_BOUNDARY[controller])
     handlers = routes(make_policy(planner))
     rt.reset(7)
