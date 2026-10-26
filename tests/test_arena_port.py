@@ -9,6 +9,7 @@ from original_runtime import FakeModel, arena_payload, compare_calls, episode, o
 from kimodo_vla.benchmarks.arena.policy import ROOT_BOUNDARY, make_policy, routes
 from kimodo_vla.core.types import yaw_matrix
 from kimodo_vla.model.planner import KimodoPlanner
+from kimodo_vla.model.planner_original import OriginalTimingPlanner
 
 
 def requests(data, execution_frames):
@@ -31,7 +32,7 @@ def test_arena_server_matches_original(controller, rtc, monkeypatch):
     data = episode(steps=240)
     old_model, new_model = FakeModel(), FakeModel()
     rt = old_runtime(old_model, 15, rtc)
-    planner = KimodoPlanner(new_model, {"t": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=15, rtc_overlap_frames=12 if rtc else 0, timing="original",
+    planner = OriginalTimingPlanner(new_model, {"t": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=15, rtc_overlap_frames=12 if rtc else 0,
                             root_boundary=ROOT_BOUNDARY[controller])
     handlers = routes(make_policy(planner))
     rt.reset(7)

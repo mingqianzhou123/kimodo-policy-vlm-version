@@ -46,9 +46,12 @@ def make_kimodo_policy(
     rtc_overlap_frames: int = 0,
     timing: str = "exact",
 ) -> ChunkPolicy:
+    """``timing="original"`` decodes plans as the original repository did (``OriginalTimingPlanner``)."""
     from kimodo_vla.model.planner import KimodoPlanner
+    from kimodo_vla.model.planner_original import OriginalTimingPlanner
 
-    planner = KimodoPlanner.from_checkpoint(
+    planner_class = OriginalTimingPlanner if timing == "original" else KimodoPlanner
+    planner = planner_class.from_checkpoint(
         checkpoint_dir,
         text_embedding_cache,
         device=device,
@@ -57,7 +60,6 @@ def make_kimodo_policy(
         execution_frames=execution_frames,
         diffusion_steps=diffusion_steps,
         rtc_overlap_frames=rtc_overlap_frames,
-        timing=timing,
         root_boundary=ROOT_BOUNDARY[controller],
     )
     return make_policy(planner)

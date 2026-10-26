@@ -1,6 +1,6 @@
 """Migration check: feed the same episode to the original HumanoidArena runtime and to KimodoPlanner.
 
-With ``timing="original"`` the planner decodes predictions as the original runtime did,
+``OriginalTimingPlanner`` decodes predictions as the original runtime did,
 so actions are compared too. The default timing samples predictions at the true time
 of each control step (``tests/test_planner_timing.py``) and its plans run out at other
 steps, so it is asked to plan at the original's steps and only the model inputs are compared.
@@ -17,6 +17,7 @@ from original_runtime import FakeModel, arena_payload, compare_calls, episode, o
 from kimodo_vla.core.agent import Agent
 from kimodo_vla.core.types import Observation, yaw_matrix
 from kimodo_vla.model.planner import KimodoPlanner
+from kimodo_vla.model.planner_original import OriginalTimingPlanner
 
 
 @pytest.mark.parametrize("execution_frames, rtc", [(50, False), (15, False), (15, True)])
@@ -38,8 +39,8 @@ def test_planner_matches_original_runtime(execution_frames, rtc):
 
     # New code path.
     new_model = FakeModel()
-    planner = KimodoPlanner(new_model, {"do it": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=execution_frames, rtc_overlap_frames=12 if rtc else 0,
-                            timing="original")
+    planner = OriginalTimingPlanner(new_model, {"do it": torch.zeros(1, 8)}, control_fps=50.0,
+                                    execution_frames=execution_frames, rtc_overlap_frames=12 if rtc else 0)
     agent = Agent(planner)
     agent.reset()
     new_actions = []
