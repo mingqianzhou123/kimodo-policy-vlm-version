@@ -15,7 +15,7 @@ main:
   save_root: log/bigym2            # relative to the repo
   max_steps: 30000
   batch_size: 48                   # per optimizer step
-  micro_batch_size: 48             # lower it if the GPU runs out of memory; gradients accumulate
+  micro_batch_size: 48             # per GPU; lower it if a GPU runs out of memory, gradients accumulate
   action_chunk: 50
   action_history: 100
   seed: 1000                       # π0.5's training seed in the paper
@@ -25,6 +25,7 @@ main:
   checkpoint_every: 5000           # learning curve
   final_checkpoints: 5             # plus the last five, 1000 steps apart: 26k ... 30k, the ones scored
   final_checkpoint_spacing: 1000
+  score_checkpoints: null          # or an explicit list of the checkpoints the headline pools
   gradient:
     grad_clip_norm: 1.0            # ControlNet
     hand_grad_clip_norm: 1.0
@@ -49,6 +50,9 @@ model:
   hand_control_mode: binary
 
 training:
+  augmentation:                    # BiGym's baseline recipe is in bigym2_recipe.yaml
+    image_shift: 0                 # pixels, per camera
+    proprio_mask_prob: 0.0         # per sample: the history keeps only root heading and pelvis orientation
   loss:
     motion_loss_type: mse
     mse_weights:

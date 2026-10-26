@@ -47,7 +47,8 @@ kimodo_vla/
 scripts/
   prepare_bigym2.py         # 演示 → 训练文件（Kimodo 特征 + 三路官方 84×84 图像）
   cache_text_embeddings.py  # 20 个任务指令的 LLM2Vec embedding
-  train.py                  # 训练一个任务（第 12 节）
+  train.py                  # 训练一个任务（第 12 节），单卡或 torch.distributed.run 多卡
+  run_config.py             # 读配置、列 checkpoint，不依赖模型代码
   submit_bigym2.py          # 把主表 27 个训练和随后的评测提交到 Slurm 集群
   eval_run.py               # 评测一个 run 的若干 checkpoint（同一张卡上并行）
   summarize_bigym2.py       # 汇总成论文主表格式（旁边列 π0.5）
@@ -56,7 +57,8 @@ scripts/
   eval_bigym2.py            # 按官方协议评测一个 checkpoint
   serve_arena.py / serve_simple.py / serve_toolbench.py   # 起 HTTP 服务，等对方评测器来调
 configs/
-  bigym2.yaml               # 训练的唯一一份基础配置
+  bigym2.yaml               # 训练的唯一一份基础配置（和 π0.5 同口径）
+  bigym2_recipe.yaml        # 在基础配置上只改几项：和 ACT/DP 同口径（见第 12 节）
 tests/              # 见第 7 节
 ```
 
@@ -180,9 +182,9 @@ MUJOCO_GL=egl python scripts/eval_bigym2.py --task move_plate \
   （每次执行 50 帧；15 帧；15 帧 + RTC）下动作最大差 6e-6；Arena、SIMPLE 的对比测试也用它。
   Arena、SIMPLE 的入口和 `serve_*.py` 默认用 `exact`，`--timing original` 切回旧方式。
 
-RTC（实时分块融合：新一段动作的开头向上一段没执行完的尾巴靠拢，让两段衔接更平滑）保留为
-`KimodoPlanner(rtc=True, rtc_overlap_frames=12, rtc_frozen_frames=1, rtc_ramp_power=1.0)`，**默认关**。
-所有正式评测都是关着的；评测脚本不传这个参数就是关。
+RTC（实时分块融合：新一段动作的开头向上一段没执行完、时间相同的那几帧靠拢，让两段衔接更平滑）用
+`KimodoPlanner(rtc_overlap_frames=12, rtc_frozen_frames=1)` 打开（旧仓库的设置），**默认关**；指令一变就重新开始。
+和固定噪声、平滑过渡一起见第 12 节末尾。
 
 和旧代码不同的两点：
 
@@ -367,6 +369,27 @@ checkpoint 里的 `config.json` 写了 `model.cameras`，评测时 planner 据�
 手部历史也按模型帧对齐。`tests/test_planner_timing.py` 在旧代码上会失败。修正前的评测结果保留在各 run 的
 `old_timing_eval*/` 里，主表全部用修正后的代码重新评测。修正只解决了一部分：真实模型每 0.33 秒重新预测
 仍然大幅掉分，原因是前后两次预测对不上（每次重新预测手臂指令跳动是平时的 5–20 倍），这是模型侧的问题。
+
+**频繁重新预测的三个开关（2026-10-26）**：`KimodoPlanner` 增加了固定噪声（`noise="fixed"`）、RTC
+（`rtc_overlap_frames`，模型自带的实时分块衔接，旧仓库推理程序默认开启 12 帧，移植时漏掉了）和平滑过渡
+（`blend_steps`），默认全关，`eval_bigym2.py` 有对应参数。够取两个任务第 30k 步、各 50 回合的对比：
+每 0.33 秒重新预测时，固定噪声和平滑过渡基本无效；RTC 越强越好，重叠 40 帧时 multi_modal 从 12% 回到 50%、
+dual 从 6% 回到 18%，但只追平默认的每 1.67 秒（54%、26%），没有超过。每 0.83 秒、不加开关也只有 16%：
+中途根据新观测重新预测并不比坚持原计划好，说明模型对新观测（尤其图像）的利用是瓶颈。这些对比用的是官方评测种子，
+只作分析，不用于挑选主结果的设置。
+
+**和 ACT/DP 同口径的一套（2026-10-26 开训）**：`configs/bigym2_recipe.yaml` 在基础配置上加 BiGym 官方的
+基线训练配方（图像随机平移 8 像素、以 0.2 的概率只保留历史里的根朝向和骨盆朝向），训练量改成 101k 步 × 256，
+每 5000 步存一次，主分数取 80k–100k 的 5 个 checkpoint（论文对 ACT/DP 的做法）。每个任务 1 个种子
+（ACT/DP 是 3 个，要披露）。手部历史不遮：它是过去的夹爪指令，不是测量值。每个 run 用 8 张卡
+（`python -m torch.distributed.run`；计算节点上的 `torchrun` 脚本指向登录节点的 Python，不能用），
+实测约 0.45 秒/步，101k 步约 12–14 小时。评测只评默认设置，`eval_run.py --watch` 和训练同时启动，
+每个 checkpoint 存好就评。输出在 A800 的 `log/bigym2/main9_recipe/`。
+
+```bash
+python scripts/submit_bigym2.py --out log/bigym2/main9_recipe --config configs/bigym2_recipe.yaml \
+    --variants 3cam --gpus-per-train 8 --execution-frames 50 --eval-watch --eval-parallel 8
+```
 
 ## 13. 四个 benchmark 共用一套接口
 

@@ -43,6 +43,8 @@ class FakeModel(torch.nn.Module):
                        rtc_motion_reference=None, rtc_hand_reference=None, rtc_overlap_frames=0,
                        rtc_frozen_frames=0, rtc_ramp_power=1.0, **_):
         empty = torch.zeros(0)
+        unbatched = lambda x: x[0] if x is not None and x.ndim == 3 else x  # noqa: E731  (the model accepts both)
+        rtc_motion_reference, rtc_hand_reference = unbatched(rtc_motion_reference), unbatched(rtc_hand_reference)
         self.calls.append(dict(
             motion=history_motion.clone(), mask=history_feature_mask.clone(), hand=hand_history.clone(), image=egoview.clone(),
             rtc_motion=empty if rtc_motion_reference is None else rtc_motion_reference.clone(),

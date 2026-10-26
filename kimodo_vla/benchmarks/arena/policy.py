@@ -43,7 +43,7 @@ def make_kimodo_policy(
     dtype: torch.dtype = torch.float32,
     execution_frames: int = 15,
     diffusion_steps: int = 10,
-    rtc: bool = False,
+    rtc_overlap_frames: int = 0,
     timing: str = "exact",
 ) -> ChunkPolicy:
     from kimodo_vla.model.planner import KimodoPlanner
@@ -56,7 +56,7 @@ def make_kimodo_policy(
         control_fps=CONTROL_FPS,
         execution_frames=execution_frames,
         diffusion_steps=diffusion_steps,
-        rtc=rtc,
+        rtc_overlap_frames=rtc_overlap_frames,
         timing=timing,
         root_boundary=ROOT_BOUNDARY[controller],
     )

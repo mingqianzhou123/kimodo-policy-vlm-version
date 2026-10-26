@@ -38,7 +38,7 @@ def test_planner_matches_original_runtime(execution_frames, rtc):
 
     # New code path.
     new_model = FakeModel()
-    planner = KimodoPlanner(new_model, {"do it": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=execution_frames, rtc=rtc,
+    planner = KimodoPlanner(new_model, {"do it": torch.zeros(1, 8)}, control_fps=50.0, execution_frames=execution_frames, rtc_overlap_frames=12 if rtc else 0,
                             timing="original")
     agent = Agent(planner)
     agent.reset()

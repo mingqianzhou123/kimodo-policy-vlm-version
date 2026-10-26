@@ -6,8 +6,9 @@ A run is a directory with ``config.json`` and ``eval/checkpoint_<step>.json``
 (``scripts/eval_run.py``); its name is ``<task>_<variant>``. Each evaluation setting
 gets its own column: ``eval/`` replans after the whole 1.67 s chunk, ``eval_exec<n>/``
 after n frames at 30 Hz (10 = 0.33 s). The headline is the
-paper's: success over the run's last five checkpoints (26k-30k), pooled over their
-episodes, as for π0.5. Next to it: the final checkpoint, the best checkpoint (it
+paper's: success pooled over the checkpoints the run's config scores
+(``main.score_checkpoints``, else the last five: 26k-30k as for π0.5, 80k-100k for the
+baseline-recipe runs). Next to it: the final checkpoint, the best checkpoint (it
 consults the evaluation seeds, so appendix only) and the fall rate. A second table
 lists every evaluated checkpoint (learning curve).
 """
@@ -17,6 +18,8 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+
+from run_config import score_steps  # scripts/ is on sys.path when run as a script
 
 # BiGym 2.0 paper, Table II: π0.5, one run per task, last five checkpoints pooled.
 PI05 = {
@@ -51,17 +54,14 @@ def load_run(run_dir: Path) -> list[dict]:
         frames = execution_frames(eval_dir)
         entries.append({
             "task": task, "variant": f"{variant}, replan {frames / 30:.2f}s", "base": variant, "frames": frames,
-            "saved": saved, "evals": evals,
-            "max_steps": config["main"]["max_steps"], "final_checkpoints": config["main"]["final_checkpoints"],
+            "saved": saved, "evals": evals, "score": score_steps(config["main"]),
         })
     return entries
 
 
 def headline(run: dict) -> dict | None:
-    """Pooled last-five score, or None until all five are trained and evaluated."""
-    if run["max_steps"] not in run["saved"]:
-        return None
-    last = run["saved"][-run["final_checkpoints"]:]
+    """Pooled score over the scored checkpoints, or None until all are trained and evaluated."""
+    last = run["score"]
     if any(step not in run["evals"] for step in last):
         return None
     pooled = [run["evals"][s] for s in last]
@@ -76,11 +76,10 @@ def headline(run: dict) -> dict | None:
 
 
 def status(run: dict) -> str:
-    if run["max_steps"] not in run["saved"]:
+    if any(step not in run["saved"] for step in run["score"]):
         trained = run["saved"][-1] if run["saved"] else 0
         return f"training ({trained // 1000}k)"
-    last = run["saved"][-run["final_checkpoints"]:]
-    return f"evaluating ({sum(s in run['evals'] for s in last)}/{len(last)})"
+    return f"evaluating ({sum(s in run['evals'] for s in run['score'])}/{len(run['score'])})"
 
 
 def main() -> None:
@@ -97,7 +96,7 @@ def main() -> None:
     by_key = {(r["task"], r["variant"]): r for r in runs}
     scores = {key: headline(run) for key, run in by_key.items()}
 
-    lines = ["## Success rate (%), last five checkpoints pooled", "",
+    lines = ["## Success rate (%), scored checkpoints pooled", "",
              "| Task | π0.5 (paper) | " + " | ".join(variants) + " |",
              "|---|---|" + "---|" * len(variants)]
     for task in tasks:

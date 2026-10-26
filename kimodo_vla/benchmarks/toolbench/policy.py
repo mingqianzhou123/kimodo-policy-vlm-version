@@ -84,7 +84,7 @@ def make_kimodo_policy(
     dtype: torch.dtype = torch.float32,
     execution_frames: int = 50,
     diffusion_steps: int = 10,
-    rtc: bool = False,
+    rtc_overlap_frames: int = 0,
     turn: str | float = "operator",
     root_boundary: str = "extrapolate",
 ) -> ChunkPolicy:
@@ -94,6 +94,6 @@ def make_kimodo_policy(
 
     planner = KimodoPlanner.from_checkpoint(
         checkpoint_dir, text_embedding_cache, device=device, dtype=dtype, control_fps=CONTROL_FPS,
-        execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc=rtc, root_boundary=root_boundary,
+        execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc_overlap_frames=rtc_overlap_frames, root_boundary=root_boundary,
     )
     return make_policy(planner, turn)

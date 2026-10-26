@@ -20,6 +20,7 @@ from typing import Mapping, Sequence
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 MOTION_DIM = 417
@@ -50,11 +51,28 @@ def canonicalize_window_translation(gt_motion, condition_motion, condition_mask,
         condition_motion[valid, feature] -= origin[offset]
 
 
+def base_history_mask() -> torch.Tensor:
+    """History features that stay observed when the joints are masked: root heading and pelvis orientation."""
+    from kimodo_vla.model.features import history_feature_mask
+    from kimodo_vla.motion.representation.kimodo_motionrep import KimodoMotionRep
+    from kimodo_vla.skeleton.definitions import G1Skeleton34
+
+    representation = KimodoMotionRep(G1Skeleton34(), fps=30, stats_path=None)
+    return history_feature_mask(representation, np.zeros(29, bool))
+
+
 class KimodoWindowDataset(Dataset):
     """Every (episode, cut) with a full future chunk; history is left-padded at the start.
 
     ``egoview`` is ``[3, H, W]`` for one camera (what KimodoPolicy takes today) and
     ``[len(cameras), 3, H, W]`` for several.
+
+    Training-time augmentation, as in BiGym 2.0's baseline recipe (off by default):
+    ``image_shift`` shifts every camera's image independently by up to that many pixels
+    (edge-replicated padding); with probability ``proprio_mask_prob`` per sample, the
+    history keeps only its base features (root heading, pelvis orientation) and marks
+    every joint unobserved, the counterpart of the recipe zeroing the non-base
+    proprioception. The hand history is left alone: it holds past gripper commands.
     """
 
     def __init__(
@@ -66,8 +84,12 @@ class KimodoWindowDataset(Dataset):
         text_embeddings: Mapping[str, torch.Tensor] | None = None,
         tasks: Sequence[str] | None = None,
         cameras: Sequence[str] = ("head",),
+        image_shift: int = 0,
+        proprio_mask_prob: float = 0.0,
     ):
         self.history, self.chunk = int(action_history), int(action_chunk)
+        self.image_shift, self.proprio_mask_prob = int(image_shift), float(proprio_mask_prob)
+        self._base_mask = base_history_mask() if self.proprio_mask_prob > 0 else None
         self.text_embeddings = dict(text_embeddings or {})
         self.cameras = tuple(cameras)
         self.episodes: list[dict] = []
@@ -96,7 +118,16 @@ class KimodoWindowDataset(Dataset):
             self._frames[e] = np.load(self.frame_paths[e], mmap_mode="r")
         images = torch.from_numpy(np.array(self._frames[e][cut, self.episodes[e]["camera_index"]]))
         images = images.permute(0, 3, 1, 2).contiguous()
+        if self.image_shift:
+            images = self._shift(images)
         return images[0] if len(self.cameras) == 1 else images
+
+    def _shift(self, images: torch.Tensor) -> torch.Tensor:
+        """Shift each ``[3, H, W]`` view by a random offset in ``[-image_shift, image_shift]``."""
+        pad, (h, w) = self.image_shift, images.shape[-2:]
+        padded = F.pad(images.float(), (pad, pad, pad, pad), mode="replicate")
+        offsets = torch.randint(0, 2 * pad + 1, (images.shape[0], 2))
+        return torch.stack([padded[v, :, dy : dy + h, dx : dx + w] for v, (dy, dx) in enumerate(offsets.tolist())]).to(images.dtype)
 
     def __getitem__(self, i: int) -> dict:
         e, cut = self.index[i]
@@ -116,6 +147,8 @@ class KimodoWindowDataset(Dataset):
         gt_motion[past] = record["target_motion"][start:cut]
         condition_motion[past] = record["observed_motion"][start:cut]
         condition_mask[past] = record["observed_mask"]
+        if self.proprio_mask_prob and float(torch.rand(())) < self.proprio_mask_prob:
+            condition_mask[past] &= self._base_mask
         gt_hand[past] = record["hand"][start:cut]
         gt_mask[past] = True
         gt_motion[future] = record["target_motion"][cut : cut + c]

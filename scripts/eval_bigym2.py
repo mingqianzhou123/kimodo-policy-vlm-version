@@ -31,6 +31,10 @@ def main() -> None:
     parser.add_argument("--dtype", choices=("fp32", "bf16"), default="fp32")
     parser.add_argument("--execution-frames", type=int, default=50)
     parser.add_argument("--diffusion-steps", type=int, default=10)
+    parser.add_argument("--noise", choices=("per_plan", "fixed"), default="per_plan")
+    parser.add_argument("--rtc-overlap-frames", type=int, default=0, help="0 = off; the original runtime used 12")
+    parser.add_argument("--rtc-frozen-frames", type=int, default=1)
+    parser.add_argument("--blend-steps", type=int, default=0, help="control steps to cross-fade from the previous plan")
     parser.add_argument("--method", default="kimodo-vla")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -46,6 +50,10 @@ def main() -> None:
             dtype={"fp32": torch.float32, "bf16": torch.bfloat16}[args.dtype],
             execution_frames=args.execution_frames,
             diffusion_steps=args.diffusion_steps,
+            noise=args.noise,
+            rtc_overlap_frames=args.rtc_overlap_frames,
+            rtc_frozen_frames=args.rtc_frozen_frames,
+            blend_steps=args.blend_steps,
         )
         result = evaluate(
             policy,

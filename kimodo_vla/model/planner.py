@@ -9,11 +9,6 @@ and the hand history is indexed by model frame. ``timing="original"`` keeps the
 original runtime's decoding instead, for comparing with it (the Arena and SIMPLE
 port tests) and for reproducing its evaluations.
 
-RTC (real-time chunking) is kept as an option, off by default: every published
-evaluation ran with it off. When on, the next plan's first ``rtc_overlap_frames``
-model frames are pulled towards the part of the previous prediction that was
-not executed, so consecutive chunks join smoothly.
-
 Per-benchmark options, all off by default (the original Arena + SONIC behavior):
 
 * ``root_boundary``: where the first frame's root displacement starts.
@@ -21,9 +16,9 @@ Per-benchmark options, all off by default (the original Arena + SONIC behavior):
   (Arena with SONIC); ``"first_prediction"`` is the first predicted root (Arena
   with TWIST2, ``KIMODO_SERVER_ANCHOR_ROOT``); ``"extrapolate"`` is ``2 r0 - r1``
   from the first two predicted roots (SIMPLE, whose state has no root position).
-* continuous hands (checkpoint ``hand_control_mode="continuous"``, SIMPLE): the
-  hand condition is the measured closure in ``Observation.hand`` and the output
-  is a closure in [0, 1] instead of open/closed.
+* continuous hands (checkpoint ``hand_control_mode="continuous"``, SIMPLE and
+  ToolBench): the hand condition is the measured closure in ``Observation.hand``
+  and the output is a closure in [0, 1] instead of open/closed.
 * ``hand_filter``: rewrites the executed binary hand prefix before it is sent and
   remembered (SIMPLE's debounce, ``benchmarks.simple.hands``).
 """
@@ -83,7 +78,37 @@ def _episode_noise_seed(episode_seed: int, plan_index: int) -> int:
     return (value ^ (value >> 31)) & ((1 << 63) - 1)
 
 
+def _crossfade(old: ActionChunk, new: ActionChunk, steps: int) -> ActionChunk:
+    """``new``, eased in from ``old`` (the same control steps) over its first ``steps`` frames."""
+    k = min(steps, len(old), len(new))
+    out = ActionChunk(new.root_delta_xy.copy(), new.root_height.copy(), new.root_rot.copy(),
+                      new.joint_pos.copy(), new.hand.copy(), new.fps, dict(new.meta))
+    if k == 0:
+        return out
+    w = 0.5 * (1.0 + np.cos(np.pi * np.arange(1, k + 1) / (k + 1)))  # weight of the old plan, 1 -> 0
+    for name in ("root_delta_xy", "root_height", "joint_pos"):
+        a, b = getattr(old, name)[:k], getattr(out, name)[:k]
+        weight = w.reshape((k,) + (1,) * (a.ndim - 1))
+        getattr(out, name)[:k] = weight * a + (1 - weight) * b
+    mixed = w[:, None, None] * old.root_rot[:k] + (1 - w[:, None, None]) * out.root_rot[:k]
+    u, _, vt = np.linalg.svd(mixed)  # back to the nearest rotation
+    out.root_rot[:k] = (u @ vt).astype(np.float32)
+    out.hand[:k] = np.where(w[:, None] >= 0.5, old.hand[:k], out.hand[:k])
+    return out
+
+
 class KimodoPlanner:
+    """Kimodo-Policy as a ``Planner``.
+
+    Options for replanning before a plan runs out (all off by default):
+    ``noise="fixed"`` starts every plan of an episode from the same diffusion noise;
+    ``rtc_overlap_frames`` > 0 guides each prediction towards the previous plan's
+    unexecuted frames (real-time chunking, built into ``predict_future``; the original
+    runtime used 12 overlap frames, 1 frozen; it starts over when the instruction
+    changes); ``blend_steps`` > 0 cross-fades the first control targets of a new plan
+    from the previous plan's targets for the same steps.
+    """
+
     def __init__(
         self,
         model: KimodoPolicy,
@@ -93,17 +118,14 @@ class KimodoPlanner:
         execution_frames: int = 0,
         diffusion_steps: int = 10,
         cameras: Sequence[str] = ("head",),
-        rtc: bool = False,
-        rtc_overlap_frames: int = 12,
+        noise: str = "per_plan",
+        rtc_overlap_frames: int = 0,
         rtc_frozen_frames: int = 1,
-        rtc_ramp_power: float = 1.0,
+        blend_steps: int = 0,
         root_boundary: str = "history",
         hand_filter: HandFilter | None = None,
         timing: str = "exact",
     ):
-        if timing not in TIMINGS:
-            raise ValueError(f"timing must be one of {TIMINGS}, got {timing!r}")
-        self.timing = timing
         self.hand_mode = str(model.config.hand_control_mode).lower()
         if self.hand_mode not in ("binary", "continuous"):
             raise ValueError(f"hand_control_mode must be 'binary' or 'continuous', got {self.hand_mode!r}")
@@ -111,8 +133,11 @@ class KimodoPlanner:
             raise ValueError("hand_filter works on binary hands only")
         if root_boundary not in ROOT_BOUNDARIES:
             raise ValueError(f"root_boundary must be one of {ROOT_BOUNDARIES}, got {root_boundary!r}")
-        self.root_boundary = root_boundary
-        self.hand_filter = hand_filter
+        if timing not in TIMINGS:
+            raise ValueError(f"timing must be one of {TIMINGS}, got {timing!r}")
+        if timing == "original" and blend_steps:
+            raise ValueError("blend_steps needs timing='exact': the original decoding keeps no unexecuted targets")
+        self.root_boundary, self.hand_filter, self.timing = root_boundary, hand_filter, timing
         num_cameras = getattr(model.config, "num_cameras", 1)
         if len(cameras) != num_cameras:
             raise ValueError(f"model takes {num_cameras} camera(s), got {tuple(cameras)}")
@@ -122,19 +147,16 @@ class KimodoPlanner:
         self.model_fps = float(model.fps)
         self.diffusion_steps = int(diffusion_steps)
         self.cameras = tuple(cameras)
+        if noise not in ("per_plan", "fixed"):
+            raise ValueError(f"noise must be 'per_plan' or 'fixed', got {noise!r}")
+        self.noise = noise
+        self.rtc_overlap_frames = int(rtc_overlap_frames)
+        self.rtc_frozen_frames = min(int(rtc_frozen_frames), self.rtc_overlap_frames)
+        self.blend_steps = int(blend_steps)
         chunk = model.config.action_chunk
         self.execution_frames = chunk if execution_frames == 0 else int(execution_frames)
         if not 0 < self.execution_frames <= chunk:
             raise ValueError(f"execution_frames must be in (0, {chunk}], got {execution_frames}")
-        if not 0 <= rtc_frozen_frames <= rtc_overlap_frames:
-            raise ValueError(f"need 0 <= rtc_frozen_frames <= rtc_overlap_frames, got {rtc_frozen_frames}, {rtc_overlap_frames}")
-        if not (np.isfinite(rtc_ramp_power) and rtc_ramp_power > 0):
-            raise ValueError(f"rtc_ramp_power must be finite and positive, got {rtc_ramp_power}")
-        # The overlap can only cover the predicted frames that are not executed.
-        self.rtc_overlap_frames = min(int(rtc_overlap_frames), chunk - self.execution_frames)
-        self.rtc_frozen_frames = min(int(rtc_frozen_frames), self.rtc_overlap_frames)
-        self.rtc_ramp_power = float(rtc_ramp_power)
-        self.rtc = bool(rtc) and self.rtc_overlap_frames > 0
         self.history_frames = model.config.action_history
         # Margin: the newest observation is dropped at the prediction cut, and the grid may not align with the window.
         self.history_steps = math.ceil(self.history_frames * self.control_fps / self.model_fps) + 3
@@ -187,13 +209,12 @@ class KimodoPlanner:
         self.num_plans = 0
         self._first_heading: np.ndarray | None = None
         self._hand_track = torch.zeros(0, 2)  # commanded hand at every model frame since the episode start
+        self._previous: tuple | None = None  # (cut, future features, clean hand, instruction) of the last prediction
+        self._tail: tuple[int, ActionChunk] | None = None  # (first step, targets) the last plan did not execute
         # timing="original": the last executed hand frames and pose, as the original runtime kept them
         self._hand_history = torch.zeros(1, 0, 2)
         self._previous_rot: torch.Tensor | None = None
         self._previous_root: torch.Tensor | None = None
-        self._rtc_motion: torch.Tensor | None = None  # unexecuted prediction tail, and the instruction it was for
-        self._rtc_hand: torch.Tensor | None = None
-        self._rtc_instruction: str | None = None
 
     def condition_history(self, history: Sequence[Observation]):
         """The model's history condition ``(motion [H', D], mask [H', D])`` plus the last observed pose.
@@ -216,7 +237,7 @@ class KimodoPlanner:
             raise KeyError(f"no cached text embedding for {instruction!r}")
         return embedding
 
-    def control_offsets(self, step: int, frames: int) -> torch.Tensor:
+    def control_offsets(self, step: int, frames: int, execution_frames: int | None = None) -> torch.Tensor:
         """Model-frame offsets from prediction frame 0 of the current control step and of the ones the plan covers.
 
         Frame 0 is at model time ``round(step * model_fps / control_fps)``, the history
@@ -226,7 +247,8 @@ class KimodoPlanner:
         """
         ratio = self.model_fps / self.control_fps
         now = step * ratio - int(round(step * ratio))
-        steps = min(int(round(self.execution_frames / ratio)), int(math.floor((frames - 1 - now) / ratio + 1e-6)))
+        execution_frames = self.execution_frames if execution_frames is None else execution_frames
+        steps = min(int(round(execution_frames / ratio)), int(math.floor((frames - 1 - now) / ratio + 1e-6)))
         return now + torch.arange(steps + 1, dtype=torch.float32) * ratio
 
     def hand_history(self, cut: int, frames: int) -> torch.Tensor:
@@ -278,10 +300,19 @@ class KimodoPlanner:
         generator = None
         if self.seed is not None:
             generator = torch.Generator(device=device)
-            generator.manual_seed(_episode_noise_seed(self.seed, self.num_plans))
-        use_rtc = self.rtc and self._rtc_motion is not None and self._rtc_instruction == obs.instruction
+            generator.manual_seed(_episode_noise_seed(self.seed, 0 if self.noise == "fixed" else self.num_plans))
         # A filtered or measured hand must not be pulled back towards the raw previous prediction.
         rtc_hand = self.hand_mode == "binary" and self.hand_filter is None
+        rtc = {}
+        if self.rtc_overlap_frames and self._previous is not None and self._previous[3] == obs.instruction:
+            previous_cut, previous_motion, previous_hand, _ = self._previous
+            shift = cut - previous_cut  # the previous plan's frame for this plan's frame 0
+            reference = previous_motion[shift : shift + self.rtc_overlap_frames]
+            if 0 <= shift and reference.shape[0]:
+                rtc = dict(rtc_motion_reference=reference.unsqueeze(0).to(device),
+                           rtc_overlap_frames=self.rtc_overlap_frames, rtc_frozen_frames=self.rtc_frozen_frames)
+                if previous_hand is not None:
+                    rtc["rtc_hand_reference"] = previous_hand[shift : shift + reference.shape[0]].unsqueeze(0).to(device)
 
         output = self.model.predict_future(
             instruction=obs.instruction,
@@ -293,30 +324,21 @@ class KimodoPlanner:
             text_feat=None if text is None else text.to(device=device, dtype=dtype),
             hand_history=self._condition_hand(history, cut, history_motion.shape[1]).to(device),
             generator=generator,
-            rtc_motion_reference=self._rtc_motion if use_rtc else None,
-            rtc_hand_reference=self._rtc_hand if use_rtc and rtc_hand else None,
-            rtc_overlap_frames=self.rtc_overlap_frames,
-            rtc_frozen_frames=self.rtc_frozen_frames,
-            rtc_ramp_power=self.rtc_ramp_power,
+            **rtc,
         )
+        hand_clean = output.get("hand_clean") if rtc_hand else None
+        self._previous = (cut, output["motion_features"].float().cpu(), None if hand_clean is None else hand_clean.float().cpu(),
+                          obs.instruction)
         if self.timing == "exact":
-            actions = self._decode_exact(output, obs, cut)
+            chunk = self._decode_exact(output, obs, cut)
         else:
-            actions = self._decode_original(output, obs, last_rot, last_root)
-
-        chunk = ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
-        chunk.root_rot = np.einsum("ij,tjk->tik", self._first_heading, chunk.root_rot).astype(np.float32)
-        if self.rtc:
-            tail = slice(self.execution_frames, self.execution_frames + self.rtc_overlap_frames)
-            self._rtc_motion = output["motion_features"][tail].detach().float().clone()
-            hand_clean = output.get("hand_clean") if rtc_hand else None
-            self._rtc_hand = None if hand_clean is None else hand_clean[tail].detach().float().clone()
-            self._rtc_instruction = obs.instruction
+            chunk = ActionChunk.from_array40(self._decode_original(output, obs, last_rot, last_root).numpy(), fps=self.control_fps)
+            chunk.root_rot = np.einsum("ij,tjk->tik", self._first_heading, chunk.root_rot).astype(np.float32)
         self.num_plans += 1
         return chunk
 
-    def _decode_exact(self, output: dict, obs: Observation, cut: int) -> torch.Tensor:
-        """40-D actions read off the prediction at the true time of each control step."""
+    def _decode_exact(self, output: dict, obs: Observation, cut: int) -> ActionChunk:
+        """The plan, read off the prediction at the true time of each control step."""
         local_rot = output["local_rot_mats"].float().cpu()
         root_pos = output["root_positions"].float().cpu()
         before = self._root_before(output, root_pos, root_pos[0]).reshape(1, 3)
@@ -325,7 +347,9 @@ class KimodoPlanner:
         # over round(n * 5/3) steps from the previous plan's last frame instead lagged one
         # model frame behind the clock: with perfect predictions that cost drawer_top_open
         # and move_plate 30 points at 10-frame plans and pick_box 10 points at 50.
-        offsets = self.control_offsets(obs.step, local_rot.shape[0])
+        frames = local_rot.shape[0]
+        offsets = self.control_offsets(obs.step, frames, execution_frames=frames)  # all of it; the rest is the tail
+        steps = len(self.control_offsets(obs.step, frames)) - 1
         control_rot, control_root = _interpolate_motion(
             torch.cat((local_rot[:1], local_rot)), torch.cat((before, root_pos)), offsets + 1.0
         )
@@ -337,13 +361,21 @@ class KimodoPlanner:
         else:
             hand = output["hand_binary"].float().cpu()
             if self.hand_filter is not None:
-                executed = int(offsets[-1].round()) + 1
+                executed = int(offsets[steps].round()) + 1
                 hand = torch.cat((self.hand_filter(hand[:executed], hand), hand[executed:]))
             control_hand = hand[offsets[1:].round().clamp(0, hand.shape[0] - 1).long()]
             self._hand_track = torch.cat((self.hand_history(cut, cut)[0], hand))  # the next plan overwrites from its own cut
-        return self.kimodo.codec.encode(
+        actions = self.kimodo.codec.encode(
             control_rot[1:], control_root[1:], previous_root_position=control_root[0], hand_binary=control_hand
         )
+
+        full = ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
+        full.root_rot = np.einsum("ij,tjk->tik", self._first_heading, full.root_rot).astype(np.float32)
+        chunk = full[:steps]
+        if self.blend_steps and self._tail is not None and self._tail[0] == obs.step + 1:
+            chunk = _crossfade(self._tail[1], chunk, self.blend_steps)
+        self._tail = (obs.step + 1 + steps, full[steps:])
+        return chunk
 
     def _decode_original(self, output: dict, obs: Observation, last_rot: torch.Tensor, last_root: torch.Tensor) -> torch.Tensor:
         """40-D actions as the original runtime made them: the first ``execution_frames`` predicted

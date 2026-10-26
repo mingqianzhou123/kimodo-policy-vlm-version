@@ -77,7 +77,7 @@ def make_kimodo_policy(
     dtype: torch.dtype = torch.float32,
     execution_frames: int = 50,
     diffusion_steps: int = 10,
-    rtc: bool = False,
+    rtc_overlap_frames: int = 0,
     timing: str = "exact",
     max_navigation_speed: float = 1.5,
 ) -> ChunkPolicy:
@@ -85,7 +85,7 @@ def make_kimodo_policy(
 
     planner = KimodoPlanner.from_checkpoint(
         checkpoint_dir, text_embedding_cache, device=device, dtype=dtype, control_fps=CONTROL_FPS,
-        execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc=rtc, timing=timing, root_boundary="extrapolate",
+        execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc_overlap_frames=rtc_overlap_frames, timing=timing, root_boundary="extrapolate",
     )
     debounce = hands.HandDebounce(CONTROL_FPS) if planner.hand_mode == "binary" else None
     planner.hand_filter = debounce
