@@ -327,3 +327,10 @@ dual 从 6% 回到 18%，但只追平默认的每 1.67 秒（54%、26%），没�
 python scripts/submit_bigym2.py --out log/bigym2/main9_recipe --config configs/bigym2_recipe.yaml \
     --variants 3cam --gpus-per-train 8 --execution-frames 50 --eval-watch --eval-parallel 8
 ```
+
+**评测慢的原因（2026-10-26 查明并修复）**：MuJoCo 的离屏渲染（EGL）不认 Slurm 分配的 GPU，同一节点上所有评测进程
+都在 0 号卡上画相机图像。实测 pick_box 带三路相机只有 9 步/秒（不带相机 269 步/秒，模型每次预测约 0.5 秒，
+默认设置下每约 82 步才预测一次，占比很小）。`eval_bigym2.py` 现在把 `MUJOCO_EGL_DEVICE_ID` 设成分配到的 GPU，
+同样条件 97 步/秒。换卡渲染的图像与原来相差不超过 1 个亮度级、只涉及约 0.007% 的像素，和同型号卡在不同节点上
+重复渲染的差异（0.0024%）同一量级，已有结果仍可比。另外两套结果的 Slurm 作业名现在带输出目录名，
+避免同名任务互相当成依赖。
