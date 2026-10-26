@@ -32,16 +32,29 @@ class Agent:
         self._steps = 0
         self.num_plans = 0
 
-    def step(self, observation: Observation) -> ActionChunk:
+    def observe(self, observation: Observation) -> None:
+        """Record one control step's observation without planning."""
         observation.step = self._steps
         self._steps += 1
         self.history.append(observation)
+
+    def replan(self) -> ActionChunk:
+        """Plan now from the recorded history; the new plan replaces the current one.
+
+        For benchmarks that ask for a whole chunk per request: record every step
+        since the last request with ``observe``, then call this once.
+        """
+        self._plan = self.planner.plan(list(self.history))
+        if len(self._plan) == 0:
+            raise RuntimeError("planner returned an empty chunk")
+        self._cursor = 0
+        self.num_plans += 1
+        return self._plan
+
+    def step(self, observation: Observation) -> ActionChunk:
+        self.observe(observation)
         if self._plan is None or self._cursor >= len(self._plan):
-            self._plan = self.planner.plan(list(self.history))
-            if len(self._plan) == 0:
-                raise RuntimeError("planner returned an empty chunk")
-            self._cursor = 0
-            self.num_plans += 1
+            self.replan()
         target = self._plan[self._cursor:]
         self._cursor += 1
         return target
