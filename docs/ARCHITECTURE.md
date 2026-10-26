@@ -21,7 +21,7 @@
 ```
 kimodo_vla/
   core/            types.py：Observation、ActionChunk、Planner（全仓库唯一的约定）
-                   agent.py：Agent，保留最近观测、计划用完就重新规划；也可「记下观测、立即规划」
+                   agent.py：Agent，`step` 每步交一个观测、计划用完就重新规划；`observe` + `replan` 先记下观测、再立即规划
   model/           planner.py：KimodoPlanner（KimodoPolicy 包成 Planner）
                    planner_original.py：OriginalTimingPlanner（旧仓库的取帧方式，只用于对比和复现）
                    features.py：位姿轨迹 → Kimodo 特征，评测和训练数据共用
@@ -84,7 +84,7 @@ class Planner(Protocol):             # 模型侧唯一需要实现的接口
 |---|---|---|
 | 谁调谁 | 仿真和我们在同一进程，每个控制步调一次 | 仿真（通常在别的进程）每次请求要一整段动作 |
 | 适配器接口 | `BenchmarkAdapter`（`benchmarks/base.py`）：`to_observation`、`to_env_action` | `RequestAdapter`（`benchmarks/server.py`）：`to_observations`（上次以来的每一步）、`to_response`（整段） |
-| 拼成 policy | `AgentPolicy(agent, adapter)`：`policy(raw_obs) -> env_action` | `ChunkPolicy(agent, adapter)`：观测逐个记进 Agent，规划一次，翻译整段；同一时间只处理一个请求 |
+| 拼成 policy | `AgentPolicy(agent, adapter)`：`policy(raw_obs) -> env_action`，内部 `Agent.step` | `ChunkPolicy(agent, adapter)`：观测逐个 `Agent.observe`，`Agent.replan` 一次，翻译整段；同一时间只处理一个请求 |
 | 放到 HTTP 后 | 不需要 | `make_server(routes, host, port, codec)`；路由和编码（普通 JSON 或带 NumPy 的 JSON）由各 benchmark 的 `policy.py` 给出 |
 
 ## 5. 规划器（`model/planner.py`）
@@ -147,7 +147,7 @@ round(步数 × 0.6)，之前的时间用历史最后一帧的根位置），每
    `controllers/` 里对应的模块。按请求的 benchmark 再写 `policy.py` 里的路由。
 2. **`benchmarks/<name>/demos.py`**：读演示，每条包成一个 `Demonstration`；训练目标用操作员指令，
    历史要和评测时适配器报告的一模一样。
-3. **几个薄脚本**：`prepare_<name>.py`（演示 → 训练文件）、`check_<name>_roundtrip.py`（用 `benchmarks.replay`
+3. **几个薄脚本**：`prepare_<name>.py`（演示 → `data.build.training_episode` → `save_episode`）、`check_<name>_roundtrip.py`（用 `benchmarks.replay`
    回放演示，统计这个 benchmark 自己的判定），评测入口（`eval_<name>.py` 或 `serve_<name>.py`）。不做跨
    benchmark 的统一入口。
 4. **`pyproject.toml`**：在 `[project.optional-dependencies]` 加一组 `<name> = [...]`，锁定版本。

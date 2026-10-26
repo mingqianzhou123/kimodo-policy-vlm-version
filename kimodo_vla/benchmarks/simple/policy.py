@@ -19,7 +19,7 @@ from kimodo_vla.benchmarks.simple.adapter import CONTROL_FPS, SimpleAdapter
 from kimodo_vla.controllers import decoupled_wbc
 from kimodo_vla.core.agent import Agent
 
-# SIMPLE's original evaluation never enabled heading tracking (ARCHITECTURE section 12).
+# SIMPLE's original evaluation never enabled heading tracking (docs/benchmarks/arena_simple.md).
 TURN_FLAG = 0.0
 
 

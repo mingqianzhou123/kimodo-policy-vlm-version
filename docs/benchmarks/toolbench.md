@@ -31,7 +31,8 @@
 - **目标朝向是世界系的绝对角**：三个场景都让机器人以 -90° 出生（`SPAWN_YAW`），适配器加上这个固定偏移。
 - **手的闭合姿态用 ToolBench 自己的**（`adapter.CLOSED_HANDS`）：操作员的手指令基本是开、合两种，中间有很短的过渡。
 - **图像**：训练数据和评测时都先缩到 224×224（同一个函数 `adapter.resize_image`），所以 DINOv3 看到的像素相同。
-- **训练目标是操作员指令**（和 BiGym 一样）：手臂、躯干、手来自 `action`，骨盆高度和行走来自 `teleop.*`。
+- **训练目标是操作员指令**（和 BiGym 一样）：手臂、躯干、手来自 `action`，骨盆高度来自 `teleop.base_height_command`，
+  行走来自 `teleop.navigate_command`（vx、vy、转向开关、目标朝向）。
   录制的第 t 行是第 t+1 步的目标。官方 ACT 模型的数据说明也是这么转换的。
 
 ## 3. 训练数据（`prepare_toolbench.py`）

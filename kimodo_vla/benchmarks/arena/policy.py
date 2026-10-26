@@ -10,7 +10,7 @@ from kimodo_vla.core.agent import Agent
 from kimodo_vla.core.types import Planner
 
 # Where the first root displacement of a chunk starts, per lower-body controller
-# (ARCHITECTURE section 12): TWIST2's formal runs used --anchor-root 1.
+# (docs/benchmarks/arena_simple.md): TWIST2's formal runs used --anchor-root 1.
 ROOT_BOUNDARY = {"sonic": "history", "twist2": "first_prediction"}
 
 

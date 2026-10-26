@@ -8,7 +8,7 @@ much success survives the interface if the model predicted perfectly:
 * ``DirectPlanner`` hands the motion to the adapter at the control rate, skipping
   Kimodo's representation: the gap between the two is the model-rate loss.
 
-See ``scripts/check_bigym2_roundtrip.py`` and ARCHITECTURE section 10.
+See ``scripts/check_bigym2_roundtrip.py`` and ``docs/benchmarks/bigym2.md`` section 3.
 """
 
 from __future__ import annotations

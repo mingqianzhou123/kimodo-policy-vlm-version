@@ -12,9 +12,9 @@ and executes the whole returned ``(T, 36)`` chunk before asking again. State::
     [14:21] left arm   [21:28] right arm   [28:31] torso roll, pitch, yaw   [31] previous height command
 
 There is no pelvis position or heading, and only one state per chunk, while
-Kimodo is conditioned on a 50 Hz history with a root heading. So (ARCHITECTURE
-section 12, option a) the adapter reports the heading it last commanded, and
-fills the steps between two requests with the targets it sent for them. Training
+Kimodo is conditioned on a 50 Hz history with a root heading. So the adapter
+reports the heading it last commanded, and fills the steps between two requests
+with the targets it sent for them (``docs/benchmarks/toolbench.md``). Training
 data has to be built the same way.
 
 The answer is NVIDIA's decoupled-WBC command (``controllers.decoupled_wbc``).

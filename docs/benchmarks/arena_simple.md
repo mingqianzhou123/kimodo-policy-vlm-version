@@ -23,7 +23,8 @@
 - **每段第一帧位移的起点**：Arena + SONIC 用模型生成的历史末端；Arena + TWIST2 用第一帧预测（旧代码的
   `--anchor-root 1`）；SIMPLE 用外推 2·r0 − r1（它的状态里没有根位置）。两种修正都是必须的，做成规划器选项
   `root_boundary`，由各自的入口指定。
-- **SIMPLE 的转向开关保持旧代码的 0**（不跟踪朝向），等价测试要求一致。
+- **SIMPLE 的转向开关保持旧代码的 0**（不跟踪朝向），等价测试要求一致。40 维 → 36 维由
+  `controllers/decoupled_wbc.encode` 完成，逐行复现旧代码的 `arena_action_to_simple`。
 - **SIMPLE 的手部防抖、1.5 m/s 导航速度保护属于 SIMPLE 适配器**，不进规划器。
 - **取帧方式**：入口默认用新规划器（按真实时间取帧）；`--timing original` 换成 `OriginalTimingPlanner`，
   和旧代码逐项一致，用来复现旧仓库的评测结果。

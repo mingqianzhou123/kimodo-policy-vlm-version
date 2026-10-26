@@ -7,7 +7,8 @@
 
 ## 1. 接口
 
-BiGym 是纯 Python + MuJoCo，模型和环境在同一个进程里跑，逐步调用（`BenchmarkAdapter`），不需要 HTTP 服务。
+BiGym 是纯 Python + MuJoCo，模型和环境在同一个进程里跑：官方 `bigym.loco.eval.evaluate(policy)` 每步调一次
+`policy(timestep)`（`BenchmarkAdapter` + `AgentPolicy`，入口 `bigym2/policy.make_kimodo_policy`），不需要 HTTP 服务。
 BiGym 锁定 `mujoco<3.9`；`kimodo_vla` 本身不依赖 mujoco，所以评测环境里只装 BiGym 要的版本即可。
 
 | 方向 | 内容 |
