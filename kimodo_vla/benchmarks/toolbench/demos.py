@@ -12,8 +12,8 @@ outcome (``meta/simple_contract.json``). Columns used::
     teleop.base_height_command
     observation.images.ego_view   the head camera, the one image the evaluator sends
 
-The training target is the operator's command, as for BiGym (ARCHITECTURE
-section 10). The observations mirror what ``ToolBenchAdapter`` reports at
+The training target is the operator's command, as for BiGym (``docs/benchmarks/bigym2.md``
+section 3). The observations mirror what ``ToolBenchAdapter`` reports at
 evaluation, where the evaluator sends one state per executed chunk: the measured
 state every ``request_interval`` steps, the commanded targets in between, and
 the commanded heading throughout (the state has no pelvis pose).

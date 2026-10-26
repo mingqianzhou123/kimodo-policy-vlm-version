@@ -12,7 +12,7 @@ every benchmark on one of these controllers needs both directions:
 
 Each is one control step of difference or sum, and they invert each other
 (``tests/test_groot_wbc.py``). Lessons from replaying BiGym demos through this
-interface (``docs/ARCHITECTURE.md`` section 10):
+interface (``docs/benchmarks/bigym2.md`` section 3):
 
 * Velocity and yaw rate are both backward differences into frame 0: the yaw rate
   runs from the previous step's target heading. A forward difference leads the

@@ -5,9 +5,9 @@ Ported from ``evaluation/humanoidarena_server.py`` of the original repository
 removed. With every joint observed it feeds the model the same motion history
 as the original runtime. Two deliberate differences: predictions are sampled at
 the true time of each control step (the original ran one model frame behind),
-and the hand history is indexed by model frame. ``timing="original"`` keeps the
-original runtime's decoding instead, for comparing with it (the Arena and SIMPLE
-port tests) and for reproducing its evaluations.
+and the hand history is indexed by model frame. ``planner_original.OriginalTimingPlanner``
+keeps the original runtime's decoding, for comparing with it and reproducing its
+evaluations.
 
 Per-benchmark options, all off by default (the original Arena + SONIC behavior):
 
@@ -36,15 +36,9 @@ import torch
 from kimodo_vla.core.types import ActionChunk, Observation, yaw_matrix, yaw_of
 from kimodo_vla.model.features import KimodoFeatures, lerp_rows
 from kimodo_vla.model.kimodo_policy import KimodoPolicy, KimodoPolicyConfig
-from kimodo_vla.motion.g1_reference import (
-    _interpolate_motion,
-    resample_hand_binary_chunk,
-    resample_hand_continuous_chunk,
-    resample_motion_chunk,
-)
+from kimodo_vla.motion.g1_reference import _interpolate_motion
 
 ROOT_BOUNDARIES = ("history", "first_prediction", "extrapolate")
-TIMINGS = ("exact", "original")
 # (executed model-rate prefix [n, 2], whole prediction [T, 2]) -> the prefix to execute
 HandFilter = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
@@ -124,7 +118,6 @@ class KimodoPlanner:
         blend_steps: int = 0,
         root_boundary: str = "history",
         hand_filter: HandFilter | None = None,
-        timing: str = "exact",
     ):
         self.hand_mode = str(model.config.hand_control_mode).lower()
         if self.hand_mode not in ("binary", "continuous"):
@@ -133,11 +126,7 @@ class KimodoPlanner:
             raise ValueError("hand_filter works on binary hands only")
         if root_boundary not in ROOT_BOUNDARIES:
             raise ValueError(f"root_boundary must be one of {ROOT_BOUNDARIES}, got {root_boundary!r}")
-        if timing not in TIMINGS:
-            raise ValueError(f"timing must be one of {TIMINGS}, got {timing!r}")
-        if timing == "original" and blend_steps:
-            raise ValueError("blend_steps needs timing='exact': the original decoding keeps no unexecuted targets")
-        self.root_boundary, self.hand_filter, self.timing = root_boundary, hand_filter, timing
+        self.root_boundary, self.hand_filter = root_boundary, hand_filter
         num_cameras = getattr(model.config, "num_cameras", 1)
         if len(cameras) != num_cameras:
             raise ValueError(f"model takes {num_cameras} camera(s), got {tuple(cameras)}")
@@ -211,10 +200,6 @@ class KimodoPlanner:
         self._hand_track = torch.zeros(0, 2)  # commanded hand at every model frame since the episode start
         self._previous: tuple | None = None  # (cut, future features, clean hand, instruction) of the last prediction
         self._tail: tuple[int, ActionChunk] | None = None  # (first step, targets) the last plan did not execute
-        # timing="original": the last executed hand frames and pose, as the original runtime kept them
-        self._hand_history = torch.zeros(1, 0, 2)
-        self._previous_rot: torch.Tensor | None = None
-        self._previous_root: torch.Tensor | None = None
 
     def condition_history(self, history: Sequence[Observation]):
         """The model's history condition ``(motion [H', D], mask [H', D])`` plus the last observed pose.
@@ -262,13 +247,10 @@ class KimodoPlanner:
         return history.unsqueeze(0)
 
     def _condition_hand(self, history: Sequence[Observation], cut: int, frames: int) -> torch.Tensor:
-        """``[1, frames, 2]``: measured closure for continuous hands, else the commanded hand."""
-        if self.hand_mode == "continuous":  # on the same grid as the motion history
-            hand = self.kimodo.hand_history(history)[:-1][-self.history_frames :].unsqueeze(0)
-        elif self.timing == "exact":
+        """``[1, frames, 2]``: measured closure for continuous hands, else what earlier plans commanded."""
+        if self.hand_mode == "binary":
             return self.hand_history(cut, frames)
-        else:
-            hand = self._hand_history
+        hand = self.kimodo.hand_history(history)[:-1][-self.history_frames :].unsqueeze(0)  # same grid as the motion
         hand = hand[:, -frames:] if frames else hand[:, :0]
         if hand.shape[1] < frames:
             hand = torch.cat((torch.zeros(1, frames - hand.shape[1], 2), hand), dim=1)
@@ -329,16 +311,16 @@ class KimodoPlanner:
         hand_clean = output.get("hand_clean") if rtc_hand else None
         self._previous = (cut, output["motion_features"].float().cpu(), None if hand_clean is None else hand_clean.float().cpu(),
                           obs.instruction)
-        if self.timing == "exact":
-            chunk = self._decode_exact(output, obs, cut)
-        else:
-            chunk = ActionChunk.from_array40(self._decode_original(output, obs, last_rot, last_root).numpy(), fps=self.control_fps)
-            chunk.root_rot = np.einsum("ij,tjk->tik", self._first_heading, chunk.root_rot).astype(np.float32)
+        chunk = self._decode(output, obs, cut, last_rot, last_root)
         self.num_plans += 1
         return chunk
 
-    def _decode_exact(self, output: dict, obs: Observation, cut: int) -> ActionChunk:
-        """The plan, read off the prediction at the true time of each control step."""
+    def _decode(self, output: dict, obs: Observation, cut: int, last_rot: torch.Tensor, last_root: torch.Tensor) -> ActionChunk:
+        """The plan, read off the prediction at the true time of each control step.
+
+        ``last_rot`` / ``last_root`` (the newest observed pose) are unused here;
+        ``OriginalTimingPlanner`` starts from them at reset.
+        """
         local_rot = output["local_rot_mats"].float().cpu()
         root_pos = output["root_positions"].float().cpu()
         before = self._root_before(output, root_pos, root_pos[0]).reshape(1, 3)
@@ -376,39 +358,3 @@ class KimodoPlanner:
             chunk = _crossfade(self._tail[1], chunk, self.blend_steps)
         self._tail = (obs.step + 1 + steps, full[steps:])
         return chunk
-
-    def _decode_original(self, output: dict, obs: Observation, last_rot: torch.Tensor, last_root: torch.Tensor) -> torch.Tensor:
-        """40-D actions as the original runtime made them: the first ``execution_frames`` predicted
-        frames spread over the control steps from the previous plan's last frame."""
-        n = self.execution_frames
-        all_roots = output["root_positions"].float().cpu()
-        local_rot = output["local_rot_mats"][:n].float().cpu()
-        root_pos = all_roots[:n]
-        # Continue from the last target actually handed out; fall back to the measurement at reset.
-        previous_rot = self._previous_rot if self._previous_rot is not None else last_rot
-        previous_root = self._previous_root if self._previous_root is not None else last_root
-        previous_root = self._root_before(output, all_roots, previous_root)
-
-        control_rot, control_root = resample_motion_chunk(
-            local_rot, root_pos,
-            source_fps=self.model_fps, target_fps=self.control_fps,
-            previous_local_rot_mat=previous_rot, previous_root_position=previous_root,
-        )
-        if self.hand_mode == "continuous":
-            hand = output["hand_closure"][:n].clamp(0.0, 1.0).float().cpu()
-            control_hand = resample_hand_continuous_chunk(
-                hand, source_fps=self.model_fps, target_fps=self.control_fps,
-                previous_hand_closure=torch.as_tensor(obs.hand, dtype=torch.float32),
-            )
-        else:
-            hand = output["hand_binary"][:n].float().cpu()
-            if self.hand_filter is not None:
-                hand = self.hand_filter(hand, output["hand_binary"].float().cpu())
-            previous_hand = self._hand_history[0, -1] if self._hand_history.shape[1] else torch.zeros(2)
-            control_hand = resample_hand_binary_chunk(
-                hand, source_fps=self.model_fps, target_fps=self.control_fps, previous_hand_binary=previous_hand
-            )
-        self._hand_history = torch.cat((self._hand_history, hand.unsqueeze(0)), dim=1)[:, -self.history_frames :]
-        self._previous_rot = local_rot[-1].clone()
-        self._previous_root = root_pos[-1].clone()
-        return self.kimodo.codec.encode(control_rot, control_root, previous_root_position=previous_root, hand_binary=control_hand)

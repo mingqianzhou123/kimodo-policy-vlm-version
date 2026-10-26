@@ -20,7 +20,7 @@ The flag is per benchmark. SIMPLE's original evaluation always sent 0.
 HumanoidToolBench's operators send the turning rate while they turn and 0
 otherwise (``operator_turn_flags``), so the controller follows the heading only
 during a turn; tracking it all the time would be heading feedback, which hurt
-BiGym (ARCHITECTURE section 10). ``heading_offset`` maps the 40-D action's
+BiGym (``docs/benchmarks/bigym2.md`` section 3). ``heading_offset`` maps the 40-D action's
 episode frame to the controller's frame.
 
 Hand joint targets come from the caller (``hands``), in the natural order

@@ -19,7 +19,7 @@ from kimodo_vla.benchmarks.simple.adapter import CONTROL_FPS, SimpleAdapter
 from kimodo_vla.controllers import decoupled_wbc
 from kimodo_vla.core.agent import Agent
 
-# SIMPLE's original evaluation never enabled heading tracking (ARCHITECTURE section 12).
+# SIMPLE's original evaluation never enabled heading tracking (docs/benchmarks/arena_simple.md).
 TURN_FLAG = 0.0
 
 
@@ -81,11 +81,14 @@ def make_kimodo_policy(
     timing: str = "exact",
     max_navigation_speed: float = 1.5,
 ) -> ChunkPolicy:
+    """``timing="original"`` decodes plans as the original repository did (``OriginalTimingPlanner``)."""
     from kimodo_vla.model.planner import KimodoPlanner
+    from kimodo_vla.model.planner_original import OriginalTimingPlanner
 
-    planner = KimodoPlanner.from_checkpoint(
+    planner_class = OriginalTimingPlanner if timing == "original" else KimodoPlanner
+    planner = planner_class.from_checkpoint(
         checkpoint_dir, text_embedding_cache, device=device, dtype=dtype, control_fps=CONTROL_FPS,
-        execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc_overlap_frames=rtc_overlap_frames, timing=timing, root_boundary="extrapolate",
+        execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc_overlap_frames=rtc_overlap_frames, root_boundary="extrapolate",
     )
     debounce = hands.HandDebounce(CONTROL_FPS) if planner.hand_mode == "binary" else None
     planner.hand_filter = debounce

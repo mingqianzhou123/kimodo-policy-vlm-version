@@ -10,7 +10,7 @@ from kimodo_vla.core.agent import Agent
 from kimodo_vla.core.types import Planner
 
 # Where the first root displacement of a chunk starts, per lower-body controller
-# (ARCHITECTURE section 12): TWIST2's formal runs used --anchor-root 1.
+# (docs/benchmarks/arena_simple.md): TWIST2's formal runs used --anchor-root 1.
 ROOT_BOUNDARY = {"sonic": "history", "twist2": "first_prediction"}
 
 
@@ -46,9 +46,12 @@ def make_kimodo_policy(
     rtc_overlap_frames: int = 0,
     timing: str = "exact",
 ) -> ChunkPolicy:
+    """``timing="original"`` decodes plans as the original repository did (``OriginalTimingPlanner``)."""
     from kimodo_vla.model.planner import KimodoPlanner
+    from kimodo_vla.model.planner_original import OriginalTimingPlanner
 
-    planner = KimodoPlanner.from_checkpoint(
+    planner_class = OriginalTimingPlanner if timing == "original" else KimodoPlanner
+    planner = planner_class.from_checkpoint(
         checkpoint_dir,
         text_embedding_cache,
         device=device,
@@ -57,7 +60,6 @@ def make_kimodo_policy(
         execution_frames=execution_frames,
         diffusion_steps=diffusion_steps,
         rtc_overlap_frames=rtc_overlap_frames,
-        timing=timing,
         root_boundary=ROOT_BOUNDARY[controller],
     )
     return make_policy(planner)

@@ -43,7 +43,7 @@ class Demonstration(Protocol):
         """The training target: what the operator commanded, as a pose trajectory at control rate.
 
         Not the motion the robot executed: under a whole-body controller that one
-        applies arm sag twice when replayed as a target (ARCHITECTURE section 10).
+        applies arm sag twice when replayed as a target (docs/benchmarks/bigym2.md, section 3).
         """
         ...
 
