@@ -5,6 +5,9 @@
         --out outputs/move_plate.json
 
 Fewer than 100 episodes is a smoke run: BiGym then produces no leaderboard record.
+``--seed-base`` other than 620000 runs the same loop on a validation block of seeds
+(``eval_seeds(episodes, seed_base=...)``) instead: for choosing settings without
+looking at the official seeds; it never produces a record.
 The env is the official one (three 84x84 cameras); the checkpoint's ``model.cameras`` picks which ones the planner uses.
 """
 
@@ -23,9 +26,28 @@ if "MUJOCO_EGL_DEVICE_ID" not in os.environ and os.environ.get("CUDA_VISIBLE_DEV
 
 import torch  # noqa: E402
 from bigym.loco import make  # noqa: E402
-from bigym.loco.eval import evaluate  # noqa: E402
+from bigym.loco.eval import evaluate, is_success  # noqa: E402
+from bigym.loco.eval.protocol import EVAL_SEED_BASE, eval_seeds  # noqa: E402
 
 from kimodo_vla.benchmarks.bigym2.policy import make_kimodo_policy  # noqa: E402
+
+
+def validate(policy, env, task: str, episodes: int, seed_base: int) -> dict:
+    """``evaluate``'s episode loop on another seed block; the same records, no leaderboard entry."""
+    policy.base_seed = seed_base  # diffusion noise follows the episode seeds, as in evaluation
+    records = []
+    for index, seed in enumerate(eval_seeds(episodes, seed_base=seed_base)):
+        policy.reset()
+        timestep = env.reset(seed=seed)
+        length = 0
+        while not timestep.last():
+            timestep = env.step(policy(timestep))
+            length += 1
+        records.append({"episode": index, "seed": seed, "success": int(is_success(env)), "length": length,
+                        "termination": env.episode_termination(), "fell": int(env.episode_fell())})
+        print(f"[validate] ep {index + 1}/{episodes} seed={seed} success={records[-1]['success']}", flush=True)
+    return {"task": task, "episodes": episodes, "seed_base": seed_base,
+            "success_rate": sum(r["success"] for r in records) / episodes, "episode_records": records}
 
 
 def main() -> None:
@@ -42,6 +64,8 @@ def main() -> None:
     parser.add_argument("--rtc-overlap-frames", type=int, default=0, help="0 = off; the original runtime used 12")
     parser.add_argument("--rtc-frozen-frames", type=int, default=1)
     parser.add_argument("--blend-steps", type=int, default=0, help="control steps to cross-fade from the previous plan")
+    parser.add_argument("--weights", default="model", help="model, or a saved average such as ema0.9999")
+    parser.add_argument("--seed-base", type=int, default=EVAL_SEED_BASE, help="another value runs a validation block")
     parser.add_argument("--method", default="kimodo-vla")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -61,15 +85,19 @@ def main() -> None:
             rtc_overlap_frames=args.rtc_overlap_frames,
             rtc_frozen_frames=args.rtc_frozen_frames,
             blend_steps=args.blend_steps,
+            weights=args.weights,
         )
-        result = evaluate(
-            policy,
-            task_name=args.task,
-            method=args.method,
-            checkpoint=str(args.checkpoint),
-            episodes=args.episodes,
-            env=env,
-        )
+        if args.seed_base != EVAL_SEED_BASE:
+            result = validate(policy, env, args.task, args.episodes, args.seed_base)
+        else:
+            result = evaluate(
+                policy,
+                task_name=args.task,
+                method=args.method,
+                checkpoint=str(args.checkpoint),
+                episodes=args.episodes,
+                env=env,
+            )
     finally:
         env.close()
 

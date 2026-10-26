@@ -1,0 +1,9 @@
+# bigym2_recipe.yaml plus exponential moving averages of the weights (decays 0.999 and 0.9999;
+# Diffusion Policy evaluates its 0.9999 average). The recipe runs scored well mid-training and
+# collapsed over 80k-100k; which weights to score is chosen on a validation seed block
+# (eval_bigym2.py --seed-base 700000), never on the official seeds.
+
+_base_: bigym2_recipe.yaml
+
+training:
+  ema_decays: [0.999, 0.9999]

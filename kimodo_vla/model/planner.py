@@ -160,6 +160,7 @@ class KimodoPlanner:
         *,
         device: str = "cuda",
         dtype: torch.dtype = torch.float32,
+        weights: str = "model",
         **kwargs,
     ) -> "KimodoPlanner":
         checkpoint_dir = Path(checkpoint_dir).expanduser().resolve()
@@ -188,7 +189,7 @@ class KimodoPlanner:
             num_cameras=len(cameras),
         )
         model = KimodoPolicy(config)
-        model.load_controlnet_checkpoint(str(checkpoint_dir))
+        model.load_controlnet_checkpoint(str(checkpoint_dir), weights=weights)
         model.to(device=torch.device(device), dtype=dtype).eval()
         kwargs.setdefault("cameras", cameras)
         return cls(model, load_text_embeddings(text_embedding_cache), **kwargs)

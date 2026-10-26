@@ -197,6 +197,37 @@ def batches(dataset, config, start_step: int, rank: int = 0, world: int = 1):
         yield from loader
 
 
+class WeightAverages:
+    """Exponential moving averages of the trainable weights, one per decay in ``training.ema_decays``.
+
+    Kept on rank 0 in fp32 and saved next to the raw weights as ``ema[<decay>]``; evaluate one
+    with ``--weights ema<decay>``. Early on the rate is ``(1 + step) / (10 + step)``, so the first
+    steps' weights do not linger in the average.
+    """
+
+    def __init__(self, model: torch.nn.Module, decays, state: dict | None = None):
+        self.names = [n for n, p in model.named_parameters() if p.requires_grad]
+        self.params = [p for p in model.parameters() if p.requires_grad]
+        self.decays = [float(d) for d in decays]
+        self.averages = {}
+        for decay in self.decays:
+            saved = (state or {}).get(str(decay))
+            self.averages[str(decay)] = [
+                (saved[n] if saved else p.detach()).to(p.device, torch.float32).clone() for n, p in zip(self.names, self.params)
+            ]
+
+    @torch.no_grad()
+    def update(self, step: int) -> None:
+        current = [p.detach().float() for p in self.params]
+        for decay in self.decays:
+            rate = min(decay, (1 + step) / (10 + step))
+            torch._foreach_mul_(self.averages[str(decay)], rate)
+            torch._foreach_add_(self.averages[str(decay)], current, alpha=1 - rate)
+
+    def state(self) -> dict:
+        return {d: {n: t.detach().cpu() for n, t in zip(self.names, avg)} for d, avg in self.averages.items()}
+
+
 def save(path: Path, payload: dict) -> None:
     temporary = path.with_name(path.name + ".tmp")
     torch.save(payload, temporary)
@@ -265,7 +296,7 @@ def main() -> None:
     opt = config.training.optimizer
     optimizer = torch.optim.AdamW(groups, betas=tuple(opt.betas), eps=opt.eps, fused=device.type == "cuda")
     scheduler = LambdaLR(optimizer, lr_schedule(config))
-    step = 0
+    step, state = 0, None
     if args.resume:
         state = torch.load(run_dir / "resume.pt", map_location="cpu", weights_only=True)
         model.load_state_dict(state["model"], strict=False)
@@ -273,6 +304,8 @@ def main() -> None:
         scheduler.load_state_dict(state["scheduler"])
         step = int(state["global_step"])
         log.info("resumed at step %d", step)
+    decays = list(config.training.get("ema_decays") or [])
+    averages = WeightAverages(model, decays, (state or {}).get("ema")) if decays and rank == 0 else None
     forward = DistributedDataParallel(model, device_ids=[device.index]) if world > 1 else model
     torch.manual_seed(main_cfg.seed + 7919 * rank)  # different diffusion noise and augmentation per rank
 
@@ -324,6 +357,8 @@ def main() -> None:
         optimizer.step()
         scheduler.step()
         step += 1
+        if averages:
+            averages.update(step)
 
         if rank == 0 and (step % main_cfg.log_every == 0 or step == main_cfg.max_steps):
             seconds = (time.time() - window_start) / main_cfg.log_every
@@ -343,9 +378,10 @@ def main() -> None:
             trainable = {n: p.detach().cpu() for n, p in model.named_parameters() if p.requires_grad}
             checkpoint = run_dir / f"checkpoint_{step}"
             checkpoint.mkdir(exist_ok=True)
-            save(checkpoint / "training_state.pt", {"global_step": step, "model": trainable})
+            ema = {"ema": averages.state()} if averages else {}
+            save(checkpoint / "training_state.pt", {"global_step": step, "model": trainable, **ema})
             (checkpoint / "config.json").write_text((run_dir / "config.json").read_text())
-            save(run_dir / "resume.pt", {"global_step": step, "model": trainable,
+            save(run_dir / "resume.pt", {"global_step": step, "model": trainable, **ema,
                                          "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict()})
             log.info("saved %s", checkpoint)
     if metrics_file:

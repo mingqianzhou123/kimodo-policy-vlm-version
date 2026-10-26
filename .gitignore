@@ -9,3 +9,4 @@ outputs/
 .pytest_cache/
 data/cache/
 .venv-cluster/
+.claude/launch.json

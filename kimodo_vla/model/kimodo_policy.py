@@ -1351,7 +1351,9 @@ class KimodoPolicy(nn.Module):
             }
         return output
 
-    def load_controlnet_checkpoint(self, checkpoint_path: str, strict: bool = True) -> int:
+    def load_controlnet_checkpoint(self, checkpoint_path: str, strict: bool = True, weights: str = "model") -> int:
+        """Load ControlNet and hand-head weights; ``weights`` is ``"model"`` or ``"ema<decay>"`` (e.g. ``"ema0.9999"``),
+        an exponential moving average that ``scripts/train.py`` saves next to the raw weights."""
         checkpoint_path = os.path.expanduser(checkpoint_path)
         state_path = (
             os.path.join(checkpoint_path, "training_state.pt")
@@ -1359,7 +1361,13 @@ class KimodoPolicy(nn.Module):
             else checkpoint_path
         )
         payload = torch.load(state_path, map_location="cpu", weights_only=True)
-        state_dict = payload.get("model", payload)
+        if weights == "model":
+            state_dict = payload.get("model", payload)
+        else:
+            averages = payload.get("ema", {})
+            if weights.removeprefix("ema") not in averages:
+                raise KeyError(f"{state_path} has no weights {weights!r}; it has model and {['ema' + d for d in averages]}")
+            state_dict = averages[weights.removeprefix("ema")]
         controlnet_state = {}
         hand_state = {}
         for name, value in state_dict.items():

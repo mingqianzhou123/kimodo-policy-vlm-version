@@ -30,9 +30,11 @@ def make_kimodo_policy(
     dtype: torch.dtype = torch.float32,
     execution_frames: int = 50,
     diffusion_steps: int = 10,
+    weights: str = "model",
     **planner_options,
 ) -> AgentPolicy:
-    """``planner_options`` go to ``KimodoPlanner`` (noise, rtc_overlap_frames, rtc_frozen_frames, blend_steps)."""
+    """``weights``: ``"model"`` or a saved average such as ``"ema0.9999"``. ``planner_options`` go to
+    ``KimodoPlanner`` (noise, rtc_overlap_frames, rtc_frozen_frames, blend_steps)."""
     from kimodo_vla.model.planner import KimodoPlanner
 
     planner = KimodoPlanner.from_checkpoint(
@@ -43,6 +45,7 @@ def make_kimodo_policy(
         control_fps=CONTROL_FPS,
         execution_frames=execution_frames,
         diffusion_steps=diffusion_steps,
+        weights=weights,
         **planner_options,
     )
     return make_policy(env, task, planner)

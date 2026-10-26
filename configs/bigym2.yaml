@@ -50,6 +50,7 @@ model:
   hand_control_mode: binary
 
 training:
+  ema_decays: []                   # e.g. [0.999, 0.9999]: weight averages saved with each checkpoint
   augmentation:                    # BiGym's baseline recipe is in bigym2_recipe.yaml
     image_shift: 0                 # pixels, per camera
     proprio_mask_prob: 0.0         # per sample: the history keeps only root heading and pelvis orientation
