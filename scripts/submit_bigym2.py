@@ -17,7 +17,7 @@ to π0.5). Variants: ``3cam`` (main result), ``head`` (ablation), ``head_pt419h`
 only, ControlNet and hand head from pt_419h). ``--config`` is the training config.
 
 Rerunning fills in what is missing: a job of the same name still in the Slurm queue
-is reused (evaluation then waits for that training job), a finished run is not trained
+(job names carry the output folder's name) is reused (evaluation then waits for that training job), a finished run is not trained
 again, an unfinished one with a ``resume.pt`` continues with ``--resume``, and
 evaluation skips checkpoints that already have a result. Slurm output goes to ``<out>/slurm/``.
 """
@@ -107,7 +107,8 @@ def main() -> None:
         for variant in args.variants:
             name = f"{task}_{variant}"
             run_dir = args.out / name
-            train = queued.get(f"kv-train-{name}")
+            tag = f"{args.out.name}-{name}"  # job names carry the output folder: run sets share task names
+            train = queued.get(f"kv-train-{tag}")
             if train is None and not (run_dir / f"checkpoint_{steps[-1]}").is_dir():
                 if (run_dir / "resume.pt").exists():
                     command = shlex.join([*trainer, "scripts/train.py", "--resume", str(run_dir)])
@@ -117,7 +118,7 @@ def main() -> None:
                 else:
                     extra = [a.format(pt419h=args.pt419h) for a in VARIANTS[variant]]
                     command = shlex.join([*trainer, "scripts/train.py", "--task", task, *extra, *config_args, "--run-dir", str(run_dir)])
-                train = sbatch(args, f"kv-train-{name}", command, cpus=12 if gpus == 1 else 8 * gpus,
+                train = sbatch(args, f"kv-train-{tag}", command, cpus=12 if gpus == 1 else 8 * gpus,
                                mem="96G" if gpus == 1 else f"{64 * gpus}G", time="16:00:00" if gpus == 1 else "3-00:00:00",
                                after=None, gpus=gpus)
             jobs = []
@@ -125,7 +126,7 @@ def main() -> None:
                 suffix = "" if frames == DEFAULT_EXECUTION_FRAMES else f"-x{frames}"
                 groups = (("all", final + curve),) if args.eval_watch else (("final", final), ("curve", curve))
                 for label, eval_steps in groups:
-                    job_name = f"kv-eval-{label}{suffix}-{name}"
+                    job_name = f"kv-eval-{label}{suffix}-{tag}"
                     if job_name in queued:
                         jobs.append(f"{queued[job_name]}(queued)")
                         continue
