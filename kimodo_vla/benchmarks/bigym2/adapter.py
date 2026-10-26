@@ -12,6 +12,8 @@ Official interface (bigym2.github.io/docs, "Official configuration"):
 
 The legs (and the waist, on tasks without the pitch command) belong to the
 frozen GR00T-WBC, so they are not observed and the adapter drops their targets.
+The base commands come from ``controllers.groot_wbc``; this file only places
+them in BiGym's action layout.
 """
 
 from __future__ import annotations
@@ -22,7 +24,8 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from kimodo_vla.core.types import ActionChunk, Observation, joint_indices, yaw_matrix, yaw_of
+from kimodo_vla.controllers.groot_wbc import BaseCommand, BaseCommander
+from kimodo_vla.core.types import ActionChunk, Observation, joint_indices, yaw_matrix
 
 ARM_JOINT_NAMES = (
     "left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint",
@@ -54,11 +57,7 @@ class BiGym2Adapter:
     action_high: np.ndarray
     cameras: tuple[str, ...] = CAMERA_NAMES  # a subset in BiGym's order; () for state-only tools
     control_fps: float = CONTROL_FPS
-    # rad/s of yaw-rate command per rad of heading error. Off: replaying the operator's
-    # commands through the adapter, gain 2 cut move_plate from 97% to 23% success and
-    # pick_box from 77% to 2%, because it fights the controller's natural heading drift.
-    yaw_gain: float = 0.0
-    _previous_yaw: float | None = field(default=None, init=False, repr=False)
+    base: BaseCommander = field(default_factory=BaseCommander)  # GR00T-WBC's lower-body commands
 
     @classmethod
     def from_env(cls, env, task: str) -> "BiGym2Adapter":
@@ -88,7 +87,7 @@ class BiGym2Adapter:
         return (3 if self.pitch_command else 0) + 18 + 4
 
     def reset(self) -> None:
-        self._previous_yaw = None
+        self.base.reset()
 
     def to_observation(self, timestep) -> Observation:
         low = np.asarray(timestep.low_dim_obs, dtype=np.float32)
@@ -121,35 +120,18 @@ class BiGym2Adapter:
             instruction=self.instruction,
         )
 
-    def to_raw_action(self, target: ActionChunk, obs: Observation, previous_yaw: float | None = None) -> np.ndarray:
-        """Target frame 0 in BiGym's raw (unnormalized) action units.
-
-        Velocities are backward differences into frame 0, like ``root_delta_xy``:
-        the yaw rate runs from ``previous_yaw`` (the last step's target heading,
-        or the measured one at the start) to frame 0. A forward difference leads
-        the operator by one step and cost pick_box ~20% in demo replay.
-        """
-        fps = target.fps
-        vx, vy = target.root_delta_xy[0] * fps
-        yaw_now = float(yaw_of(obs.root_rot))
-        yaw_target = float(yaw_of(target.root_rot[0]))
-        yaw_from = yaw_now if previous_yaw is None else previous_yaw
-        yaw_rate = _wrap(yaw_target - yaw_from) * fps + self.yaw_gain * _wrap(yaw_target - yaw_now)
-        base = [vx, vy, target.root_height[0], yaw_rate]
+    def to_raw_action(self, base: BaseCommand, target: ActionChunk) -> np.ndarray:
+        """BiGym's raw (unnormalized) action: ``base``, then frame 0's torso pitch, arms and grippers."""
+        values = [base.vx, base.vy, base.height, base.yaw_rate]
         if self.pitch_command:
-            base.append(target.joint_pos[0, joint_indices(["waist_pitch_joint"])[0]])
+            values.append(target.joint_pos[0, joint_indices(["waist_pitch_joint"])[0]])
         arms = target.joint_pos[0, joint_indices(ARM_JOINT_NAMES)]
         grippers = (target.hand[0] >= 0.5).astype(np.float32)
-        return np.concatenate([np.asarray(base, np.float32), arms, grippers])
+        return np.concatenate([np.asarray(values, np.float32), arms, grippers])
 
     def to_env_action(self, target: ActionChunk, obs: Observation) -> np.ndarray:
         if abs(target.fps - self.control_fps) > 1e-6:
             raise ValueError(f"target is at {target.fps} fps, BiGym runs at {self.control_fps}")
-        raw = self.to_raw_action(target, obs, self._previous_yaw)
-        self._previous_yaw = float(yaw_of(target.root_rot[0]))
+        raw = self.to_raw_action(self.base(target, obs.root_rot), target)  # the controller
         normalized = 2.0 * (raw - self.action_low) / (self.action_high - self.action_low) - 1.0
         return np.clip(normalized, -1.0, 1.0).astype(np.float32)
-
-
-def _wrap(angle: float) -> float:
-    return float((angle + np.pi) % (2 * np.pi) - np.pi)

@@ -1,8 +1,8 @@
 """How much success survives our action interface if the model predicted perfectly?
 
-For each demonstration, a ``DemoPlanner`` hands the Agent the demo's own motion
-in place of a model prediction, through the exact evaluation path (30 Hz Kimodo
-chunks, resampling, 40-D encoding, BiGym2Adapter). Modes:
+For each demonstration, a ``DemoPlanner`` (``kimodo_vla.benchmarks.replay``) hands
+the Agent the demo's own motion in place of a model prediction, through the exact
+evaluation path (30 Hz Kimodo chunks, resampling, 40-D encoding, BiGym2Adapter). Modes:
 
 * ``replay``   the recorded actions, bit for bit (sanity: should succeed every time)
 * ``executed`` the motion the robot actually performed
@@ -24,65 +24,16 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
-import torch
 
 from kimodo_vla.benchmarks.base import AgentPolicy
 from kimodo_vla.benchmarks.bigym2.adapter import ARM_JOINT_NAMES, BiGym2Adapter
-from kimodo_vla.benchmarks.bigym2.demos import DemoMotion, commanded_motion, executed_motion
+from kimodo_vla.benchmarks.bigym2.demos import commanded_motion, executed_motion
+from kimodo_vla.benchmarks.replay import DemoPlanner, DirectPlanner
+from kimodo_vla.controllers.groot_wbc import BaseCommander
 from kimodo_vla.core.agent import Agent
-from kimodo_vla.core.types import ActionChunk, joint_indices
-from kimodo_vla.model.features import KimodoFeatures
-from kimodo_vla.motion.g1_reference import _interpolate_motion, resample_hand_binary
+from kimodo_vla.core.types import joint_indices
 
 MODES = ("replay", "executed", "commanded", "direct")
-
-
-class DemoPlanner:
-    """A Planner that 'predicts' a recorded motion and samples it like KimodoPlanner.
-
-    The recorded motion is resampled to the model rate, then read at the true time of
-    each control step the plan covers (``chunk`` model frames per plan).
-    """
-
-    history_steps = 2
-
-    def __init__(self, motion: DemoMotion, control_fps=50.0, model_fps=30.0, chunk=50):
-        self.control_fps, self.model_fps, self.chunk = control_fps, model_fps, chunk
-        self.kimodo = KimodoFeatures(control_fps, model_fps)
-        self.rot, self.root = self.kimodo.motion(motion.joint_pos, motion.root_pos, motion.root_rot)
-        self.hand = resample_hand_binary(motion.hand, control_fps, model_fps)
-
-    def reset(self, seed=None):
-        pass
-
-    def plan(self, history):
-        ratio = self.model_fps / self.control_fps
-        step, last = history[-1].step, len(self.rot) - 1  # past the end of the demo, hold its final pose
-        steps = int(round(self.chunk / ratio))
-        times = (torch.arange(step, step + steps + 1, dtype=torch.float32) * ratio).clamp(0, last)
-        rot, root = _interpolate_motion(self.rot, self.root, times)  # row 0: now
-        hand = self.hand[times[1:].round().long()]
-        actions = self.kimodo.codec.encode(rot[1:], root[1:], previous_root_position=root[0], hand_binary=hand)
-        return ActionChunk.from_array40(actions.numpy(), fps=self.control_fps)
-
-
-class DirectPlanner:
-    """The recorded motion at the control rate; frame 0 is the next step's row."""
-
-    history_steps = 2
-
-    def __init__(self, motion: DemoMotion, control_fps=50.0, chunk=83):
-        self.motion, self.control_fps, self.chunk = motion, control_fps, chunk
-
-    def reset(self, seed=None):
-        pass
-
-    def plan(self, history):
-        m, last = self.motion, len(self.motion.joint_pos) - 1
-        idx = np.clip(np.arange(history[-1].step + 1, history[-1].step + 1 + self.chunk), 0, last)
-        delta = m.root_pos[idx] - m.root_pos[np.clip(idx - 1, 0, last)]
-        local = np.einsum("tji,tj->ti", m.root_rot[idx], delta)[:, :2]  # into each frame's pelvis frame
-        return ActionChunk(local, m.root_pos[idx, 2], m.root_rot[idx], m.joint_pos[idx], m.hand[idx], self.control_fps)
 
 
 _CACHE: dict = {}
@@ -105,7 +56,7 @@ def _task_state(data_dir: Path, task: str):
 
         env = make(task, camera_keys=())
         adapter = BiGym2Adapter.from_env(env, task)
-        adapter.yaw_gain = _YAW_GAIN
+        adapter.base.yaw_gain = _YAW_GAIN
         metadata = load_task_metadata(data_dir / task)
         episodes = load_episodes(data_dir / task, decode_images=False)
         _CACHE[task] = (env, adapter, metadata["action_stats"], episodes, env.action_stats)
@@ -183,7 +134,7 @@ def main() -> None:
     parser.add_argument("--episodes", type=int, default=60)
     parser.add_argument("--modes", nargs="+", default=list(MODES), choices=MODES)
     parser.add_argument("--workers", type=int, default=8)
-    parser.add_argument("--yaw-gain", type=float, default=BiGym2Adapter.yaw_gain)
+    parser.add_argument("--yaw-gain", type=float, default=BaseCommander.yaw_gain)
     parser.add_argument("--chunk", type=int, default=50, help="model frames per plan (execution_frames of KimodoPlanner)")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()

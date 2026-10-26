@@ -26,6 +26,9 @@ dependencies = [
 # BiGym 2.0 pins mujoco<3.9; nothing in kimodo_vla itself imports mujoco.
 # Pinned: benchmark numbers are only comparable on the same BiGym substrate.
 bigym2 = ["bigym @ git+https://github.com/swirl-uk/BiGym2.git@d71501359b215b9d78e27dcb70b220412d474dfa"]
+# HumanoidToolBench's simulator runs in its own uv environment (transformers 4.57.1 there, 5.1.0 here)
+# and talks to scripts/serve_toolbench.py over HTTP; this group only reads its recordings.
+toolbench = ["av>=12", "pyarrow>=14"]
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]

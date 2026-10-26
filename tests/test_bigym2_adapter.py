@@ -8,6 +8,7 @@ pytest.importorskip("bigym")
 from bigym.loco import make  # noqa: E402
 
 from kimodo_vla.benchmarks.bigym2.adapter import ARM_JOINT_NAMES, BiGym2Adapter  # noqa: E402
+from kimodo_vla.controllers.groot_wbc import base_command  # noqa: E402
 from kimodo_vla.core.types import ActionChunk, G1_JOINT_INDEX, joint_indices, yaw_matrix, yaw_of  # noqa: E402
 
 SEED = 620000
@@ -66,7 +67,7 @@ def test_action_normalization_inverts_bigym(env_and_adapter):
     obs = adapter.to_observation(env.reset(seed=SEED))
     adapter.reset()
     target = hold_target(obs, dx=0.004)
-    raw = adapter.to_raw_action(target, obs)
+    raw = adapter.to_raw_action(base_command(target, obs.root_rot), target)
     np.testing.assert_allclose(env.denormalize_action(adapter.to_env_action(target, obs)), raw, atol=1e-5)
 
 

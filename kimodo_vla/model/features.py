@@ -48,6 +48,15 @@ def history_feature_mask(representation: KimodoMotionRep, joint_mask: np.ndarray
     return mask
 
 
+def lerp_rows(values: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
+    """``values [T, D]`` linearly interpolated at fractional row ``positions``, clamped to the ends."""
+    positions = positions.clamp(0, values.shape[0] - 1)
+    lower = positions.floor().long()
+    upper = (lower + 1).clamp(max=values.shape[0] - 1)
+    alpha = (positions - lower.float()).unsqueeze(-1)
+    return (1.0 - alpha) * values[lower] + alpha * values[upper]
+
+
 class KimodoFeatures:
     def __init__(self, control_fps: float, model_fps: float = 30.0):
         self.control_fps = float(control_fps)
@@ -97,6 +106,24 @@ class KimodoFeatures:
         features = self.features(local_rot, root)
         mask = history_feature_mask(self.representation, observations[-1].joint_mask)
         return features, mask.expand_as(features), local_rot, root
+
+    def hand_history(self, observations: Sequence[Observation]) -> torch.Tensor:
+        """Measured hand closure ``[T, 2]`` at model rate, on the same grid as ``history``.
+
+        Linear interpolation on the grid anchored at the episode start: the same
+        values as resampling the whole episode's closure at once.
+        """
+        closure = torch.as_tensor(np.stack([o.hand for o in observations]), dtype=torch.float32).clamp(0.0, 1.0)
+        first_step, last_step = observations[0].step, observations[-1].step
+        ratio = self.model_fps / self.control_fps
+        first_k = math.ceil(first_step * ratio - 1e-6)
+        last_k = int(round(last_step * ratio))
+        steps = (torch.arange(first_k, last_k + 1, dtype=torch.float32) * self.control_fps / self.model_fps).clamp(max=last_step)
+        lower = steps.floor()
+        alpha = (steps - lower).unsqueeze(-1)
+        lower = lower.long() - first_step
+        upper = (lower + 1).clamp(max=closure.shape[0] - 1)
+        return (1.0 - alpha) * closure[lower] + alpha * closure[upper]
 
     def target(self, joint_pos, root_pos, root_rot, first_heading: np.ndarray) -> torch.Tensor:
         """What the policy should output, from a whole episode's commanded poses (world frame)."""

@@ -1,7 +1,7 @@
 """Turn BiGym 2.0 demonstrations into Kimodo training episodes.
 
 For every demo: the observed history and commanded target as Kimodo features
-(``benchmarks.bigym2.demos.training_episode``) and the recorded images of all three
+(``kimodo_vla.data.build.training_episode``) and the recorded images of all three
 cameras (official 84x84) at every model-rate frame. Output: ``<out>/<task>/<demo>.pt`` and
 ``.frames.npy`` (see ``kimodo_vla.data.episodes``). Existing episodes are skipped.
 
@@ -46,7 +46,8 @@ def _task_state(data_dir: Path, task: str):
 
 def prepare_one(job) -> str:
     data_dir, out_dir, task, index = job
-    from kimodo_vla.benchmarks.bigym2.demos import demo_frames, training_episode
+    from kimodo_vla.benchmarks.bigym2.demos import BiGym2Demo
+    from kimodo_vla.data.build import training_episode
     from kimodo_vla.data.episodes import save_episode
 
     start = time.time()
@@ -57,10 +58,10 @@ def prepare_one(job) -> str:
     stem = Path(out_dir) / task / Path(name).stem
     if stem.with_suffix(".frames.npy").exists():
         return f"{task}/{stem.name}: exists"
-    record, steps = training_episode(env, adapter, kimodo, episode, stats)
-    record.update(task=task, episode_id=stem.name, cameras=cameras)
-    save_episode(stem, record, demo_frames(episode, steps))
-    return f"{task}/{stem.name}: {len(steps)} frames in {time.time() - start:.0f}s"
+    demo = BiGym2Demo(env, adapter, episode, stats, cameras)
+    record, frames = training_episode(demo, kimodo, task=task, episode_id=stem.name)
+    save_episode(stem, record, frames)
+    return f"{task}/{stem.name}: {len(frames)} frames in {time.time() - start:.0f}s"
 
 
 def main() -> None:
