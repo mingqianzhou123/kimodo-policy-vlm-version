@@ -12,13 +12,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
-import torch
-from bigym.loco import make
-from bigym.loco.eval import evaluate
+# MuJoCo's EGL renderer ignores CUDA_VISIBLE_DEVICES and draws on the node's first GPU, so
+# every evaluation on a Slurm node rendered on GPU 0: 9 instead of 97 steps/s with three
+# cameras. Render on the GPU this process was given (set before mujoco is imported).
+if "MUJOCO_EGL_DEVICE_ID" not in os.environ and os.environ.get("CUDA_VISIBLE_DEVICES", "").split(",")[0].isdigit():
+    os.environ["MUJOCO_EGL_DEVICE_ID"] = os.environ["CUDA_VISIBLE_DEVICES"].split(",")[0]
 
-from kimodo_vla.benchmarks.bigym2.policy import make_kimodo_policy
+import torch  # noqa: E402
+from bigym.loco import make  # noqa: E402
+from bigym.loco.eval import evaluate  # noqa: E402
+
+from kimodo_vla.benchmarks.bigym2.policy import make_kimodo_policy  # noqa: E402
 
 
 def main() -> None:
