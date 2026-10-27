@@ -14,6 +14,7 @@ main:
   text_cache: data/cache/bigym2    # scripts/cache_text_embeddings.py; relative to the repo
   save_root: log/bigym2            # relative to the repo
   max_steps: 30000
+  stop_after: null                 # end early (a short test); the learning-rate schedule still spans max_steps
   batch_size: 48                   # per optimizer step
   micro_batch_size: 48             # per GPU; lower it if a GPU runs out of memory, gradients accumulate
   action_chunk: 50

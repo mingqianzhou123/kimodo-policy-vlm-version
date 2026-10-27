@@ -320,7 +320,8 @@ def main() -> None:
     metrics_file = open(run_dir / "metrics.jsonl", "a") if rank == 0 else None
     window_start, window_data = time.time(), 0.0
 
-    while step < main_cfg.max_steps:
+    end = min(main_cfg.max_steps, main_cfg.get("stop_after") or main_cfg.max_steps)  # the schedule still spans max_steps
+    while step < end:
         optimizer.zero_grad(set_to_none=True)
         losses: dict[str, float] = {}
         for micro in range(accumulation):
@@ -360,7 +361,7 @@ def main() -> None:
         if averages:
             averages.update(step)
 
-        if rank == 0 and (step % main_cfg.log_every == 0 or step == main_cfg.max_steps):
+        if rank == 0 and (step % main_cfg.log_every == 0 or step == end):
             seconds = (time.time() - window_start) / main_cfg.log_every
             lrs = {g["name"]: g["lr"] for g in optimizer.param_groups}
             record = {"step": step, **losses, "grad_control": control_norm, "grad_hand": hand_norm,
@@ -368,7 +369,7 @@ def main() -> None:
                       "data_s_per_step": window_data / main_cfg.log_every}
             metrics_file.write(json.dumps(record) + "\n")
             metrics_file.flush()
-            eta = seconds * (main_cfg.max_steps - step) / 3600
+            eta = seconds * (end - step) / 3600
             log.info("step %d/%d | %s | grad %.2f / %.2f | lr %.1e | %.2fs/step (data %.2fs) | eta %.1fh",
                      step, main_cfg.max_steps, " ".join(f"{k.removesuffix('_loss') or k} {v:.4f}" for k, v in losses.items()),
                      control_norm, hand_norm, lrs["adapter"], seconds, record["data_s_per_step"], eta)
