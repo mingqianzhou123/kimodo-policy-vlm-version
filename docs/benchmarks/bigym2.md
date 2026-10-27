@@ -212,6 +212,26 @@ python scripts/submit_bigym2.py --out log/bigym2/main9_recipe --config configs/b
 - 只用头部的 pick_box 有 0.2% 的回合摔倒（0.33 秒时 0.4%），其余各组为 0。
 - 每 0.33 秒重新规划的列见 `log/bigym2/main9/results.md`，pick_box 和 dishwasher_close 的部分还在评测。
 
+## 6b. 第二套结果（和 ACT/DP 同口径，2026-10-27 出齐）
+
+80k–100k 的 5 个 checkpoint 各 100 回合合并（%）。「中途最高」是挑测试集上最好的 checkpoint，只作参考，不能当主结果。
+
+| 任务 | 第一套 | 第二套 | 第二套中途最高 | π0.5 | ACT | DP |
+|---|---|---|---|---|---|---|
+| pick_box | 10 | 34 | 37 | 19 | 61 | 10 |
+| reach_target_multi_modal | 54 | 39 | 69 | 90 | 81 | 84 |
+| reach_target_dual | 22 | 0 | 23 | 58 | 30 | 27 |
+| drawer_top_close | 100 | 100 | 100 | 100 | 100 | 100 |
+| drawer_top_open | 87 | 78 | 95 | 99 | 92 | 98 |
+| move_plate | 51 | 23 | 68 | 65 | 60 | 62 |
+| move_two_plates | 6 | 6 | 34 | 68 | 39 | 18 |
+| dishwasher_close | 1 | 84 | 90 | 79 | 93 | 51 |
+| dishwasher_load_cups | 17 | 0 | 0 | 92 | 56 | 51 |
+| **9 个任务平均** | **39** | **40** | | **75** | **68** | **56** |
+
+训练稳定的任务大幅提升（关洗碗机 1 → 84，在 20k–50k 步之间学会；pick_box 10 → 34）；训练发散的任务归零（装杯子 15k 步起、
+reach_target_dual 63k 步起）。第一套 0.33 秒那一列也已出齐（`log/bigym2/main9/results.md`）。
+
 ## 7. 失败原因诊断（2026-10-26）
 
 三路相机、第一套第 30k 步。脚本在 A800 的 `outputs/diag/`（`diag_vision.py`、`diag_trainscenes.py`），录像在 Mac 的 `outputs/videos/`。
