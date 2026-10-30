@@ -66,4 +66,6 @@ def training_episode(demo: "Demonstration", kimodo: KimodoFeatures, *, task: str
         "episode_id": episode_id,
         "cameras": list(demo.cameras),
     }
+    if demo.hand_mode == "continuous":
+        record["observed_hand"] = kimodo.hand_history(observations).float()
     return record, demo.images(steps)

@@ -35,7 +35,7 @@ checkpoints/
 | benchmark | 准备训练数据 | 检查动作接口（演示回放） | 评测 |
 |---|---|---|---|
 | BiGym 2.0 | `prepare_bigym2.py` | `check_bigym2_roundtrip.py` | `eval_bigym2.py`（同一进程，官方评测器） |
-| HumanoidToolBench | `prepare_toolbench.py` | `check_toolbench_roundtrip.py`（在 ToolBench 的环境里跑） | `serve_toolbench.py`，再让 ToolBench 的评测器连过来 |
+| HumanoidToolBench | `prepare_toolbench.py` | `check_toolbench_roundtrip.py`（在 ToolBench 的环境里跑） | `eval_toolbench.py`（独立 HTTP 服务与官方评测器） |
 | HumanoidArena | 旧仓库已有 | — | `serve_arena.py`，Arena 的评测器连过来 |
 | SIMPLE | 旧仓库已有 | — | `serve_simple.py`（HTTP）；同进程评测还没接上 |
 
@@ -54,7 +54,14 @@ python scripts/serve_arena.py --checkpoint <checkpoint 目录> --text-cache <文
 python scripts/serve_simple.py --checkpoint <checkpoint 目录> --text-cache <文本 embedding 目录>
 ```
 
-训练目前按 BiGym 配置：`train.py`（单卡或多卡）、`submit_bigym2.py`（提交到 Slurm 集群，训完自动评测）、
+训练使用通用 `train.py`（单卡或多卡）。ToolBench 的 18 条件 scratch 联合训练配置是 `configs/toolbench.yaml`；
+`supervise_toolbench.py` 在前置验证通过后监督 40k 训练、在线诊断和最终 18×100 回合官方评测，
+`eval_toolbench.py` 也可单独评测一个 checkpoint。字段对齐、实测记录和运行命令见
+[ToolBench 文档](docs/benchmarks/toolbench.md) 和[前置验证报告](reports/toolbench_preflight_20261027.md)。
+本机 scratch 40k、18×100 回合已完成：宏平均成功率 3.94%，完整分任务结果和局限见
+[最终报告](reports/toolbench_scratch40k_20261027.md)。
+
+BiGym 的集群和评测工具：`submit_bigym2.py`（提交到 Slurm 集群，训完自动评测）、
 `eval_run.py`（评一个 run 的若干 checkpoint）、`summarize_bigym2.py`（汇总成论文主表格式）、`gpu_queue.py`
 （不走集群时排到单机的空闲 GPU）、`cache_text_embeddings.py`（任务指令的文本 embedding）；
 用法见 [BiGym 文档](docs/benchmarks/bigym2.md) 的训练一节。

@@ -34,6 +34,20 @@ def test_recording_names():
     assert demos.instruction("G1StickMove-L0-S-v0") == "Pick the tool for moving the ball to the target."
 
 
+@pytest.mark.parametrize('execution', [10, 20, 30, 50])
+def test_measured_history_schedule_matches_real_planner(execution):
+    from kimodo_vla.model.planner import KimodoPlanner
+    planner = object.__new__(KimodoPlanner)
+    planner.model_fps, planner.control_fps, planner.execution_frames = 30, 50, execution
+    actual, step = set(), 0
+    while step < 3000:
+        actual.add(step)
+        step += len(planner.control_offsets(step, 50)) - 1
+    assert demos.request_steps(3000, execution) == actual
+    if execution == 50:
+        assert sorted(actual)[:4] == [0, 81, 163, 245]
+
+
 @pytest.mark.parametrize("interval", [83, 30])
 def test_adapter_reports_what_training_saw_and_sends_the_recorded_commands(interval):
     columns = recording()

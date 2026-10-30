@@ -8,11 +8,15 @@ Then point the evaluator at http://HOST:PORT. One server per evaluator.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
+from pathlib import Path
 
 import torch
 
 from kimodo_vla.benchmarks.server import NUMPY_JSON, make_server
 from kimodo_vla.benchmarks.toolbench.policy import make_kimodo_policy, routes
+from run_config import inference_fingerprint
 
 
 def main() -> None:
@@ -34,7 +38,16 @@ def main() -> None:
         args.checkpoint, args.text_cache, device=args.device, dtype={"fp32": torch.float32, "bf16": torch.bfloat16}[args.dtype],
         execution_frames=args.execution_frames, diffusion_steps=args.diffusion_steps, rtc_overlap_frames=args.rtc_overlap_frames, turn=args.turn,
     )
-    server = make_server(routes(policy, checkpoint=args.checkpoint, base_seed=args.seed), args.host, args.port, NUMPY_JSON)
+    checkpoint = Path(args.checkpoint).resolve()
+    digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+    repo = Path(__file__).resolve().parents[1]
+    source = {str(p.relative_to(repo)): digest(p) for p in sorted((repo / "kimodo_vla").rglob("*.py"))}
+    inference = {key: getattr(args, key) for key in ("dtype", "execution_frames", "diffusion_steps", "rtc_overlap_frames", "turn", "seed")}
+    metadata = {"checkpoint_sha256": digest(checkpoint / "training_state.pt"),
+                "config_sha256": inference_fingerprint(checkpoint/'config.json',inference),
+                "adapter_sha256": hashlib.sha256(json.dumps(source, sort_keys=True).encode()).hexdigest(),
+                "inference": inference}
+    server = make_server(routes(policy, checkpoint=str(checkpoint), base_seed=args.seed, metadata=metadata), args.host, args.port, NUMPY_JSON)
     print(f"Policy server: http://{args.host}:{server.server_port}", flush=True)
     server.serve_forever()
 

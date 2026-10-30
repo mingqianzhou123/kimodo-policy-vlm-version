@@ -149,7 +149,7 @@ class KimodoWindowDataset(Dataset):
         condition_mask[past] = record["observed_mask"]
         if self.proprio_mask_prob and float(torch.rand(())) < self.proprio_mask_prob:
             condition_mask[past] &= self._base_mask
-        gt_hand[past] = record["hand"][start:cut]
+        gt_hand[past] = record.get("observed_hand", record["hand"])[start:cut]
         gt_mask[past] = True
         gt_motion[future] = record["target_motion"][cut : cut + c]
         gt_hand[future] = record["hand"][cut : cut + c]

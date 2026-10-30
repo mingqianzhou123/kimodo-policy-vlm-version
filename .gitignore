@@ -8,5 +8,6 @@ outputs/
 *.egg-info/
 .pytest_cache/
 data/cache/
+data/toolbench/
 .venv-cluster/
 .claude/launch.json

@@ -73,7 +73,7 @@ def _commands(mode: str, demo, motion):
     from kimodo_vla.benchmarks.toolbench.policy import make_policy
 
     if mode in ("recorded", "jitter"):
-        rows, interval = demo.recorded_commands(), demo.request_interval
+        rows, interval = demo.recorded_commands(), demo.request_interval or 83
         if mode == "jitter":
             rows[:, 32:34] += np.random.default_rng(0).uniform(-3e-6, 3e-6, rows[:, 32:34].shape).astype(np.float32)
 
@@ -90,7 +90,7 @@ def _commands(mode: str, demo, motion):
 
         return Recorded()
     planner = (DemoPlanner(motion, hand_mode=demo.hand_mode) if mode == "kimodo"
-               else DirectPlanner(motion, chunk=demo.request_interval))
+               else DirectPlanner(motion, chunk=demo.request_interval or 83))
     return make_policy(planner, turn=1.0 if mode == "always" else "operator")
 
 
@@ -220,12 +220,14 @@ def main() -> None:
     parser.add_argument("--recordings", nargs="*", help="substrings selecting recordings (default: all)")
     parser.add_argument("--modes", nargs="+", default=list(MODES), choices=MODES)
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--manifest", type=Path, help="restrict to these available selected episodes")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
     from kimodo_vla.benchmarks.toolbench import demos
 
     jobs = []
+    selected = {str((args.data_dir.parent / e["data"]).resolve()) for e in json.loads(args.manifest.read_text())["episodes"]} if args.manifest else None
     for info in sorted(args.data_dir.rglob("meta/info.json")):
         recording = info.parent.parent
         if args.recordings and not any(s in str(recording) for s in args.recordings):
@@ -233,6 +235,8 @@ def main() -> None:
         info = json.loads(info.read_text())
         good = [e["episode_index"] for e in demos.episodes(recording) if e.get("episode_success")]
         good = [i for i in good if (recording / info["data_path"].format(episode_chunk=i // info["chunks_size"], episode_index=i)).exists()]
+        if selected is not None:
+            good = [i for i in good if str((recording / info["data_path"].format(episode_chunk=i // info["chunks_size"], episode_index=i)).resolve()) in selected]
         jobs += [(str(recording), i, mode) for i in good[: args.episodes] for mode in args.modes]
     print(f"{len(jobs)} runs", flush=True)
     results = []

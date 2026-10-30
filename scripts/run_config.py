@@ -8,6 +8,14 @@ REPO = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = REPO / "configs" / "bigym2.yaml"
 
 
+def inference_fingerprint(config_path: Path, inference: dict) -> str:
+    """Fingerprint the saved training config together with inference settings."""
+    import hashlib
+    import json
+    value={"training":json.loads(config_path.read_text()),"inference":inference}
+    return hashlib.sha256(json.dumps(value,sort_keys=True).encode()).hexdigest()
+
+
 def load_yaml(path: Path):
     """A config file, on top of the one it names as ``_base_`` (relative to it), if any."""
     from omegaconf import OmegaConf  # here, so summarizing results needs nothing beyond the standard library

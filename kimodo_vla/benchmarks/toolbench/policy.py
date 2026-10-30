@@ -27,7 +27,7 @@ def make_policy(planner, turn: str | float = "operator") -> ChunkPolicy:
 
 
 def routes(policy: ChunkPolicy, *, name: str = "kimodo-vla", checkpoint: str | None = None,
-           base_seed: int | None = None) -> dict[tuple[str, str], Route]:
+           base_seed: int | None = None, metadata: dict | None = None) -> dict[tuple[str, str], Route]:
     """``base_seed`` makes the diffusion noise of episode ``i`` reproducible (seed ``base_seed + i``)."""
     lock = threading.Lock()
     active = {"session": None, "seen": 0.0, "busy": False, "episode": 0}
@@ -43,6 +43,7 @@ def routes(policy: ChunkPolicy, *, name: str = "kimodo-vla", checkpoint: str | N
             "policy": name,
             "checkpoint": checkpoint,
             "action_schema": "decoupled_v1",
+            **(metadata or {}),
             "server_state": {
                 "exclusive": True,
                 "active_session": current,
@@ -57,6 +58,8 @@ def routes(policy: ChunkPolicy, *, name: str = "kimodo-vla", checkpoint: str | N
             current = owner()
             if current not in (None, session):
                 return 409, {"error": "This policy server is serving another evaluator; run one server per evaluator."}
+            if active["session"] != session:
+                active["episode"] = 0
             active.update(session=session, seen=time.monotonic(), busy=True)
             try:
                 if (request.get("history") or {}).get("reset", False):

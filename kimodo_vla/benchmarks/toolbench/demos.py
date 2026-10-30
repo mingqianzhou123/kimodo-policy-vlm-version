@@ -56,7 +56,19 @@ INSTRUCTIONS = {
 }
 RENAMED = {"G1StickMove": "G1BallMove", "G1HookRetrieve": "G1BallRetrieve"}
 # Steps per evaluator request: the planner's 50 executed model frames at the 50 Hz control rate.
-REQUEST_INTERVAL = round(50 * CONTROL_FPS / 30.0)
+REQUEST_INTERVAL = None  # actual planner chunks alternate 81/82 steps; see request_steps
+
+
+def request_steps(length: int, frames: int = 50, prediction_frames: int = 50) -> set[int]:
+    """The planner's exact 30 Hz grid, including its last-prediction-frame limit."""
+    import math
+    step, result = 0, set()
+    ratio = 30.0 / CONTROL_FPS
+    while step < length:
+        result.add(step)
+        phase = step * ratio - round(step * ratio)
+        step += min(round(frames / ratio), math.floor((prediction_frames - 1 - phase) / ratio + 1e-6))
+    return result
 
 
 def condition(name: str) -> tuple[str, int, str]:
@@ -120,10 +132,13 @@ class ToolBenchDemo:
     hand_mode = "continuous"  # open/closed commands with short ramps between
 
     def __init__(self, columns: Mapping[str, np.ndarray], instruction: str, video: Path | None = None,
-                 request_interval: int = REQUEST_INTERVAL):
+                 request_interval: int = REQUEST_INTERVAL, execution_frames: int = 50):
         self.instruction = instruction
         self.video = video
-        self.request_interval = int(request_interval)
+        self.request_interval = request_interval
+        if not 1 < execution_frames <= 50:
+            raise ValueError('execution_frames must be in [2, 50]')
+        self.execution_frames = execution_frames
         self.state = np.asarray(columns["observation.state"], np.float32)
         command = np.asarray(columns["action"], np.float32)
         nav = np.asarray(columns["teleop.navigate_command"], np.float64)
@@ -172,8 +187,10 @@ class ToolBenchDemo:
         commanded = self.commanded_motion()
         states = policy_state(self.state, self.previous_height)
         observations = []
+        measured = (request_steps(len(self), self.execution_frames) if self.request_interval is None
+                    else set(range(0, len(self), int(self.request_interval))))
         for t in range(len(self)):
-            if t % self.request_interval == 0:
+            if t in measured:
                 obs = measured_observation(states[t], float(self.heading[t]), self.instruction)
             else:
                 obs = commanded_observation(commanded.joint_pos[t], commanded.root_rot[t], commanded.root_pos[t, 2],

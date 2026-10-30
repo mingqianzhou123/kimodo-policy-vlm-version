@@ -1,0 +1,26 @@
+# One joint task policy, official benchmark budget: 40k updates, global batch 128,
+# seed 1000, BF16, 1k warmup, cosine schedule. Frozen foundation encoders/prior;
+# task ControlNet and continuous hand head have no task-policy checkpoint init.
+_base_: bigym2.yaml
+main:
+  task: joint18
+  tasks: [G1BallMove-L0-S, G1BallMove-L0-R, G1BallMove-L1-S, G1BallMove-L1-R, G1BallMove-L2-S, G1BallMove-L2-R, G1BallRetrieve-L0-S, G1BallRetrieve-L0-R, G1BallRetrieve-L1-S, G1BallRetrieve-L1-R, G1BallRetrieve-L2-S, G1BallRetrieve-L2-R, G1IceBreak-L0-S, G1IceBreak-L0-R, G1IceBreak-L1-S, G1IceBreak-L1-R, G1IceBreak-L2-S, G1IceBreak-L2-R]
+  data_root: data/toolbench/prepared
+  text_cache: data/cache/toolbench
+  save_root: log/toolbench
+  max_steps: 40000
+  batch_size: 128
+  micro_batch_size: 16
+  num_workers: 4
+  log_every: 10
+  checkpoint_every: 2000
+  final_checkpoints: 0
+  score_checkpoints: [40000]
+  require_scratch: true
+model:
+  cameras: [head]
+  hand_control_mode: continuous
+training:
+  optimizer:
+    betas: [0.95, 0.999]
+    weight_decay: 1.0e-6

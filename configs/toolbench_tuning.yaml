@@ -1,0 +1,19 @@
+_base_: toolbench.yaml
+main:
+  max_steps: 300000             # exploration cap; final scratch runs use selected budget
+  batch_size: 128
+  micro_batch_size: 32          # 4 GPUs, no accumulation; global batch remains 128
+  checkpoint_every: 10000
+  score_checkpoints: [50000, 100000, 150000, 200000, 250000, 300000]
+  resume_snapshots: [50000, 100000, 150000, 200000, 250000, 300000]
+  sampling: window_uniform
+training:
+  optimizer:
+    # Fixed SIMPLE peak learning rates; revision5 disables LR candidate search.
+    control_backbone_lr: 1.0e-5
+    control_adapter_lr: 3.0e-5
+    hand_lr: 3.0e-5
+  scheduler:
+    warmup_steps: 1000
+    decay_steps: 200000         # never retrospectively rewrite the LR history
+    min_lr_ratio: 0.1
