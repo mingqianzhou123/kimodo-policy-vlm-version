@@ -1,4 +1,4 @@
-"""Evaluator entry point enforcing the original doubledesk execution settings."""
+"""Evaluator entry point enforcing the original HumanoidArena SONIC execution settings."""
 
 import sys
 

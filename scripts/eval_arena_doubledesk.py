@@ -18,10 +18,17 @@ import sys
 from groot_experiment import atomic_json
 from run_config import REPO
 
+TASKS = {
+    "football": {"task": "Isaac-Move-Football-Single-G129-Dex3-Wholebody", "yaml": "football_single_sonic_test.yaml", "max_steps": 2000, "paper_sr": .35},
+    "doubledesk": {"task": "Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody", "yaml": "doubledesk_sonic_test.yaml", "max_steps": 2000, "paper_sr": .40},
+    "pp_box": {"task": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby", "yaml": "pp_box_sonic_test.yaml", "max_steps": 1450, "paper_sr": .80},
+}
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", type=Path, required=True)
+    parser.add_argument("--task", choices=TASKS, default="doubledesk")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--arena-root", type=Path, default=Path("/root/workspace/HumanoidArena"))
     parser.add_argument("--sim-python", default="/root/workspace/miniforge3/envs/unitree_sim_env/bin/python")
@@ -30,21 +37,24 @@ def main():
     parser.add_argument("--port", type=int, default=19871)
     parser.add_argument("--smoke", action="store_true", help="one short episode; NEVER a success-rate measurement")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--reference-manifest", type=Path,
+                        help="Require identical simulator/controller assets and inference settings")
     args = parser.parse_args()
+    task = TASKS[args.task]
     arena = args.arena_root.resolve()
     lab = arena / "isaaclab_twist2_g1"
     evaluator = lab / "script/eval_scripts/sonic/eval_vla_suite.py"
-    environment = lab / "tasks/common_test_config/base_test/doubledesk_sonic_test.yaml"
+    environment = lab / "tasks/common_test_config/base_test" / task["yaml"]
     sonic = arena / "GR00T-WholeBodyControl/gear_sonic_deploy/policy/release"
     assets = [evaluator, environment, sonic / "model_encoder.onnx", sonic / "model_decoder.onnx"]
     for path in assets + [args.checkpoint / "training_state.pt", args.checkpoint / "config.json"]:
         if not path.is_file():
             raise FileNotFoundError(path)
     command = [args.sim_python, str(evaluator),
-        "--task", "Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody",
+        "--task", task["task"],
         "--env_config_yaml", str(environment), "--model-path", str(args.checkpoint.resolve()),
         "--repeats_per_seed", "1" if args.smoke else "20", "--persistent_sim", "0",
-        "--max_steps", "30" if args.smoke else "2000", "--video_fps", "50",
+        "--max_steps", "30" if args.smoke else str(task["max_steps"]), "--video_fps", "50",
         "--post_termination_record_steps", "10", "--record_video_every_n", "0", "--step_log_every_n", "100",
         "--robot_type", "unitree_g1_refpose_v3_1", "--sonic_encoder_path", str(sonic / "model_encoder.onnx"),
         "--sonic_decoder_path", str(sonic / "model_decoder.onnx"), "--sonic_vla_root_rot6d_layout", "row",
@@ -55,13 +65,21 @@ def main():
         "--server_ready_timeout", "600", "--lerobot_server_timeout", "30"]
     for seed in ([0] if args.smoke else [0, 1, 2]):
         command.extend(["--seed", str(seed)])
-    receipt = {"command": command, "smoke_only": args.smoke,
+    receipt = {"command": command, "smoke_only": args.smoke, "task_slug": args.task,
+        "policy_checkpoint": str(args.checkpoint.resolve()),
+        "policy_config_sha256": hashlib.sha256((args.checkpoint / 'config.json').read_bytes()).hexdigest(),
         "evaluation": {"dtype": "fp32", "diffusion_steps": 10, "execution_frames": 15,
                        "timing": "original", "rtc": False, "control_fps": 50, "prediction_frames": 50},
         "asset_sha256": {str(path.relative_to(arena)): hashlib.sha256(path.read_bytes()).hexdigest()
                          for path in assets},
-        "paper_reference_sr": 0.4,
+        "paper_reference_sr": task["paper_sr"], "paper_table": 2, "paper_row": "Ours (scratch)",
         "paper_reference_is_measured_result": False}
+    if args.reference_manifest:
+        reference = json.loads(args.reference_manifest.read_text())
+        for key in ['asset_sha256', 'evaluation', 'task_slug']:
+            if reference.get(key) != receipt[key]:
+                raise RuntimeError(f'Evaluation environment/protocol drift: {key}')
+        receipt['reference_manifest'] = str(args.reference_manifest.resolve())
     print(json.dumps(receipt, indent=2), flush=True)
     if args.dry_run:
         return

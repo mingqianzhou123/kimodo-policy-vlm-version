@@ -33,7 +33,7 @@ import logging
 import math
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import torch
@@ -239,6 +239,10 @@ def lr_schedule(config):
 
 def batches(dataset, config, start_step: int, rank: int = 0, world: int = 1):
     """Endless shuffled micro-batches of this rank; each pass over the windows gets its own seed."""
+    if config.main.get("original_ordinal_stream", False):
+        from kimodo_vla.benchmarks.arena.training import original_arena_batches
+        yield from original_arena_batches(dataset, config, start_step, rank, world)
+        return
     for epoch in itertools.count():
         seed = config.main.seed * 1_000_003 + start_step * 1_009 + epoch
         sampler = DistributedSampler(dataset, num_replicas=world, rank=rank, shuffle=True, seed=seed, drop_last=True)
@@ -290,6 +294,13 @@ def save(path: Path, payload: dict) -> None:
     os.replace(temporary, path)
 
 
+def training_forward(model, config, device, world):
+    forward = model
+    if config.model.get("compile", False):
+        forward = torch.compile(model, mode=config.model.get("compile_mode", "reduce-overhead"), dynamic=False)
+    return DistributedDataParallel(forward, device_ids=[device.index], gradient_as_bucket_view=True) if world > 1 else forward
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--task")
@@ -310,7 +321,7 @@ def main() -> None:
     if world > 1:  # under torchrun
         device = torch.device("cuda", int(os.environ["LOCAL_RANK"]))
         torch.cuda.set_device(device)
-        dist.init_process_group("nccl")
+        dist.init_process_group("nccl", timeout=timedelta(seconds=3600))
     config, run_dir = load_config(args, rank)
     if world > 1:
         run_dir = share_run_dir(run_dir)
@@ -369,8 +380,8 @@ def main() -> None:
         scheduler.load_state_dict(state["scheduler"])
     decays = list(config.training.get("ema_decays") or [])
     averages = WeightAverages(model, decays, (state or {}).get("ema")) if decays and rank == 0 else None
-    forward = DistributedDataParallel(model, device_ids=[device.index]) if world > 1 else model
-    torch.manual_seed(main_cfg.seed + 7919 * rank)  # different diffusion noise and augmentation per rank
+    forward = training_forward(model, config, device, world)
+    torch.manual_seed(main_cfg.seed + (rank if main_cfg.get("original_ordinal_stream") else 7919 * rank))
     if state and len(state.get("rng_states", [])) == world:
         rng = state["rng_states"][rank]
         torch.set_rng_state(rng["cpu"])
@@ -415,7 +426,7 @@ def main() -> None:
             groups, optimizer, scheduler = make_optimizer(model, config, device, step, optimizer)
             hand_params = [p for g in groups if g["name"].startswith("hand") for p in g["params"]]
             control_params = [p for g in groups if not g["name"].startswith("hand") for p in g["params"]]
-            forward = DistributedDataParallel(model, device_ids=[device.index]) if world > 1 else model
+            forward = training_forward(model, config, device, world)
             stage = next_stage
             log.info("step %d: training stage -> %s", step, stage)
         optimizer.zero_grad(set_to_none=True)

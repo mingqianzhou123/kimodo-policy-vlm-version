@@ -216,6 +216,7 @@ class KimodoPolicy(nn.Module):
         tokens = self.image_encoder(egoview.flatten(0, 1))
         return tokens.reshape(egoview.shape[0], -1, tokens.shape[-1])
 
+    @torch.compiler.disable
     def _encode_condition(self, egoview, instructions):
         if getattr(self.config, "visual_conditioning", "dinov3_controlnet") == "groot_n1d7":
             features = self.image_encoder(egoview, instructions)

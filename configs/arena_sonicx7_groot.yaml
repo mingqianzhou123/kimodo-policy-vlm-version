@@ -1,0 +1,40 @@
+_base_: arena_doubledesk_groot.yaml
+
+main:
+  task: HumanoidArena_sonicx7
+  arena_dataset_selection:
+    HumanoidArena:
+      merged: sonic_8_refpose_v3_1
+  expected_tasks:
+    HOI_football: 100
+    HOI_double_desk: 100
+    HOI_pp_box: 100
+    HSI_open_door: 100
+    HSI_sit_sofa: 100
+    HSI_boxing: 100
+    HSI_vision_navi: 100
+  original_ordinal_stream: true
+  sample_stride: 1
+  batch_size: 128
+  micro_batch_size: 32
+  max_steps: 500000
+  num_workers: 24
+  episode_cache_size: 700
+  video_cache_size: 32
+  save_root: log/arena_sonicx7_groot
+  preflight_report: outputs/sonicx7_preflight/groot_preflight.json
+  checkpoint_every: 5000
+  score_checkpoints: [500000]
+
+model:
+  compile: true
+  compile_mode: reduce-overhead
+
+training:
+  scheduler:
+    warmup_steps: 5000
+
+evaluation:
+  tasks: [football, doubledesk, pp_box]
+  paper_table: 2
+  paper_row: Ours (scratch, no VLA pretraining)

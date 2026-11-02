@@ -191,7 +191,7 @@ def plot_curves(rows, config, output, latest, save_pdf):
             if boundary is not None and boundary <= x[-1]:
                 axis.axvline(boundary, color="#666666", ls="--", alpha=.5, lw=.9)
         axis.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
-    fig.suptitle(f"DoubleDesk / GR00T conditioning / scratch / 4 GPUs\n"
+    fig.suptitle(f"{config['main']['task']} / GR00T conditioning / scratch / {latest.get('world_size', 4)} GPUs\n"
                  f"Update {latest['step']:,}/{config['main']['max_steps']:,} | phase: {latest['phase']} | {latest['updated_at']}\n"
                  "Faint: sampled raw records; solid: trailing mean of 100 records (~1,000 updates); dashed: unfreezing", fontsize=13)
     for extension in (["png", "pdf"] if save_pdf else ["png"]):
@@ -219,14 +219,14 @@ def dashboard(summary, rows, output, interval):
                     ["step", "loss", "root_loss", "body_loss", "hand_loss", "grad_control", "grad_hand"]) + "</tr>" for r in rows[-10:][::-1])
     page = f"""<!doctype html><html lang="zh-CN"><meta charset="utf-8">
 <meta http-equiv="refresh" content="{interval}"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DoubleDesk 实时训练监督</title><style>
+<title>{esc(summary.get('task', 'Kimodo'))} 实时训练监督</title><style>
 body{{font:16px system-ui,sans-serif;max-width:1450px;margin:28px auto;padding:0 20px;color:#17212d;background:#f5f7fa}}
 h1{{font-size:25px}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}
 .card,section{{background:white;border:1px solid #dde2e8;border-radius:10px;padding:16px;margin:10px 0}}
 small{{display:block;color:#596574}}strong{{display:block;margin-top:8px}}img{{width:100%;height:auto}}
 table{{border-collapse:collapse;width:100%;font-size:13px}}td,th{{padding:8px;border-bottom:1px solid #eee;text-align:left}}
 .scroll{{overflow:auto}}a{{color:#1656a8}}.alert{{border-color:{'#c24535' if alerts else '#6b9a75'}}}
-</style><h1>DoubleDesk 实时训练监督</h1>
+</style><h1>{esc(summary.get('task', 'Kimodo'))} 实时训练监督</h1>
 <p>更新时间：{esc(summary['updated_at'])} · 每 {interval} 秒刷新 · 监控进程 {os.getpid()}</p>
 <div class="cards">{card_html}</div><section class="alert"><strong>监控检查</strong><ul>{alert_html}</ul>
 <p>检查非有限数值、5分钟无指标更新、主进程异常退出、同阶段持续损失／梯度突增及 xiancun 状态。
@@ -246,11 +246,14 @@ def refresh(args):
     status = read_json(args.status)
     config = read_json(run / "config.json")
     metrics = run / "metrics.jsonl"
-    rows, malformed = read_metrics(metrics)
+    rows, malformed = read_metrics(metrics) if metrics.exists() else ([], [])
     if not rows:
+        if status.get('phase') == 'training' and not args.once:
+            print('Waiting for the first complete training metrics record', flush=True)
+            return 'training'
         raise RuntimeError("No complete metrics records available")
     phase = status.get("phase", "unknown")
-    pipeline_alive = process_alive(status.get("pid"), "run_groot_experiment.py")
+    pipeline_alive = process_alive(status.get("pid"), status.get('pipeline_script', 'run_groot_experiment.py'))
     age = time.time() - metrics.stat().st_mtime
     alerts = health_alerts(rows, phase, pipeline_alive, age, malformed)
     xiancun = read_json(Path.home() / ".cache/xiancun/status.json")
@@ -266,7 +269,8 @@ def refresh(args):
     checkpoints = [int(p.name.split("_")[-1]) for p in run.glob("checkpoint_*")
                    if p.name.split("_")[-1].isdigit() and (p / "training_state.pt").is_file() and (p / "config.json").is_file()]
     summary = {"updated_at": datetime.now(timezone.utc).isoformat(), "monitor_pid": os.getpid(),
-               "run_dir": str(run), "phase": phase, "stage": rows[-1].get("stage", "unknown"),
+               "run_dir": str(run), "task": config['main']['task'], "world_size": status.get('world_size', 4),
+               "phase": phase, "stage": rows[-1].get("stage", "unknown"),
                "pipeline_alive": pipeline_alive, "step": step, "max_steps": max_steps,
                "progress_percent": step / max_steps * 100, "metrics_age_seconds": age,
                "recent_loss_mean": statistics.mean(finite("loss")) if finite("loss") else math.nan,

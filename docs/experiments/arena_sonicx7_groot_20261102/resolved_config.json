@@ -1,0 +1,143 @@
+{
+  "main": {
+    "task": "HumanoidArena_sonicx7",
+    "data_root": "/root/workspace/HumanoidArena-data",
+    "text_cache": "/root/workspace/kimodo-policy/data/cache/HumanoidArena",
+    "save_root": "log/arena_sonicx7_groot",
+    "max_steps": 500000,
+    "batch_size": 128,
+    "micro_batch_size": 32,
+    "action_chunk": 50,
+    "action_history": 100,
+    "seed": 42,
+    "dtype": "bf16",
+    "num_workers": 24,
+    "log_every": 10,
+    "checkpoint_every": 5000,
+    "final_checkpoints": 1,
+    "final_checkpoint_spacing": 1000,
+    "score_checkpoints": [
+      500000
+    ],
+    "gradient": {
+      "grad_clip_norm": 1.0,
+      "hand_grad_clip_norm": 1.0
+    },
+    "dataset_kind": "original_arena",
+    "original_repo": "/root/workspace/kimodo-policy",
+    "episode_cache_size": 700,
+    "require_preflight": true,
+    "preflight_report": "outputs/sonicx7_preflight/groot_preflight.json",
+    "extra_checkpoints": [
+      100,
+      1000
+    ],
+    "arena_dataset_selection": {
+      "HumanoidArena": {
+        "merged": "sonic_8_refpose_v3_1"
+      }
+    },
+    "expected_tasks": {
+      "HOI_football": 100,
+      "HOI_double_desk": 100,
+      "HOI_pp_box": 100,
+      "HSI_open_door": 100,
+      "HSI_sit_sofa": 100,
+      "HSI_boxing": 100,
+      "HSI_vision_navi": 100
+    },
+    "original_ordinal_stream": true,
+    "sample_stride": 1,
+    "video_cache_size": 32
+  },
+  "model": {
+    "cameras": [
+      "head"
+    ],
+    "fps": 30,
+    "motion_mask_mode": "concat",
+    "dinov3_model_name": "dinov3-vitl16-pretrain-lvd1689m",
+    "dinov3_checkpoint": null,
+    "text_feature_dim": 4096,
+    "controlnet_num_layers": 4,
+    "controlnet_scale": 1,
+    "detach_root_control_for_body": true,
+    "control_fusion_mode": "both",
+    "enable_hand_head": true,
+    "hand_hidden_dim": 256,
+    "hand_num_layers": 4,
+    "hand_num_heads": 4,
+    "hand_ffn_dim": 1024,
+    "hand_init_seed": 3407,
+    "hand_control_mode": "binary",
+    "visual_conditioning": "groot_n1d7",
+    "groot_checkpoint": "/root/workspace/model-cache/GR00T-N1.7-3B",
+    "groot_repo": "/root/workspace/Isaac-GR00T-N1.7",
+    "groot_vlm_model": "/root/workspace/model-cache/Cosmos-Reason2-2B",
+    "compile": true,
+    "compile_mode": "reduce-overhead"
+  },
+  "training": {
+    "ema_decays": [],
+    "augmentation": {
+      "image_shift": 0,
+      "proprio_mask_prob": 0.0
+    },
+    "loss": {
+      "motion_loss_type": "mse",
+      "mse_weights": {
+        "root": 4.0,
+        "body": 1.0,
+        "hand": 1.0,
+        "hand_transition": 0.2
+      }
+    },
+    "optimizer": {
+      "control_backbone_lr": 3e-05,
+      "control_adapter_lr": 0.0001,
+      "hand_lr": 0.0001,
+      "weight_decay": 0.01,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "eps": 1e-08,
+      "vl_adapter_lr": 3e-05,
+      "vision_lr": 1e-06
+    },
+    "scheduler": {
+      "warmup_steps": 5000,
+      "min_lr_ratio": 0.1
+    },
+    "stages": {
+      "adapter_start": 10000,
+      "vision_start": null
+    }
+  },
+  "evaluation": {
+    "task": "Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody",
+    "env_config": "tasks/common_test_config/base_test/doubledesk_sonic_test.yaml",
+    "controller": "sonic",
+    "timing": "original",
+    "dtype": "fp32",
+    "diffusion_steps": 10,
+    "execution_frames": 15,
+    "control_fps": 50,
+    "rtc": false,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "repeats_per_seed": 20,
+    "max_steps": 2000,
+    "persistent_sim": false,
+    "tasks": [
+      "football",
+      "doubledesk",
+      "pp_box"
+    ],
+    "paper_table": 2,
+    "paper_row": "Ours (scratch, no VLA pretraining)"
+  }
+}

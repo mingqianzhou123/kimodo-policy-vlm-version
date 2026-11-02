@@ -1,0 +1,213 @@
+{
+  "passed": true,
+  "fingerprint": "aaa7ca25ee243099c2986588afb1e5d82c4706ecadff31fe26260a27ddef1933",
+  "backbone_only": false,
+  "repo_commit": "92b8fee9871102b71c2eaad0bec90b4453f5c073",
+  "dataset": {
+    "episodes": 700,
+    "windows": 293864,
+    "instructions": {
+      "HumanoidArena::Isaac-Move-Boxing-Bag-G129-Dex3-Wholebody": "Strike the green markers on the punching bag.",
+      "HumanoidArena::Isaac-Move-Football-Single-G129-Dex3-Wholebody": "Kick the football into the goal.",
+      "HumanoidArena::Isaac-Move-Open-Door-G129-Dex3-Wholebody": "Open the door.",
+      "HumanoidArena::Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby": "Move the box from the table onto the shelf.",
+      "HumanoidArena::Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody": "Put the hammer from the right table into the basket on the left table.",
+      "HumanoidArena::Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody": "Sit on the sofa.",
+      "HumanoidArena::Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody": "Avoid obstacles and move to the yellow marked area."
+    },
+    "motion_shape": [
+      32,
+      150,
+      417
+    ],
+    "image_shape": [
+      32,
+      3,
+      480,
+      640
+    ],
+    "target_source": "action",
+    "sampling": "episode_uniform",
+    "batch_tasks": [
+      "HumanoidArena::Isaac-Move-Boxing-Bag-G129-Dex3-Wholebody",
+      "HumanoidArena::Isaac-Move-Football-Single-G129-Dex3-Wholebody",
+      "HumanoidArena::Isaac-Move-Open-Door-G129-Dex3-Wholebody",
+      "HumanoidArena::Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby",
+      "HumanoidArena::Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody",
+      "HumanoidArena::Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody",
+      "HumanoidArena::Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody"
+    ],
+    "sample_ordinals": [
+      0,
+      1,
+      2,
+      6,
+      9,
+      12,
+      15,
+      3,
+      4,
+      5,
+      7,
+      8,
+      10,
+      11,
+      13,
+      14,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ]
+  },
+  "checkpoint_load": {
+    "backbone.": {
+      "tensors": 494,
+      "parameters": 1834664960
+    },
+    "action_head.vlln.": {
+      "tensors": 2,
+      "parameters": 4096
+    },
+    "action_head.vl_self_attention.": {
+      "tensors": 64,
+      "parameters": 201433088
+    }
+  },
+  "official_source_hashes": {
+    "gr00t/model/modules/qwen3_backbone.py": "e3902c8385d586fb9f079abf58d37795cbcefc55f2f506f761c4b78a5afbaf52",
+    "gr00t/model/modules/dit.py": "90fc553f7336531fa3068f53de6e1bf1873a60ffb7f3630a1d7616149c2d9966"
+  },
+  "vlm_select_layer": 16,
+  "vl_condition_shape": [
+    32,
+    109,
+    2048
+  ],
+  "vl_valid_token_lengths": [
+    101,
+    103,
+    104,
+    104,
+    109,
+    98,
+    99,
+    103,
+    103,
+    103,
+    104,
+    101,
+    104,
+    101,
+    109,
+    104,
+    104,
+    98,
+    103,
+    99,
+    104,
+    99,
+    98,
+    104,
+    103,
+    109,
+    103,
+    104,
+    101,
+    99,
+    104,
+    104
+  ],
+  "zero_injection_max_error": 0.0,
+  "root_body_detach": true,
+  "stage1_loss": 1.6206483840942383,
+  "stage2_adapter_grad_sum": 15062.075013952111,
+  "hand_detach": true,
+  "checkpoint_roundtrip": true,
+  "smoke_checkpoint": "/root/workspace/kimodo-policy-vlm-version/outputs/sonicx7_preflight/groot_preflight_checkpoint",
+  "inference_vlm_calls_per_plan": 1,
+  "inference_tensor_shapes": {
+    "local_rot_mats": [
+      1,
+      50,
+      34,
+      3,
+      3
+    ],
+    "global_rot_mats": [
+      1,
+      50,
+      34,
+      3,
+      3
+    ],
+    "posed_joints": [
+      1,
+      50,
+      34,
+      3
+    ],
+    "root_positions": [
+      1,
+      50,
+      3
+    ],
+    "smooth_root_pos": [
+      1,
+      50,
+      3
+    ],
+    "foot_contacts": [
+      1,
+      50,
+      4
+    ],
+    "global_root_heading": [
+      1,
+      50,
+      2
+    ],
+    "motion_features": [
+      1,
+      50,
+      417
+    ],
+    "history_last_root_position": [
+      1,
+      3
+    ],
+    "hand_clean": [
+      1,
+      50,
+      2
+    ],
+    "hand_closure": [
+      1,
+      50,
+      2
+    ],
+    "hand_probability": [
+      1,
+      50,
+      2
+    ],
+    "hand_binary": [
+      1,
+      50,
+      2
+    ]
+  },
+  "peak_cuda_gib": 12.198400974273682
+}

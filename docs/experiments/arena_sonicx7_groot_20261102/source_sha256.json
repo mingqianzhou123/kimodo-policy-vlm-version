@@ -1,0 +1,10 @@
+{
+  "scripts/train.py": "4a01696dad7655192f67572ece42923240f010d3f22be95b8612d30040738c5a",
+  "scripts/check_groot.py": "3de66835dcd440119d18cbe31f0526dc5ff198b55c3bf03fd27a556ca102e6f6",
+  "scripts/run_arena_sonicx7_groot.py": "38923cda07f727886aba7074919c621fb568c78aa6d57afff096f91498c67fba",
+  "scripts/eval_arena_doubledesk.py": "2c45924d152ed346017de1f2069b8a46ebf949d1e0d6791b991511360286edaf",
+  "scripts/monitor_groot_training.py": "40c067fb364bbc585766292887b393b408e1b0e8ee7554653209f875968ec89d",
+  "kimodo_vla/benchmarks/arena/training.py": "1faae8e0d9cd7b584ba669c6104c4a8b42bf7b143b2c0536831b1b4419e1353a",
+  "kimodo_vla/model/kimodo_policy.py": "0298ca3d4c69038426e496008551902f748f93aea123b8497272563fb68a1afa",
+  "configs/arena_sonicx7_groot.yaml": "67bdd7661477002f4d55c4eec1a882d1d27654260c358e3596fca1a32630a5f4"
+}

@@ -86,14 +86,29 @@ def run(args, config, report):
     torch.manual_seed(config.main.seed)
     dataset = build_dataset(config, load_text_embeddings(config.main.text_cache))
     count = 1 if args.backbone_only else config.main.micro_batch_size
-    samples = [dataset[i] for i in range(count)]
+    indices = []
+    expected_tasks = config.main.get("expected_tasks")
+    if expected_tasks and not args.backbone_only:
+        covered = set()
+        for ordinal in range(10000):
+            _, episode, _ = dataset._sample_record(dataset._rng_for_index(ordinal))
+            if episode.task_name not in covered:
+                indices.append(ordinal)
+                covered.add(episode.task_name)
+            if covered == set(expected_tasks):
+                break
+        assert covered == set(expected_tasks), "Preflight failed to cover all task instructions"
+    indices += [i for i in range(count) if i not in indices]
+    samples = [dataset[i] for i in indices[:count]]
     batch = {k: v.to(device) if torch.is_tensor(v) else v for k, v in default_collate(samples).items()}
     report["dataset"] = {"episodes": len(dataset._all_episode_records), "windows": len(dataset),
                          "instructions": dataset.task_instructions,
                          "motion_shape": list(batch["gt_motion"].shape),
                          "image_shape": list(batch["egoview"].shape),
                          "target_source": samples[0]["target_motion_source"], "sampling": dataset.sampling_mode}
-    assert len(dataset._all_episode_records) == 100
+    report["dataset"]["batch_tasks"] = sorted(set(s["task_id"] for s in samples))
+    report["dataset"]["sample_ordinals"] = indices[:count]
+    assert len(dataset._all_episode_records) == (sum(expected_tasks.values()) if expected_tasks else 100)
     assert samples[0]["target_motion_source"] == "action"
     assert dataset.sampling_mode == "episode_uniform"
     if args.backbone_only:
@@ -118,6 +133,10 @@ def run(args, config, report):
         condition = model._encode_condition(batch["egoview"], batch["instruction"])
     assert condition.tokens.shape[-1] == 2048 and torch.isfinite(condition.tokens).all()
     report["vl_condition_shape"] = list(condition.tokens.shape)
+    report["vl_valid_token_lengths"] = condition.mask.sum(dim=1).tolist()
+    if expected_tasks:
+        assert len(report["dataset"]["batch_tasks"]) == len(expected_tasks)
+        assert len(set(report["vl_valid_token_lengths"])) > 1, "Mixed instructions must exercise real VL padding"
     check_backbone(model, batch, condition.to(dtype=torch.float32), report)
     inputs = {k: batch[k] for k in ("instruction", "egoview", "gt_motion", "gt_mask",
                "condition_motion", "condition_motion_mask", "gt_hand", "gt_hand_mask")}

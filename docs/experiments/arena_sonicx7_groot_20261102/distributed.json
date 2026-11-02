@@ -1,0 +1,266 @@
+{
+  "passed": true,
+  "fingerprint": "aaa7ca25ee243099c2986588afb1e5d82c4706ecadff31fe26260a27ddef1933",
+  "gpus": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "world_size": 4,
+  "global_batch": 128,
+  "micro_batch": 32,
+  "workers_per_gpu": 24,
+  "compiled": true,
+  "test_overrides": {
+    "adapter_start": 3,
+    "stop_after": [
+      6,
+      10
+    ],
+    "require_preflight": false,
+    "log_every": 1
+  },
+  "audits": [
+    {
+      "passed": true,
+      "world_size": 4,
+      "step": 6,
+      "stage": "adapter",
+      "sha256_by_rank": [
+        "4e726f4c5ddaf79e8dfe3915f46a51e1ef43bce67c4e8744ed7755c120c9c8b8",
+        "4e726f4c5ddaf79e8dfe3915f46a51e1ef43bce67c4e8744ed7755c120c9c8b8",
+        "4e726f4c5ddaf79e8dfe3915f46a51e1ef43bce67c4e8744ed7755c120c9c8b8",
+        "4e726f4c5ddaf79e8dfe3915f46a51e1ef43bce67c4e8744ed7755c120c9c8b8"
+      ]
+    },
+    {
+      "passed": true,
+      "world_size": 4,
+      "step": 7,
+      "stage": "adapter",
+      "sha256_by_rank": [
+        "610b4525bf784fe5351de47d34fb4ee3709855d70bf731fee385c7d3a689967a",
+        "610b4525bf784fe5351de47d34fb4ee3709855d70bf731fee385c7d3a689967a",
+        "610b4525bf784fe5351de47d34fb4ee3709855d70bf731fee385c7d3a689967a",
+        "610b4525bf784fe5351de47d34fb4ee3709855d70bf731fee385c7d3a689967a"
+      ]
+    },
+    {
+      "passed": true,
+      "world_size": 4,
+      "step": 10,
+      "stage": "adapter",
+      "sha256_by_rank": [
+        "d6846e392ca38df324fcf3aa8a4d81f93bf6055c59486c0e59710c3dfc672ac6",
+        "d6846e392ca38df324fcf3aa8a4d81f93bf6055c59486c0e59710c3dfc672ac6",
+        "d6846e392ca38df324fcf3aa8a4d81f93bf6055c59486c0e59710c3dfc672ac6",
+        "d6846e392ca38df324fcf3aa8a4d81f93bf6055c59486c0e59710c3dfc672ac6"
+      ]
+    }
+  ],
+  "optimizer_steps_by_group": {
+    "adapter": [
+      10
+    ],
+    "adapter_no_decay": [
+      10
+    ],
+    "hand": [
+      10
+    ],
+    "hand_no_decay": [
+      10
+    ],
+    "vl_adapter": [
+      7
+    ],
+    "vl_adapter_no_decay": [
+      7
+    ]
+  },
+  "metrics": [
+    {
+      "step": 1,
+      "loss": 1.332524299621582,
+      "motion_loss": 0.3678915500640869,
+      "root_loss": 0.06789834052324295,
+      "body_loss": 0.0962982028722763,
+      "hand_loss": 0.9646327495574951,
+      "hand_state_loss": 0.9279423356056213,
+      "hand_transition_loss": 0.1834518015384674,
+      "grad_control": 1.666274905204773,
+      "grad_hand": 8.138522148132324,
+      "lr_backbone": 0.0,
+      "lr_adapter": 2e-08,
+      "stage": "injection",
+      "s_per_step": 208.4826295375824,
+      "data_s_per_step": 114.00854253768921,
+      "gpu_peak_memory_gb": 10.770596864
+    },
+    {
+      "step": 2,
+      "loss": 1.2654482126235962,
+      "motion_loss": 0.3166061043739319,
+      "root_loss": 0.05950717255473137,
+      "body_loss": 0.0785774290561676,
+      "hand_loss": 0.9488420486450195,
+      "hand_state_loss": 0.911588191986084,
+      "hand_transition_loss": 0.18626926839351654,
+      "grad_control": 1.7342567443847656,
+      "grad_hand": 7.779304504394531,
+      "lr_backbone": 0.0,
+      "lr_adapter": 4e-08,
+      "stage": "injection",
+      "s_per_step": 1.9076969623565674,
+      "data_s_per_step": 0.0009162425994873047,
+      "gpu_peak_memory_gb": 11.201152512
+    },
+    {
+      "step": 3,
+      "loss": 1.4090180397033691,
+      "motion_loss": 0.36105161905288696,
+      "root_loss": 0.06926644593477249,
+      "body_loss": 0.0839858427643776,
+      "hand_loss": 1.047966480255127,
+      "hand_state_loss": 1.0125235319137573,
+      "hand_transition_loss": 0.17721450328826904,
+      "grad_control": 1.7995532751083374,
+      "grad_hand": 11.672389030456543,
+      "lr_backbone": 0.0,
+      "lr_adapter": 6e-08,
+      "stage": "injection",
+      "s_per_step": 1.0409822463989258,
+      "data_s_per_step": 0.00038743019104003906,
+      "gpu_peak_memory_gb": 11.201152512
+    },
+    {
+      "step": 4,
+      "loss": 1.2305548191070557,
+      "motion_loss": 0.2413332164287567,
+      "root_loss": 0.043207839131355286,
+      "body_loss": 0.06850185990333557,
+      "hand_loss": 0.9892216324806213,
+      "hand_state_loss": 0.9545902013778687,
+      "hand_transition_loss": 0.1731569617986679,
+      "grad_control": 1.4155211448669434,
+      "grad_hand": 9.124049186706543,
+      "lr_backbone": 0.0,
+      "lr_adapter": 8e-08,
+      "stage": "adapter",
+      "s_per_step": 74.7550401687622,
+      "data_s_per_step": 0.00043392181396484375,
+      "gpu_peak_memory_gb": 13.744833024
+    },
+    {
+      "step": 5,
+      "loss": 1.4752557277679443,
+      "motion_loss": 0.4707050919532776,
+      "root_loss": 0.09054981917142868,
+      "body_loss": 0.10850581526756287,
+      "hand_loss": 1.0045506954193115,
+      "hand_state_loss": 0.9687087535858154,
+      "hand_transition_loss": 0.17920944094657898,
+      "grad_control": 1.945204257965088,
+      "grad_hand": 8.292672157287598,
+      "lr_backbone": 0.0,
+      "lr_adapter": 1.0000000000000001e-07,
+      "stage": "adapter",
+      "s_per_step": 2.0503993034362793,
+      "data_s_per_step": 0.00048279762268066406,
+      "gpu_peak_memory_gb": 16.444035072
+    },
+    {
+      "step": 6,
+      "loss": 1.5746067762374878,
+      "motion_loss": 0.5256763100624084,
+      "root_loss": 0.10312120616436005,
+      "body_loss": 0.11319147050380707,
+      "hand_loss": 1.0489304065704346,
+      "hand_state_loss": 1.0146175622940063,
+      "hand_transition_loss": 0.17156413197517395,
+      "grad_control": 2.723667621612549,
+      "grad_hand": 9.085415840148926,
+      "lr_backbone": 0.0,
+      "lr_adapter": 1.2e-07,
+      "stage": "adapter",
+      "s_per_step": 1.1202657222747803,
+      "data_s_per_step": 0.00046372413635253906,
+      "gpu_peak_memory_gb": 16.444035072
+    },
+    {
+      "step": 7,
+      "loss": 1.5935180187225342,
+      "motion_loss": 0.6429495811462402,
+      "root_loss": 0.12564194202423096,
+      "body_loss": 0.1403818428516388,
+      "hand_loss": 0.9505683183670044,
+      "hand_state_loss": 0.9158521294593811,
+      "hand_transition_loss": 0.17358097434043884,
+      "grad_control": 2.7219185829162598,
+      "grad_hand": 7.311548233032227,
+      "lr_backbone": 0.0,
+      "lr_adapter": 1.4e-07,
+      "stage": "adapter",
+      "s_per_step": 146.24435782432556,
+      "data_s_per_step": 112.30549621582031,
+      "gpu_peak_memory_gb": 15.382481408
+    },
+    {
+      "step": 8,
+      "loss": 1.3659467697143555,
+      "motion_loss": 0.3776123523712158,
+      "root_loss": 0.07235180586576462,
+      "body_loss": 0.08820511400699615,
+      "hand_loss": 0.9883344173431396,
+      "hand_state_loss": 0.9547277688980103,
+      "hand_transition_loss": 0.1680334508419037,
+      "grad_control": 2.1012308597564697,
+      "grad_hand": 8.79857349395752,
+      "lr_backbone": 0.0,
+      "lr_adapter": 1.6e-07,
+      "stage": "adapter",
+      "s_per_step": 147.51727294921875,
+      "data_s_per_step": 114.00903153419495,
+      "gpu_peak_memory_gb": 15.385654784
+    },
+    {
+      "step": 9,
+      "loss": 1.2296125888824463,
+      "motion_loss": 0.2946494221687317,
+      "root_loss": 0.05348977446556091,
+      "body_loss": 0.08069030940532684,
+      "hand_loss": 0.9349631071090698,
+      "hand_state_loss": 0.8987911343574524,
+      "hand_transition_loss": 0.1808597296476364,
+      "grad_control": 1.7170807123184204,
+      "grad_hand": 7.220357418060303,
+      "lr_backbone": 0.0,
+      "lr_adapter": 1.8e-07,
+      "stage": "adapter",
+      "s_per_step": 2.1257200241088867,
+      "data_s_per_step": 0.0006721019744873047,
+      "gpu_peak_memory_gb": 15.392978944
+    },
+    {
+      "step": 10,
+      "loss": 1.4399381875991821,
+      "motion_loss": 0.43348491191864014,
+      "root_loss": 0.08647129684686661,
+      "body_loss": 0.08759970963001251,
+      "hand_loss": 1.006453275680542,
+      "hand_state_loss": 0.9721179008483887,
+      "hand_transition_loss": 0.1716771125793457,
+      "grad_control": 2.296903133392334,
+      "grad_hand": 8.599968910217285,
+      "lr_backbone": 0.0,
+      "lr_adapter": 2.0000000000000002e-07,
+      "stage": "adapter",
+      "s_per_step": 1.163466453552246,
+      "data_s_per_step": 0.00041675567626953125,
+      "gpu_peak_memory_gb": 15.392978944
+    }
+  ],
+  "safe_stop_and_resume": true,
+  "production_initialization": "fresh, not this smoke checkpoint"
+}

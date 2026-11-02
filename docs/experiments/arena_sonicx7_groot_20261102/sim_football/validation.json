@@ -1,0 +1,6 @@
+{
+  "valid_inference": true,
+  "smoke_only": true,
+  "episodes": 1,
+  "successful_inferences": 2
+}

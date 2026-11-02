@@ -1,0 +1,79 @@
+main:
+  batch_size: 32
+  max_steps: 500000
+  save_steps: 5000
+  action_chunk: 50
+  action_history: 100
+  sample_stride: 1
+  seed: 42
+  save_root: "${oc.env:KIMODO_MULTI_TASK_SAVE_ROOT,log/HumanoidArena_Multi_Task/humanoidarena_sonicx7_gbs128_50w_controlnet4_detach_true_mse/}"
+  dtype: "bf16"
+
+  dataset_roots:
+    HumanoidArena: "${oc.env:HUMANOID_ARENA_ROOT,datasets/HumanoidArena_dataset_v3_1}"
+
+  dataset_selection:
+    HumanoidArena:
+      merged: "sonic_8_refpose_v3_1"
+
+  sampling:
+    mode: "episode_uniform"
+
+  # The merged selection contains 8 task names; the loader excludes HOI_grap_cup,
+  # leaving the same 7-task training set used by the other multi-task experiments.
+  episode_cache_size: 700
+  cpu_workers_num: 24
+  precompute_text_embeddings: true
+  wandb: "offline"
+  wandb_project: "Kimodo-Policy"
+  wandb_run_name: "${oc.env:KIMODO_MULTI_TASK_RUN_NAME,humanoidarena_sonicx7_gbs128_50w_controlnet4_detach_true_mse}"
+  gradient:
+    grad_clip_norm: 1.0
+    hand_grad_clip_norm: 1.0
+    grad_accumulation_steps: 1
+
+model:
+  fps: 30
+  motion_mask_mode: "concat"
+  dinov3_model_name: "dinov3-vitl16-pretrain-lvd1689m"
+  dinov3_checkpoint: null
+  text_feature_dim: 4096
+  controlnet_num_layers: 4
+  detach_root_control_for_body: true
+  control_fusion_mode: "both"
+  hand_hidden_dim: 256
+  hand_num_layers: 4
+  hand_num_heads: 4
+  hand_ffn_dim: 1024
+  hand_init_seed: 3407
+  compile: true
+  compile_mode: "reduce-overhead"
+
+training:
+  loss:
+    motion_loss_type: mse
+    kimodo_smooth_l1_weights:
+      root_position: 10.0
+      root_heading: 2.0
+      joint_position: 10.0
+      joint_velocity: 3.0
+      joint_rotation: 10.0
+      foot_contact: 4.0
+      fk: 5.0
+    mse_weights:
+      root: 4.0
+      body: 1.0
+      hand: 1.0
+      hand_transition: 0.2
+  optimizer:
+    control_backbone_lr: 3.0e-5
+    control_adapter_lr: 1.0e-4
+    hand_lr: 1.0e-4
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+    fused: true
+  scheduler:
+    warmup_ratio: 0.01
+    num_cycles: 0.5
+    min_lr_ratio: 0.1

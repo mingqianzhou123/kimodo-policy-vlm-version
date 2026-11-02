@@ -13,6 +13,9 @@ def fingerprint(config):
             "data": {k: resolved["main"].get(k) for k in (
                 "task", "data_root", "dataset_kind", "original_repo", "text_cache",
                 "action_history", "action_chunk", "micro_batch_size", "batch_size", "max_steps", "seed")}}
+    spec["data"].update({k: resolved["main"][k] for k in (
+        "arena_dataset_selection", "expected_tasks", "original_ordinal_stream", "sample_stride", "video_cache_size")
+        if k in resolved["main"]})
     return hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()
 
 

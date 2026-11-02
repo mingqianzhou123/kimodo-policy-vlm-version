@@ -1,0 +1,17 @@
+.......................................................................  [100%]
+=============================== warnings summary ===============================
+../miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488
+../miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488
+../miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488
+../miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488
+../miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488
+../miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488
+../miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488
+../miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488
+  /root/workspace/miniforge3/envs/kimodo/lib/python3.10/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_bigym2_adapter.py:6: could not import 'bigym': No module named 'bigym'
+71 passed, 1 skipped, 2 deselected, 8 warnings in 25.26s

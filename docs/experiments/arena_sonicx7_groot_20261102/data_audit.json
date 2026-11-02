@@ -1,0 +1,117 @@
+{
+  "passed": true,
+  "fingerprint": "aaa7ca25ee243099c2986588afb1e5d82c4706ecadff31fe26260a27ddef1933",
+  "episodes": 700,
+  "windows": 293864,
+  "task_counts": {
+    "HOI_double_desk": 100,
+    "HOI_football": 100,
+    "HOI_pp_box": 100,
+    "HSI_boxing": 100,
+    "HSI_open_door": 100,
+    "HSI_sit_sofa": 100,
+    "HSI_vision_navi": 100
+  },
+  "sampling": "episode_uniform",
+  "absolute_ordinal_range": [
+    0,
+    64000000
+  ],
+  "reference_sample_identity": true,
+  "all_text_cached": true,
+  "excluded": [
+    "HOI_grap_cup"
+  ],
+  "instructions": {
+    "HumanoidArena::Isaac-Move-Boxing-Bag-G129-Dex3-Wholebody": "Strike the green markers on the punching bag.",
+    "HumanoidArena::Isaac-Move-Football-Single-G129-Dex3-Wholebody": "Kick the football into the goal.",
+    "HumanoidArena::Isaac-Move-Open-Door-G129-Dex3-Wholebody": "Open the door.",
+    "HumanoidArena::Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby": "Move the box from the table onto the shelf.",
+    "HumanoidArena::Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody": "Put the hammer from the right table into the basket on the left table.",
+    "HumanoidArena::Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody": "Sit on the sofa.",
+    "HumanoidArena::Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody": "Avoid obstacles and move to the yellow marked area."
+  },
+  "original_reference_config": "/root/workspace/kimodo-policy/reproduce_humanoidarena_sonicx7.yaml",
+  "checked_samples": [
+    {
+      "ordinal": 0,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-Football-Single-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:116', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-001.parquet', 113830, 114498)",
+        337
+      ]
+    },
+    {
+      "ordinal": 1,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-Boxing-Bag-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:451', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-004.parquet', 390466, 390854)",
+        154
+      ]
+    },
+    {
+      "ordinal": 31,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:702', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-007.parquet', 571359, 572682)",
+        552
+      ]
+    },
+    {
+      "ordinal": 32,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:713', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-007.parquet', 585200, 585863)",
+        324
+      ]
+    },
+    {
+      "ordinal": 127,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:48', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-000.parquet', 51031, 51910)",
+        430
+      ]
+    },
+    {
+      "ordinal": 128,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:642', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-006.parquet', 528255, 529057)",
+        119
+      ]
+    },
+    {
+      "ordinal": 293863,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:52', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-000.parquet', 54968, 55710)",
+        42
+      ]
+    },
+    {
+      "ordinal": 293864,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-Boxing-Bag-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:432', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-004.parquet', 377165, 377758)",
+        259
+      ]
+    },
+    {
+      "ordinal": 1000000,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:653', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-006.parquet', 536219, 536885)",
+        274
+      ]
+    },
+    {
+      "ordinal": 63999999,
+      "identity": [
+        "HumanoidArenaAdapter",
+        "('HumanoidArena', 'HumanoidArena::Isaac-Move-Boxing-Bag-G129-Dex3-Wholebody', 'sonic_8_refpose_v3_1:419', '/root/workspace/HumanoidArena-data/HumanoidArena_merged_datasets_v3_1/sonic_8_refpose_v3_1/data/chunk-000/file-004.parquet', 369317, 369928)",
+        238
+      ]
+    }
+  ]
+}
