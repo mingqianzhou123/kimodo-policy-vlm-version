@@ -1,0 +1,6 @@
+{
+  "valid_inference": true,
+  "smoke_only": false,
+  "episodes": 60,
+  "successful_inferences": 2734
+}

@@ -1,0 +1,12 @@
+# Matched scratch ControlNet baseline, using the same original Arena loader.
+_base_: arena_doubledesk_groot.yaml
+
+main:
+  save_root: log/arena_doubledesk_baseline
+  require_preflight: false
+
+model:
+  visual_conditioning: dinov3_controlnet
+
+training:
+  stages: null

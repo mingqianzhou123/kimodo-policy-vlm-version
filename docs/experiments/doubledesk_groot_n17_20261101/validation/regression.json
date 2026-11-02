@@ -1,0 +1,11 @@
+{
+  "command": "KIMODO_ORIGINAL_REPO=/root/workspace/kimodo-policy HF_HUB_OFFLINE=1 NO_ALBUMENTATIONS_UPDATE=1 MPLBACKEND=Agg OMP_NUM_THREADS=2 .venv-groot/bin/python -m pytest tests -k \"not test_simple_matches_original\" -q -ra",
+  "passed": 67,
+  "skipped": 1,
+  "deselected": 2,
+  "skip_reason": "BiGym is not installed",
+  "deselected_reason": "Two existing SIMPLE 36D original-runtime parity failures previously reproduced at the unchanged base commit; details in docs/benchmarks/arena_groot_n17.md",
+  "real_vlm_preflight": "groot_preflight_multigpu.json",
+  "four_gpu_stage_and_resume_preflight": "groot_ddp_preflight.json",
+  "formal_evaluation": "../doubledesk_formal/validation.json"
+}

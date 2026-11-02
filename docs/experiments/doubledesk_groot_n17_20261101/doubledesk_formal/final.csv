@@ -1,0 +1,2 @@
+model,success_rate,seed_success_rate_std,avg_success_steps,fall_in_failures
+arena_doubledesk_groot__scratch_ddp4_20261101,30/60 (50.0%),7.1%,857.7,15/30 (50.0%)

@@ -1,0 +1,36 @@
+{
+  "original": {
+    "total": 678373175,
+    "loaded_text_encoder": false,
+    "modules": {
+      "g1_skeleton_34": 0,
+      "denoiser": 283527585,
+      "diffusion": 0,
+      "sampler": 0,
+      "image_encoder": 303129600,
+      "controlnet": 87867792,
+      "hand_head": 3848198
+    },
+    "trainable": 91715990
+  },
+  "modified": {
+    "total": 2382519719,
+    "loaded_text_encoder": false,
+    "modules": {
+      "g1_skeleton_34": 0,
+      "denoiser": 283527585,
+      "diffusion": 0,
+      "sampler": 0,
+      "image_encoder": 2036102144,
+      "controlnet": 58777600,
+      "hand_head": 4112390
+    },
+    "image_encoder_parts": {
+      "backbone": 1834664960,
+      "adapter": 201437184
+    },
+    "trainable_injection": 62889990,
+    "trainable_adapter": 264327174,
+    "trainable_vision": 671284230
+  }
+}

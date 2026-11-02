@@ -1,0 +1,78 @@
+{
+  "updated_at": "2026-11-01T16:00:50.004845+00:00",
+  "monitor_pid": 3406555,
+  "run_dir": "/root/workspace/kimodo-policy-vlm-version/log/arena_doubledesk_groot/scratch_ddp4_20261101",
+  "phase": "training",
+  "stage": "adapter",
+  "pipeline_alive": true,
+  "step": 190510,
+  "max_steps": 200000,
+  "progress_percent": 95.255,
+  "metrics_age_seconds": 2.8364388942718506,
+  "recent_loss_mean": 0.016163109308108686,
+  "recent_s_per_step": 0.5132987644672394,
+  "remaining_training_hours": 1.3531125763316951,
+  "latest_checkpoint": 190000,
+  "xiancun_alive": true,
+  "xiancun_mode": "starting",
+  "alerts": {},
+  "last_record": {
+    "step": 190510,
+    "loss": 0.0163751058280468,
+    "motion_loss": 0.015296666882932186,
+    "root_loss": 0.00045193516416475177,
+    "body_loss": 0.013488925993442535,
+    "hand_loss": 0.0010784388286992908,
+    "hand_state_loss": 0.0007058534538373351,
+    "hand_transition_loss": 0.0018629265250638127,
+    "grad_control": 0.08045237511396408,
+    "grad_hand": 0.14834752678871155,
+    "lr_backbone": 0.0,
+    "lr_adapter": 1.050917093294706e-05,
+    "stage": "adapter",
+    "s_per_step": 0.9659127235412598,
+    "data_s_per_step": 0.0004952669143676758,
+    "gpu_peak_memory_gb": 13.9810432
+  },
+  "evaluation": {},
+  "historical_spike_count": 5,
+  "last_historical_spike": {
+    "step": 62330,
+    "stage": "adapter",
+    "loss": 5.937155246734619,
+    "root_loss": 1.2032923698425293,
+    "body_loss": 1.0274658203125,
+    "grad_control": 2965.671142578125,
+    "grad_hand": 0.9552567005157471,
+    "reasons": [
+      "loss > 20x preceding 100-record median",
+      "grad_control > max(100, 100x preceding median), before clipping"
+    ]
+  },
+  "gpu_snapshot_from_xiancun": [
+    {
+      "index": 4,
+      "uuid": "GPU-24b14408-f437-ffbf-5efd-85a2f7592717",
+      "util": 73,
+      "free": 15786
+    },
+    {
+      "index": 5,
+      "uuid": "GPU-db7cbdcc-0408-0e55-dcaa-9f9dd23dbab9",
+      "util": 100,
+      "free": 17760
+    },
+    {
+      "index": 6,
+      "uuid": "GPU-1de078c1-30c6-0c71-cf5b-23dc35f2f7ba",
+      "util": 34,
+      "free": 15786
+    },
+    {
+      "index": 7,
+      "uuid": "GPU-99dcdb29-4974-336e-1c1a-c338b525fc92",
+      "util": 2,
+      "free": 17760
+    }
+  ]
+}

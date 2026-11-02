@@ -1,0 +1,93 @@
+{
+  "total_episodes": 60,
+  "total_successes": 30,
+  "total_failures": 30,
+  "overall_success_rate": 0.5,
+  "result_reason_counts": {
+    "fall": 15,
+    "success": 30,
+    "timeout": 15
+  },
+  "failure_reason_counts": {
+    "fall": 15,
+    "timeout": 15
+  },
+  "episode_seed_formula": "sha256(task_name|group_seed|repeat_idx)_positive_int32",
+  "per_model": {
+    "arena_doubledesk_groot__scratch_ddp4_20261101": {
+      "model_path": "/root/workspace/kimodo-policy-vlm-version/log/arena_doubledesk_groot/scratch_ddp4_20261101/checkpoint_200000",
+      "episodes": 60,
+      "successes": 30,
+      "failures": 30,
+      "result_reason_counts": {
+        "fall": 15,
+        "success": 30,
+        "timeout": 15
+      },
+      "failure_reason_counts": {
+        "fall": 15,
+        "timeout": 15
+      },
+      "per_seed": {
+        "0": {
+          "episodes": 20,
+          "successes": 9,
+          "failures": 11,
+          "result_reason_counts": {
+            "fall": 6,
+            "success": 9,
+            "timeout": 5
+          },
+          "failure_reason_counts": {
+            "fall": 6,
+            "timeout": 5
+          },
+          "success_rate": 0.45
+        },
+        "1": {
+          "episodes": 20,
+          "successes": 9,
+          "failures": 11,
+          "result_reason_counts": {
+            "fall": 5,
+            "success": 9,
+            "timeout": 6
+          },
+          "failure_reason_counts": {
+            "fall": 5,
+            "timeout": 6
+          },
+          "success_rate": 0.45
+        },
+        "2": {
+          "episodes": 20,
+          "successes": 12,
+          "failures": 8,
+          "result_reason_counts": {
+            "fall": 4,
+            "success": 12,
+            "timeout": 4
+          },
+          "failure_reason_counts": {
+            "fall": 4,
+            "timeout": 4
+          },
+          "success_rate": 0.6
+        }
+      },
+      "success_rate": 0.5,
+      "per_seed_success_rate": {
+        "0": 0.45,
+        "1": 0.45,
+        "2": 0.6
+      },
+      "repeats_per_seed": {
+        "0": 20,
+        "1": 20,
+        "2": 20
+      },
+      "seed_success_rate_mean": 0.5,
+      "seed_success_rate_std": 0.07071067811865474
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "passed": true,
+  "fingerprint": "de53fec333c1c63fe2d3261937cf97306fbcdec5c9ca75b202bca72e0e0a42cd",
+  "gpus": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "world_size": 4,
+  "global_batch": 64,
+  "micro_batch": 16,
+  "production_adapter_start": 10000,
+  "test_adapter_start": 3,
+  "validation_run": "/root/workspace/kimodo-policy-vlm-version/log/arena_doubledesk_groot/ddp4_validation_20261101",
+  "stage_transition": true,
+  "safe_checkpoint_stop": true,
+  "resume_steps": [
+    6,
+    7,
+    10
+  ],
+  "cross_rank_audits": {
+    "6": {
+      "passed": true,
+      "world_size": 4,
+      "step": 6,
+      "stage": "adapter",
+      "sha256_by_rank": [
+        "b6f734ea5a5640bf48c91bf3ed697e067bc311f521764a9c51f984dcd5e65907",
+        "b6f734ea5a5640bf48c91bf3ed697e067bc311f521764a9c51f984dcd5e65907",
+        "b6f734ea5a5640bf48c91bf3ed697e067bc311f521764a9c51f984dcd5e65907",
+        "b6f734ea5a5640bf48c91bf3ed697e067bc311f521764a9c51f984dcd5e65907"
+      ]
+    },
+    "7": {
+      "passed": true,
+      "world_size": 4,
+      "step": 7,
+      "stage": "adapter",
+      "sha256_by_rank": [
+        "31c417cd46f660d942da0d6c90cc11357ad1ac76307fa1392b2e74a0f6386d94",
+        "31c417cd46f660d942da0d6c90cc11357ad1ac76307fa1392b2e74a0f6386d94",
+        "31c417cd46f660d942da0d6c90cc11357ad1ac76307fa1392b2e74a0f6386d94",
+        "31c417cd46f660d942da0d6c90cc11357ad1ac76307fa1392b2e74a0f6386d94"
+      ]
+    },
+    "10": {
+      "passed": true,
+      "world_size": 4,
+      "step": 10,
+      "stage": "adapter",
+      "sha256_by_rank": [
+        "1209b352327fbe4a4056d2157126afc6f4d1492d695b207941e538d2e1e53ad7",
+        "1209b352327fbe4a4056d2157126afc6f4d1492d695b207941e538d2e1e53ad7",
+        "1209b352327fbe4a4056d2157126afc6f4d1492d695b207941e538d2e1e53ad7",
+        "1209b352327fbe4a4056d2157126afc6f4d1492d695b207941e538d2e1e53ad7"
+      ]
+    }
+  },
+  "finite_losses_and_gradients": true,
+  "scope": "Real data and full production model; adapter transition accelerated to update 3; no smoke weights loaded into formal run"
+}

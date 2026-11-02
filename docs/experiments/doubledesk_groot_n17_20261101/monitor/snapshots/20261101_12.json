@@ -1,0 +1,64 @@
+{
+  "updated_at": "2026-11-01T12:00:34.678738+00:00",
+  "monitor_pid": 2966470,
+  "run_dir": "/root/workspace/kimodo-policy-vlm-version/log/arena_doubledesk_groot/scratch_ddp4_20261101",
+  "phase": "training",
+  "stage": "adapter",
+  "pipeline_alive": true,
+  "step": 158960,
+  "max_steps": 200000,
+  "progress_percent": 79.47999999999999,
+  "metrics_age_seconds": 0.5531296730041504,
+  "recent_loss_mean": 0.01844870373606682,
+  "recent_s_per_step": 0.3997867875099182,
+  "remaining_training_hours": 4.557569377613067,
+  "latest_checkpoint": 155000,
+  "xiancun_alive": true,
+  "xiancun_mode": "confirming_idle",
+  "alerts": {},
+  "last_record": {
+    "step": 158960,
+    "loss": 0.01724911481142044,
+    "motion_loss": 0.015116815455257893,
+    "root_loss": 0.0005208865622989833,
+    "body_loss": 0.013033268973231316,
+    "hand_loss": 0.0021322988905012608,
+    "hand_state_loss": 0.0015733391046524048,
+    "hand_transition_loss": 0.002794799627736211,
+    "grad_control": 0.07855658233165741,
+    "grad_hand": 0.10820145159959793,
+    "lr_backbone": 0.0,
+    "lr_adapter": 1.9208020559157505e-05,
+    "stage": "adapter",
+    "s_per_step": 0.37761545181274414,
+    "data_s_per_step": 0.00039887428283691406,
+    "gpu_peak_memory_gb": 13.9810432
+  },
+  "evaluation": {},
+  "gpu_snapshot_from_xiancun": [
+    {
+      "index": 4,
+      "uuid": "GPU-24b14408-f437-ffbf-5efd-85a2f7592717",
+      "util": 31,
+      "free": 15786
+    },
+    {
+      "index": 5,
+      "uuid": "GPU-db7cbdcc-0408-0e55-dcaa-9f9dd23dbab9",
+      "util": 72,
+      "free": 17760
+    },
+    {
+      "index": 6,
+      "uuid": "GPU-1de078c1-30c6-0c71-cf5b-23dc35f2f7ba",
+      "util": 2,
+      "free": 15786
+    },
+    {
+      "index": 7,
+      "uuid": "GPU-99dcdb29-4974-336e-1c1a-c338b525fc92",
+      "util": 0,
+      "free": 17760
+    }
+  ]
+}

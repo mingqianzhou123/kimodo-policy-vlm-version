@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import torch
+from pathlib import Path
 
 from kimodo_vla.benchmarks.arena.adapter import CONTROL_FPS, ArenaAdapter
 from kimodo_vla.benchmarks.server import ChunkPolicy, Route
@@ -14,8 +15,24 @@ from kimodo_vla.core.types import Planner
 ROOT_BOUNDARY = {"sonic": "history", "twist2": "first_prediction"}
 
 
-def make_policy(planner: Planner) -> ChunkPolicy:
-    return ChunkPolicy(Agent(planner), ArenaAdapter())
+def make_policy(planner: Planner, instruction_aliases=None) -> ChunkPolicy:
+    return ChunkPolicy(Agent(planner), ArenaAdapter(instruction_aliases))
+
+
+def cached_instruction_aliases(cache_dir):
+    """Match the original server: simulator task ID -> cached natural language."""
+    aliases = {}
+    for path in sorted(Path(cache_dir).expanduser().glob("*.pt")):
+        payload = torch.load(path, map_location="cpu", weights_only=True)
+        instruction = str(payload["instruction"]).strip()
+        task_id = str(payload.get("task_id", "")).strip()
+        for alias in (task_id, task_id.removeprefix("HumanoidArena::"),
+                      payload.get("task_name"), instruction):
+            if alias:
+                if alias in aliases and aliases[alias] != instruction:
+                    raise ValueError(f"Conflicting instruction for Arena task {alias!r}")
+                aliases[alias] = instruction
+    return aliases
 
 
 def routes(policy: ChunkPolicy) -> dict[tuple[str, str], Route]:
@@ -62,4 +79,4 @@ def make_kimodo_policy(
         rtc_overlap_frames=rtc_overlap_frames,
         root_boundary=ROOT_BOUNDARY[controller],
     )
-    return make_policy(planner)
+    return make_policy(planner, cached_instruction_aliases(text_embedding_cache))

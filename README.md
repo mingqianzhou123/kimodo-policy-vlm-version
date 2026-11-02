@@ -1,5 +1,10 @@
 # Kimodo-VLA
 
+GR00T N1.7 图文注入与 DoubleDesk scratch 实验：
+[设计、对齐检查、训练和评估](docs/benchmarks/arena_groot_n17.md)。
+已完成20万步训练，DoubleDesk正式评估 **30/60=50%**；
+[完整结果、分析与训练曲线](docs/experiments/doubledesk_groot_n17_20261101/README.md)。
+
 Kimodo-Policy（人形机器人行走 + 操作的 VLA）的新代码库。模型只认一种通用观测和一种通用动作，
 每个 benchmark 只写一个薄适配器；同一个模型可以在 BiGym 2.0、HumanoidToolBench、HumanoidArena、SIMPLE
 之间切换，只换适配器。论文结果的复现版本在原仓库

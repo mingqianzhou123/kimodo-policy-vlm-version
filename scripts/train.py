@@ -50,6 +50,7 @@ from run_config import DEFAULT_CONFIG, REPO, checkpoint_steps, load_yaml  # scri
 
 # Fields an --init-checkpoint must share with this run for its weights to mean the same thing.
 ARCHITECTURE_FIELDS = (
+    "visual_conditioning",
     "fps", "motion_mask_mode", "dinov3_model_name", "controlnet_num_layers", "controlnet_scale",
     "detach_root_control_for_body", "control_fusion_mode",
     "hand_hidden_dim", "hand_num_layers", "hand_num_heads", "hand_ffn_dim",
@@ -79,6 +80,8 @@ def load_config(args, rank: int = 0) -> tuple:
     for key in ("data_root", "text_cache", "save_root"):
         config.main[key] = str((REPO / os.path.expanduser(config.main[key])).resolve())
     if args.init_checkpoint:
+        if config.model.get("visual_conditioning") == "groot_n1d7":
+            raise SystemExit("This N1.7 scratch experiment must not load a policy/419h initialization")
         config.initialization = {"checkpoint": str(Path(args.init_checkpoint).expanduser().resolve())}
         check_initialization(config)
 
@@ -128,6 +131,10 @@ def build_model(config) -> KimodoPolicy:
         hand_init_seed=m.hand_init_seed,
         hand_control_mode=m.hand_control_mode,
         num_cameras=len(m.cameras),
+        visual_conditioning=m.get("visual_conditioning", "dinov3_controlnet"),
+        groot_checkpoint=m.get("groot_checkpoint"),
+        groot_repo=m.get("groot_repo"),
+        groot_vlm_model=m.get("groot_vlm_model"),
     ))
 
 
@@ -136,7 +143,7 @@ def check_initialization(config) -> None:
     source = json.loads((Path(config.initialization.checkpoint) / "config.json").read_text())["model"]
     defaults = KimodoPolicyConfig()
     for field in ARCHITECTURE_FIELDS:
-        theirs, ours = source.get(field, getattr(defaults, field)), config.model[field]
+        theirs, ours = source.get(field, getattr(defaults, field)), config.model.get(field, getattr(defaults, field))
         if theirs != ours:
             raise SystemExit(f"--init-checkpoint has model.{field}={theirs!r}, this run {ours!r}")
     if len(source.get("cameras", ["head"])) != len(config.model.cameras):
@@ -151,7 +158,9 @@ def initialize_from(model: KimodoPolicy, config) -> None:
 def param_groups(model: KimodoPolicy, config) -> list[dict]:
     """The original repository's groups: Kimodo-copied ControlNet layers, new adapters, hand head; no decay on biases."""
     opt = config.training.optimizer
-    lr = {"backbone": opt.control_backbone_lr, "adapter": opt.control_adapter_lr, "hand": opt.hand_lr}
+    lr = {"backbone": opt.control_backbone_lr, "adapter": opt.control_adapter_lr, "hand": opt.hand_lr,
+          "vl_adapter": opt.get("vl_adapter_lr", opt.control_backbone_lr),
+          "vision": opt.get("vision_lr", 1e-6)}
     groups = {
         (family, decay): {"params": [], "lr": lr[family], "weight_decay": opt.weight_decay if decay else 0.0, "name": f"{family}{'' if decay else '_no_decay'}"}
         for family in lr for decay in (True, False)
@@ -161,12 +170,59 @@ def param_groups(model: KimodoPolicy, config) -> list[dict]:
             continue
         if name.startswith("hand_head."):
             family = "hand"
+        elif name.startswith("image_encoder.adapter."):
+            family = "vl_adapter"
+        elif name.startswith("image_encoder.backbone."):
+            family = "vision"
         elif name.startswith(("controlnet.root_layers.", "controlnet.body_layers.")):
             family = "backbone"
         else:
             family = "adapter"
         groups[family, parameter.ndim >= 2 and not name.endswith("bias")]["params"].append(parameter)
     return [g for g in groups.values() if g["params"]]
+
+
+def training_stage(config, step):
+    stages = config.training.get("stages")
+    if not stages:
+        return None
+    if config.model.get("visual_conditioning") != "groot_n1d7":
+        raise ValueError("Staged training requires groot_n1d7")
+    if not 0 < int(stages.adapter_start) < config.main.max_steps:
+        raise ValueError("adapter_start must lie inside the training run")
+    vision_start = stages.get("vision_start")
+    if vision_start is not None and not int(stages.adapter_start) < int(vision_start) < config.main.max_steps:
+        raise ValueError("vision_start must follow adapter_start and precede max_steps")
+    if vision_start is not None and step >= int(vision_start):
+        return "vision"
+    return "adapter" if step >= int(stages.adapter_start) else "injection"
+
+
+def make_optimizer(model, config, device, step=0, previous=None):
+    groups = param_groups(model, config)
+    for group in groups:
+        group["initial_lr"] = group["lr"]
+    opt = config.training.optimizer
+    optimizer = torch.optim.AdamW(groups, betas=tuple(opt.betas), eps=opt.eps, fused=device.type == "cuda")
+    if previous is not None:
+        for parameter, state in previous.state.items():
+            optimizer.state[parameter] = state
+    scheduler = LambdaLR(optimizer, lr_schedule(config), last_epoch=step - 1)
+    return groups, optimizer, scheduler
+
+
+def build_dataset(config, text):
+    if config.main.get("dataset_kind") == "original_arena":
+        from kimodo_vla.benchmarks.arena.training import build_arena_dataset
+        return build_arena_dataset(config, text)
+    augmentation = config.training.get("augmentation") or {}
+    return KimodoWindowDataset(
+        [Path(config.main.data_root) / config.main.task],
+        action_history=config.main.action_history, action_chunk=config.main.action_chunk,
+        text_embeddings=text, cameras=list(config.model.cameras),
+        image_shift=augmentation.get("image_shift", 0),
+        proprio_mask_prob=augmentation.get("proprio_mask_prob", 0.0),
+    )
 
 
 def lr_schedule(config):
@@ -244,6 +300,8 @@ def main() -> None:
     parser.add_argument("--name", help="run directory prefix; default <task>_<n>cam")
     parser.add_argument("--run-dir", help="exact run directory instead of <save_root>/<name>_<time>; must not exist")
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--stop-after", type=int, help="save and stop at this update without changing the LR schedule")
+    parser.add_argument("--audit-distributed", action="store_true", help="verify all saved model tensors are identical across ranks on exit")
     parser.add_argument("overrides", nargs="*", help="config fields, e.g. main.max_steps=200")
     args = parser.parse_args()
 
@@ -263,6 +321,14 @@ def main() -> None:
         handlers=[logging.StreamHandler()] + ([logging.FileHandler(run_dir / "train.log")] if rank == 0 else []),
     )
     main_cfg = config.main
+    if config.model.get("visual_conditioning") == "groot_n1d7":
+        from groot_experiment import check_preflight
+        check_preflight(config)
+    training_stage(config, 0)  # validate stage boundaries before loading weights
+    if config.training.get("stages") and config.training.get("ema_decays"):
+        raise SystemExit("Staged runs currently require ema_decays=[]")
+    if config.model.get("visual_conditioning") == "groot_n1d7" and "initialization" in config:
+        raise SystemExit("N1.7 scratch runs cannot initialize from policy/419h checkpoints")
     if main_cfg.batch_size % (main_cfg.micro_batch_size * world):
         raise SystemExit(f"main.batch_size {main_cfg.batch_size} is not a multiple of micro_batch_size x {world} GPUs")
     cameras = list(config.model.cameras)
@@ -270,20 +336,13 @@ def main() -> None:
     torch.manual_seed(main_cfg.seed)  # the same initial weights on every rank
 
     text = load_text_embeddings(main_cfg.text_cache)
-    dataset = KimodoWindowDataset(
-        [Path(main_cfg.data_root) / main_cfg.task],
-        action_history=main_cfg.action_history,
-        action_chunk=main_cfg.action_chunk,
-        text_embeddings=text,
-        cameras=cameras,
-        image_shift=augmentation.get("image_shift", 0),
-        proprio_mask_prob=augmentation.get("proprio_mask_prob", 0.0),
-    )
-    instruction = dataset.episodes[0]["instruction"]
+    dataset = build_dataset(config, text)
+    is_arena = main_cfg.get("dataset_kind") == "original_arena"
+    instruction = next(iter(dataset.task_instructions.values())) if is_arena else dataset.episodes[0]["instruction"]
     if instruction not in text:
         raise SystemExit(f"no cached text embedding for {instruction!r} in {main_cfg.text_cache}")
     log.info("%s: %d demos, %d windows, cameras %s, %d GPU(s), augmentation %s, run %s", main_cfg.task,
-             len(dataset.episodes), len(dataset), cameras, world, dict(augmentation), run_dir)
+             len(dataset._all_episode_records) if is_arena else len(dataset.episodes), len(dataset), cameras, world, dict(augmentation), run_dir)
 
     model = build_model(config)
     if "initialization" in config and not args.resume:
@@ -292,22 +351,35 @@ def main() -> None:
             (run_dir / "config.json").write_text(json.dumps(OmegaConf.to_container(config, resolve=True), indent=2))
         log.info("initialized ControlNet and hand head from %s", config.initialization.checkpoint)
     model.to(device).train()
-    groups = param_groups(model, config)
-    opt = config.training.optimizer
-    optimizer = torch.optim.AdamW(groups, betas=tuple(opt.betas), eps=opt.eps, fused=device.type == "cuda")
-    scheduler = LambdaLR(optimizer, lr_schedule(config))
     step, state = 0, None
     if args.resume:
         state = torch.load(run_dir / "resume.pt", map_location="cpu", weights_only=True)
-        model.load_state_dict(state["model"], strict=False)
-        optimizer.load_state_dict(state["optimizer"])
-        scheduler.load_state_dict(state["scheduler"])
+        if config.model.get("visual_conditioning") == "groot_n1d7":
+            model.load_controlnet_checkpoint(str(run_dir / "resume.pt"))
+        else:
+            model.load_state_dict(state["model"], strict=False)
         step = int(state["global_step"])
         log.info("resumed at step %d", step)
+    stage = (state or {}).get("training_stage") or training_stage(config, step)
+    if stage:
+        model.set_training_stage(stage)
+    groups, optimizer, scheduler = make_optimizer(model, config, device, step)
+    if state:
+        optimizer.load_state_dict(state["optimizer"])
+        scheduler.load_state_dict(state["scheduler"])
     decays = list(config.training.get("ema_decays") or [])
     averages = WeightAverages(model, decays, (state or {}).get("ema")) if decays and rank == 0 else None
     forward = DistributedDataParallel(model, device_ids=[device.index]) if world > 1 else model
     torch.manual_seed(main_cfg.seed + 7919 * rank)  # different diffusion noise and augmentation per rank
+    if state and len(state.get("rng_states", [])) == world:
+        rng = state["rng_states"][rank]
+        torch.set_rng_state(rng["cpu"])
+        torch.cuda.set_rng_state(rng["cuda"], device)
+    elif state and world == 1:
+        if "rng_cpu" in state:
+            torch.set_rng_state(state["rng_cpu"])
+        if device.type == "cuda" and state.get("rng_cuda"):
+            torch.cuda.set_rng_state_all(state["rng_cuda"])
 
     hand_params = [p for g in groups if g["name"].startswith("hand") for p in g["params"]]
     control_params = [p for g in groups if not g["name"].startswith("hand") for p in g["params"]]
@@ -316,11 +388,36 @@ def main() -> None:
     accumulation = main_cfg.batch_size // (main_cfg.micro_batch_size * world)
     autocast = torch.autocast(device.type, dtype=torch.bfloat16, enabled=main_cfg.dtype == "bf16")
     saves = checkpoint_steps(config.main)
+    saves.update(main_cfg.get("extra_checkpoints", []))
+    stop_step = min(main_cfg.max_steps, args.stop_after or main_cfg.max_steps)
+    if stop_step <= step:
+        raise SystemExit(f"stop-after {stop_step} must exceed resumed step {step}")
+    saves.add(stop_step)
     data = batches(dataset, config, step, rank, world)
     metrics_file = open(run_dir / "metrics.jsonl", "a") if rank == 0 else None
     window_start, window_data = time.time(), 0.0
 
-    while step < main_cfg.max_steps:
+    while step < stop_step:
+        # A file request is acted on at a full optimizer-update boundary on all
+        # ranks. No asynchronous serialization of partially updated weights.
+        requested = torch.tensor(int(rank == 0 and (run_dir / "CHECKPOINT_AND_STOP").exists()), device=device)
+        if world > 1:
+            dist.broadcast(requested, src=0)
+        stop_requested = bool(requested.item())
+        next_stage = training_stage(config, step)
+        if next_stage != stage:
+            # DDP only installs hooks for parameters trainable at construction.
+            # Rebuild it after unfreezing; retain Adam moments of existing weights.
+            if world > 1:
+                dist.barrier()
+            del forward
+            model.set_training_stage(next_stage)
+            groups, optimizer, scheduler = make_optimizer(model, config, device, step, optimizer)
+            hand_params = [p for g in groups if g["name"].startswith("hand") for p in g["params"]]
+            control_params = [p for g in groups if not g["name"].startswith("hand") for p in g["params"]]
+            forward = DistributedDataParallel(model, device_ids=[device.index]) if world > 1 else model
+            stage = next_stage
+            log.info("step %d: training stage -> %s", step, stage)
         optimizer.zero_grad(set_to_none=True)
         losses: dict[str, float] = {}
         for micro in range(accumulation):
@@ -354,6 +451,8 @@ def main() -> None:
             raise SystemExit(f"step {step + 1}: loss is {losses['loss']}")
         control_norm = float(torch.nn.utils.clip_grad_norm_(control_params, main_cfg.gradient.grad_clip_norm))
         hand_norm = float(torch.nn.utils.clip_grad_norm_(hand_params, main_cfg.gradient.hand_grad_clip_norm)) if hand_params else 0.0
+        if not math.isfinite(control_norm) or not math.isfinite(hand_norm):
+            raise SystemExit(f"step {step + 1}: nonfinite gradients {control_norm}, {hand_norm}")
         optimizer.step()
         scheduler.step()
         step += 1
@@ -364,8 +463,9 @@ def main() -> None:
             seconds = (time.time() - window_start) / main_cfg.log_every
             lrs = {g["name"]: g["lr"] for g in optimizer.param_groups}
             record = {"step": step, **losses, "grad_control": control_norm, "grad_hand": hand_norm,
-                      "lr_backbone": lrs["backbone"], "lr_adapter": lrs["adapter"], "s_per_step": seconds,
-                      "data_s_per_step": window_data / main_cfg.log_every}
+                      "lr_backbone": lrs.get("backbone", 0.0), "lr_adapter": lrs["adapter"], "stage": stage, "s_per_step": seconds,
+                      "data_s_per_step": window_data / main_cfg.log_every,
+                      "gpu_peak_memory_gb": torch.cuda.max_memory_allocated(device) / 1e9 if device.type == "cuda" else 0}
             metrics_file.write(json.dumps(record) + "\n")
             metrics_file.flush()
             eta = seconds * (main_cfg.max_steps - step) / 3600
@@ -374,18 +474,47 @@ def main() -> None:
                      control_norm, hand_norm, lrs["adapter"], seconds, record["data_s_per_step"], eta)
             window_start, window_data = time.time(), 0.0
 
-        if rank == 0 and step in saves:
-            trainable = {n: p.detach().cpu() for n, p in model.named_parameters() if p.requires_grad}
+        if step in saves or stop_requested:
+            local_rng = {"cpu": torch.get_rng_state(), "cuda": torch.cuda.get_rng_state(device) if device.type == "cuda" else None}
+            rng_states = [None] * world if rank == 0 else None
+            if world > 1:
+                dist.gather_object(local_rng, rng_states, dst=0)
+            else:
+                rng_states = [local_rng]
+        if rank == 0 and (step in saves or stop_requested):
+            trainable = {n: p.detach().cpu() for n, p in model.checkpoint_parameters().items()}
             checkpoint = run_dir / f"checkpoint_{step}"
             checkpoint.mkdir(exist_ok=True)
             ema = {"ema": averages.state()} if averages else {}
             save(checkpoint / "training_state.pt", {"global_step": step, "model": trainable, **ema})
             (checkpoint / "config.json").write_text((run_dir / "config.json").read_text())
             save(run_dir / "resume.pt", {"global_step": step, "model": trainable, **ema,
-                                         "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict()})
+                                         "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict(),
+                                         "training_stage": stage, "rng_cpu": torch.get_rng_state(),
+                                         "rng_states": rng_states,
+                                         "rng_cuda": [torch.cuda.get_rng_state(device)] if device.type == "cuda" and world == 1 else []})
             log.info("saved %s", checkpoint)
+        if stop_requested:
+            log.info("checkpoint-and-stop request completed at step %d", step)
+            break
     if metrics_file:
         metrics_file.close()
+    if args.audit_distributed:
+        import hashlib
+        digest = hashlib.sha256()
+        for name, parameter in model.checkpoint_parameters().items():
+            digest.update(name.encode())
+            digest.update(parameter.detach().cpu().contiguous().view(torch.uint8).numpy().tobytes())
+        hashes = [None] * world
+        if world > 1:
+            dist.all_gather_object(hashes, digest.hexdigest())
+        else:
+            hashes = [digest.hexdigest()]
+        if len(set(hashes)) != 1:
+            raise RuntimeError(f"Model weights diverged across ranks: {hashes}")
+        if rank == 0:
+            (run_dir / f"distributed_audit_{step}.json").write_text(json.dumps({
+                "passed": True, "world_size": world, "step": step, "stage": stage, "sha256_by_rank": hashes}, indent=2))
     if world > 1:
         dist.barrier()
         dist.destroy_process_group()

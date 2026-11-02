@@ -1,0 +1,65 @@
+[
+  {
+    "step": 41460,
+    "stage": "adapter",
+    "loss": 1.3229023218154907,
+    "root_loss": 0.31414875388145447,
+    "body_loss": 0.05010363459587097,
+    "grad_control": 309.45416259765625,
+    "grad_hand": 0.3937516510486603,
+    "reasons": [
+      "loss > 20x preceding 100-record median",
+      "grad_control > max(100, 100x preceding median), before clipping"
+    ]
+  },
+  {
+    "step": 62290,
+    "stage": "adapter",
+    "loss": 5.1508331298828125,
+    "root_loss": 1.1315977573394775,
+    "body_loss": 0.5135364532470703,
+    "grad_control": 1462.5946044921875,
+    "grad_hand": 2.545872926712036,
+    "reasons": [
+      "loss > 20x preceding 100-record median",
+      "grad_control > max(100, 100x preceding median), before clipping"
+    ]
+  },
+  {
+    "step": 62300,
+    "stage": "adapter",
+    "loss": 3.0148353576660156,
+    "root_loss": 0.7369558811187744,
+    "body_loss": 0.053390055894851685,
+    "grad_control": 75.15168762207031,
+    "grad_hand": 0.6225471496582031,
+    "reasons": [
+      "loss > 20x preceding 100-record median"
+    ]
+  },
+  {
+    "step": 62320,
+    "stage": "adapter",
+    "loss": 1.4082581996917725,
+    "root_loss": 0.33990100026130676,
+    "body_loss": 0.036392949521541595,
+    "grad_control": 62.91497802734375,
+    "grad_hand": 0.4300348162651062,
+    "reasons": [
+      "loss > 20x preceding 100-record median"
+    ]
+  },
+  {
+    "step": 62330,
+    "stage": "adapter",
+    "loss": 5.937155246734619,
+    "root_loss": 1.2032923698425293,
+    "body_loss": 1.0274658203125,
+    "grad_control": 2965.671142578125,
+    "grad_hand": 0.9552567005157471,
+    "reasons": [
+      "loss > 20x preceding 100-record median",
+      "grad_control > max(100, 100x preceding median), before clipping"
+    ]
+  }
+]

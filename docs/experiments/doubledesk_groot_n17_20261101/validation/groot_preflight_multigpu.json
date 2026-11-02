@@ -1,0 +1,130 @@
+{
+  "passed": true,
+  "fingerprint": "de53fec333c1c63fe2d3261937cf97306fbcdec5c9ca75b202bca72e0e0a42cd",
+  "backbone_only": false,
+  "repo_commit": "8793328148be7589ec2b8c998f712d29aaa97cbf",
+  "dataset": {
+    "episodes": 100,
+    "windows": 56712,
+    "instructions": {
+      "HumanoidArena::Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody": "Put the hammer from the right table into the basket on the left table."
+    },
+    "motion_shape": [
+      16,
+      150,
+      417
+    ],
+    "image_shape": [
+      16,
+      3,
+      480,
+      640
+    ],
+    "target_source": "action",
+    "sampling": "episode_uniform"
+  },
+  "checkpoint_load": {
+    "backbone.": {
+      "tensors": 494,
+      "parameters": 1834664960
+    },
+    "action_head.vlln.": {
+      "tensors": 2,
+      "parameters": 4096
+    },
+    "action_head.vl_self_attention.": {
+      "tensors": 64,
+      "parameters": 201433088
+    }
+  },
+  "official_source_hashes": {
+    "gr00t/model/modules/qwen3_backbone.py": "e3902c8385d586fb9f079abf58d37795cbcefc55f2f506f761c4b78a5afbaf52",
+    "gr00t/model/modules/dit.py": "90fc553f7336531fa3068f53de6e1bf1873a60ffb7f3630a1d7616149c2d9966"
+  },
+  "vlm_select_layer": 16,
+  "vl_condition_shape": [
+    16,
+    109,
+    2048
+  ],
+  "zero_injection_max_error": 0.0,
+  "root_body_detach": true,
+  "stage1_loss": 1.6524659395217896,
+  "stage2_adapter_grad_sum": 14168.19214267841,
+  "hand_detach": true,
+  "checkpoint_roundtrip": true,
+  "smoke_checkpoint": "/root/workspace/kimodo-policy-vlm-version/outputs/groot_preflight_checkpoint",
+  "inference_vlm_calls_per_plan": 1,
+  "inference_tensor_shapes": {
+    "local_rot_mats": [
+      1,
+      50,
+      34,
+      3,
+      3
+    ],
+    "global_rot_mats": [
+      1,
+      50,
+      34,
+      3,
+      3
+    ],
+    "posed_joints": [
+      1,
+      50,
+      34,
+      3
+    ],
+    "root_positions": [
+      1,
+      50,
+      3
+    ],
+    "smooth_root_pos": [
+      1,
+      50,
+      3
+    ],
+    "foot_contacts": [
+      1,
+      50,
+      4
+    ],
+    "global_root_heading": [
+      1,
+      50,
+      2
+    ],
+    "motion_features": [
+      1,
+      50,
+      417
+    ],
+    "history_last_root_position": [
+      1,
+      3
+    ],
+    "hand_clean": [
+      1,
+      50,
+      2
+    ],
+    "hand_closure": [
+      1,
+      50,
+      2
+    ],
+    "hand_probability": [
+      1,
+      50,
+      2
+    ],
+    "hand_binary": [
+      1,
+      50,
+      2
+    ]
+  },
+  "peak_cuda_gib": 9.972925662994385
+}

@@ -1,0 +1,18 @@
+{
+  "checkpoint_step": 100,
+  "stage": "injection",
+  "model_tensors": 217,
+  "adapter_saved_even_while_frozen": true,
+  "optimizer_groups": [
+    "adapter",
+    "adapter_no_decay",
+    "hand",
+    "hand_no_decay"
+  ],
+  "rng_ranks": 4,
+  "checkpoint": "/root/workspace/kimodo-policy-vlm-version/log/arena_doubledesk_groot/scratch_ddp4_20261101/checkpoint_100",
+  "resume": "/root/workspace/kimodo-policy-vlm-version/log/arena_doubledesk_groot/scratch_ddp4_20261101/resume.pt",
+  "xiancun_monitor_pid": 23991,
+  "xiancun_yield_confirmed": "2026-11-01 02:02:18 +0800",
+  "formal_pipeline_pid": 1432800
+}

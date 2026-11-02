@@ -68,6 +68,9 @@ def state64_observations(states: Any, instruction: str, image: np.ndarray | None
 class ArenaAdapter:
     control_fps = CONTROL_FPS
 
+    def __init__(self, instruction_aliases: Mapping[str, str] | None = None):
+        self.instruction_aliases = dict(instruction_aliases or {})
+
     def reset(self) -> None:
         pass
 
@@ -76,7 +79,9 @@ class ArenaAdapter:
         if observation.get("state_history") is None:
             raise ValueError("observation.state_history is required: the policy is conditioned on the history")
         image = decode_image(observation["images"]["front"])
-        return state64_observations(observation["state_history"], str(request.get("task", "")).strip(), image)
+        task = str(request.get("task", "")).strip()
+        instruction = self.instruction_aliases.get(task, task)
+        return state64_observations(observation["state_history"], instruction, image)
 
     def to_response(self, chunk: ActionChunk, request: Mapping[str, Any]) -> dict:
         return {"action_chunk": chunk.to_array40().tolist()}

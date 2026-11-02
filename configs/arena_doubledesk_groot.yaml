@@ -1,0 +1,56 @@
+_base_: bigym2.yaml
+
+main:
+  task: HOI_double_desk
+  dataset_kind: original_arena
+  original_repo: ${oc.env:KIMODO_ORIGINAL_REPO,/root/workspace/kimodo-policy}
+  data_root: ${oc.env:HUMANOID_ARENA_ROOT,/root/workspace/HumanoidArena-data}
+  text_cache: /root/workspace/kimodo-policy/data/cache/HumanoidArena
+  save_root: log/arena_doubledesk_groot
+  max_steps: 200000
+  batch_size: 64
+  micro_batch_size: 16
+  log_every: 10
+  seed: 42
+  num_workers: 4
+  episode_cache_size: 100
+  require_preflight: true
+  preflight_report: outputs/groot_preflight_multigpu.json
+  checkpoint_every: 5000
+  extra_checkpoints: [100, 1000]
+  final_checkpoints: 1
+  score_checkpoints: [200000]
+
+model:
+  cameras: [head]
+  visual_conditioning: groot_n1d7
+  groot_checkpoint: ${oc.env:GROOT_CHECKPOINT,/root/workspace/model-cache/GR00T-N1.7-3B}
+  groot_repo: ${oc.env:GROOT_REPO,/root/workspace/Isaac-GR00T-N1.7}
+  groot_vlm_model: ${oc.env:GROOT_VLM_MODEL,/root/workspace/model-cache/Cosmos-Reason2-2B}
+
+training:
+  # Total 200k updates: first learn zero residuals + scratch HandNet, then
+  # jointly train the checkpoint adapter. Vision finetuning is opt-in.
+  stages:
+    adapter_start: 10000
+    vision_start: null
+  scheduler:
+    warmup_steps: 2000
+  optimizer:
+    vl_adapter_lr: 3.0e-5
+    vision_lr: 1.0e-6
+
+evaluation:
+  task: Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody
+  env_config: tasks/common_test_config/base_test/doubledesk_sonic_test.yaml
+  controller: sonic
+  timing: original
+  dtype: fp32
+  diffusion_steps: 10
+  execution_frames: 15
+  control_fps: 50
+  rtc: false
+  seeds: [0, 1, 2]
+  repeats_per_seed: 20
+  max_steps: 2000
+  persistent_sim: false

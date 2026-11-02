@@ -9,6 +9,9 @@ Formal runs used 15 executed frames, RTC off, and a seed per episode via /reset.
 from __future__ import annotations
 
 import argparse
+import os
+import json
+from pathlib import Path
 
 import torch
 
@@ -18,8 +21,8 @@ from kimodo_vla.benchmarks.server import PLAIN_JSON, make_server
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--checkpoint", required=True)
-    parser.add_argument("--text-cache", required=True)
+    parser.add_argument("--checkpoint", "--policy-path", dest="checkpoint", required=True)
+    parser.add_argument("--text-cache", default=os.environ.get("KIMODO_TEXT_EMBEDDING_CACHE"))
     parser.add_argument("--controller", choices=sorted(ROOT_BOUNDARY), default="sonic")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=18080)
@@ -31,6 +34,8 @@ def main() -> None:
     parser.add_argument("--timing", choices=("exact", "original"), default="exact",
                         help="'original' decodes plans as the original repository did, one model frame behind")
     args = parser.parse_args()
+    if not args.text_cache:
+        args.text_cache = json.loads((Path(args.checkpoint) / "config.json").read_text())["main"]["text_cache"]
 
     policy = make_kimodo_policy(
         args.checkpoint, args.text_cache, controller=args.controller, device=args.device,

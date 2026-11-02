@@ -90,6 +90,10 @@ class KimodoPolicyConfig:
     # Cameras per sample: egoview is [B, 3, H, W] for one, [B, num_cameras, 3, H, W]
     # otherwise; every camera adds its DINOv3 tokens to the ControlNet input.
     num_cameras: int = 1
+    visual_conditioning: str = "dinov3_controlnet"
+    groot_checkpoint: Optional[str] = None
+    groot_repo: Optional[str] = None
+    groot_vlm_model: Optional[str] = None
 
 
 class KimodoPolicy(nn.Module):
@@ -134,7 +138,9 @@ class KimodoPolicy(nn.Module):
         image_checkpoint = config.dinov3_checkpoint or os.path.join(
             checkpoint_path, config.dinov3_model_name
         )
-        if config.dinov3_checkpoint is None and not os.path.isdir(image_checkpoint):
+        if config.visual_conditioning not in {"dinov3_controlnet", "groot_n1d7"}:
+            raise ValueError(f"Unknown visual_conditioning {config.visual_conditioning!r}")
+        if config.visual_conditioning == "dinov3_controlnet" and config.dinov3_checkpoint is None and not os.path.isdir(image_checkpoint):
             raise FileNotFoundError(
                 f"DINOv3 checkpoint not found at {image_checkpoint}. Set model.dinov3_checkpoint "
                 "to a local Hugging Face checkpoint directory or model id."
@@ -159,20 +165,28 @@ class KimodoPolicy(nn.Module):
         # 6. 冻结 Kimodo 主体并训练 ControlNet
         for p in self.denoiser.parameters():
             p.requires_grad = False
-        self.image_encoder = DINOv3Encoder(checkpoint_path=image_checkpoint)
-        for p in self.image_encoder.model.parameters():
-            p.requires_grad = False
-        self.controlnet = ControlNet(
-            self.denoiser,
-            image_feat_dim=self.image_encoder.output_dim,
-            image_token_count=self.image_encoder.token_count * config.num_cameras,
-            motion_token_count=config.action_history + config.action_chunk,
-            num_control_layers=config.controlnet_num_layers,
-            controlnet_scale=config.controlnet_scale,
-            future_token_count=config.action_chunk,
-            detach_root_control_for_body=config.detach_root_control_for_body,
-            control_fusion_mode=config.control_fusion_mode,
-        )
+        if config.visual_conditioning == "groot_n1d7":
+            from .modules.groot_conditioning import GrootN17Encoder, GrootInjection
+
+            if config.num_cameras != 1 or not config.groot_checkpoint or not config.groot_repo:
+                raise ValueError("N1.7 requires one camera, groot_checkpoint and groot_repo")
+            self.image_encoder = GrootN17Encoder(config.groot_checkpoint, config.groot_repo, config.groot_vlm_model)
+            self.controlnet = GrootInjection(self.denoiser, config.action_chunk)
+        else:
+            self.image_encoder = DINOv3Encoder(checkpoint_path=image_checkpoint)
+            for p in self.image_encoder.model.parameters():
+                p.requires_grad = False
+            self.controlnet = ControlNet(
+                self.denoiser,
+                image_feat_dim=self.image_encoder.output_dim,
+                image_token_count=self.image_encoder.token_count * config.num_cameras,
+                motion_token_count=config.action_history + config.action_chunk,
+                num_control_layers=config.controlnet_num_layers,
+                controlnet_scale=config.controlnet_scale,
+                future_token_count=config.action_chunk,
+                detach_root_control_for_body=config.detach_root_control_for_body,
+                control_fusion_mode=config.control_fusion_mode,
+            )
         for p in self.controlnet.parameters():
             p.requires_grad = True
         self.hand_head = None
@@ -184,6 +198,7 @@ class KimodoPolicy(nn.Module):
                     hidden_dim=config.hand_hidden_dim,
                     future_token_count=config.action_chunk,
                     image_token_count=self.controlnet.image_token_count,
+                    visual_dim=2048 if config.visual_conditioning == "groot_n1d7" else None,
                     num_layers=config.hand_num_layers,
                     num_heads=config.hand_num_heads,
                     ffn_dim=config.hand_ffn_dim,
@@ -201,6 +216,47 @@ class KimodoPolicy(nn.Module):
         tokens = self.image_encoder(egoview.flatten(0, 1))
         return tokens.reshape(egoview.shape[0], -1, tokens.shape[-1])
 
+    def _encode_condition(self, egoview, instructions):
+        if getattr(self.config, "visual_conditioning", "dinov3_controlnet") == "groot_n1d7":
+            features = self.image_encoder(egoview, instructions)
+        else:
+            with torch.no_grad():
+                features = self._encode_images(egoview)
+        return features.to(dtype=next(self.controlnet.parameters()).dtype)
+
+    @staticmethod
+    def _hand_visual_inputs(condition):
+        from .modules.groot_conditioning import VLCondition
+
+        if isinstance(condition, VLCondition):
+            return {"visual_tokens": condition.tokens, "visual_mask": condition.mask}
+        return {"visual_tokens": condition}
+
+    def set_training_stage(self, stage):
+        if self.config.visual_conditioning != "groot_n1d7":
+            raise ValueError("Staged VLM training requires groot_n1d7")
+        self.image_encoder.set_stage(stage)
+        self.denoiser.requires_grad_(False)
+        if self.text_encoder is not None:
+            self.text_encoder.requires_grad_(False)
+        self.controlnet.requires_grad_(True)
+        if self.hand_head is not None:
+            # No 419h hand checkpoint is used in scratch runs. The entire
+            # randomly initialized HandNet, including its new VL projection,
+            # must learn; freezing its random core would destroy the baseline.
+            self.hand_head.requires_grad_(True)
+        self.training_stage = stage
+        self.train(self.training)
+
+    def checkpoint_parameters(self):
+        """Save trained modules AND frozen adapter weights across stage boundaries."""
+        prefixes = ("controlnet.", "hand_head.")
+        if self.config.visual_conditioning == "groot_n1d7":
+            prefixes += ("image_encoder.adapter.",)
+            if getattr(self, "training_stage", "") == "vision":
+                prefixes += ("image_encoder.backbone.model.model.visual.",)
+        return {n: p for n, p in self.named_parameters() if n.startswith(prefixes)}
+
     @property
     def device(self) -> torch.device:
         return next(self.parameters()).device
@@ -210,7 +266,10 @@ class KimodoPolicy(nn.Module):
         self.denoiser.eval()
         if self.text_encoder is not None:
             self.text_encoder.eval()
-        self.image_encoder.eval()
+        if getattr(self.config, "visual_conditioning", "dinov3_controlnet") == "groot_n1d7":
+            self.image_encoder.train(mode)
+        else:
+            self.image_encoder.eval()
         return self
 
     def _kimodo_fk_position_loss(
@@ -683,9 +742,7 @@ class KimodoPolicy(nn.Module):
         maxlen = text_feat.shape[1]
         text_pad_mask = self._length_mask(text_length, maxlen, device)
         # 7. 图像编码 (DINOv3 冻结)
-        with torch.no_grad():
-            image_feat = self._encode_images(egoview)
-        image_feat = image_feat.to(dtype=next(self.controlnet.parameters()).dtype)
+        image_feat = self._encode_condition(egoview, instruction)
         # 8. ControlNet 前向（可训练）
         root_control_tokens, body_control_tokens = self.controlnet(t, image_feat, T, H)
         # 9. 冻结的 denoiser 前向。每个注入层用当前 future motion hidden
@@ -793,7 +850,7 @@ class KimodoPolicy(nn.Module):
                 max(self.controlnet.body_injection_layers)
             ]
             predicted_clean_hand = self.hand_head(
-                visual_tokens=final_visual_tokens,
+                **self._hand_visual_inputs(final_visual_tokens),
                 body_future_tokens=body_hidden[:, H:],
                 noisy_future_hand=noisy_hand,
                 current_hand_state=current_hand,
@@ -1138,9 +1195,7 @@ class KimodoPolicy(nn.Module):
                     )
         text_features = text_features.to(device=self.device, dtype=denoiser_dtype)
         text_pad_mask = self._length_mask(text_lengths, text_features.shape[1], self.device)
-        image_features = self._encode_images(egoview).to(
-            dtype=next(self.controlnet.parameters()).dtype
-        )
+        image_features = self._encode_condition(egoview, instruction)
         heading_slice = self.representation.slice_dict["global_root_heading"]
         heading_history_mask = (
             history_mask
@@ -1241,7 +1296,7 @@ class KimodoPolicy(nn.Module):
                 root_hint_fuser=self.controlnet.root_hint_fusion,
                 body_hint_fuser=self.controlnet.body_hint_fusion,
                 control_future_start=history_length,
-                detach_root_for_body=False,
+                detach_root_for_body=self.config.visual_conditioning == "groot_n1d7",
                 return_body_hidden=self.hand_head is not None,
             )
             if self.hand_head is not None:
@@ -1250,7 +1305,7 @@ class KimodoPolicy(nn.Module):
                     max(self.controlnet.body_injection_layers)
                 ]
                 predicted_clean_hand = self.hand_head(
-                    visual_tokens=body_visual_tokens,
+                    **self._hand_visual_inputs(body_visual_tokens),
                     body_future_tokens=body_hidden[:, history_length:],
                     noisy_future_hand=noisy_hand,
                     current_hand_state=current_hand,
@@ -1368,6 +1423,18 @@ class KimodoPolicy(nn.Module):
             if weights.removeprefix("ema") not in averages:
                 raise KeyError(f"{state_path} has no weights {weights!r}; it has model and {['ema' + d for d in averages]}")
             state_dict = averages[weights.removeprefix("ema")]
+        if self.config.visual_conditioning == "groot_n1d7":
+            expected = self.checkpoint_parameters()
+            state_dict = {n.removeprefix("_orig_mod."): v for n, v in state_dict.items()}
+            # A vision-finetuned checkpoint also carries visual-encoder tensors.
+            visual_prefix = "image_encoder.backbone.model.model.visual."
+            if any(n.startswith(visual_prefix) for n in state_dict):
+                expected.update({n: p for n, p in self.named_parameters() if n.startswith(visual_prefix)})
+            if strict and set(state_dict) != set(expected):
+                raise RuntimeError(f"N1.7 checkpoint mismatch: missing={set(expected)-set(state_dict)}, "
+                                   f"unexpected={set(state_dict)-set(expected)}")
+            self.load_state_dict(state_dict, strict=False)
+            return int(payload.get("global_step", -1))
         controlnet_state = {}
         hand_state = {}
         for name, value in state_dict.items():

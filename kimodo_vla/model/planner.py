@@ -187,6 +187,10 @@ class KimodoPlanner:
             hand_init_seed=int(model_cfg.get("hand_init_seed", 3407)),
             hand_control_mode=str(model_cfg.get("hand_control_mode", "binary")),
             num_cameras=len(cameras),
+            visual_conditioning=model_cfg.get("visual_conditioning", "dinov3_controlnet"),
+            groot_checkpoint=model_cfg.get("groot_checkpoint"),
+            groot_repo=model_cfg.get("groot_repo"),
+            groot_vlm_model=model_cfg.get("groot_vlm_model"),
         )
         model = KimodoPolicy(config)
         model.load_controlnet_checkpoint(str(checkpoint_dir), weights=weights)

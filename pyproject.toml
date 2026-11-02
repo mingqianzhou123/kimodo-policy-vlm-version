@@ -30,6 +30,7 @@ bigym2 = ["bigym @ git+https://github.com/swirl-uk/BiGym2.git@d71501359b215b9d78
 # and talks to scripts/serve_toolbench.py over HTTP; this group only reads its recordings.
 toolbench = ["av>=12", "pyarrow>=14"]
 dev = ["pytest>=8"]
+groot = ["matplotlib>=3.8", "diffusers==0.35.1", "albumentations==1.4.18", "socksio>=1.0", "av>=12", "pyarrow>=14"]
 
 [tool.setuptools.packages.find]
 include = ["kimodo_vla*"]

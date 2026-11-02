@@ -18,32 +18,34 @@ class HandTokenDiffusionDenoiser(nn.Module):
         input_dim: int = 1024,
         hidden_dim: int = 256,
         future_token_count: int = 50,
-        image_token_count: int = 196,
+        image_token_count: Optional[int] = 196,
         num_layers: int = 4,
         num_heads: int = 4,
         ffn_dim: int = 1024,
         dropout: float = 0.0,
         max_diffusion_steps: int = 1000,
+        visual_dim: Optional[int] = None,
     ) -> None:
         super().__init__()
         if hidden_dim % num_heads != 0:
             raise ValueError(
                 f"hidden_dim={hidden_dim} must be divisible by num_heads={num_heads}"
             )
-        if future_token_count <= 0 or image_token_count <= 0:
+        if future_token_count <= 0 or (image_token_count is not None and image_token_count <= 0):
             raise ValueError("future_token_count and image_token_count must be positive")
 
         self.input_dim = int(input_dim)
         self.hidden_dim = int(hidden_dim)
         self.future_token_count = int(future_token_count)
-        self.image_token_count = int(image_token_count)
-        self.sequence_token_count = 1 + image_token_count + future_token_count + (
+        self.image_token_count = int(image_token_count) if image_token_count is not None else None
+        self.visual_dim = input_dim if visual_dim is None else visual_dim
+        self.sequence_token_count = None if image_token_count is None else 1 + image_token_count + future_token_count + (
             future_token_count + 1
         )
 
         self.vision_projection = nn.Sequential(
-            nn.LayerNorm(input_dim),
-            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(self.visual_dim),
+            nn.Linear(self.visual_dim, hidden_dim),
         )
         self.body_projection = nn.Sequential(
             nn.LayerNorm(input_dim),
@@ -99,13 +101,14 @@ class HandTokenDiffusionDenoiser(nn.Module):
         current_hand_state: torch.Tensor,
         timesteps: torch.Tensor,
         future_mask: Optional[torch.Tensor] = None,
+        visual_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         batch_size = visual_tokens.shape[0]
         expected_shapes = {
             "visual_tokens": (
                 batch_size,
-                self.image_token_count,
-                self.input_dim,
+                self.image_token_count if self.image_token_count is not None else visual_tokens.shape[1],
+                self.visual_dim,
             ),
             "body_future_tokens": (
                 batch_size,
@@ -186,18 +189,18 @@ class HandTokenDiffusionDenoiser(nn.Module):
         sequence = torch.cat(
             (time_tokens, vision_tokens, body_tokens, hand_tokens), dim=1
         )
-        if sequence.shape[1] != self.sequence_token_count:
+        if self.sequence_token_count is not None and sequence.shape[1] != self.sequence_token_count:
             raise RuntimeError(
                 f"Expected {self.sequence_token_count} hand-head tokens, got "
                 f"{sequence.shape[1]}"
             )
 
-        prefix_mask = torch.ones(
-            batch_size,
-            1 + self.image_token_count,
-            dtype=torch.bool,
-            device=sequence.device,
-        )
+        if visual_mask is None:
+            visual_mask = torch.ones(visual_tokens.shape[:2], dtype=torch.bool, device=sequence.device)
+        elif visual_mask.shape != visual_tokens.shape[:2] or visual_mask.dtype != torch.bool:
+            raise ValueError("visual_mask must be boolean [B, number of VL tokens]")
+        prefix_mask = torch.cat((torch.ones(batch_size, 1, dtype=torch.bool, device=sequence.device),
+                                 visual_mask.to(sequence.device)), dim=1)
         hand_mask = torch.cat(
             (
                 torch.ones(batch_size, 1, dtype=torch.bool, device=sequence.device),
