@@ -1,0 +1,23 @@
+{
+  "football": {
+    "passed": true,
+    "limit": 2000,
+    "episodes": 60,
+    "reference_assets_match": true,
+    "paper_reference": 0.35
+  },
+  "doubledesk": {
+    "passed": true,
+    "limit": 2000,
+    "episodes": 60,
+    "reference_assets_match": true,
+    "paper_reference": 0.4
+  },
+  "pp_box": {
+    "passed": true,
+    "limit": 1450,
+    "episodes": 60,
+    "reference_assets_match": true,
+    "paper_reference": 0.8
+  }
+}
