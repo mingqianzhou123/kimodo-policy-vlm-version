@@ -178,7 +178,10 @@ def plot_curves(rows, config, output, latest, save_pdf):
     if stage_start.get("adapter_start") is not None:
         # The trainer logs injection LR. Derive the adapter LR using its exact
         # shared scheduler ratio; this is explicitly labelled as derived.
+        warmup = config["training"].get("scheduler", {}).get("adapter_warmup_steps", 0)
+        adapter_start = config["training"].get("stages", {}).get("adapter_start", 0)
         vl_lr = np.array([r.get("lr_adapter", np.nan) * opt["vl_adapter_lr"] / opt["control_adapter_lr"]
+                          * (min(1., max(0., r["step"] - adapter_start) / warmup) if warmup else 1.)
                           if r.get("stage") in {"adapter", "vision"} else 0. for r in rows])
         flat[4].plot(x[sample], vl_lr[sample], label="VL adapter LR (derived)", lw=1.5)
         flat[4].legend(fontsize=9)
