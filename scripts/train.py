@@ -207,7 +207,14 @@ def make_optimizer(model, config, device, step=0, previous=None):
     if previous is not None:
         for parameter, state in previous.state.items():
             optimizer.state[parameter] = state
-    scheduler = LambdaLR(optimizer, lr_schedule(config), last_epoch=step - 1)
+    base_schedule = lr_schedule(config)
+    adapter_warmup = int(config.training.scheduler.get("adapter_warmup_steps", 0))
+    adapter_start = int((config.training.get("stages") or {}).get("adapter_start", 0))
+    def schedule_for(group):
+        if adapter_warmup and group["name"].startswith("vl_adapter"):
+            return lambda update: base_schedule(update) * min(1.0, max(0, update - adapter_start) / adapter_warmup)
+        return base_schedule
+    scheduler = LambdaLR(optimizer, [schedule_for(group) for group in groups], last_epoch=step - 1)
     return groups, optimizer, scheduler
 
 
@@ -421,7 +428,7 @@ def main() -> None:
     metrics_file = open(run_dir / "metrics.jsonl", "a") if rank == 0 else None
     window_start, window_data = time.time(), 0.0
     consecutive_skips = 0
-    skipped_updates = 0
+    skipped_updates = int((state or {}).get("skipped_updates", 0))
 
     while step < stop_step:
         # A file request is acted on at a full optimizer-update boundary on all
@@ -479,8 +486,9 @@ def main() -> None:
         hand_norm = float(torch.nn.utils.clip_grad_norm_(hand_params, main_cfg.gradient.hand_grad_clip_norm)) if hand_params else 0.0
         if not math.isfinite(control_norm) or not math.isfinite(hand_norm):
             raise SystemExit(f"step {step + 1}: nonfinite gradients {control_norm}, {hand_norm}")
+        guard_cfg = main_cfg if step >= main_cfg.get("guard_start_step", 0) else {}
         skipped = guarded_optimizer_step(optimizer, scheduler, losses["loss"], control_norm,
-                                         hand_norm, main_cfg)
+                                         hand_norm, guard_cfg)
         consecutive_skips = consecutive_skips + 1 if skipped else 0
         skipped_updates += int(skipped)
         if skipped and rank == 0:
@@ -523,9 +531,16 @@ def main() -> None:
             ema = {"ema": averages.state()} if averages else {}
             save(checkpoint / "training_state.pt", {"global_step": step, "model": trainable, **ema})
             (checkpoint / "config.json").write_text((run_dir / "config.json").read_text())
+            if main_cfg.get("keep_previous_resume", False) and (run_dir / "resume.pt").exists():
+                previous = run_dir / "resume_previous.pt"
+                temporary = run_dir / "resume_previous.pt.tmp"
+                temporary.unlink(missing_ok=True)
+                os.link(run_dir / "resume.pt", temporary)
+                os.replace(temporary, previous)
             save(run_dir / "resume.pt", {"global_step": step, "model": trainable, **ema,
                                          "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict(),
-                                         "training_stage": stage, "rng_cpu": torch.get_rng_state(),
+                                         "training_stage": stage, "skipped_updates": skipped_updates,
+                                         "rng_cpu": torch.get_rng_state(),
                                          "rng_states": rng_states,
                                          "rng_cuda": [torch.cuda.get_rng_state(device)] if device.type == "cuda" and world == 1 else []})
             log.info("saved %s", checkpoint)

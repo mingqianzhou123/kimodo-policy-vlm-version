@@ -84,9 +84,13 @@ def initialize_arena_worker(worker_id, *, seed, start_step, world, workers, rank
 
 def original_arena_batches(dataset, config, start_step, rank, world):
     workers = int(config.main.num_workers)
+    # Iterator creation must not consume the restored training CPU RNG.
+    generator = None
+    if config.main.get("isolated_loader_rng", False):
+        generator = torch.Generator().manual_seed(int(config.main.seed) + rank)
     return DataLoader(dataset, batch_sampler=ArenaOrdinalBatchSampler(start_step, config.main.max_steps,
         config.main.batch_size, config.main.micro_batch_size, rank, world), num_workers=workers,
-        pin_memory=True, persistent_workers=workers > 0, prefetch_factor=1 if workers else None,
+        pin_memory=True, generator=generator, persistent_workers=workers > 0, prefetch_factor=1 if workers else None,
         multiprocessing_context="spawn" if workers else None,
         worker_init_fn=partial(initialize_arena_worker, seed=int(config.main.seed), start_step=start_step,
                               world=world, workers=workers, rank=rank))

@@ -7,7 +7,7 @@ import torch
 from omegaconf import OmegaConf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from train import guarded_optimizer_step
+from train import guarded_optimizer_step, make_optimizer
 
 
 def test_guard_skips_large_update_and_keeps_scheduler_in_step():
@@ -30,3 +30,23 @@ def test_guard_skips_large_update_and_keeps_scheduler_in_step():
     weight.grad = torch.tensor(0.1)
     assert not guarded_optimizer_step(optimizer, scheduler, 0.04, 0.1, 0.1, config)
     assert weight.item() < baseline.item()
+
+
+def test_new_vlm_group_warms_up_after_unfreezing():
+    model = torch.nn.Module()
+    model.controlnet = torch.nn.Linear(2, 2)
+    model.image_encoder = torch.nn.Module()
+    model.image_encoder.adapter = torch.nn.Linear(2, 2)
+    config = OmegaConf.create({'main': {'max_steps': 500000}, 'training': {
+        'stages': {'adapter_start': 10000},
+        'scheduler': {'warmup_steps': 10000, 'adapter_warmup_steps': 5000, 'min_lr_ratio': .1},
+        'optimizer': {'control_backbone_lr': 3e-5, 'control_adapter_lr': 2e-5,
+                      'hand_lr': 2e-5, 'vl_adapter_lr': 5e-6,
+                      'betas': [.9, .999], 'eps': 1e-8, 'weight_decay': .01}}})
+    groups, optimizer, scheduler = make_optimizer(model, config, torch.device('cpu'), step=10000)
+    assert all(g['lr'] == 0 for g in groups if g['name'].startswith('vl_adapter'))
+    assert all(g['lr'] > 0 for g in groups if g['name'].startswith('adapter'))
+    for _ in range(2500):
+        optimizer.step()
+        scheduler.step()
+    assert all(2.49e-6 < g['lr'] <= 2.5e-6 for g in groups if g['name'].startswith('vl_adapter'))

@@ -1,0 +1,28 @@
+_base_: arena_sonicx7_groot.yaml
+
+# Fresh policy training; never initialize/resume from the failed experiment.
+main:
+  isolated_loader_rng: true
+  keep_previous_resume: true
+  num_workers: 12
+  preflight_report: outputs/sonicx7_stable_preflight/groot_preflight.json
+  guard_start_step: 10000
+  max_update_loss: 1.0
+  max_update_grad_norm: 10.0
+  max_consecutive_skips: 10
+  gradient:
+    grad_clip_norm: 0.5
+    hand_grad_clip_norm: 0.5
+
+model:
+  # Eager execution removes compiled random-state/cache ambiguity for this run.
+  compile: false
+
+training:
+  optimizer:
+    control_adapter_lr: 2.0e-5
+    hand_lr: 2.0e-5
+    vl_adapter_lr: 5.0e-6
+  scheduler:
+    warmup_steps: 10000
+    adapter_warmup_steps: 5000
