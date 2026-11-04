@@ -40,6 +40,7 @@ def main():
     validation.mkdir(parents=True, exist_ok=False)
     status_path = REPO / 'outputs' / f'groot_{args.name}_status.json'
     status = dict(phase='validation', pid=os.getpid(), run_dir=str(run), gpus=gpus,
+                  pipeline_script=Path(__file__).name,
                   source_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip(),
                   scratch_no_419h=True, max_steps=500000, fingerprint=fingerprint(config),
                   started_at=datetime.now(timezone.utc).isoformat(), validation_dir=str(validation))

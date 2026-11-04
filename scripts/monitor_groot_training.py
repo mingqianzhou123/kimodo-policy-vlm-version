@@ -256,7 +256,8 @@ def refresh(args):
             return 'training'
         raise RuntimeError("No complete metrics records available")
     phase = status.get("phase", "unknown")
-    pipeline_alive = process_alive(status.get("pid"), status.get('pipeline_script', 'run_groot_experiment.py'))
+    fallback = 'run_arena_stable.py' if 'resume_validation' in status else 'run_groot_experiment.py'
+    pipeline_alive = process_alive(status.get("pid"), status.get('pipeline_script', fallback))
     age = time.time() - metrics.stat().st_mtime
     alerts = health_alerts(rows, phase, pipeline_alive, age, malformed)
     xiancun = read_json(Path.home() / ".cache/xiancun/status.json")
