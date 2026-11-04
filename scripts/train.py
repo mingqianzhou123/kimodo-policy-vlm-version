@@ -211,6 +211,19 @@ def make_optimizer(model, config, device, step=0, previous=None):
     return groups, optimizer, scheduler
 
 
+def guarded_optimizer_step(optimizer, scheduler, loss, control_norm, hand_norm, main_cfg):
+    max_loss = main_cfg.get("max_update_loss")
+    max_grad = main_cfg.get("max_update_grad_norm")
+    skip = ((max_loss is not None and loss > max_loss) or
+            (max_grad is not None and max(control_norm, hand_norm) > max_grad))
+    if skip:
+        optimizer.zero_grad(set_to_none=True)
+    else:
+        optimizer.step()
+    scheduler.step()
+    return skip
+
+
 def build_dataset(config, text):
     if config.main.get("dataset_kind") == "original_arena":
         from kimodo_vla.benchmarks.arena.training import build_arena_dataset
@@ -407,6 +420,8 @@ def main() -> None:
     data = batches(dataset, config, step, rank, world)
     metrics_file = open(run_dir / "metrics.jsonl", "a") if rank == 0 else None
     window_start, window_data = time.time(), 0.0
+    consecutive_skips = 0
+    skipped_updates = 0
 
     while step < stop_step:
         # A file request is acted on at a full optimizer-update boundary on all
@@ -464,8 +479,15 @@ def main() -> None:
         hand_norm = float(torch.nn.utils.clip_grad_norm_(hand_params, main_cfg.gradient.hand_grad_clip_norm)) if hand_params else 0.0
         if not math.isfinite(control_norm) or not math.isfinite(hand_norm):
             raise SystemExit(f"step {step + 1}: nonfinite gradients {control_norm}, {hand_norm}")
-        optimizer.step()
-        scheduler.step()
+        skipped = guarded_optimizer_step(optimizer, scheduler, losses["loss"], control_norm,
+                                         hand_norm, main_cfg)
+        consecutive_skips = consecutive_skips + 1 if skipped else 0
+        skipped_updates += int(skipped)
+        if skipped and rank == 0:
+            log.warning("step %d: skipped abnormal update (loss %.4g, gradients %.4g / %.4g)",
+                        step + 1, losses["loss"], control_norm, hand_norm)
+        if consecutive_skips >= main_cfg.get("max_consecutive_skips", 10):
+            raise SystemExit(f"step {step + 1}: {consecutive_skips} consecutive abnormal updates")
         step += 1
         if averages:
             averages.update(step)
@@ -477,6 +499,8 @@ def main() -> None:
                       "lr_backbone": lrs.get("backbone", 0.0), "lr_adapter": lrs["adapter"], "stage": stage, "s_per_step": seconds,
                       "data_s_per_step": window_data / main_cfg.log_every,
                       "gpu_peak_memory_gb": torch.cuda.max_memory_allocated(device) / 1e9 if device.type == "cuda" else 0}
+            if main_cfg.get("max_update_loss") is not None or main_cfg.get("max_update_grad_norm") is not None:
+                record.update(skipped_update=skipped, skipped_updates=skipped_updates)
             metrics_file.write(json.dumps(record) + "\n")
             metrics_file.flush()
             eta = seconds * (main_cfg.max_steps - step) / 3600
