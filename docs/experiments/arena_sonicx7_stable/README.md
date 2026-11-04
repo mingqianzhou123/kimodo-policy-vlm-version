@@ -50,6 +50,15 @@ consume restored training CPU RNG. Each save retains the preceding full
 `resume_previous.pt` in addition to current `resume.pt`; this gives an
 optimizer rollback point rather than only a model-only checkpoint.
 
+The first smoke attempt found differences in HandNet already BEFORE the
+interruption (continuous vs split step24 loss ~0.777001 vs0.777043), although
+control metrics matched and final CPU/CUDA RNG states matched. Max final
+HandNet parameter difference was ~2.75e-4. This is not evidence of broken
+resume loading. Deterministic algorithms and CUBLAS workspace configuration
+are therefore enabled for the subsequent smoke and production run. The first
+failed validation remains in `outputs/scratch_stable_20261105_lr2e5_vl5e6`;
+the production attempt is labeled with `_det` suffix.
+
 ## Validation and operation
 
 Real seven-task forward/backward, frozen-backbone/gradient-detachment,

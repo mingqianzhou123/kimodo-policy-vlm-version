@@ -16,6 +16,10 @@ def fingerprint(config):
     spec["data"].update({k: resolved["main"][k] for k in (
         "arena_dataset_selection", "expected_tasks", "original_ordinal_stream", "sample_stride", "video_cache_size")
         if k in resolved["main"]})
+    if "deterministic" in resolved["main"]:
+        spec["runtime"] = {k: resolved["main"].get(k) for k in (
+            "deterministic", "isolated_loader_rng", "keep_previous_resume", "guard_start_step",
+            "max_update_loss", "max_update_grad_norm", "max_consecutive_skips", "gradient")}
     return hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()
 
 

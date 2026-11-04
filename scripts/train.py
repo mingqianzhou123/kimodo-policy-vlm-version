@@ -322,6 +322,7 @@ def training_forward(model, config, device, world):
 
 
 def main() -> None:
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--task")
     parser.add_argument("--cameras", nargs="+", help="default: model.cameras of the config (all three)")
@@ -352,6 +353,9 @@ def main() -> None:
         handlers=[logging.StreamHandler()] + ([logging.FileHandler(run_dir / "train.log")] if rank == 0 else []),
     )
     main_cfg = config.main
+    if main_cfg.get("deterministic", False):
+        torch.use_deterministic_algorithms(True)
+        torch.backends.cudnn.benchmark = False
     if config.model.get("visual_conditioning") == "groot_n1d7":
         from groot_experiment import check_preflight
         check_preflight(config)

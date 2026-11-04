@@ -2,6 +2,7 @@ _base_: arena_sonicx7_groot.yaml
 
 # Fresh policy training; never initialize/resume from the failed experiment.
 main:
+  deterministic: true
   isolated_loader_rng: true
   keep_previous_resume: true
   num_workers: 12

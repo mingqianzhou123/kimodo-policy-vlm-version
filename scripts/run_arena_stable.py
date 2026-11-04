@@ -5,9 +5,11 @@ Run under setsid; this supervisor records failure and never silently restarts.
 import argparse
 from datetime import datetime, timezone
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
+import statistics
 import sys
 import time
 import traceback
@@ -43,7 +45,8 @@ def main():
                   started_at=datetime.now(timezone.utc).isoformat(), validation_dir=str(validation))
     env = {**os.environ, 'CUDA_VISIBLE_DEVICES': args.gpus, 'OMP_NUM_THREADS': '2',
            'TOKENIZERS_PARALLELISM': 'false', 'HF_HUB_OFFLINE': '1', 'HF_HUB_DISABLE_PROGRESS_BARS': '1',
-           'NO_ALBUMENTATIONS_UPDATE': '1', 'PYTHONPATH': str(REPO)}
+           'NO_ALBUMENTATIONS_UPDATE': '1', 'PYTHONPATH': str(REPO),
+           'CUBLAS_WORKSPACE_CONFIG': ':4096:8'}
     def receipt():
         status['updated_at'] = datetime.now(timezone.utc).isoformat()
         atomic_json(status_path, status)
@@ -114,7 +117,9 @@ def main():
         # The existing evaluator supports the three paper Table 2 HOI tasks.
         # Train jointly on seven tasks; report these matched endpoints separately.
         baseline = Path('/root/workspace/kimodo-policy/log/HumanoidArena_Multi_Task/humanoidarena_sonicx7_gbs128_50w_controlnet4_detach_true_mse/2026-10-18_21-07-12/checkpoint_500000')
+        results = {}
         for label, checkpoint in [('groot', run/'checkpoint_500000'), ('original', baseline)]:
+            results[label] = {}
             for task in ['football', 'doubledesk', 'pp_box']:
                 status.update(evaluation_model=label, evaluation_task=task)
                 receipt()
@@ -123,6 +128,24 @@ def main():
                     '--out', str(run/f'{label}_{task}_formal'), '--reference-manifest',
                     str(REPO/f'outputs/sonicx7_preflight/sim_{task}/evaluation_manifest.json')],
                     cwd=REPO, check=True)
+                measured = json.loads((run/f'{label}_{task}_formal/summary.json').read_text())
+                model_result, = measured['per_model'].values()
+                seed_rates = list(model_result['per_seed_success_rate'].values())
+                n, k = measured['total_episodes'], measured['total_successes']
+                rate, z = k/n, 1.96
+                center = (rate + z*z/(2*n))/(1+z*z/n)
+                radius = z*math.sqrt(rate*(1-rate)/n+z*z/(4*n*n))/(1+z*z/n)
+                results[label][task] = dict(successes=k, episodes=n, success_rate=rate,
+                    per_seed=model_result['per_seed_success_rate'],
+                    seed_mean=statistics.mean(seed_rates), seed_sample_sd=statistics.stdev(seed_rates),
+                    wilson_95=[center-radius, center+radius])
+                atomic_json(run/'experiment_summary.json', dict(results=results, evaluation_complete=False))
+        from eval_arena_doubledesk import TASKS
+        atomic_json(run/'experiment_summary.json', dict(results=results, evaluation_complete=True,
+            delta_vs_matched_original={t: results['groot'][t]['success_rate']-results['original'][t]['success_rate'] for t in TASKS},
+            delta_vs_paper_scratch={t: results['groot'][t]['success_rate']-TASKS[t]['paper_sr'] for t in TASKS},
+            training_seeds=[int(config.main.seed)], evaluation_seeds=[0,1,2],
+            caveat='Evaluation-seed SD is not training-seed SD; optimization differs from the original baseline.'))
         status['phase'] = 'complete'
     except BaseException as exc:
         status.update(phase='failed', error=str(exc), traceback=traceback.format_exc())
