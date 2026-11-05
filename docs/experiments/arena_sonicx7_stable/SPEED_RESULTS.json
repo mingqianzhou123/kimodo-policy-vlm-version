@@ -1,0 +1,71 @@
+{
+  "passed": true,
+  "parent_run": "/root/workspace/kimodo-policy-vlm-version/log/arena_sonicx7_groot/scratch_stable_20261105_fast8",
+  "root_run": "/root/workspace/kimodo-policy-vlm-version/log/arena_sonicx7_groot/scratch_stable_20261105_lr2e5_vl5e6_det",
+  "step": 19260,
+  "migration_started_at_step": 19015,
+  "world_sizes": [
+    4,
+    8,
+    4
+  ],
+  "physical_gpus": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "optimizer_and_scheduler_preserved": true,
+  "input_checkpoint_hardlinks_verified": true,
+  "optimizer_steps_by_group": {
+    "adapter": [
+      19255
+    ],
+    "adapter_no_decay": [
+      19255
+    ],
+    "hand": [
+      19255
+    ],
+    "hand_no_decay": [
+      19255
+    ],
+    "vl_adapter": [
+      9255
+    ],
+    "vl_adapter_no_decay": [
+      9255
+    ]
+  },
+  "finite_model_and_optimizer": true,
+  "rng_ranks": 4,
+  "benchmarks": {
+    "old_shared4": {
+      "median_seconds": 1.7251343607902525,
+      "mean_seconds": 1.7281769354343415,
+      "logged_intervals": 100,
+      "loss_median": 0.06670212000608444
+    },
+    "shared8": {
+      "median_seconds": 1.2382006168365478,
+      "mean_seconds": 1.2748023176193237,
+      "logged_intervals": 10,
+      "loss_median": 0.0674663744866848
+    },
+    "exclusive4": {
+      "median_seconds": 1.1442055225372314,
+      "mean_seconds": 1.1457159174813165,
+      "logged_intervals": 9,
+      "loss_median": 0.07084717601537704
+    }
+  },
+  "fingerprint": "8f6d7d9159184c782cdc578b3505cfbf961ce3b2c00e39c1b1daa024f8955720",
+  "user_priority": "Seven-task exclusive0-3; leave ToolBench on4-7.",
+  "compile": false,
+  "deterministic": true,
+  "global_batch": 128,
+  "max_steps": 500000,
+  "short_probe_only_not_long_term_stability_proof": true,
+  "selected_run": "/root/workspace/kimodo-policy-vlm-version/log/arena_sonicx7_groot/scratch_stable_20261105_exclusive4",
+  "measurement_note": "Short warmup-excluded probes, different sample windows; resource sharing was a confounder. No isolated deterministic-mode cost measurement."
+}
