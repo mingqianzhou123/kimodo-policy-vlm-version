@@ -7,7 +7,8 @@ import torch
 from omegaconf import OmegaConf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from train import guarded_optimizer_step, make_optimizer
+from train import guarded_optimizer_step, make_optimizer, restore_training_rng
+import pytest
 
 
 def test_guard_skips_large_update_and_keeps_scheduler_in_step():
@@ -50,3 +51,17 @@ def test_new_vlm_group_warms_up_after_unfreezing():
         optimizer.step()
         scheduler.step()
     assert all(2.49e-6 < g['lr'] <= 2.5e-6 for g in groups if g['name'].startswith('vl_adapter'))
+
+
+def test_world_size_migration_is_explicit_and_restartable():
+    cfg = OmegaConf.create({'main': {'seed': 42, 'original_ordinal_stream': True}})
+    state = {'rng_states': [{'cpu': torch.get_rng_state()} for _ in range(4)]}
+    with pytest.raises(RuntimeError, match='explicit migration'):
+        restore_training_rng(state, cfg, torch.device('cpu'), 8, 6, 20000)
+    cfg.main.allow_world_size_change = True
+    restore_training_rng(state, cfg, torch.device('cpu'), 8, 6, 20000)
+    migrated = torch.get_rng_state().clone()
+    expected = torch.rand(5)
+    resumed = {'rng_states': [{'cpu': migrated} for _ in range(8)]}
+    restore_training_rng(resumed, cfg, torch.device('cpu'), 8, 6, 20001)
+    assert torch.equal(torch.rand(5), expected)

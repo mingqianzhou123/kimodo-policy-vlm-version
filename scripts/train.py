@@ -317,8 +317,38 @@ def save(path: Path, payload: dict) -> None:
 def training_forward(model, config, device, world):
     forward = model
     if config.model.get("compile", False):
-        forward = torch.compile(model, mode=config.model.get("compile_mode", "reduce-overhead"), dynamic=False)
+        if config.model.get("compile_scope") == "denoiser":
+            # Compile tensor-heavy motion prediction, not tokenization/VL grouping/RNG.
+            if not hasattr(model.denoiser, "_orig_mod"):
+                model.denoiser = torch.compile(model.denoiser,
+                    mode=config.model.get("compile_mode", "default"),
+                    dynamic=config.model.get("compile_dynamic"))
+        else:
+            forward = torch.compile(model, mode=config.model.get("compile_mode", "reduce-overhead"), dynamic=False)
     return DistributedDataParallel(forward, device_ids=[device.index], gradient_as_bucket_view=True) if world > 1 else forward
+
+
+def restore_training_rng(state, config, device, world, rank, step):
+    seed = int(config.main.seed)
+    torch.manual_seed(seed + (rank if config.main.get("original_ordinal_stream") else 7919 * rank))
+    saved = (state or {}).get("rng_states", [])
+    if state and saved and len(saved) != world:
+        if not config.main.get("allow_world_size_change", False):
+            raise RuntimeError(f"Checkpoint has {len(saved)} RNG ranks, requested {world}; explicit migration required")
+        migration_seed = seed + 1_000_003 * step + rank
+        torch.manual_seed(migration_seed)
+        log.warning("RNG topology migration %d -> %d ranks at update %d; rank %d seed %d",
+                    len(saved), world, step, rank, migration_seed)
+    elif state and len(saved) == world:
+        rng = saved[rank]
+        torch.set_rng_state(rng["cpu"])
+        if device.type == "cuda":
+            torch.cuda.set_rng_state(rng["cuda"], device)
+    elif state and world == 1:
+        if "rng_cpu" in state:
+            torch.set_rng_state(state["rng_cpu"])
+        if device.type == "cuda" and state.get("rng_cuda"):
+            torch.cuda.set_rng_state_all(state["rng_cuda"])
 
 
 def main() -> None:
@@ -405,16 +435,7 @@ def main() -> None:
     decays = list(config.training.get("ema_decays") or [])
     averages = WeightAverages(model, decays, (state or {}).get("ema")) if decays and rank == 0 else None
     forward = training_forward(model, config, device, world)
-    torch.manual_seed(main_cfg.seed + (rank if main_cfg.get("original_ordinal_stream") else 7919 * rank))
-    if state and len(state.get("rng_states", [])) == world:
-        rng = state["rng_states"][rank]
-        torch.set_rng_state(rng["cpu"])
-        torch.cuda.set_rng_state(rng["cuda"], device)
-    elif state and world == 1:
-        if "rng_cpu" in state:
-            torch.set_rng_state(state["rng_cpu"])
-        if device.type == "cuda" and state.get("rng_cuda"):
-            torch.cuda.set_rng_state_all(state["rng_cuda"])
+    restore_training_rng(state, config, device, world, rank, step)
 
     hand_params = [p for g in groups if g["name"].startswith("hand") for p in g["params"]]
     control_params = [p for g in groups if not g["name"].startswith("hand") for p in g["params"]]

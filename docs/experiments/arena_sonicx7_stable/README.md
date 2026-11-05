@@ -1,5 +1,10 @@
 # Seven-task VLM scratch restart: stability experiment
 
+**Current execution:** see [GPU allocation and speed migration](SPEED_MIGRATION.md).
+The selected continuation uses GPUs0-3 exclusively, starting at19260;
+HumanoidToolBench continues on4-7. Active status is pointed to by
+`outputs/arena_sonicx7_current.json`. The original run described below is historical.
+
 Run name: `scratch_stable_20261105_lr2e5_vl5e6` (an experiment label;
 machine UTC and local log timestamps use different zones).
 
