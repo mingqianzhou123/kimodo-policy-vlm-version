@@ -12,6 +12,7 @@ from pathlib import Path
 import statistics
 import subprocess
 import sys
+import time
 import traceback
 
 from eval_arena_doubledesk import TASKS
@@ -26,6 +27,8 @@ def main():
     parser.add_argument('--gpu', type=int, default=3)
     parser.add_argument('--restore', action='store_true')
     parser.add_argument('--detach', action='store_true')
+    parser.add_argument('--wait-for-restore-pid', type=int,
+                        help='Adopt an existing additive restore without restarting its downloads')
     args = parser.parse_args()
     run = args.run.resolve()
     final = run / 'checkpoint_500000'
@@ -36,6 +39,8 @@ def main():
         command = [sys.executable, '-u', str(Path(__file__).resolve()), '--run', str(run), '--gpu', str(args.gpu)]
         if args.restore:
             command += ['--restore']
+        if args.wait_for_restore_pid:
+            command += ['--wait-for-restore-pid', str(args.wait_for_restore_pid)]
         log = run / 'evaluation_recovery.log'
         with log.open('a') as output:
             child = subprocess.Popen(command, cwd=REPO, stdin=subprocess.DEVNULL, stdout=output,
@@ -47,7 +52,9 @@ def main():
     atomic_json(run / f'evaluation_status_before_recovery_{stamp}.json', previous)
     status = {**previous, 'pid': os.getpid(), 'pipeline_script': Path(__file__).name,
               'phase': 'restoring_evaluation', 'training_complete': True, 'run_dir': str(run),
-              'evaluation_gpu': args.gpu, 'error': None, 'traceback': None}
+              'evaluation_gpu': args.gpu, 'error': None, 'traceback': None,
+              'evaluation_models': ['groot'], 'baseline_evaluation_enabled': False,
+              'comparison_reference': 'paper_table_2_scratch'}
     def record():
         status['updated_at'] = datetime.now(timezone.utc).isoformat()
         atomic_json(status_path, status)
@@ -71,6 +78,21 @@ def main():
             components.append('assets')
         status['restoring_components'] = components
         record()
+        if args.wait_for_restore_pid:
+            status['existing_restore_pid'] = args.wait_for_restore_pid
+            record()
+            proc = Path(f'/proc/{args.wait_for_restore_pid}')
+            while proc.exists():
+                try:
+                    if proc.joinpath('stat').read_text().rsplit(')', 1)[1].split()[0] == 'Z':
+                        break
+                except FileNotFoundError:
+                    break
+                time.sleep(10)
+            components = []
+            if not sim.is_file() or not all((arena / 'isaaclab_twist2_g1/assets' / name).is_dir()
+                                          for name in ['objects', 'robots']):
+                raise RuntimeError('Existing restore exited without completing simulator/assets; inspect its log')
         if components:
             if not args.restore:
                 raise RuntimeError(f'Missing evaluation dependencies: {components}; use --restore')
@@ -92,11 +114,8 @@ def main():
                         '--checkpoint', str(final), '--task', 'football', '--out', str(smoke),
                         '--gpu', str(args.gpu), '--port', '19873', '--smoke',
                         '--reference-manifest', str(reference)], cwd=REPO, env=env, check=True)
-        baseline = Path('/root/workspace/kimodo-policy/log/HumanoidArena_Multi_Task/'
-                        'humanoidarena_sonicx7_gbs128_50w_controlnet4_detach_true_mse/'
-                        '2026-10-18_21-07-12/checkpoint_500000')
         results = {}
-        for label, checkpoint in [('groot', final), ('original', baseline)]:
+        for label, checkpoint in [('groot', final)]:
             results[label] = {}
             for task in TASKS:
                 status.update(phase='evaluation', evaluation_model=label, evaluation_task=task)
@@ -125,7 +144,7 @@ def main():
                     'seed_sample_sd': statistics.stdev(model['per_seed_success_rate'].values())}
                 atomic_json(run / 'experiment_summary.json', {'results': results, 'evaluation_complete': False})
         atomic_json(run / 'experiment_summary.json', {'results': results, 'evaluation_complete': True,
-            'delta_vs_matched_original': {t: results['groot'][t]['success_rate'] - results['original'][t]['success_rate'] for t in TASKS},
+            'baseline_evaluation_enabled': False,
             'delta_vs_paper_scratch': {t: results['groot'][t]['success_rate'] - TASKS[t]['paper_sr'] for t in TASKS},
             'training_config': str(run / 'config.json'), 'training_seeds': [42]})
         status['phase'] = 'complete'

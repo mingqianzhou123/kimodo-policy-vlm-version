@@ -1,0 +1,24 @@
+{
+  "updated_at_utc": "2026-11-09T13:54:11.438884+00:00",
+  "user_instruction": "Do not evaluate original scratch baseline again.",
+  "evaluation_models": [
+    "groot"
+  ],
+  "baseline_evaluation_enabled": false,
+  "tasks": [
+    "football",
+    "doubledesk",
+    "pp_box"
+  ],
+  "episodes_per_task": 60,
+  "comparison_reference": {
+    "paper_table": 2,
+    "scratch_sr": {
+      "football": 0.35,
+      "doubledesk": 0.4,
+      "pp_box": 0.8
+    }
+  },
+  "preserved_restore_pid": 770242,
+  "replacement_evaluation_supervisor_pid": 776391
+}
