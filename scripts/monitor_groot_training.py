@@ -24,6 +24,12 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
 TERMINAL = {"complete", "failed", "keepalive_recovery_failed", "stopped_with_checkpoint"}
+PHASE_LABELS = {"training": "训练中", "restoring_evaluation": "恢复仿真环境与场景资源",
+                "evaluation_smoke": "仿真与策略推理冒烟检查", "evaluation": "正式闭环评估中",
+                "complete": "训练与评估完成", "failed": "流程失败，需要检查",
+                "keepalive_recovery_failed": "保活恢复失败", "stopped_with_checkpoint": "已保存并停止"}
+EVAL_TASKS = [("football", "HOI Football", .35), ("doubledesk", "DoubleDesk", .40),
+              ("pp_box", "P&P Box", .80)]
 
 
 def atomic_text(path, value):
@@ -38,6 +44,100 @@ def read_json(path, default=None):
         return json.loads(Path(path).read_text())
     except (OSError, ValueError):
         return {} if default is None else default
+
+
+def recovery_progress(status, workspace=Path('/root/workspace')):
+    """Track archive bytes separately from verified extraction; never double count parts."""
+    manifest = read_json(workspace / 'kimodo-lct/manifest.json').get('components', {})
+    archives = workspace / 'workspace-archives'
+    receipt = read_json(archives / 'additive_restore_receipt.json').get('components', {})
+    components = []
+    for key in status.get('restoring_components', []):
+        entry = manifest.get(key, {})
+        total = entry.get('size', 0)
+        if not total:
+            continue
+        archive = archives / entry['filename']
+        assembled = archive.is_file() and archive.stat().st_size == total
+        restored = receipt.get(key, {}).get('archive_sha256') == entry.get('sha256')
+        downloaded = total if assembled or restored else sum(
+            min(p.stat().st_size, part['size']) if p.is_file() else 0
+            for part in entry.get('parts', [])
+            for p in [archives / '.download-parts' / key / part['name']])
+        state = '恢复完成（已校验）' if restored else '下载完成，等待校验／解压恢复' if assembled else '下载中' if downloaded else '等待下载'
+        components.append({'component': key, 'label': {'sim': '原始仿真 Python 环境', 'assets': '场景与机器人资源'}.get(key, key),
+                           'downloaded_bytes': downloaded, 'total_bytes': total,
+                           'percent': downloaded / total * 100, 'restored': restored, 'state': state})
+    return {'components': components, 'downloaded_bytes': sum(c['downloaded_bytes'] for c in components),
+            'total_bytes': sum(c['total_bytes'] for c in components),
+            'restore_alive': process_alive(status.get('existing_restore_pid'), 'restore_backup_additive.py')}
+
+
+def evaluation_progress(run, status):
+    """Only count the three formal directories, excluding smoke and abandoned attempts."""
+    tasks = []
+    for key, label, reference in EVAL_TASKS:
+        out = run / f'groot_{key}_formal'
+        episodes = [row for p in sorted((out / 'episodes').glob('*.json'))
+                    for row in [read_json(p)] if isinstance(row.get('success'), bool)]
+        n, k = len(episodes), sum(row['success'] for row in episodes)
+        validation, measured = read_json(out / 'validation.json'), read_json(out / 'summary.json')
+        valid = (validation.get('valid_inference') is True and validation.get('smoke_only') is False
+                 and validation.get('episodes') == n == 60
+                 and measured.get('total_episodes') == n and measured.get('total_successes') == k)
+        active = status.get('phase') == 'evaluation' and status.get('evaluation_task') == key
+        state = ('已完成并通过推理校验' if valid else '评估中（临时统计）' if active
+                 else '结果待校验' if n else '等待环境恢复' if status.get('phase') == 'restoring_evaluation' else '等待评估')
+        if status.get('phase') in {'failed', 'keepalive_recovery_failed'} and status.get('evaluation_task') == key:
+            state = '流程失败，结果未确认'
+        per_seed = {str(seed): {'episodes': sum(r.get('seed') == seed for r in episodes),
+                               'successes': sum(r['success'] for r in episodes if r.get('seed') == seed)}
+                    for seed in (0, 1, 2)}
+        latest = max(episodes, key=lambda row: row.get('finished_at', 0), default={})
+        tasks.append({'task': key, 'label': label, 'state': state, 'episodes': n, 'target_episodes': 60,
+                      'successes': k, 'success_rate': k / n if n else None, 'validated': valid,
+                      'paper_success_rate': reference, 'delta_vs_paper': k / n - reference if valid else None,
+                      'per_seed': per_seed, 'last_failure_reason': latest.get('failure_reason'),
+                      'last_finished_at': latest.get('finished_at'),
+                      'manifest_available': (out / 'evaluation_manifest.json').is_file(),
+                      'summary_available': (out / 'summary.json').is_file()})
+    return {'tasks': tasks, 'episodes': sum(t['episodes'] for t in tasks), 'target_episodes': 180,
+            'validated_tasks': sum(t['validated'] for t in tasks),
+            'gpu': status.get('evaluation_gpu'), 'baseline_evaluation_enabled': status.get('baseline_evaluation_enabled'),
+            'error': status.get('error')}
+
+
+def evaluation_html(summary):
+    esc = html.escape
+    evaluation, recovery = summary['evaluation_progress'], summary['recovery_progress']
+    parts = []
+    for c in recovery['components']:
+        parts.append(f"<tr><td>{esc(c['label'])}</td><td>{esc(c['state'])}</td>"
+                     f"<td>{c['downloaded_bytes']/1e9:.2f} / {c['total_bytes']/1e9:.2f} GB</td>"
+                     f"<td><progress max='100' value='{c['percent']}'></progress> {c['percent']:.1f}%</td></tr>")
+    restore_html = ("<section><h2>评估环境恢复</h2><p>下载进度按压缩包字节统计；下载后仍需校验、解压和仿真检查。</p>"
+                    "<div class='scroll'><table><tr><th>组件</th><th>状态</th><th>下载量</th><th>下载进度</th></tr>"
+                    + ''.join(parts) + "</table></div><p>SONIC 文件及环境恢复日志：<a href='../evaluation_recovery.log'>evaluation_recovery.log</a></p></section>") if parts else ''
+    task_rows = []
+    for t in evaluation['tasks']:
+        rate = '—' if t['success_rate'] is None else f"{t['success_rate']:.1%}" + ('（临时）' if not t['validated'] else '')
+        delta = '—' if t['delta_vs_paper'] is None else f"{100*t['delta_vs_paper']:+.1f} 个百分点"
+        seeds = ' · '.join(f"s{s}: {v['successes']}/{v['episodes']}" for s, v in t['per_seed'].items())
+        links = [f"<a href='../groot_{t['task']}_formal/{name}.json'>{label}</a>" for name, label, available in
+                 [('evaluation_manifest', '配置', t['manifest_available']), ('summary', '结果', t['summary_available']),
+                  ('validation', '校验', t['validated'])] if available]
+        task_rows.append(f"<tr><td>{esc(t['label'])}</td><td>{esc(t['state'])}</td>"
+                         f"<td>{t['episodes']} / 60</td><td>{t['successes'] if t['episodes'] else '—'}</td>"
+                         f"<td>{rate}</td><td>{t['paper_success_rate']:.0%}</td><td>{delta}</td>"
+                         f"<td>{seeds}</td><td>{' · '.join(links) or '—'}</td></tr>")
+    error = f"<pre>{esc(str(evaluation['error']))}</pre>" if evaluation.get('error') else ''
+    return restore_html + f"""<section><h2>三项任务正式评估</h2>
+<p>改进模型 · checkpoint_{summary['latest_checkpoint']} · GPU {evaluation['gpu']} · 每项 3 个种子 × 20 回合。
+已记录 {evaluation['episodes']} / 180 回合，完成校验 {evaluation['validated_tasks']} / 3 项。</p>
+<div class='scroll'><table><tr><th>任务</th><th>状态</th><th>已完成回合</th><th>成功回合</th><th>成功率</th>
+<th>论文 Table 2 scratch</th><th>与论文差值</th><th>各种子成功/完成</th><th>记录</th></tr>{''.join(task_rows)}</table></div>
+<p>临时统计会随回合结束更新；冒烟测试不计入正式评估。最终结果须通过完整 60 回合及真实策略推理校验。
+论文值为参考值，未重新运行原 scratch 基线。</p>{error}</section>"""
 
 
 def process_alive(pid, expected=None):
@@ -210,7 +310,9 @@ def dashboard(summary, rows, output, interval):
     alerts = summary["alerts"]
     alert_html = "".join(f"<li>{esc(v)}</li>" for v in alerts.values()) or "<li>未触发告警</li>"
     cards = {"训练进度": f"{summary['step']:,} / {summary['max_steps']:,}（{summary['progress_percent']:.1f}%）",
-             "当前阶段": summary["stage"], "流程状态": summary["phase"],
+             "训练阶段": "训练已完成" if summary['step'] >= summary['max_steps'] else summary["stage"],
+             "当前流程": PHASE_LABELS.get(summary["phase"], summary["phase"]),
+             "正式评估进度": f"{summary['evaluation_progress']['episodes']} / 180 回合",
              "最近1000步平均损失": f"{summary['recent_loss_mean']:.5f}",
              "最近1000步平均耗时": f"{summary['recent_s_per_step']:.3f} 秒/步",
              "训练预计剩余": f"{summary['remaining_training_hours']:.1f} 小时（不含评估）",
@@ -222,16 +324,18 @@ def dashboard(summary, rows, output, interval):
                     ["step", "loss", "root_loss", "body_loss", "hand_loss", "grad_control", "grad_hand"]) + "</tr>" for r in rows[-10:][::-1])
     page = f"""<!doctype html><html lang="zh-CN"><meta charset="utf-8">
 <meta http-equiv="refresh" content="{interval}"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{esc(summary.get('task', 'Kimodo'))} 实时训练监督</title><style>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>{esc(summary.get('task', 'Kimodo'))} 训练与评估实时进展</title><style>
 body{{font:16px system-ui,sans-serif;max-width:1450px;margin:28px auto;padding:0 20px;color:#17212d;background:#f5f7fa}}
-h1{{font-size:25px}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}
+h1{{font-size:25px}}h2{{font-size:20px}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}
 .card,section{{background:white;border:1px solid #dde2e8;border-radius:10px;padding:16px;margin:10px 0}}
 small{{display:block;color:#596574}}strong{{display:block;margin-top:8px}}img{{width:100%;height:auto}}
 table{{border-collapse:collapse;width:100%;font-size:13px}}td,th{{padding:8px;border-bottom:1px solid #eee;text-align:left}}
-.scroll{{overflow:auto}}a{{color:#1656a8}}.alert{{border-color:{'#c24535' if alerts else '#6b9a75'}}}
-</style><h1>{esc(summary.get('task', 'Kimodo'))} 实时训练监督</h1>
-<p>更新时间：{esc(summary['updated_at'])} · 每 {interval} 秒刷新 · 监控进程 {os.getpid()}</p>
-<div class="cards">{card_html}</div><section class="alert"><strong>监控检查</strong><ul>{alert_html}</ul>
+.scroll{{overflow:auto}}a{{color:#1656a8}}progress{{width:130px;accent-color:#287e73}}pre{{white-space:pre-wrap;overflow-wrap:anywhere}}
+.alert{{border-color:{'#c24535' if alerts else '#6b9a75'}}}
+</style><h1>{esc(summary.get('task', 'Kimodo'))} 训练与评估实时进展</h1>
+<p>更新时间：{esc(summary['updated_at'])}（UTC） · 每 {interval} 秒自动刷新 · 监控进程 {os.getpid()}</p>
+<div class="cards">{card_html}</div>{evaluation_html(summary)}<section class="alert"><strong>监控检查</strong><ul>{alert_html}</ul>
 <p>检查非有限数值、5分钟无指标更新、主进程异常退出、同阶段持续损失／梯度突增及 xiancun 状态。
 告警写入 alerts.jsonl 和监控日志，历史尖峰保存在 <a href="historical_spikes.json">historical_spikes.json</a>。
 训练损失不能替代闭环任务成功率，最终成功率以仿真评估为准。</p></section>
@@ -282,6 +386,8 @@ def refresh(args):
                "latest_checkpoint": max(checkpoints, default=0), "xiancun_alive": xiancun_alive,
                "xiancun_mode": xiancun.get("mode"), "alerts": alerts, "last_record": rows[-1]}
     summary["evaluation"] = read_json(run / "experiment_summary.json")
+    summary['evaluation_progress'] = evaluation_progress(run, status)
+    summary['recovery_progress'] = recovery_progress(status)
     spikes = historical_spikes(rows)
     summary["historical_spike_count"] = len(spikes)
     summary["last_historical_spike"] = spikes[-1] if spikes else None

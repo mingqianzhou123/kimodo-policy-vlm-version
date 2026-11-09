@@ -6,7 +6,8 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from monitor_groot_training import health_alerts, historical_spikes, read_metrics, rolling
+from monitor_groot_training import (evaluation_progress, health_alerts, historical_spikes,
+                                    read_metrics, recovery_progress, rolling)
 
 
 def records(count, stage="adapter", loss=.02):
@@ -53,3 +54,53 @@ def test_single_severe_spike_is_retained_after_recovery():
     recovered = rows + records(600)
     assert not health_alerts(recovered, "training", True, 0)
     assert len(historical_spikes(recovered)) == 1
+
+
+def test_recovery_download_is_not_extraction_and_parts_are_not_double_counted(tmp_path):
+    backup = tmp_path / 'kimodo-lct'
+    backup.mkdir()
+    entry = {'filename': 'sim.tar.zst', 'size': 10, 'sha256': 'verified',
+             'parts': [{'name': 'part000', 'size': 10}]}
+    (backup / 'manifest.json').write_text(json.dumps({'components': {'sim': entry}}))
+    archives = tmp_path / 'workspace-archives'
+    parts = archives / '.download-parts/sim'
+    parts.mkdir(parents=True)
+    (parts / 'part000').write_bytes(b'1234')
+    status = {'restoring_components': ['sim']}
+    assert recovery_progress(status, tmp_path)['downloaded_bytes'] == 4
+    (archives / 'sim.tar.zst').write_bytes(b'1234567890')
+    current = recovery_progress(status, tmp_path)
+    assert current['downloaded_bytes'] == 10
+    assert not current['components'][0]['restored']
+    (archives / 'additive_restore_receipt.json').write_text(json.dumps(
+        {'components': {'sim': {'archive_sha256': 'verified'}}}))
+    assert recovery_progress(status, tmp_path)['components'][0]['restored']
+
+
+def test_formal_progress_excludes_smoke_and_requires_complete_validated_inference(tmp_path):
+    smoke = tmp_path / 'restored_sim_smoke_any/episodes'
+    smoke.mkdir(parents=True)
+    (smoke / 'smoke.json').write_text(json.dumps({'success': True}))
+    abandoned = tmp_path / 'groot_football_formal_incomplete_old/episodes'
+    abandoned.mkdir(parents=True)
+    (abandoned / 'old.json').write_text(json.dumps({'success': True}))
+    status = {'phase': 'evaluation', 'evaluation_task': 'football'}
+    assert evaluation_progress(tmp_path, status)['episodes'] == 0
+    out = tmp_path / 'groot_football_formal'
+    (out / 'episodes').mkdir(parents=True)
+    for i in range(60):
+        (out / 'episodes' / f'{i}.json').write_text(json.dumps({'success': i < 21, 'seed': i // 20}))
+    (out / 'episodes/broken.json').write_text('{"success":')
+    (out / 'summary.json').write_text(json.dumps({'total_episodes': 60, 'total_successes': 21}))
+    current = evaluation_progress(tmp_path, status)
+    assert current['episodes'] == 60 and current['validated_tasks'] == 0
+    assert current['tasks'][0]['success_rate'] == .35
+    assert current['tasks'][0]['delta_vs_paper'] is None
+    (out / 'validation.json').write_text(json.dumps(
+        {'valid_inference': True, 'smoke_only': True, 'episodes': 60}))
+    assert evaluation_progress(tmp_path, status)['validated_tasks'] == 0
+    (out / 'validation.json').write_text(json.dumps(
+        {'valid_inference': True, 'smoke_only': False, 'episodes': 60}))
+    current = evaluation_progress(tmp_path, status)
+    assert current['validated_tasks'] == 1 and current['tasks'][0]['delta_vs_paper'] == 0
+    assert current['tasks'][0]['per_seed']['0'] == {'episodes': 20, 'successes': 20}
