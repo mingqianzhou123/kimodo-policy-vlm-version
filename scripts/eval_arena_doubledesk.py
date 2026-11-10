@@ -22,6 +22,10 @@ TASKS = {
     "football": {"task": "Isaac-Move-Football-Single-G129-Dex3-Wholebody", "yaml": "football_single_sonic_test.yaml", "max_steps": 2000, "paper_sr": .35},
     "doubledesk": {"task": "Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody", "yaml": "doubledesk_sonic_test.yaml", "max_steps": 2000, "paper_sr": .40},
     "pp_box": {"task": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby", "yaml": "pp_box_sonic_test.yaml", "max_steps": 1450, "paper_sr": .80},
+    "open_door": {"task": "Isaac-Move-Open-Door-G129-Dex3-Wholebody", "yaml": "open_door_sonic_test.yaml", "max_steps": 1450, "paper_sr": .933},
+    "sit_sofa": {"task": "Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody", "yaml": "sit_sofa_sonic_test.yaml", "max_steps": 1450, "paper_sr": .967},
+    "boxing": {"task": "Isaac-Move-Boxing-Bag-G129-Dex3-Wholebody", "yaml": "boxing_sonic_test.yaml", "max_steps": 1450, "paper_sr": .667},
+    "vision_navi": {"task": "Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody", "yaml": "vision_navi_sonic_test.yaml", "max_steps": 1450, "paper_sr": .617},
 }
 
 
@@ -82,6 +86,8 @@ def main():
         receipt['reference_manifest'] = str(args.reference_manifest.resolve())
     print(json.dumps(receipt, indent=2), flush=True)
     if args.dry_run:
+        args.out.mkdir(parents=True, exist_ok=True)
+        atomic_json(args.out / "evaluation_manifest.json", receipt)
         return
     if (args.out / "summary.json").exists():
         raise FileExistsError(f"Evaluation already exists: {args.out}; choose a fresh output directory")

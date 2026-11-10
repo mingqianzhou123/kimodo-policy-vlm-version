@@ -29,7 +29,9 @@ PHASE_LABELS = {"training": "训练中", "restoring_evaluation": "恢复仿真�
                 "complete": "训练与评估完成", "failed": "流程失败，需要检查",
                 "keepalive_recovery_failed": "保活恢复失败", "stopped_with_checkpoint": "已保存并停止"}
 EVAL_TASKS = [("football", "HOI Football", .35), ("doubledesk", "DoubleDesk", .40),
-              ("pp_box", "P&P Box", .80)]
+              ("pp_box", "P&P Box", .80), ("open_door", "HSI OpenDoor", .933),
+              ("sit_sofa", "HSI SitSofa", .967), ("boxing", "HSI Boxing", .667),
+              ("vision_navi", "HSI VisNavi", .617)]
 
 
 def atomic_text(path, value):
@@ -101,7 +103,7 @@ def evaluation_progress(run, status):
                       'last_finished_at': latest.get('finished_at'),
                       'manifest_available': (out / 'evaluation_manifest.json').is_file(),
                       'summary_available': (out / 'summary.json').is_file()})
-    return {'tasks': tasks, 'episodes': sum(t['episodes'] for t in tasks), 'target_episodes': 180,
+    return {'tasks': tasks, 'episodes': sum(t['episodes'] for t in tasks), 'target_episodes': 420,
             'validated_tasks': sum(t['validated'] for t in tasks),
             'gpu': status.get('evaluation_gpu'), 'baseline_evaluation_enabled': status.get('baseline_evaluation_enabled'),
             'error': status.get('error')}
@@ -133,7 +135,7 @@ def evaluation_html(summary):
     error = f"<pre>{esc(str(evaluation['error']))}</pre>" if evaluation.get('error') else ''
     return restore_html + f"""<section><h2>三项任务正式评估</h2>
 <p>改进模型 · checkpoint_{summary['latest_checkpoint']} · GPU {evaluation['gpu']} · 每项 3 个种子 × 20 回合。
-已记录 {evaluation['episodes']} / 180 回合，完成校验 {evaluation['validated_tasks']} / 3 项。</p>
+已记录 {evaluation['episodes']} / 420 回合，完成校验 {evaluation['validated_tasks']} / 7 项。</p>
 <div class='scroll'><table><tr><th>任务</th><th>状态</th><th>已完成回合</th><th>成功回合</th><th>成功率</th>
 <th>论文 Table 2 scratch</th><th>与论文差值</th><th>各种子成功/完成</th><th>记录</th></tr>{''.join(task_rows)}</table></div>
 <p>临时统计会随回合结束更新；冒烟测试不计入正式评估。最终结果须通过完整 60 回合及真实策略推理校验。
@@ -312,7 +314,7 @@ def dashboard(summary, rows, output, interval):
     cards = {"训练进度": f"{summary['step']:,} / {summary['max_steps']:,}（{summary['progress_percent']:.1f}%）",
              "训练阶段": "训练已完成" if summary['step'] >= summary['max_steps'] else summary["stage"],
              "当前流程": PHASE_LABELS.get(summary["phase"], summary["phase"]),
-             "正式评估进度": f"{summary['evaluation_progress']['episodes']} / 180 回合",
+             "正式评估进度": f"{summary['evaluation_progress']['episodes']} / 420 回合",
              "最近1000步平均损失": f"{summary['recent_loss_mean']:.5f}",
              "最近1000步平均耗时": f"{summary['recent_s_per_step']:.3f} 秒/步",
              "训练预计剩余": f"{summary['remaining_training_hours']:.1f} 小时（不含评估）",
