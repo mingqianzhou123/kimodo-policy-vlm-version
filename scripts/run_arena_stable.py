@@ -76,6 +76,11 @@ def main():
                      # Keep this lifecycle check deterministic; production
                      # retains the configured worker pool for throughput.
                      'main.num_workers=0',
+                     # The production AdaLN config compiles the denoiser for
+                     # throughput.  Resume equivalence compares every tensor,
+                     # so validation must use eager kernels to avoid compiler
+                     # cache/RNG and reduction-order differences.
+                     'model.compile=false',
                      'training.stages.adapter_start=3', 'training.scheduler.warmup_steps=10',
                      'training.scheduler.adapter_warmup_steps=5']
         train([*common, '--run-dir', str(validation/'continuous'), '--stop-after', '48', *overrides],
