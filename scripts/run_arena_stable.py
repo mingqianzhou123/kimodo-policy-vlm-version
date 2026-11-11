@@ -83,15 +83,19 @@ def main():
                      'model.compile=false',
                      'training.stages.adapter_start=3', 'training.scheduler.warmup_steps=10',
                      'training.scheduler.adapter_warmup_steps=5']
-        train([*common, '--run-dir', str(validation/'continuous'), '--stop-after', '48', *overrides],
+        # Keep the lifecycle check short enough to run before production while
+        # still crossing the staged adapter boundary and exercising resume.
+        validation_steps = int(config.main.get('validation_steps', 12))
+        split_steps = validation_steps // 2
+        train([*common, '--run-dir', str(validation/'continuous'), '--stop-after', str(validation_steps), *overrides],
               validation/'continuous.log')
-        train([*common, '--run-dir', str(validation/'split'), '--stop-after', '24', *overrides],
+        train([*common, '--run-dir', str(validation/'split'), '--stop-after', str(split_steps), *overrides],
               validation/'split.log')
-        train(['--resume', str(validation/'split'), '--stop-after', '48', '--audit-distributed'],
+        train(['--resume', str(validation/'split'), '--stop-after', str(validation_steps), '--audit-distributed'],
               validation/'resume.log')
         a = torch.load(validation/'continuous/resume.pt', map_location='cpu', weights_only=True, mmap=True)
         b = torch.load(validation/'split/resume.pt', map_location='cpu', weights_only=True, mmap=True)
-        assert a['global_step'] == b['global_step'] == 48
+        assert a['global_step'] == b['global_step'] == validation_steps
         assert len(a['rng_states']) == len(b['rng_states']) == 4
         errors = {}
         for name, value in a['model'].items():
@@ -108,7 +112,7 @@ def main():
         for left, right in zip(a['rng_states'], b['rng_states']):
             assert torch.equal(left['cpu'], right['cpu']) and torch.equal(left['cuda'], right['cuda'])
         rows = [json.loads(x) for x in (validation/'continuous/metrics.jsonl').read_text().splitlines()]
-        result = dict(passed=True, steps=48, resumed_at=24, gpus=gpus,
+        result = dict(passed=True, steps=validation_steps, resumed_at=split_steps, gpus=gpus,
                       max_parameter_error=max(errors.values()),
                       median_seconds_per_step=sorted(r['s_per_step'] for r in rows[10:])[len(rows[10:])//2],
                       final_loss=rows[-1]['loss'], simulated_adapter_start=3,
