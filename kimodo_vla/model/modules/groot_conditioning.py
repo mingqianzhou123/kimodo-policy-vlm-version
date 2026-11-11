@@ -40,6 +40,12 @@ class VLCondition:
         return VLCondition(tokens, self.mask.to(device=tokens.device))
 
 
+def masked_mean_tokens(condition: VLCondition) -> torch.Tensor:
+    """Summarise variable length VLM tokens without allowing padding to leak in."""
+    weights = condition.mask.unsqueeze(-1).to(dtype=condition.tokens.dtype)
+    return (condition.tokens * weights).sum(dim=1) / weights.sum(dim=1).clamp_min(1.0)
+
+
 def official_module(repo: str, relative: str):
     """Import a source file without importing the GR00T training/deployment stack."""
     path = Path(repo).expanduser().resolve() / relative
@@ -251,6 +257,112 @@ class CrossAttentionResidual(nn.Module):
         return self.output_projection(update)
 
 
+class AdaLNZeroResidual(nn.Module):
+    """External AdaLN-Zero modulation for one frozen Kimodo hidden sequence.
+
+    The modulation is intentionally applied outside the checkpointed
+    TransformerEncoderLayer.  A zero-initialised head therefore makes the
+    adapter an exact identity at construction time while keeping the action
+    backbone unchanged and frozen.
+    """
+
+    def __init__(self, motion_dim: int = 1024, condition_dim: int = 512):
+        super().__init__()
+        self.motion_dim = int(motion_dim)
+        self.condition_dim = int(condition_dim)
+        self.norm = nn.LayerNorm(self.motion_dim, elementwise_affine=False)
+        self.modulation = nn.Linear(self.condition_dim, 3 * self.motion_dim)
+        nn.init.zeros_(self.modulation.weight)
+        nn.init.zeros_(self.modulation.bias)
+
+    def forward(self, query: torch.Tensor, condition: torch.Tensor) -> torch.Tensor:
+        if query.ndim != 3 or query.shape[-1] != self.motion_dim:
+            raise ValueError(
+                f"Expected query [B,T,{self.motion_dim}], got {tuple(query.shape)}"
+            )
+        if condition.ndim != 2 or condition.shape != (query.shape[0], self.condition_dim):
+            raise ValueError(
+                f"Expected condition [B,{self.condition_dim}], got {tuple(condition.shape)}"
+            )
+        shift, scale, gate = self.modulation(condition).chunk(3, dim=-1)
+        normalized = self.norm(query)
+        update = normalized * (1.0 + scale[:, None, :]) + shift[:, None, :]
+        return gate[:, None, :] * update
+
+
+class AdaLNZeroInjectionStack(nn.Module):
+    """Root or body stack of independent, timestep-conditioned AdaLN heads."""
+
+    accepts_timesteps = True
+
+    def __init__(
+        self,
+        layers=(3, 7, 11, 15),
+        motion_dim: int = 1024,
+        condition_input_dim: int = 2048,
+        condition_dim: int = 512,
+        max_diffusion_steps: int = 1000,
+        pool: str = "masked_mean",
+    ):
+        super().__init__()
+        if pool != "masked_mean":
+            raise ValueError(f"Unsupported AdaLN VLM pooling {pool!r}; use 'masked_mean'")
+        if condition_dim <= 0 or max_diffusion_steps <= 0:
+            raise ValueError("condition_dim and max_diffusion_steps must be positive")
+        # Import lazily to keep the official GR00T import path independent of
+        # the Kimodo backbone module.
+        from .backbone import PositionalEncoding, TimestepEmbedder
+
+        self.layers = tuple(int(layer) for layer in layers)
+        self.motion_dim = int(motion_dim)
+        self.condition_input_dim = int(condition_input_dim)
+        self.condition_dim = int(condition_dim)
+        self.pool = pool
+        self.visual_projection = nn.Sequential(
+            nn.LayerNorm(self.condition_input_dim),
+            nn.Linear(self.condition_input_dim, self.condition_dim),
+        )
+        time_encoding = PositionalEncoding(
+            self.condition_dim, dropout=0.0, max_len=int(max_diffusion_steps)
+        )
+        self.timestep_embedding = TimestepEmbedder(self.condition_dim, time_encoding)
+        self.condition_mlp = nn.Sequential(
+            nn.Linear(2 * self.condition_dim, self.condition_dim),
+            nn.SiLU(),
+            nn.Linear(self.condition_dim, self.condition_dim),
+        )
+        self.blocks = nn.ModuleDict({
+            str(layer): AdaLNZeroResidual(self.motion_dim, self.condition_dim)
+            for layer in self.layers
+        })
+
+    def _condition(self, condition: VLCondition, timesteps: torch.Tensor) -> torch.Tensor:
+        if not isinstance(condition, VLCondition):
+            raise TypeError("AdaLN-Zero expects a VLCondition")
+        if timesteps.ndim != 1 or timesteps.shape[0] != condition.tokens.shape[0]:
+            raise ValueError(
+                "timesteps must have shape [B] matching the VLM condition batch"
+            )
+        if timesteps.dtype not in (torch.int8, torch.int16, torch.int32, torch.int64):
+            timesteps = timesteps.long()
+        visual = self.visual_projection(masked_mean_tokens(condition))
+        temporal = self.timestep_embedding(timesteps.to(device=visual.device)).squeeze(1)
+        return self.condition_mlp(torch.cat((visual, temporal), dim=-1))
+
+    def forward(
+        self,
+        layer: int,
+        condition: VLCondition,
+        query: torch.Tensor,
+        timesteps: torch.Tensor,
+    ) -> torch.Tensor:
+        try:
+            block = self.blocks[str(int(layer))]
+        except KeyError as error:
+            raise ValueError(f"Layer {layer} is not configured for AdaLN-Zero") from error
+        return block(query, self._condition(condition, timesteps))
+
+
 class InjectionStack(nn.Module):
     def __init__(self, layers=(3, 7, 11, 15), motion_dim=1024, condition_dim=2048, num_heads=8):
         super().__init__()
@@ -262,21 +374,53 @@ class InjectionStack(nn.Module):
 
 
 class GrootInjection(nn.Module):
-    """Eight independent modules. All read the exact same shared VLCondition."""
+    """Eight independent modules sharing one VLM condition.
+
+    ``mode='cross_attention'`` is the original model-improvement path.  The
+    ``adaln_zero`` path replaces only its external fuser and leaves the frozen
+    Kimodo Transformer layers untouched.
+    """
 
     root_injection_layers = body_injection_layers = (3, 7, 11, 15)
     image_token_count = None
 
-    def __init__(self, denoiser, future_token_count=50):
+    def __init__(
+        self,
+        denoiser,
+        future_token_count=50,
+        mode: str = "cross_attention",
+        adaln_condition_dim: int = 512,
+        adaln_pool: str = "masked_mean",
+        max_diffusion_steps: int = 1000,
+    ):
         super().__init__()
         for model in (denoiser.root_model, denoiser.body_model):
             if model.latent_dim != 1024 or len(model.seqTransEncoder.layers) != 16:
                 raise ValueError("N1.7 injection requires Kimodo's 16-layer, 1024D backbones")
         if future_token_count != 50:
             raise ValueError("This experiment requires a 50-frame future horizon")
+        mode = str(mode).strip().lower()
+        if mode not in {"cross_attention", "adaln_zero"}:
+            raise ValueError(
+                "groot_injection_mode must be 'cross_attention' or 'adaln_zero', "
+                f"got {mode!r}"
+            )
+        self.mode = mode
         self.future_token_count = future_token_count
-        self.root_hint_fusion = InjectionStack()
-        self.body_hint_fusion = InjectionStack()
+        if mode == "cross_attention":
+            self.root_hint_fusion = InjectionStack()
+            self.body_hint_fusion = InjectionStack()
+        else:
+            self.root_hint_fusion = AdaLNZeroInjectionStack(
+                condition_dim=adaln_condition_dim,
+                pool=adaln_pool,
+                max_diffusion_steps=max_diffusion_steps,
+            )
+            self.body_hint_fusion = AdaLNZeroInjectionStack(
+                condition_dim=adaln_condition_dim,
+                pool=adaln_pool,
+                max_diffusion_steps=max_diffusion_steps,
+            )
 
     def forward(self, timesteps, condition: VLCondition, motion_token_count, future_start):
         if motion_token_count - future_start != self.future_token_count:

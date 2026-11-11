@@ -57,12 +57,35 @@ def check_backbone(model, batch, condition, report):
     if not torch.allclose(base, injected, atol=1e-5, rtol=1e-5):
         raise AssertionError(f"Zero-initialized injection changed pretrained Kimodo: {error}")
     report["zero_injection_max_error"] = error
-    # Activate output projections so the detachment audit cannot pass merely
-    # because the initial zero projection blocks all upstream gradients.
+    # Activate the zero-initialised injection heads so the detachment audit
+    # cannot pass merely because their initial gate blocks upstream gradients.
+    def activate_zero_stack(stack):
+        for block in stack.blocks.values():
+            if hasattr(block, "output_projection"):
+                block.output_projection.weight.copy_(torch.eye(1024, device=x.device) * 0.01)
+            elif hasattr(block, "modulation"):
+                # Activate only the gate slice; this keeps the root/body
+                # detach audit independent of the shift/scale initialisation.
+                start = 2 * block.motion_dim
+                gate = block.modulation.weight[start:start + block.motion_dim]
+                gate.zero_()
+                diagonal = min(gate.shape[0], gate.shape[1])
+                gate[:diagonal, :diagonal].fill_diagonal_(0.01)
+            else:
+                raise AssertionError(f"Unsupported injection block {type(block).__name__}")
+
+    def reset_zero_stack(stack):
+        for block in stack.blocks.values():
+            if hasattr(block, "output_projection"):
+                block.output_projection.weight.zero_()
+                block.output_projection.bias.zero_()
+            else:
+                block.modulation.weight.zero_()
+                block.modulation.bias.zero_()
+
     with torch.no_grad():
         for stack in (injection.root_hint_fusion, injection.body_hint_fusion):
-            for block in stack.blocks.values():
-                block.output_projection.weight.copy_(torch.eye(1024, device=x.device) * 0.01)
+            activate_zero_stack(stack)
     prediction = denoiser(**kwargs, root_control_tokens=roots, body_control_tokens=bodies,
                           root_hint_fuser=injection.root_hint_fusion,
                           body_hint_fuser=injection.body_hint_fusion, control_future_start=h)
@@ -74,9 +97,7 @@ def check_backbone(model, batch, condition, report):
     injection.zero_grad(set_to_none=True)
     with torch.no_grad():
         for stack in (injection.root_hint_fusion, injection.body_hint_fusion):
-            for block in stack.blocks.values():
-                block.output_projection.weight.zero_()
-                block.output_projection.bias.zero_()
+            reset_zero_stack(stack)
 
 
 def run(args, config, report):
@@ -115,8 +136,18 @@ def run(args, config, report):
         stats = REPO / "checkpoints/Kimodo-G1-RP-v1"
         representation = KimodoMotionRep(G1Skeleton34(), fps=30, stats_path=str(stats / "stats/motion"))
         denoiser = TwostageDenoiser(representation, "concat", str(stats)).to(device).eval().requires_grad_(False)
-        model = SimpleNamespace(representation=representation, denoiser=denoiser,
-                                controlnet=GrootInjection(denoiser).to(device), config=config.main)
+        model = SimpleNamespace(
+            representation=representation,
+            denoiser=denoiser,
+            controlnet=GrootInjection(
+                denoiser,
+                mode=config.model.get("groot_injection_mode", "cross_attention"),
+                adaln_condition_dim=config.model.get("adaln_condition_dim", 512),
+                adaln_pool=config.model.get("adaln_pool", "masked_mean"),
+                max_diffusion_steps=config.model.get("adaln_max_diffusion_steps", 1000),
+            ).to(device),
+            config=config.main,
+        )
         condition = VLCondition(torch.randn(1, 17, 2048, device=device),
                                 torch.ones(1, 17, dtype=torch.bool, device=device))
         check_backbone(model, batch, condition, report)

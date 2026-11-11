@@ -11,8 +11,8 @@ from torch import nn
 
 from kimodo_vla.model.modules.backbone import TransformerEncoderBlock
 from kimodo_vla.model.modules.groot_conditioning import (
-    CrossAttentionResidual, GrootInjection, InjectionStack, SharedVLMAdapter,
-    VLCondition, load_checkpoint_parts,
+    AdaLNZeroInjectionStack, CrossAttentionResidual, GrootInjection, InjectionStack,
+    SharedVLMAdapter, VLCondition, load_checkpoint_parts,
 )
 from kimodo_vla.model.modules.hand_control import HandTokenDiffusionDenoiser
 
@@ -97,6 +97,35 @@ def test_cross_attention_ignores_padding_and_reads_action_query():
                          torch.tensor([[True] * 3 + [False] * 8]))
     torch.testing.assert_close(block(query, clean), block(query, padded))
     assert not torch.allclose(block(query, clean), block(torch.randn_like(query), clean))
+
+
+def test_adaln_zero_is_identity_then_opens_with_timestep_condition():
+    stack = AdaLNZeroInjectionStack(
+        layers=(3,), motion_dim=8, condition_input_dim=16, condition_dim=8,
+        max_diffusion_steps=32,
+    )
+    tokens = torch.randn(2, 6, 16, requires_grad=True)
+    condition = VLCondition(tokens, torch.tensor([[True] * 4 + [False] * 2, [True] * 6]))
+    query = torch.randn(2, 5, 8)
+    timestep = torch.tensor([2, 20])
+    update = stack(3, condition, query, timestep)
+    assert torch.count_nonzero(update) == 0
+    (query + update).square().mean().backward()
+    head = stack.blocks["3"]
+    assert head.modulation.weight.grad.abs().sum() > 0
+    assert tokens.grad.abs().sum() == 0
+    with torch.no_grad():
+        head.modulation.weight[2 * 8 : 3 * 8].copy_(torch.eye(8) * 0.1)
+    tokens.grad = None
+    stack(3, condition, query, timestep).square().mean().backward()
+    assert tokens.grad.abs().sum() > 0
+    padded = VLCondition(
+        torch.cat((tokens.detach(), torch.randn(2, 2, 16) * 100), dim=1),
+        torch.tensor([[True] * 4 + [False] * 4, [True] * 6 + [False] * 2]),
+    )
+    torch.testing.assert_close(
+        stack._condition(condition, timestep)[0], stack._condition(padded, timestep)[0]
+    )
 
 
 def test_shared_adapter_never_sees_padding_and_receives_gradients():

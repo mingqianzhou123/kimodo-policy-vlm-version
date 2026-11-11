@@ -252,11 +252,21 @@ class TransformerEncoderBlock(nn.Module):
                             f"{motion_tokens.shape[1]}"
                         )
                     future_motion_tokens = motion_tokens[:, future_start:]
-                    future_hint = hint_fuser(
-                        i,
-                        control_visual_tokens[i],
-                        future_motion_tokens,
-                    )
+                    if getattr(hint_fuser, "accepts_timesteps", False):
+                        future_hint = hint_fuser(
+                            i,
+                            control_visual_tokens[i],
+                            future_motion_tokens,
+                            timesteps,
+                        )
+                    else:
+                        # Keep the legacy ControlNet and test fuser contract
+                        # unchanged; only the AdaLN-Zero adapter consumes t.
+                        future_hint = hint_fuser(
+                            i,
+                            control_visual_tokens[i],
+                            future_motion_tokens,
+                        )
                     if future_hint.shape != future_motion_tokens.shape:
                         raise RuntimeError(
                             "Dynamic future hint must match the future motion hidden shape, "

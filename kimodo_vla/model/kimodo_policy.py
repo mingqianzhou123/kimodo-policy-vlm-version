@@ -94,6 +94,12 @@ class KimodoPolicyConfig:
     groot_checkpoint: Optional[str] = None
     groot_repo: Optional[str] = None
     groot_vlm_model: Optional[str] = None
+    # Keep the historical cross-attention path selectable for paired
+    # comparisons; AdaLN-Zero is an external adapter around frozen Kimodo.
+    groot_injection_mode: str = "cross_attention"
+    adaln_condition_dim: int = 512
+    adaln_pool: str = "masked_mean"
+    adaln_max_diffusion_steps: int = 1000
 
 
 class KimodoPolicy(nn.Module):
@@ -171,7 +177,14 @@ class KimodoPolicy(nn.Module):
             if config.num_cameras != 1 or not config.groot_checkpoint or not config.groot_repo:
                 raise ValueError("N1.7 requires one camera, groot_checkpoint and groot_repo")
             self.image_encoder = GrootN17Encoder(config.groot_checkpoint, config.groot_repo, config.groot_vlm_model)
-            self.controlnet = GrootInjection(self.denoiser, config.action_chunk)
+            self.controlnet = GrootInjection(
+                self.denoiser,
+                config.action_chunk,
+                mode=config.groot_injection_mode,
+                adaln_condition_dim=config.adaln_condition_dim,
+                adaln_pool=config.adaln_pool,
+                max_diffusion_steps=config.adaln_max_diffusion_steps,
+            )
         else:
             self.image_encoder = DINOv3Encoder(checkpoint_path=image_checkpoint)
             for p in self.image_encoder.model.parameters():

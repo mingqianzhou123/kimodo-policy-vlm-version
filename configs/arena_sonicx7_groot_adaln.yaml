@@ -1,0 +1,31 @@
+_base_: arena_sonicx7_groot_stable.yaml
+
+# AdaLN-Zero is an external, zero-initialised condition adapter.  The original
+# Cross-Attention implementation remains the default in arena_*_groot.yaml and
+# can be trained/evaluated independently for a matched comparison.
+model:
+  groot_injection_mode: adaln_zero
+  adaln_condition_dim: 512
+  adaln_pool: masked_mean
+  adaln_max_diffusion_steps: 1000
+  # Keep compilation enabled for the four-GPU production run after the eager
+  # preflight below has established numerical and gradient correctness.
+  compile: true
+  compile_scope: denoiser
+  compile_mode: reduce-overhead
+
+main:
+  preflight_report: outputs/sonicx7_adaln_preflight/groot_preflight.json
+
+training:
+  optimizer:
+    # The old VLM recipe used 2e-5/5e-6.  AdaLN gates are zero-initialised, so
+    # open them faster while retaining a smaller VLM-adapter rate.
+    adaln_lr: 5.0e-5
+    control_adapter_lr: 5.0e-5
+    hand_lr: 3.0e-5
+    vl_adapter_lr: 1.0e-5
+  scheduler:
+    warmup_steps: 5000
+    adapter_warmup_steps: 5000
+

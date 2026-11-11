@@ -51,6 +51,7 @@ from run_config import DEFAULT_CONFIG, REPO, checkpoint_steps, load_yaml  # scri
 # Fields an --init-checkpoint must share with this run for its weights to mean the same thing.
 ARCHITECTURE_FIELDS = (
     "visual_conditioning",
+    "groot_injection_mode", "adaln_condition_dim", "adaln_pool", "adaln_max_diffusion_steps",
     "fps", "motion_mask_mode", "dinov3_model_name", "controlnet_num_layers", "controlnet_scale",
     "detach_root_control_for_body", "control_fusion_mode",
     "hand_hidden_dim", "hand_num_layers", "hand_num_heads", "hand_ffn_dim",
@@ -135,6 +136,10 @@ def build_model(config) -> KimodoPolicy:
         groot_checkpoint=m.get("groot_checkpoint"),
         groot_repo=m.get("groot_repo"),
         groot_vlm_model=m.get("groot_vlm_model"),
+        groot_injection_mode=m.get("groot_injection_mode", "cross_attention"),
+        adaln_condition_dim=m.get("adaln_condition_dim", 512),
+        adaln_pool=m.get("adaln_pool", "masked_mean"),
+        adaln_max_diffusion_steps=m.get("adaln_max_diffusion_steps", 1000),
     ))
 
 
@@ -160,11 +165,17 @@ def param_groups(model: KimodoPolicy, config) -> list[dict]:
     opt = config.training.optimizer
     lr = {"backbone": opt.control_backbone_lr, "adapter": opt.control_adapter_lr, "hand": opt.hand_lr,
           "vl_adapter": opt.get("vl_adapter_lr", opt.control_backbone_lr),
-          "vision": opt.get("vision_lr", 1e-6)}
+          "vision": opt.get("vision_lr", 1e-6),
+          # AdaLN starts with zero modulation heads.  A mildly larger
+          # dedicated rate lets the gates open in a few updates while the
+          # frozen Kimodo backbone remains untouched.
+          "adaln": opt.get("adaln_lr", opt.control_adapter_lr)}
     groups = {
         (family, decay): {"params": [], "lr": lr[family], "weight_decay": opt.weight_decay if decay else 0.0, "name": f"{family}{'' if decay else '_no_decay'}"}
         for family in lr for decay in (True, False)
     }
+    model_config = getattr(model, "config", None)
+    injection_mode = getattr(model_config, "groot_injection_mode", "cross_attention")
     for name, parameter in model.named_parameters():
         if not parameter.requires_grad:
             continue
@@ -176,6 +187,9 @@ def param_groups(model: KimodoPolicy, config) -> list[dict]:
             family = "vision"
         elif name.startswith(("controlnet.root_layers.", "controlnet.body_layers.")):
             family = "backbone"
+        elif (injection_mode == "adaln_zero"
+              and name.startswith(("controlnet.root_hint_fusion.", "controlnet.body_hint_fusion."))):
+            family = "adaln"
         else:
             family = "adapter"
         groups[family, parameter.ndim >= 2 and not name.endswith("bias")]["params"].append(parameter)
