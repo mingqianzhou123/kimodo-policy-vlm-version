@@ -69,9 +69,8 @@ def audit(entry, base, files):
     assert len(decoded) == min(3, len(rebuilt))
     observed = demo.observations()
     for t in [1, min(81, len(demo)-1), len(demo)-1]:
-        if t in demos.request_steps(len(demo)):
-            np.testing.assert_allclose(observed[t].hand,
-                demos.hand_closure(decoupled_wbc.command_to_natural_order(state[t:t+1, :14]))[0], atol=1e-6)
+        np.testing.assert_allclose(observed[t].hand,
+            demos.hand_closure(decoupled_wbc.command_to_natural_order(state[t:t+1, :14]))[0], atol=1e-6)
     return {'condition': entry['condition'], 'frames': len(demo),
             'motion_max_error': float(error[:, 14:34].max()),
             'heading_max_error': float(angle_error.max()),

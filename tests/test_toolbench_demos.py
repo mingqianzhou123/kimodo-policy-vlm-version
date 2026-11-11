@@ -7,7 +7,8 @@ import pytest
 from kimodo_vla.benchmarks.replay import DirectPlanner
 from kimodo_vla.benchmarks.toolbench import demos
 from kimodo_vla.benchmarks.toolbench.adapter import CLOSED_HANDS, SPAWN_YAW, ToolBenchAdapter
-from kimodo_vla.core.types import yaw_of
+from kimodo_vla.core.types import yaw_of, yaw_matrix
+from scipy.spatial.transform import Rotation
 
 
 def recording(steps=500, seed=0):
@@ -25,7 +26,10 @@ def recording(steps=500, seed=0):
     yaw = SPAWN_YAW + np.concatenate([[0.0], np.cumsum(rate[1:]) / 50.0])
     nav = np.stack([0.3 * np.sin(0.5 * t), 0.1 * np.cos(0.3 * t), rate, yaw], axis=1)
     height = (0.74 + 0.02 * np.sin(0.2 * t))[:, None]
-    return {"observation.state": state, "action": action, "teleop.navigate_command": nav, "teleop.base_height_command": height}
+    base_pose = np.zeros((steps, 7))
+    base_pose[:, 2] = .74
+    base_pose[:, 3:] = Rotation.from_euler("z", yaw - .03).as_quat()[:, [3, 0, 1, 2]]
+    return {"observation.base_pose": base_pose, "observation.state": state, "action": action, "teleop.navigate_command": nav, "teleop.base_height_command": height}
 
 
 def test_recording_names():
@@ -34,11 +38,12 @@ def test_recording_names():
     assert demos.instruction("G1StickMove-L0-S-v0") == "Pick the tool for moving the ball to the target."
 
 
-@pytest.mark.parametrize('execution', [10, 20, 30, 50])
+@pytest.mark.parametrize('execution', [10, 15, 20, 30, 50])
 def test_measured_history_schedule_matches_real_planner(execution):
     from kimodo_vla.model.planner import KimodoPlanner
     planner = object.__new__(KimodoPlanner)
     planner.model_fps, planner.control_fps, planner.execution_frames = 30, 50, execution
+    planner.align_execution_grid = True
     actual, step = set(), 0
     while step < 3000:
         actual.add(step)
@@ -51,7 +56,7 @@ def test_measured_history_schedule_matches_real_planner(execution):
 @pytest.mark.parametrize("interval", [83, 30])
 def test_adapter_reports_what_training_saw_and_sends_the_recorded_commands(interval):
     columns = recording()
-    demo = demos.ToolBenchDemo(columns, "Pick the tool and move the ball to the target.", request_interval=interval)
+    demo = demos.ToolBenchDemo(columns, "Pick the tool and move the ball to the target.")
     trained = demo.observations()
     motion = demo.commanded_motion()
     states = demos.policy_state(demo.state, demo.previous_height)
@@ -61,7 +66,10 @@ def test_adapter_reports_what_training_saw_and_sends_the_recorded_commands(inter
     seen, sent = [], []
     for step in range(0, len(demo) - interval, interval):
         request = {"image": {"rgb_head_stereo_left": np.zeros((360, 640, 3), np.uint8)}, "instruction": demo.instruction,
-                   "state": {"states": states[step][None]}}
+                   "state": {"body_q_history": demo.state[:1,:29] if step == 0 else demo.state[step-interval+1:step+1,:29],
+                             "states": states[step][None],
+                             "state_history": states[0:1] if step == 0 else states[step-interval+1:step+1],
+                             "base_pose_history": demo.base_pose[0:1] if step == 0 else demo.base_pose[step-interval+1:step+1]}}
         observations = adapter.to_observations(request)
         seen += observations
         observations[-1].step = step

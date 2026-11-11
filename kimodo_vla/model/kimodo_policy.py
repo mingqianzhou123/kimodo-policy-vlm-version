@@ -41,6 +41,15 @@ def _masked_mean(values: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
     return masked_values.sum() / valid_count
 
 
+def _current_hand(value, batch, device, dtype):
+    value = torch.as_tensor(value, device=device, dtype=dtype)
+    if value.ndim == 1 and batch == 1:
+        value = value.unsqueeze(0)
+    if value.shape != (batch, 2) or not torch.isfinite(value).all() or ((value < 0) | (value > 1)).any():
+        raise ValueError(f"current_hand_state must be finite [B,2] closure in [0,1], B={batch}")
+    return value
+
+
 def _masked_smooth_l1(
     prediction: torch.Tensor,
     target: torch.Tensor,
@@ -305,6 +314,7 @@ class KimodoPolicy(nn.Module):
         pred_chunk: torch.Tensor,
         target_chunk: torch.Tensor,
         chunk_valid: torch.Tensor,
+        feature_valid: Optional[torch.Tensor] = None,
     ) -> dict[str, torch.Tensor]:
         """Official Kimodo component-wise Smooth L1 weighted sum."""
         representation = self.representation
@@ -341,6 +351,8 @@ class KimodoPolicy(nn.Module):
             prediction = pred_chunk[..., feature_slice]
             target = target_chunk[..., feature_slice]
             valid = chunk_valid.unsqueeze(-1).expand_as(prediction)
+            if feature_valid is not None:
+                valid = valid & feature_valid[..., feature_slice]
             return _masked_smooth_l1(prediction, target, valid)
 
         weights = self._resolve_kimodo_smooth_l1_weights()
@@ -353,10 +365,13 @@ class KimodoPolicy(nn.Module):
             "foot_contact_loss": component_loss("foot_contacts"),
         }
         if weights["fk_loss"] > 0:
+            # FK couples rotations and positions; a partially measured command
+            # anchor does not define a coherent full-pose FK target.
+            fk_valid = chunk_valid if feature_valid is None else chunk_valid & feature_valid.all(dim=-1)
             component_losses["fk_loss"] = self._kimodo_fk_position_loss(
                 pred_chunk,
                 target_chunk,
-                chunk_valid,
+                fk_valid,
             )
         else:
             component_losses["fk_loss"] = pred_chunk.new_zeros((), dtype=torch.float32)
@@ -560,6 +575,7 @@ class KimodoPolicy(nn.Module):
         gt_hand_mask: Optional[torch.Tensor] = None,
         text_feat: Optional[torch.Tensor] = None,
         text_length: Optional[torch.Tensor] = None,
+        current_hand_state: Optional[torch.Tensor] = None,
     ):
         return self.training_kimodo_policy_controlnet(
             instruction=instruction,
@@ -572,6 +588,7 @@ class KimodoPolicy(nn.Module):
             gt_hand_mask=gt_hand_mask,
             text_feat=text_feat,
             text_length=text_length,
+            current_hand_state=current_hand_state,
         )
 
     def training_kimodo_policy_controlnet(
@@ -586,6 +603,7 @@ class KimodoPolicy(nn.Module):
         gt_hand_mask: Optional[torch.Tensor] = None, # [B, T, 2], valid hand supervision
         text_feat: Optional[torch.Tensor] = None,
         text_length: Optional[torch.Tensor] = None,
+        current_hand_state: Optional[torch.Tensor] = None,
     ):
         # 0. 基本配置
         B, T, _ = gt_motion.shape
@@ -607,7 +625,8 @@ class KimodoPolicy(nn.Module):
                 f"{tuple(condition_motion.shape)}"
             )
         if condition_motion_mask is None:
-            condition_motion_mask = gt_mask.unsqueeze(-1).expand_as(gt_motion)
+            condition_motion_mask = gt_mask.unsqueeze(-1).expand_as(gt_motion).clone()
+            condition_motion_mask[:, H:] = False
         else:
             condition_motion_mask = torch.as_tensor(
                 condition_motion_mask, device=device, dtype=torch.bool
@@ -621,6 +640,8 @@ class KimodoPolicy(nn.Module):
             condition_motion_mask = (
                 condition_motion_mask & gt_mask.unsqueeze(-1)
             )
+        if condition_motion_mask[:, H + 1:].any():
+            raise ValueError("Only past frames and the current cut may be observed; future targets cannot be conditions")
         if not _masked_all_finite(gt_motion, gt_mask.unsqueeze(-1)):
             raise ValueError("gt_motion contains NaN or Inf in valid frames")
         if not _masked_all_finite(condition_motion, condition_motion_mask):
@@ -662,13 +683,10 @@ class KimodoPolicy(nn.Module):
         x_t = self.diffusion.q_sample(x_start_full, t, torch.randn_like(x_start_full))
         history_mask = gt_mask[:, :H]   # [B, H]
         x_pad_mask_full = gt_mask.clone()  # history + chunk 都按 gt_mask 有效性参与 attention
-        # 5. 组织 observed_motion 和 motion_mask（前 H 帧有约束，后 C 帧无约束）
-        observed_motion = torch.zeros_like(x_start_full)
-        observed_motion[:, :H] = normalized_condition[:, :H]
-        motion_mask = torch.zeros_like(x_start_full)
-        motion_mask[:, :H] = condition_motion_mask[:, :H].to(
-            dtype=x_start_full.dtype
-        )
+        # The cut (future frame 0) can be measured too. Its timestamp stays at
+        # H; appending it to the past would shift the model's action clock.
+        observed_motion = normalized_condition
+        motion_mask = condition_motion_mask.to(dtype=x_start_full.dtype)
         observed_motion = observed_motion.masked_fill(motion_mask == 0, 0)
         # 6. 文本编码。训练优先使用 Dataset 返回的预计算 embedding。
         if text_feat is None:
@@ -725,15 +743,19 @@ class KimodoPolicy(nn.Module):
         # 10. 计算 loss（只对 chunk 的有效帧）
         pred_chunk = pred_clean[:, H:]
         x_start_chunk = x_start_full[:, H:]
-        chunk_valid = gt_mask[:, H:]
+        chunk_valid = gt_mask[:, H:].clone()
+        # An observed arm/heading is not a reason to drop the whole cut frame:
+        # unobserved root translation and other features still need supervision,
+        # and the decoder uses frame 0 to form its first velocity commands.
+        feature_valid = chunk_valid.unsqueeze(-1) & ~condition_motion_mask[:, H:]
         root_slice = self.representation.root_slice
         body_slice = self.representation.body_slice
         motion_loss_type = getattr(self.config, "motion_loss_type", "mse")
         if motion_loss_type == "mse":
             # Legacy path: intentionally keep the original Root/Body MSE
             # implementation and weighting unchanged for old configs/checkpoints.
-            root_valid = chunk_valid.unsqueeze(-1).expand_as(pred_chunk[..., root_slice])
-            body_valid = chunk_valid.unsqueeze(-1).expand_as(pred_chunk[..., body_slice])
+            root_valid = feature_valid[..., root_slice]
+            body_valid = feature_valid[..., body_slice]
             root_squared_error = nn.functional.mse_loss(
                 pred_chunk[..., root_slice], x_start_chunk[..., root_slice], reduction="none"
             )
@@ -756,6 +778,7 @@ class KimodoPolicy(nn.Module):
                 pred_chunk,
                 x_start_chunk,
                 chunk_valid,
+                feature_valid=feature_valid,
             )
             root_loss = motion_output["root_loss"]
             body_loss = motion_output["body_loss"]
@@ -774,6 +797,11 @@ class KimodoPolicy(nn.Module):
             current_hand, current_hand_valid = self._last_valid_hand_state_and_mask(
                 gt_hand[:, :H], history_mask, gt_hand_mask[:, :H]
             )
+            if current_hand_state is not None:
+                if hand_control_mode != "continuous":
+                    raise ValueError("current measured hand conditioning requires continuous hands")
+                current_hand = _current_hand(current_hand_state, B, device, gt_hand.dtype)
+                current_hand_valid = torch.ones(B, 2, dtype=torch.bool, device=device)
             # The hand head always receives the current state in the legacy
             # [-1, 1] representation. Continuous hand training uses a
             # signed closure residual in [-1, 1] as the denoising target:
@@ -782,6 +810,9 @@ class KimodoPolicy(nn.Module):
             current_hand = current_hand_closure * 2.0 - 1.0
             if hand_control_mode == "continuous":
                 clean_hand = gt_hand[:, H:] - current_hand_closure.unsqueeze(1)
+                if current_hand_state is not None:
+                    clean_hand = clean_hand.clone()
+                    clean_hand[:, 0] = 0
             else:
                 clean_hand = gt_hand[:, H:] * 2.0 - 1.0
             noisy_hand = self.diffusion.q_sample(
@@ -789,6 +820,8 @@ class KimodoPolicy(nn.Module):
                 t,
                 torch.randn_like(clean_hand),
             )
+            if current_hand_state is not None:
+                noisy_hand[:, 0] = 0
             final_visual_tokens = body_control_tokens[
                 max(self.controlnet.body_injection_layers)
             ]
@@ -798,17 +831,23 @@ class KimodoPolicy(nn.Module):
                 noisy_future_hand=noisy_hand,
                 current_hand_state=current_hand,
                 timesteps=t,
-                future_mask=chunk_valid,
+                future_mask=gt_mask[:, H:],
             )
-            hand_valid = gt_hand_mask[:, H:] & chunk_valid.unsqueeze(-1)
+            if current_hand_state is not None:
+                predicted_clean_hand = predicted_clean_hand.clone()
+                predicted_clean_hand[:, 0] = 0
+            hand_valid = gt_hand_mask[:, H:] & gt_mask[:, H:].unsqueeze(-1)
+            hand_state_valid = hand_valid.clone()
+            if current_hand_state is not None:
+                hand_state_valid[:, 0] = False
             hand_state_error = nn.functional.mse_loss(
                 predicted_clean_hand.float(),
                 clean_hand.float(),
                 reduction="none",
             )
             hand_state_loss = (
-                hand_state_error * hand_valid.float()
-            ).sum() / hand_valid.sum().clamp_min(1)
+                hand_state_error * hand_state_valid.float()
+            ).sum() / hand_state_valid.sum().clamp_min(1)
             if hand_control_mode == "continuous":
                 # Convert residual predictions back to closure before taking
                 # temporal differences.  This keeps the transition loss in a
@@ -817,7 +856,9 @@ class KimodoPolicy(nn.Module):
                 predicted_future_closure = (
                     current_hand_closure.unsqueeze(1) + predicted_clean_hand
                 ).clamp(0.0, 1.0)
-                target_future_closure = gt_hand[:, H:]
+                target_future_closure = gt_hand[:, H:].clone()
+                if current_hand_state is not None:
+                    target_future_closure[:, 0] = current_hand_closure
                 predicted_sequence = torch.cat(
                     (current_hand_closure.unsqueeze(1), predicted_future_closure),
                     dim=1,
@@ -842,6 +883,8 @@ class KimodoPolicy(nn.Module):
                 (current_hand_valid.unsqueeze(1), hand_valid[:, :-1]), dim=1
             )
             transition_valid = hand_valid & previous_valid
+            if current_hand_state is not None:
+                transition_valid[:, 0] = False
             hand_transition_loss = (
                 hand_transition_error * transition_valid.float()
             ).sum() / transition_valid.sum().clamp_min(1)
@@ -879,7 +922,14 @@ class KimodoPolicy(nn.Module):
         rtc_overlap_frames: int = 0,
         rtc_frozen_frames: int = 0,
         rtc_ramp_power: float = 1.0,
+        current_motion: Optional[torch.Tensor] = None,
+        current_feature_mask: Optional[torch.Tensor] = None,
+        current_hand_state: Optional[torch.Tensor] = None,
     ) -> dict[str, torch.Tensor]:
+        # Keep the public current measurement distinct from the noisy trajectory
+        # named current_motion below.
+        measured_current = current_motion
+        measured_hand = current_hand_state
         if isinstance(instruction, str):
             instruction = [instruction]
         if history_motion.ndim == 2:
@@ -1051,6 +1101,10 @@ class KimodoPolicy(nn.Module):
             current_hand_state = self._last_valid_hand_state(
                 hand_history, history_mask
             )
+            if measured_hand is not None:
+                if hand_control_mode != "continuous":
+                    raise ValueError("current measured hand conditioning requires continuous hands")
+                current_hand_state = _current_hand(measured_hand, batch_size, self.device, history_motion.dtype)
             if not torch.isfinite(current_hand_state).all():
                 raise ValueError("hand_history contains NaN or Inf")
             hand_control_mode = self._hand_control_mode()
@@ -1100,6 +1154,16 @@ class KimodoPolicy(nn.Module):
         motion_mask[:, :history_length] = history_feature_mask.to(
             dtype=motion_mask.dtype
         )
+        if (measured_current is None) != (current_feature_mask is None):
+            raise ValueError("current_motion and current_feature_mask must be supplied together")
+        if measured_current is not None:
+            measured_current = torch.as_tensor(measured_current, device=self.device, dtype=torch.float32).reshape(batch_size, motion_dim)
+            current_feature_mask = torch.as_tensor(current_feature_mask, device=self.device, dtype=torch.bool).reshape(batch_size, motion_dim)
+            if not _masked_all_finite(measured_current, current_feature_mask):
+                raise ValueError("current_motion contains NaN or Inf in observed features")
+            normalized_current = self.representation.normalize(measured_current.unsqueeze(1)).squeeze(1).to(denoiser_dtype)
+            observed_motion[:, history_length] = torch.where(current_feature_mask, normalized_current, 0)
+            motion_mask[:, history_length] = current_feature_mask.to(motion_mask.dtype)
         motion_pad_mask = torch.ones(
             batch_size, total_length, dtype=torch.bool, device=self.device
         )
@@ -1224,6 +1288,12 @@ class KimodoPolicy(nn.Module):
                     rtc_hand_at_t,
                     rtc_hand_weights,
                 )
+            # Actual measurements take precedence over a previous prediction,
+            # including when RTC is enabled.
+            if measured_current is not None:
+                current_motion = torch.where(motion_mask.bool(), observed_motion, current_motion)
+            if measured_hand is not None:
+                noisy_hand[:, 0] = 0  # closure delta at the observed cut
             root_control_tokens, body_control_tokens = self.controlnet(
                 model_timestep, image_features, total_length, history_length
             )
@@ -1284,6 +1354,11 @@ class KimodoPolicy(nn.Module):
                 rtc_hand_clean,
                 rtc_hand_weights,
             )
+
+        if measured_current is not None:
+            current_motion = torch.where(motion_mask.bool(), observed_motion, current_motion)
+        if measured_hand is not None:
+            noisy_hand[:, 0] = 0
 
         decoded_motion = current_motion.float()
         decoded = self.representation.inverse(

@@ -107,6 +107,29 @@ class KimodoFeatures:
         mask = history_feature_mask(self.representation, observations[-1].joint_mask)
         return features, mask.expand_as(features), local_rot, root
 
+    def current_observations(self, observations: Sequence[Observation], first_heading: np.ndarray):
+        """Exact sensed poses, without moving them onto the 30 Hz history grid.
+
+        Heading, global rotations and absolute pelvis height are observed. A cut at a
+        fractional model time must not replace its newest sensor reading with
+        an interpolated older pose.
+        """
+        measured_root = torch.zeros(len(observations), 3)
+        measured_root[:, 2] = torch.as_tensor([float(o.root_pos[2]) for o in observations])
+        pose = self.codec.decode_joint_configuration_pose(
+            torch.as_tensor(np.stack([o.joint_pos for o in observations]), dtype=torch.float32),
+            measured_root,
+            root_rotation_matrices=torch.as_tensor(np.stack([first_heading.T @ o.root_rot for o in observations]), dtype=torch.float32),
+            joint_names=G1_JOINT_NAMES,
+        )
+        features = self.features(pose['local_rot_mats'], pose['root_positions'])
+        mask = history_feature_mask(self.representation, observations[-1].joint_mask)
+        # Absolute height is observable and does not depend on the generated
+        # window's unknown planar translation gauge.
+        root_y = self.representation.slice_dict['local_joints_positions'].start + 3 * self.representation.skeleton.root_idx + 1
+        mask[root_y] = True
+        return features, mask.expand_as(features)
+
     def hand_history(self, observations: Sequence[Observation]) -> torch.Tensor:
         """Measured hand closure ``[T, 2]`` at model rate, on the same grid as ``history``.
 

@@ -5,7 +5,13 @@ _base_: bigym2.yaml
 main:
   task: joint18
   tasks: [G1BallMove-L0-S, G1BallMove-L0-R, G1BallMove-L1-S, G1BallMove-L1-R, G1BallMove-L2-S, G1BallMove-L2-R, G1BallRetrieve-L0-S, G1BallRetrieve-L0-R, G1BallRetrieve-L1-S, G1BallRetrieve-L1-R, G1BallRetrieve-L2-S, G1BallRetrieve-L2-R, G1IceBreak-L0-S, G1IceBreak-L0-R, G1IceBreak-L1-S, G1IceBreak-L1-R, G1IceBreak-L2-S, G1IceBreak-L2-R]
-  data_root: data/toolbench/prepared
+  data_root: data/toolbench/prepared_fullbody_v1_e20_20261108
+  condition_current_observation: false
+  prepared_metadata:
+    history_source: measured_fullbody29_control_steps_v3
+    image_preprocessing: stretch_bilinear_antialias_224_v1
+    current_observation_source: disabled_v1_history_semantics
+    target_padding: pose_before_features_with_last_command_v1
   text_cache: data/cache/toolbench
   save_root: log/toolbench
   max_steps: 40000

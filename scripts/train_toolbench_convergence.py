@@ -37,6 +37,12 @@ class ConvergenceSearch(Search):
         plan=read(self.root/'plan.json');assert plan['registered_revision']==10
         self.reference=Path(plan['convergence_experiment']['reference_checkpoint'])
         reference=read(self.reference/'config.json')
+        from kimodo_vla.benchmarks.toolbench.adapter import HISTORY_SOURCE, IMAGE_PREPROCESSING, CURRENT_OBSERVATION_SOURCE
+        required = dict(history_source=HISTORY_SOURCE, image_preprocessing=IMAGE_PREPROCESSING,
+                        current_observation_source=CURRENT_OBSERVATION_SOURCE)
+        if reference['main'].get('prepared_metadata') != required:
+            raise ValueError('This registered convergence experiment uses legacy inputs. Preserve it as a historical result; '
+                             'start corrected training with configs/toolbench_fullbody_v1_e20.yaml in a new run directory.')
         # Copy the actual completed250k recipe, not a separately maintained YAML.
         self.base=OmegaConf.create(copy.deepcopy(reference))
         self.prepared_path=Path(reference['main']['data_root'])

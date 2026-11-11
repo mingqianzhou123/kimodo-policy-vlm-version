@@ -1,4 +1,9 @@
-"""The SIMPLE adapter answers the original SIMPLE runtime's requests identically (40-D and 36-D)."""
+"""SIMPLE motion/hands match the reference; heading tracking follows our explicit policy.
+
+The local reference now derives a yaw-rate flag. This adapter deliberately
+keeps TURN_FLAG=0, as documented in benchmarks.simple.policy, so compare the
+remaining 35 WBC fields and check the disabled turn flag separately.
+"""
 
 import numpy as np
 import pytest
@@ -42,7 +47,7 @@ def requests(data, hand_mode, control_frames):
 
 
 @pytest.mark.parametrize("hand_mode", ["binary", "continuous"])
-def test_simple_matches_original(hand_mode):
+def test_simple_matches_original_with_explicit_turn_policy(hand_mode):
     data = episode(steps=500)
     old_model, new_model = FakeModel(hand_mode), FakeModel(hand_mode)
     rt, original = old_simple_runtime(old_model, 50, hand_mode)
@@ -62,7 +67,10 @@ def test_simple_matches_original(hand_mode):
         assert status == 200 and new.shape == old.shape
         worst_40 = max(worst_40, float(np.abs(new - old).max()))
         old_36 = original.arena_action_to_simple(old, 50.0, hand_control_mode=hand_mode)
-        worst_36 = max(worst_36, float(np.abs(command(new, hand_mode) - old_36).max()))
+        new_36 = command(new, hand_mode)
+        np.testing.assert_array_equal(new_36[:, 34], 0.0)
+        comparable = np.arange(36) != 34
+        worst_36 = max(worst_36, float(np.abs(new_36[:, comparable] - old_36[:, comparable]).max()))
         switches += int(np.any(np.diff(old[:, 38:40], axis=0) != 0))
     worst = compare_calls(old_model.calls, new_model.calls)
     print(hand_mode, {k: f"{v:.1e}" for k, v in worst.items()}, f"40-D {worst_40:.1e}  36-D {worst_36:.1e}  chunks with a hand change {switches}")

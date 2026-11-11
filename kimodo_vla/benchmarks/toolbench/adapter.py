@@ -11,11 +11,11 @@ and executes the whole returned ``(T, 36)`` chunk before asking again. State::
     [0:7]  left Dex3 hand (thumb, middle, index)   [7:14]  right hand (thumb, index, middle)
     [14:21] left arm   [21:28] right arm   [28:31] torso roll, pitch, yaw   [31] previous height command
 
-There is no pelvis position or heading, and only one state per chunk, while
-Kimodo is conditioned on a 50 Hz history with a root heading. So the adapter
-reports the heading it last commanded, and fills the steps between two requests
-with the targets it sent for them (``docs/benchmarks/toolbench.md``). Training
-data has to be built the same way.
+Requests now include every measured control step since the previous request:
+``state.state_history [N,32]`` and ``state.base_pose_history [N,7]``
+(position xyz, quaternion wxyz). Only the newest step carries an image.
+No predicted action is converted into a sensed state. Pelvis pose comes from
+MuJoCo and from ToolBook's observation.base_pose during training.
 
 The answer is NVIDIA's decoupled-WBC command (``controllers.decoupled_wbc``).
 Its target heading is absolute: every scenario spawns the robot facing
@@ -33,6 +33,8 @@ from typing import Any, Mapping
 
 import numpy as np
 import torch
+
+from scipy.spatial.transform import Rotation
 
 from kimodo_vla.benchmarks.arena.adapter import decode_image
 from kimodo_vla.controllers import decoupled_wbc
@@ -65,11 +67,47 @@ OBSERVED_JOINTS = (*decoupled_wbc.ARM_JOINT_NAMES, *decoupled_wbc.TORSO_JOINT_NA
 OBSERVED_MASK = np.isin(np.arange(29), joint_indices(OBSERVED_JOINTS))
 
 
+HISTORY_SOURCE = "measured_fullbody29_control_steps_v3"
+IMAGE_PREPROCESSING = "stretch_bilinear_antialias_224_v1"
+CURRENT_OBSERVATION_SOURCE = "disabled_v1_history_semantics"
+
+
 def resize_image(image: np.ndarray, size: int = IMAGE_SIZE) -> np.ndarray:
-    """``(H, W, 3)`` uint8 -> ``(size, size, 3)`` uint8, bilinear with antialiasing."""
+    """Original direct square resize, shared with training."""
+    image = np.asarray(image)
+    if image.ndim != 3 or image.shape[2] != 3 or image.dtype != np.uint8:
+        raise ValueError("image must be HWC RGB uint8")
+    h, w = image.shape[:2]
+    if min(h, w, size) < 1:
+        raise ValueError("image dimensions and size must be positive")
     tensor = torch.from_numpy(np.ascontiguousarray(image)).permute(2, 0, 1)[None].float()
     resized = torch.nn.functional.interpolate(tensor, size=(size, size), mode="bilinear", antialias=True, align_corners=False)
     return resized[0].permute(1, 2, 0).round().clamp(0, 255).to(torch.uint8).numpy()
+
+
+
+def measured_pose_observation(state: np.ndarray, base_pose: np.ndarray, instruction: str,
+                              image: np.ndarray | None = None, body_q: np.ndarray | None = None) -> Observation:
+    """Measured joints and pelvis pose, in the episode frame (spawn yaw removed)."""
+    pose = np.asarray(base_pose, np.float32)
+    if pose.shape != (7,) or not np.isfinite(pose).all():
+        raise ValueError("base_pose must be 7 finite values: xyz + quaternion wxyz")
+    if abs(float(np.linalg.norm(pose[3:])) - 1.0) > 0.01:
+        raise ValueError("base_pose quaternion must have unit length")
+    obs = measured_observation(state, 0.0, instruction, image)
+    if body_q is not None:
+        from .demos import BODY_JOINT_NAMES
+        body_q = np.asarray(body_q, np.float32)
+        if body_q.shape != (29,) or not np.isfinite(body_q).all():
+            raise ValueError("body_q must be 29 finite measured joint angles")
+        obs.joint_pos[joint_indices(BODY_JOINT_NAMES)] = body_q
+        obs.joint_mask[:] = True
+        if not np.allclose(body_q[15:29], np.asarray(state)[14:28], atol=1e-6, rtol=0) or not np.allclose(body_q[[13,14,12]], np.asarray(state)[28:31], atol=1e-6, rtol=0):
+            raise ValueError("body_q_history disagrees with legacy arm/waist measurements")
+    relative = yaw_matrix(SPAWN_YAW).T
+    obs.root_pos = (relative @ pose[:3]).astype(np.float32)
+    obs.root_rot = (relative @ Rotation.from_quat(pose[[4, 5, 6, 3]]).as_matrix()).astype(np.float32)
+    return obs
 
 
 def measured_observation(state: np.ndarray, heading: float, instruction: str, image: np.ndarray | None = None) -> Observation:
@@ -93,16 +131,6 @@ def measured_observation(state: np.ndarray, heading: float, instruction: str, im
     )
 
 
-def commanded_observation(joint_pos: np.ndarray, root_rot: np.ndarray, root_height: float, hand: np.ndarray,
-                          instruction: str) -> Observation:
-    """A step between two requests, reported as what was commanded for it."""
-    return Observation(
-        images={}, root_pos=np.array([0.0, 0.0, root_height], np.float32), root_rot=np.asarray(root_rot, np.float32),
-        joint_pos=np.asarray(joint_pos, np.float32).copy(), joint_mask=OBSERVED_MASK.copy(),
-        hand=np.asarray(hand, np.float32).copy(), instruction=instruction,
-    )
-
-
 class ToolBenchAdapter:
     control_fps = CONTROL_FPS
 
@@ -118,28 +146,35 @@ class ToolBenchAdapter:
         self.reset()
 
     def reset(self) -> None:
-        self._sent: ActionChunk | None = None
-        self._heading = 0.0  # the episode starts facing yaw 0 of our own frame
+        self._expected_states = 1
 
     def to_observations(self, request: Mapping[str, Any]) -> list[Observation]:
         instruction = str(request.get("instruction", "")).strip()
+        payload = request["state"]
+        if "state_history" not in payload or "base_pose_history" not in payload:
+            raise ValueError("ToolBench requires measured state_history and base_pose_history; update the simulator client")
+        states = np.asarray(payload["state_history"], np.float32)
+        poses = np.asarray(payload["base_pose_history"], np.float32)
+        if "body_q_history" not in payload:
+            raise ValueError("ToolBench requires measured body_q_history; update simulator client")
+        bodies = np.asarray(payload["body_q_history"], np.float32)
+        if bodies.shape != (self._expected_states, 29):
+            raise ValueError(f"expected {self._expected_states} new measured body states, got {bodies.shape}")
+        if states.shape != (self._expected_states, 32) or poses.shape != (self._expected_states, 7):
+            raise ValueError(f"expected {self._expected_states} new measured control states, got {states.shape}, {poses.shape}")
+        if not np.isfinite(states).all() or not np.isfinite(poses).all():
+            raise ValueError("measured history contains NaN or Inf")
+        latest = np.asarray(payload["states"], np.float32)
+        if latest.shape != (1, 32) or not np.array_equal(latest[0], states[-1]):
+            raise ValueError("states must equal the newest measured state_history row")
         image = decode_image(request["image"]["rgb_head_stereo_left"])
-        latest = measured_observation(np.asarray(request["state"]["states"])[-1], self._heading, instruction, image)
-        if self._sent is None:
-            return [latest]
-        # The evaluator ran every row of the last chunk; the newest state comes after its final row.
-        sent = self._sent
-        filled = [
-            commanded_observation(sent.joint_pos[i], sent.root_rot[i], sent.root_height[i], sent.hand[i], instruction)
-            for i in range(len(sent) - 1)
-        ]
-        return filled + [latest]
+        return [measured_pose_observation(s, p, instruction, image if i == len(states) - 1 else None, body_q=b)
+                for i, (s, p, b) in enumerate(zip(states, poses, bodies))]
 
     def to_response(self, chunk: ActionChunk, request: Mapping[str, Any]) -> np.ndarray:
         rows = chunk.to_array40()
         heading = decoupled_wbc.headings(rows)
         flags = decoupled_wbc.operator_turn_flags(heading, self.control_fps) if self.turn == "operator" else self.turn
         command = decoupled_wbc.encode(rows, self.control_fps, hand_targets, flags, heading_offset=SPAWN_YAW)
-        self._sent = chunk
-        self._heading = float(heading[-1])
+        self._expected_states = len(chunk)
         return command

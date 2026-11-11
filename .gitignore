@@ -11,3 +11,40 @@ data/cache/
 data/toolbench/
 .venv-cluster/
 .claude/launch.json
+
+# Local environments and generated training/evaluation artifacts.
+.venv-*/
+*.mp4
+*.webm
+*.avi
+*.mov
+*.mkv
+*.pt
+*.pth
+*.safetensors
+*.frames.npy
+
+# Publish only the compact fullbody-v1 report and numeric evidence.
+/reports/*
+!/reports/toolbench_fullbody_v1_20261108/
+/reports/toolbench_fullbody_v1_20261108/*
+!/reports/toolbench_fullbody_v1_20261108/REPORT.md
+!/reports/toolbench_fullbody_v1_20261108/RESULTS.md
+!/reports/toolbench_fullbody_v1_20261108/results.json
+!/reports/toolbench_fullbody_v1_20261108/results.csv
+!/reports/toolbench_fullbody_v1_20261108/source_identity.json
+
+# Unpublished legacy configs and exploratory diagnostics (preserved locally).
+/configs/toolbench_measured*.yaml
+/kimodo_vla/benchmarks/toolbench/hand_representation.py
+/kimodo_vla/benchmarks/toolbench/trace.py
+/scripts/audit_toolbench_600k.py
+/scripts/audit_toolbench_current_feedback.py
+/scripts/audit_toolbench_fixed_inputs.py
+/scripts/check_toolbench_current_feedback.py
+/scripts/diagnose_toolbench_instability.py
+/tests/test_current_feedback.py
+/tests/test_partial_current_motion_loss.py
+/tests/test_toolbench_diagnostics.py
+
+/scripts/watch_toolbench_run.py

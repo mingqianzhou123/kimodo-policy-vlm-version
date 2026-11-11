@@ -1,4 +1,4 @@
-"""ToolBench adapter: state layout, the filled history, the 36-D command and the session protocol (no simulator)."""
+"""ToolBench adapter: state layout, measured history, the 36-D command and the session protocol (no simulator)."""
 
 import json
 import threading
@@ -26,8 +26,14 @@ def state(arm=0.1, closure=(1.0, 0.0)):
 
 
 def request(values, reset=False, session="a"):
+    v = np.atleast_2d(values)
+    body = np.zeros((len(v), 29), np.float32)
+    body[:, :12] = np.arange(12) * .01
+    body[:, 12:15] = v[:, [30,28,29]]
+    body[:, 15:29] = v[:, 14:28]
     return {"image": {"rgb_head_stereo_left": np.zeros((360, 640, 3), np.uint8)}, "instruction": "use the hammer",
-            "state": {"states": values[None]}, "history": {"reset": reset}, "session": session}
+            "state": {"body_q_history": body, "states": np.atleast_2d(values)[-1:], "state_history": np.atleast_2d(values),
+                      "base_pose_history": np.tile([0, 0, .74, np.cos(SPAWN_YAW/2), 0, 0, np.sin(SPAWN_YAW/2)], (len(np.atleast_2d(values)), 1))}, "history": {"reset": reset}, "session": session}
 
 
 class TurningPlanner:
@@ -62,20 +68,33 @@ def test_state_layout():
     np.testing.assert_allclose(obs.hand, [1.0, 0.0], atol=1e-6)
 
 
-def test_history_is_filled_with_the_sent_targets_and_heading():
+def test_history_contains_only_measured_states_even_when_the_commands_disagree():
     planner = TurningPlanner(frames=5)
     policy = make_policy(planner)
     policy.reset()
     first = policy(request(state(), reset=True))
-    second = policy(request(state(arm=0.2)))
+    measured = np.stack([state(arm=0.2 + 0.01*i) for i in range(5)])
+    second = policy(request(measured))
     assert first.shape == second.shape == (5, 36)
     history = planner.seen[-1]
-    assert [o.step for o in history] == list(range(6))  # 1 measured + 4 filled + 1 measured
-    np.testing.assert_allclose(history[1].joint_pos, np.linspace(-0.3, 0.3, 29), atol=1e-6)
-    # The newest observation is measured, facing the last heading we commanded.
-    assert history[-1].joint_pos[G1_JOINT_INDEX["left_shoulder_pitch_joint"]] == pytest.approx(0.2)
-    assert float(yaw_of(history[-1].root_rot)) == pytest.approx(0.1, abs=1e-6)
-    assert float(second[0, 35]) == pytest.approx(0.12 + SPAWN_YAW, abs=1e-6)  # absolute: the robot spawns facing -90 degrees
+    assert [o.step for o in history] == list(range(6))
+    for i, obs in enumerate(history[1:]):
+        assert obs.joint_pos[G1_JOINT_INDEX["left_shoulder_pitch_joint"]] == pytest.approx(.2 + .01*i)
+        assert float(yaw_of(obs.root_rot)) == pytest.approx(0.0, abs=1e-6)
+    assert float(second[0, 35]) == pytest.approx(0.02 + SPAWN_YAW, abs=1e-6)
+    assert not history[1].images and history[-1].images["head"].shape == (224, 224, 3)
+
+
+def test_rejects_missing_or_incomplete_real_history():
+    policy = make_policy(TurningPlanner(frames=5))
+    policy.reset()
+    policy(request(state()))
+    with pytest.raises(ValueError, match="expected 5"):
+        policy(request(state()))
+    bad = request(state())
+    del bad["state"]["state_history"]
+    with pytest.raises(ValueError, match="update the simulator"):
+        policy(bad)
 
 
 def test_command_layout():
@@ -117,3 +136,33 @@ def test_sessions(base_url):
     assert call(f"{base_url}/act", request(state(), reset=True, session="b"))[0] == 409
     assert call(f"{base_url}/release", {"session": "a"})[1] == {"released": True}
     assert call(f"{base_url}/act", request(state(), reset=True, session="b"))[0] == 200
+
+
+def test_rgb_original_stretch_preserves_colors_and_all_four_edges():
+    from kimodo_vla.benchmarks.toolbench.adapter import resize_image
+    raw = np.full((360, 640, 3), 128, np.uint8)
+    raw[:, :40] = [255, 0, 0]
+    raw[:, -40:] = [0, 0, 255]
+    raw[:40, 40:-40] = [0, 255, 0]
+    raw[-40:, 40:-40] = [255, 255, 0]
+    image = resize_image(raw)
+    assert image.shape == (224, 224, 3) and image.dtype == np.uint8
+    # Original direct square resize: no letterbox or crop.
+    assert image[0].any() and image[-1].any()
+    np.testing.assert_array_equal(image[100, 0], [255, 0, 0])
+    np.testing.assert_array_equal(image[100, -1], [0, 0, 255])
+    np.testing.assert_array_equal(image[0, 100], [0, 255, 0])
+    np.testing.assert_array_equal(image[-1, 100], [255, 255, 0])
+
+
+def test_measured_pelvis_quaternion_is_used_instead_of_the_target_heading():
+    from scipy.spatial.transform import Rotation
+    from kimodo_vla.benchmarks.toolbench.adapter import measured_pose_observation
+    world = Rotation.from_euler('xyz', [.04, -.07, SPAWN_YAW + .3])
+    pose = np.r_[[.2, -.1, .75], world.as_quat()[[3, 0, 1, 2]]]
+    obs = measured_pose_observation(state(), pose, 'x')
+    np.testing.assert_allclose(obs.root_rot, yaw_matrix(SPAWN_YAW).T @ world.as_matrix(), atol=1e-6)
+    np.testing.assert_allclose(obs.root_pos, yaw_matrix(SPAWN_YAW).T @ pose[:3], atol=1e-6)
+    pose[3:] = 0
+    with pytest.raises(ValueError, match='unit length'):
+        measured_pose_observation(state(), pose, 'x')

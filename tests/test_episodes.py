@@ -8,7 +8,7 @@ import torch
 
 from kimodo_vla.core.types import G1_JOINT_INDEX, Observation, yaw_matrix
 from kimodo_vla.data.build import DemoMotion, training_episode
-from kimodo_vla.data.episodes import KimodoWindowDataset, save_episode
+from kimodo_vla.data.episodes import KimodoWindowDataset, save_episode, terminal_hold_features
 from kimodo_vla.model.planner import KimodoPlanner
 
 
@@ -57,7 +57,7 @@ def write_dataset(tmp_path, observations, planner):
 def test_window_format_and_padding(tmp_path):
     planner = stub_planner()
     dataset, record = write_dataset(tmp_path, synthetic_episode(), planner)
-    assert len(dataset) == record["target_motion"].shape[0] - 50 + 1
+    assert len(dataset) == record["target_motion"].shape[0]
 
     first = dataset[0]  # cut 0: no history at all
     assert first["gt_motion"].shape == (150, 417) and first["condition_motion_mask"].shape == (150, 417)
@@ -144,7 +144,7 @@ def test_training_episode_from_a_demonstration(tmp_path):
     torch.testing.assert_close(record["target_motion"][:, rot][:, observed_mask],
                                record["observed_motion"][:, rot][:, observed_mask], atol=1e-5, rtol=0)
     save_episode(tmp_path / "toy" / "ep0", record, frames)
-    assert len(KimodoWindowDataset([tmp_path])) == frames_count - 50 + 1
+    assert len(KimodoWindowDataset([tmp_path])) == frames_count
 
 
 def test_image_shift_is_a_crop_of_the_padded_image(tmp_path):
@@ -173,3 +173,38 @@ def test_proprio_masking_keeps_only_the_base(tmp_path):
     assert bool(b[:100, heading].all())  # the base stays observed
     assert int(b[:100].sum()) < int(a[:100].sum())  # the arm joints do not
     assert bool((b <= a).all())
+
+
+def test_terminal_cuts_and_short_episodes_repeat_both_targets(tmp_path):
+    for length in (1, 17, 49, 50, 51):
+        root = tmp_path / str(length)
+        motion = torch.arange(length * 417, dtype=torch.float32).reshape(length, 417)
+        hand = torch.arange(length * 2, dtype=torch.float32).reshape(length, 2)
+        record = dict(task='toy', episode_id='ep', instruction='x', fps=30, cameras=['head'],
+                      target_motion=motion, observed_motion=motion + 10,
+                      observed_mask=torch.ones(417, dtype=torch.bool), hand=hand)
+        save_episode(root / 'ep', record, np.zeros((length, 1, 4, 4, 3), np.uint8))
+        dataset = KimodoWindowDataset([root])
+        assert len(dataset) == length
+        for cut in range(max(0, length - 50), length):
+            sample = dataset[cut]
+            indices = torch.arange(cut, cut + 50).clamp(max=length - 1)
+            torch.testing.assert_close(sample['gt_hand'][100:], hand[indices])
+            # Translation canonicalization affects only root x/z.
+            expected = motion[indices].clone()
+            if cut + 50 > length:
+                expected[indices == length - 1] = terminal_hold_features(motion[-1])
+            torch.testing.assert_close(sample['gt_motion'][100:, 3:], expected[:, 3:])
+            assert sample['gt_mask'][100:].all() and sample['gt_hand_mask'][100:].all()
+            assert not sample['condition_motion_mask'][100:].any()
+            repeated = max(0, min(50, 1 + cut + 50 - length))
+            if not repeated:
+                continue
+            torch.testing.assert_close(sample['gt_motion'][-repeated:], sample['gt_motion'][-1:].expand(repeated, -1))
+
+
+def test_prepared_metadata_rejects_legacy_cache(tmp_path):
+    import pytest
+    write_dataset(tmp_path, synthetic_episode(steps=100), stub_planner())
+    with pytest.raises(ValueError, match='rebuild prepared data'):
+        KimodoWindowDataset([tmp_path], required_metadata={'history_source': 'measured_control_steps_v1'})

@@ -72,7 +72,7 @@ def analyze(root):
             row['failure_bucket']=bucket;rows.append(row);allrows.append(row)
         assert len(rows)==c['episodes'] and sum(r['success'] for r in rows)==c['successes']
         groups[name]=stats(rows);print(name,'verified',len(rows),'elapsed',round(time.monotonic()-t,1),flush=True)
-    result=dict(scope='Saved900episodes and all per-step metrics; official receipts and goal hold durations checked; no new rollout',
+    result=dict(scope=f'Saved {len(allrows)} episodes and all per-step metrics; official receipts and goal hold durations checked; no new rollout',
         source=str(root),settings=settings,aggregate=stats(allrows),conditions=groups,
         levels={f'L{i}':stats([r for r in allrows if f'-L{i}-' in r['condition']]) for i in range(3)},
         l12=stats([r for r in allrows if '-L0-' not in r['condition']]),

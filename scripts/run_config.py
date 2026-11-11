@@ -8,6 +8,17 @@ REPO = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = REPO / "configs" / "bigym2.yaml"
 
 
+def current_observation_mode(config_path: Path, requested: str = "checkpoint") -> str:
+    """Keep training and serving conditions matched unless explicitly overridden."""
+    if requested in {"on", "off"}:
+        return requested
+    if requested != "checkpoint":
+        raise ValueError(f"Unknown current-observation mode: {requested}")
+    import json
+    saved = json.loads(Path(config_path).read_text())
+    return "on" if saved.get("main", {}).get("condition_current_observation", False) else "off"
+
+
 def inference_fingerprint(config_path: Path, inference: dict) -> str:
     """Fingerprint the saved training config together with inference settings."""
     import hashlib

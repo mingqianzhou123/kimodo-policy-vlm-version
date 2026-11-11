@@ -1,0 +1,22 @@
+# Fullbody v1: 600k / seed1000 / global batch128 / four GPUs.
+_base_: toolbench_tuning.yaml
+main:
+  max_steps: 600000
+  data_root: data/toolbench/prepared_fullbody_v1_e20_20261108
+  save_root: log/toolbench/fullbody_v1_e20_20261108
+  condition_current_observation: false
+  num_workers: 2
+  sampling: task_uniform
+  score_checkpoints: [100000, 200000, 300000, 400000, 500000, 600000]
+  resume_snapshots: [100000, 200000, 300000, 400000, 500000, 600000]
+  gradient:
+    abort_control_norm: 1000.0
+  prepared_metadata:
+    history_source: measured_fullbody29_control_steps_v3
+    image_preprocessing: stretch_bilinear_antialias_224_v1
+    current_observation_source: disabled_v1_history_semantics
+    target_padding: pose_before_features_with_last_command_v1
+training:
+  attention_backend: math
+  scheduler:
+    decay_steps: 600000

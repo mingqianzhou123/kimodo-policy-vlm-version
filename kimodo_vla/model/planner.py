@@ -118,6 +118,8 @@ class KimodoPlanner:
         blend_steps: int = 0,
         root_boundary: str = "history",
         hand_filter: HandFilter | None = None,
+        condition_current_observation: bool = False,
+        align_execution_grid: bool = False,
     ):
         self.hand_mode = str(model.config.hand_control_mode).lower()
         if self.hand_mode not in ("binary", "continuous"):
@@ -139,6 +141,10 @@ class KimodoPlanner:
         if noise not in ("per_plan", "fixed"):
             raise ValueError(f"noise must be 'per_plan' or 'fixed', got {noise!r}")
         self.noise = noise
+        self.align_execution_grid = bool(align_execution_grid)
+        self.condition_current_observation = bool(condition_current_observation)
+        if self.condition_current_observation and self.hand_mode != "continuous":
+            raise ValueError("current observation conditioning requires continuous measured hands")
         self.rtc_overlap_frames = int(rtc_overlap_frames)
         self.rtc_frozen_frames = min(int(rtc_frozen_frames), self.rtc_overlap_frames)
         self.blend_steps = int(blend_steps)
@@ -192,6 +198,7 @@ class KimodoPlanner:
         model.load_controlnet_checkpoint(str(checkpoint_dir), weights=weights)
         model.to(device=torch.device(device), dtype=dtype).eval()
         kwargs.setdefault("cameras", cameras)
+        kwargs.setdefault("condition_current_observation", bool(main_cfg.get("condition_current_observation", False)))
         return cls(model, load_text_embeddings(text_embedding_cache), **kwargs)
 
     def reset(self, seed: int | None = None) -> None:
@@ -207,7 +214,9 @@ class KimodoPlanner:
 
         The newest observation sits at the prediction cut, and training conditions
         on frames ``[cut - H, cut)``, so it is left out (``KimodoWindowDataset`` slices
-        the same way).
+        the same way). With current-observation conditioning, the newest exact
+        sensor pose is supplied separately at prediction frame 0, not discarded
+        or appended at the wrong history timestamp.
         """
         features, mask, local_rot, root = self.kimodo.history(history, self._first_heading)
         return features[:-1][-self.history_frames :], mask[:-1][-self.history_frames :], local_rot[-1], root[-1]
@@ -234,7 +243,13 @@ class KimodoPlanner:
         ratio = self.model_fps / self.control_fps
         now = step * ratio - int(round(step * ratio))
         execution_frames = self.execution_frames if execution_frames is None else execution_frames
-        steps = min(int(round(execution_frames / ratio)), int(math.floor((frames - 1 - now) / ratio + 1e-6)))
+        requested_steps = int(round(execution_frames / ratio))
+        if getattr(self, "align_execution_grid", False):
+            # Round the absolute model-grid endpoint, not each chunk duration.
+            # E20 then runs 33/34/33 steps and uses exactly the RGB timestamps
+            # selected by the training cache (round(model_cut * 50 / 30)).
+            requested_steps = int(round((round(step * ratio) + execution_frames) / ratio)) - step
+        steps = min(requested_steps, int(math.floor((frames - 1 - now) / ratio + 1e-6)))
         return now + torch.arange(steps + 1, dtype=torch.float32) * ratio
 
     def hand_history(self, cut: int, frames: int) -> torch.Tensor:
@@ -280,6 +295,11 @@ class KimodoPlanner:
         history_motion = motion.unsqueeze(0).to(device)
         history_mask = mask.unsqueeze(0).to(device)
         text = self._text_embedding(obs.instruction)
+        current = {}
+        if self.condition_current_observation:
+            current_motion, current_mask = self.kimodo.current_observations([obs], self._first_heading)
+            current = dict(current_motion=current_motion.to(device), current_feature_mask=current_mask.to(device),
+                           current_hand_state=torch.as_tensor(obs.hand, dtype=torch.float32, device=device).unsqueeze(0))
         generator = None
         if self.seed is not None:
             generator = torch.Generator(device=device)
@@ -307,6 +327,7 @@ class KimodoPlanner:
             text_feat=None if text is None else text.to(device=device, dtype=dtype),
             hand_history=self._condition_hand(history, cut, history_motion.shape[1]).to(device),
             generator=generator,
+            **current,
             **rtc,
         )
         hand_clean = output.get("hand_clean") if rtc_hand else None
@@ -337,7 +358,9 @@ class KimodoPlanner:
             torch.cat((local_rot[:1], local_rot)), torch.cat((before, root_pos)), offsets + 1.0
         )
         if self.hand_mode == "continuous":
-            # The measured closure stands one frame before frame 0, like the root.
+            # Prepending supplies the negative-offset boundary. With measured
+            # cut conditioning, prediction frame 0 is the same measured closure;
+            # offsets + 1 still select prediction frames at their original times.
             closure = torch.cat((torch.as_tensor(obs.hand, dtype=torch.float32)[None],
                                  output["hand_closure"].clamp(0.0, 1.0).float().cpu()))
             control_hand = lerp_rows(closure, offsets[1:] + 1.0)

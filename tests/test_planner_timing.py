@@ -72,7 +72,7 @@ def run(model, steps=160, seed=None, **options):
 
 
 @pytest.mark.parametrize("options", [
-    dict(execution_frames=10), dict(execution_frames=50),
+    dict(execution_frames=10), dict(execution_frames=15), dict(execution_frames=50),
     dict(execution_frames=10, noise="fixed", rtc_overlap_frames=12, blend_steps=8),  # a consistent model is left alone
 ])
 def test_targets_follow_the_control_clock(options):

@@ -58,23 +58,29 @@ def routes(policy: ChunkPolicy, *, name: str = "kimodo-vla", checkpoint: str | N
             current = owner()
             if current not in (None, session):
                 return 409, {"error": "This policy server is serving another evaluator; run one server per evaluator."}
+            reset = (request.get("history") or {}).get("reset", False)
             if active["session"] != session:
+                if not reset:
+                    return 400, {"error": "A new evaluator session must start with history.reset=true."}
                 active["episode"] = 0
             active.update(session=session, seen=time.monotonic(), busy=True)
             try:
-                if (request.get("history") or {}).get("reset", False):
+                if reset:
                     seed = None if base_seed is None else base_seed + active["episode"]
-                    active["episode"] += 1
                     policy.reset(seed)
-                return 200, {"action": policy(request)}
+                action = policy(request)
+                if reset:
+                    active["episode"] += 1
+                return 200, {"action": action}
             finally:
                 active.update(seen=time.monotonic(), busy=False)
 
     def release(request: dict[str, Any]):
         session = request.get("session") or ANONYMOUS_SESSION
-        if active["session"] == session and not active["busy"]:
-            active["session"] = None
-        return 200, {"released": active["session"] is None}
+        with lock:
+            if active["session"] == session:
+                active["session"] = None
+            return 200, {"released": active["session"] is None}
 
     return {("GET", "/info"): info, ("POST", "/act"): act, ("POST", "/release"): release}
 
@@ -85,18 +91,21 @@ def make_kimodo_policy(
     *,
     device: str = "cuda",
     dtype: torch.dtype = torch.float32,
-    execution_frames: int = 50,
+    execution_frames: int = 20,
     diffusion_steps: int = 10,
     rtc_overlap_frames: int = 0,
     turn: str | float = "operator",
     root_boundary: str = "extrapolate",
+    condition_current_observation: bool | None = None,
 ) -> ChunkPolicy:
     """``root_boundary`` follows SIMPLE (same controller, no root position in the state) until the
     round-trip check on ToolBook demos says otherwise."""
     from kimodo_vla.model.planner import KimodoPlanner
 
+    conditioning = {} if condition_current_observation is None else {"condition_current_observation": condition_current_observation}
     planner = KimodoPlanner.from_checkpoint(
         checkpoint_dir, text_embedding_cache, device=device, dtype=dtype, control_fps=CONTROL_FPS,
         execution_frames=execution_frames, diffusion_steps=diffusion_steps, rtc_overlap_frames=rtc_overlap_frames, root_boundary=root_boundary,
+        align_execution_grid=True, **conditioning,
     )
     return make_policy(planner, turn)

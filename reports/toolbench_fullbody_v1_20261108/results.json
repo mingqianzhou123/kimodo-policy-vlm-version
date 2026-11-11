@@ -1,0 +1,126 @@
+{
+  "version": "fullbody_v1_e20",
+  "checkpoint_step": 600000,
+  "seed": 1000,
+  "successes": 293,
+  "episodes": 1800,
+  "success_rate": 0.16277777777777777,
+  "levels": {
+    "L0": {
+      "successes": 243,
+      "episodes": 600
+    },
+    "L1": {
+      "successes": 41,
+      "episodes": 600
+    },
+    "L2": {
+      "successes": 9,
+      "episodes": 600
+    }
+  },
+  "evaluation": {
+    "split": "test",
+    "seed_start": 10000,
+    "seed_end": 10099,
+    "max_control_steps": 3000,
+    "execution_frames": 20,
+    "diffusion_steps": 10,
+    "attention_backend": "math",
+    "rtc_overlap_frames": 0,
+    "reportable": true,
+    "failed_conditions": 0
+  },
+  "conditions": [
+    {
+      "condition": "G1BallMove-L0-R",
+      "successes": 47,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallMove-L0-S",
+      "successes": 50,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallMove-L1-R",
+      "successes": 6,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallMove-L1-S",
+      "successes": 15,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallMove-L2-R",
+      "successes": 0,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallMove-L2-S",
+      "successes": 0,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallRetrieve-L0-R",
+      "successes": 17,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallRetrieve-L0-S",
+      "successes": 14,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallRetrieve-L1-R",
+      "successes": 1,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallRetrieve-L1-S",
+      "successes": 4,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallRetrieve-L2-R",
+      "successes": 0,
+      "episodes": 100
+    },
+    {
+      "condition": "G1BallRetrieve-L2-S",
+      "successes": 0,
+      "episodes": 100
+    },
+    {
+      "condition": "G1IceBreak-L0-R",
+      "successes": 65,
+      "episodes": 100
+    },
+    {
+      "condition": "G1IceBreak-L0-S",
+      "successes": 50,
+      "episodes": 100
+    },
+    {
+      "condition": "G1IceBreak-L1-R",
+      "successes": 9,
+      "episodes": 100
+    },
+    {
+      "condition": "G1IceBreak-L1-S",
+      "successes": 6,
+      "episodes": 100
+    },
+    {
+      "condition": "G1IceBreak-L2-R",
+      "successes": 9,
+      "episodes": 100
+    },
+    {
+      "condition": "G1IceBreak-L2-S",
+      "successes": 0,
+      "episodes": 100
+    }
+  ]
+}

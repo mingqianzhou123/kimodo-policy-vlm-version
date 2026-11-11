@@ -1,0 +1,163 @@
+diff --git a/src/humanoidtoolbench/envs/sonic_loco_manip.py b/src/humanoidtoolbench/envs/sonic_loco_manip.py
+index 512f2b9..fcedc45 100644
+--- a/src/humanoidtoolbench/envs/sonic_loco_manip.py
++++ b/src/humanoidtoolbench/envs/sonic_loco_manip.py
+@@ -11,6 +11,7 @@ from typing import Any
+ 
+ import mujoco
+ import numpy as np
++from gymnasium import spaces
+ 
+ from humanoidtoolbench.core.task import Task
+ from humanoidtoolbench.envs.base_dual_env import BaseDualSim
+@@ -40,12 +41,18 @@ class SonicLocoManipEnv(BaseDualSim):
+         # Whether an observation carries camera images. The evaluator turns
+         # this off while the robot stabilizes, when nothing reads them.
+         self.render_obs = True
++        self.observation_space = spaces.Dict({
++            **self.observation_space.spaces,
++            "base_pose": spaces.Box(-np.inf, np.inf, shape=(7,), dtype=np.float32),
++        })
+ 
+     def _get_obs(self):
+         qpos = np.asarray(list(self.mujoco.get_robot_qpos().values()), dtype=np.float32)
++        # Same xyz + quaternion wxyz convention as ToolBook observation.base_pose.
++        base_pose = self.task.robot.mjData.qpos[:7].copy().astype(np.float32)
+         if not self.render_obs:
+-            return {"joint_qpos": qpos}
+-        return {"joint_qpos": qpos, **self._render_frame()}
++            return {"joint_qpos": qpos, "base_pose": base_pose}
++        return {"joint_qpos": qpos, "base_pose": base_pose, **self._render_frame()}
+ 
+     def _get_info(self):
+         info = {}
+diff --git a/src/humanoidtoolbench/policies/composition.py b/src/humanoidtoolbench/policies/composition.py
+index e1985fa..e6123a8 100644
+--- a/src/humanoidtoolbench/policies/composition.py
++++ b/src/humanoidtoolbench/policies/composition.py
+@@ -34,6 +34,7 @@ class HumanoidPolicyAgent(Generic[GoalT]):
+         self.body_controller = body_controller
+         self._goal_queue: deque[GoalT] = deque()
+         self._last_action_chunk: ActionChunk[GoalT] | None = None
++        self._observation_recorded = False
+ 
+     @property
+     def pending_goals(self) -> int:
+@@ -83,6 +84,10 @@ class HumanoidPolicyAgent(Generic[GoalT]):
+     ) -> ActionCmd:
+         """Return one simulator action, requesting a new chunk only if needed."""
+ 
++        observe = getattr(self.task_policy, "observe", None)
++        if callable(observe) and not self._observation_recorded:
++            observe(observation)
++            self._observation_recorded = True
+         if not self._goal_queue:
+             self._request_chunk(observation, instruction, **kwargs)
+ 
+@@ -96,6 +101,10 @@ class HumanoidPolicyAgent(Generic[GoalT]):
+                 f"{type(action).__name__}"
+             )
+         self._goal_queue.popleft()
++        executed = getattr(self.task_policy, "record_execution", None)
++        if callable(executed):
++            executed(goal)
++        self._observation_recorded = False
+         return action
+ 
+     def reset(self, **kwargs: Any) -> None:
+@@ -103,6 +112,7 @@ class HumanoidPolicyAgent(Generic[GoalT]):
+ 
+         self._goal_queue.clear()
+         self._last_action_chunk = None
++        self._observation_recorded = False
+         self.task_policy.reset(**kwargs)
+         self.body_controller.reset(**kwargs)
+ 
+diff --git a/src/humanoidtoolbench/policies/remote_humanoid.py b/src/humanoidtoolbench/policies/remote_humanoid.py
+index de3d61d..b39b5c3 100644
+--- a/src/humanoidtoolbench/policies/remote_humanoid.py
++++ b/src/humanoidtoolbench/policies/remote_humanoid.py
+@@ -94,12 +94,13 @@ class RemoteChunkPolicy:
+         self.policy_name = policy_name
+         self._reset_history = True
+         self._last_base_height = 0.74
++        self._measured_states: list[np.ndarray] = []
++        self._measured_body: list[np.ndarray] = []
++        self._measured_poses: list[np.ndarray] = []
+ 
+     def _chunk(self, raw: object, *, transport: str) -> ActionChunk[Any]:
+         flat = _normalize_prediction(raw)
+         goals = list(DecoupledActionCodec.decode_chunk(flat))
+-        if goals:
+-            self._last_base_height = goals[-1].base_height_command
+         return ActionChunk(
+             schema=DECOUPLED_SCHEMA_ID,
+             goals=goals,
+@@ -114,10 +115,44 @@ class RemoteChunkPolicy:
+         del kwargs
+         self._reset_history = True
+         self._last_base_height = 0.74
++        self._measured_states.clear()
++        self._measured_body.clear()
++        self._measured_poses.clear()
++
++    def observe(self, observation: Mapping[str, Any]) -> None:
++        """Capture every real control step, including while a chunk is queued."""
++        state = build_decoupled_policy_state(observation, self._last_base_height).copy()
++        if not np.isfinite(state).all():
++            raise ValueError("measured state must be finite")
++        pose = None
++        if "base_pose" in observation:
++            pose = np.asarray(observation["base_pose"], dtype=np.float32)
++            if pose.shape != (7,) or not np.isfinite(pose).all():
++                raise ValueError("base_pose must be finite xyz + quaternion wxyz")
++            pose = pose.copy()
++        if self._measured_states and (pose is not None) != bool(self._measured_poses):
++            raise ValueError("base_pose must be present at every control step or absent at every step")
++        # Validate both fields before changing history, so a rejected observation
++        # can be corrected and retried without duplicating a control step.
++        self._measured_states.append(state)
++        self._measured_body.append(_joint_qpos(observation)[:29].copy())
++        if pose is not None:
++            self._measured_poses.append(pose)
++
++    def record_execution(self, goal: Any) -> None:
++        """The previous height belongs to the consumed goal, not the chunk tail."""
++        self._last_base_height = float(goal.base_height_command)
+ 
+     def _state(self, observation: Mapping[str, Any]) -> dict[str, np.ndarray]:
+-        state = build_decoupled_policy_state(observation, self._last_base_height)
+-        return {"states": state[None]}
++        if not self._measured_states:
++            self.observe(observation)  # also support direct predict() callers
++        states = np.stack(self._measured_states)
++        result = {"states": states[-1:], "state_history": states, "body_q_history": np.stack(self._measured_body)}
++        if self._measured_poses:
++            if len(self._measured_poses) != len(states):
++                raise ValueError("base_pose missing at some control steps")
++            result["base_pose_history"] = np.stack(self._measured_poses)
++        return result
+ 
+ 
+ class HttpTaskPolicy(RemoteChunkPolicy):
+@@ -141,14 +176,18 @@ class HttpTaskPolicy(RemoteChunkPolicy):
+         if not instruction:
+             raise ValueError("The HTTP policy needs the task instruction")
+         history = {"reset": True} if self._reset_history else {}
+-        self._reset_history = False
+         raw = self.client.query_action(
+             {"rgb_head_stereo_left": _head_image(observation)},
+             instruction,
+             self._state(observation),
+             history=history,
+         )
+-        return self._chunk(raw, transport="http_act")
++        chunk = self._chunk(raw, transport="http_act")
++        self._reset_history = False
++        self._measured_states.clear()
++        self._measured_body.clear()
++        self._measured_poses.clear()
++        return chunk
+ 
+ 
+ def make_remote_task_policy(

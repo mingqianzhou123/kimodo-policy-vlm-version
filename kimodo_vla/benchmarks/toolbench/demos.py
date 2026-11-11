@@ -14,9 +14,8 @@ outcome (``meta/simple_contract.json``). Columns used::
 
 The training target is the operator's command, as for BiGym (``docs/benchmarks/bigym2.md``
 section 3). The observations mirror what ``ToolBenchAdapter`` reports at
-evaluation, where the evaluator sends one state per executed chunk: the measured
-state every ``request_interval`` steps, the commanded targets in between, and
-the commanded heading throughout (the state has no pelvis pose).
+evaluation: every frame uses measured joints, hands and pelvis pose. Operator
+commands are used only as future training targets.
 """
 
 from __future__ import annotations
@@ -31,9 +30,11 @@ import numpy as np
 from kimodo_vla.benchmarks.toolbench.adapter import (
     CONTROL_FPS,
     SPAWN_YAW,
-    commanded_observation,
+    measured_pose_observation,
+    HISTORY_SOURCE,
+    IMAGE_PREPROCESSING,
+    CURRENT_OBSERVATION_SOURCE,
     hand_closure,
-    measured_observation,
     resize_image,
 )
 from kimodo_vla.controllers import decoupled_wbc
@@ -55,11 +56,9 @@ INSTRUCTIONS = {
     "G1IceBreak": ("Pick the tool for breaking the ice blocks.", "Pick the tool and break the ice blocks."),
 }
 RENAMED = {"G1StickMove": "G1BallMove", "G1HookRetrieve": "G1BallRetrieve"}
-# Steps per evaluator request: the planner's 50 executed model frames at the 50 Hz control rate.
-REQUEST_INTERVAL = None  # actual planner chunks alternate 81/82 steps; see request_steps
 
 
-def request_steps(length: int, frames: int = 50, prediction_frames: int = 50) -> set[int]:
+def request_steps(length: int, frames: int = 20, prediction_frames: int = 50) -> set[int]:
     """The planner's exact 30 Hz grid, including its last-prediction-frame limit."""
     import math
     step, result = 0, set()
@@ -67,7 +66,7 @@ def request_steps(length: int, frames: int = 50, prediction_frames: int = 50) ->
     while step < length:
         result.add(step)
         phase = step * ratio - round(step * ratio)
-        step += min(round(frames / ratio), math.floor((prediction_frames - 1 - phase) / ratio + 1e-6))
+        step += min(round((round(step * ratio) + frames) / ratio) - step, math.floor((prediction_frames - 1 - phase) / ratio + 1e-6))
     return result
 
 
@@ -115,7 +114,7 @@ def read_recording(root: Path, episode: int) -> dict[str, np.ndarray]:
     info = json.loads((root / "meta/info.json").read_text())
     path = root / info["data_path"].format(episode_chunk=episode // info["chunks_size"], episode_index=episode)
     table = pq.read_table(path, columns=["observation.state", "action", "teleop.navigate_command",
-                                         "teleop.base_height_command", "next.success"])
+                                         "teleop.base_height_command", "observation.base_pose", "next.success"])
     return {name: np.stack(table.column(name).to_numpy(zero_copy_only=False)).astype(np.float64) for name in table.column_names}
 
 
@@ -128,21 +127,22 @@ class ToolBenchDemo:
     """One ToolBook episode as a ``benchmarks.base.Demonstration``."""
 
     control_fps = CONTROL_FPS
+    pose_padding_frames = 49
     cameras = ("head",)
     hand_mode = "continuous"  # open/closed commands with short ramps between
 
-    def __init__(self, columns: Mapping[str, np.ndarray], instruction: str, video: Path | None = None,
-                 request_interval: int = REQUEST_INTERVAL, execution_frames: int = 50):
+    def __init__(self, columns: Mapping[str, np.ndarray], instruction: str, video: Path | None = None):
         self.instruction = instruction
         self.video = video
-        self.request_interval = request_interval
-        if not 1 < execution_frames <= 50:
-            raise ValueError('execution_frames must be in [2, 50]')
-        self.execution_frames = execution_frames
         self.state = np.asarray(columns["observation.state"], np.float32)
+        self.base_pose = np.asarray(columns["observation.base_pose"], np.float32)
+        if self.base_pose.shape != (len(self.state), 7):
+            raise ValueError("observation.base_pose must have shape [T, 7]")
         command = np.asarray(columns["action"], np.float32)
+        self.raw_command = command.copy()
         nav = np.asarray(columns["teleop.navigate_command"], np.float64)
         height = np.asarray(columns["teleop.base_height_command"], np.float64).reshape(-1)
+        self.raw_nav, self.raw_height = nav.copy(), height.copy()
         # Row t of a recording commands step t + 1; step 0 is where the episode starts.
         target = lambda x: np.concatenate([x[:1], x[:-1]])  # noqa: E731
         self.command, self.nav, self.height = target(command), target(nav), target(height)
@@ -158,9 +158,11 @@ class ToolBenchDemo:
         return np.concatenate([action_hands_to_natural(self.command[:, 22:29]),
                                action_hands_to_natural(self.command[:, 36:43])], axis=1)
 
-    def recorded_commands(self) -> np.ndarray:
+    def recorded_commands(self, include_terminal=False) -> np.ndarray:
         """``(T, 36)``: row ``t`` is the operator's decoupled-WBC command for step ``t``, as ToolBench's
         released ACT model converts a recording (its ``action_contract.json``)."""
+        if include_terminal:
+            return self.with_terminal_targets().recorded_commands()
         command = np.zeros((len(self), decoupled_wbc.DIMENSION), np.float32)
         command[:, 0:14] = decoupled_wbc.natural_to_command_order(self.commanded_hands())
         command[:, 14:21] = self.command[:, 15:22]
@@ -170,7 +172,19 @@ class ToolBenchDemo:
         command[:, 32:36] = self.nav
         return command
 
-    def commanded_motion(self) -> DemoMotion:
+    def with_terminal_targets(self):
+        """Extend targets by one outcome time, never used as extra measured observations."""
+        import copy
+        extended = copy.copy(self)
+        extended.state = np.concatenate([self.state, self.state[-1:]])
+        extended.command = np.concatenate([self.command, self.raw_command[-1:]])
+        extended.nav = np.concatenate([self.nav, self.raw_nav[-1:]])
+        extended.height = np.concatenate([self.height, self.raw_height[-1:]])
+        return extended
+
+    def commanded_motion(self, include_terminal=False) -> DemoMotion:
+        if include_terminal:
+            return self.with_terminal_targets().commanded_motion()
         joint_pos = np.zeros((len(self), 29), np.float32)
         body = joint_indices(BODY_JOINT_NAMES)
         joint_pos[:, body] = self.state[:, :29]  # the legs belong to the controller: as measured
@@ -184,20 +198,18 @@ class ToolBenchDemo:
                           hand=hand_closure(self.commanded_hands()))
 
     def observations(self) -> list[Observation]:
-        commanded = self.commanded_motion()
         states = policy_state(self.state, self.previous_height)
         observations = []
-        measured = (request_steps(len(self), self.execution_frames) if self.request_interval is None
-                    else set(range(0, len(self), int(self.request_interval))))
         for t in range(len(self)):
-            if t in measured:
-                obs = measured_observation(states[t], float(self.heading[t]), self.instruction)
-            else:
-                obs = commanded_observation(commanded.joint_pos[t], commanded.root_rot[t], commanded.root_pos[t, 2],
-                                            commanded.hand[t], self.instruction)
+            obs = measured_pose_observation(states[t], self.base_pose[t], self.instruction, body_q=self.state[t, :29])
             obs.step = t
             observations.append(obs)
         return observations
+
+    def preparation_metadata(self) -> dict:
+        return {"history_source": HISTORY_SOURCE, "image_preprocessing": IMAGE_PREPROCESSING,
+                "current_observation_source": CURRENT_OBSERVATION_SOURCE,
+                "target_padding": "pose_before_features_with_last_command_v1"}
 
     def images(self, steps: np.ndarray) -> np.ndarray:
         """``[len(steps), 1, 224, 224, 3]``: the head camera at those steps, resized as at evaluation."""

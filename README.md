@@ -9,6 +9,10 @@ Kimodo-Policy（人形机器人行走 + 操作的 VLA）的新代码库。模型
 - 每个 benchmark 的结论、做过的决定和待办：[BiGym 2.0](docs/benchmarks/bigym2.md)、
   [HumanoidToolBench](docs/benchmarks/toolbench.md)、[HumanoidArena 和 SIMPLE](docs/benchmarks/arena_simple.md)
 
+本分支的 ToolBench 发布版本为 **fullbody v1 E20，600k，16.28%（293/1800）**。
+[修改与训练说明](reports/toolbench_fullbody_v1_20261108/REPORT.md) · [最终结果](reports/toolbench_fullbody_v1_20261108/RESULTS.md) · [复现入口](docs/benchmarks/toolbench.md)。
+仓库不包含模型权重、测评视频或旧v2实验产物。
+
 ## 安装
 
 ```bash
@@ -54,12 +58,9 @@ python scripts/serve_arena.py --checkpoint <checkpoint 目录> --text-cache <文
 python scripts/serve_simple.py --checkpoint <checkpoint 目录> --text-cache <文本 embedding 目录>
 ```
 
-训练使用通用 `train.py`（单卡或多卡）。ToolBench 的 18 条件 scratch 联合训练配置是 `configs/toolbench.yaml`；
-`supervise_toolbench.py` 在前置验证通过后监督 40k 训练、在线诊断和最终 18×100 回合官方评测，
-`eval_toolbench.py` 也可单独评测一个 checkpoint。字段对齐、实测记录和运行命令见
-[ToolBench 文档](docs/benchmarks/toolbench.md) 和[前置验证报告](reports/toolbench_preflight_20261027.md)。
-本机 scratch 40k、18×100 回合已完成：宏平均成功率 3.94%，完整分任务结果和局限见
-[最终报告](reports/toolbench_scratch40k_20261027.md)。
+训练使用通用 `train.py`（单卡或多卡）。当前ToolBench复现入口为
+`configs/toolbench_fullbody_v1_e20.yaml`，四卡600k从零训练后评测最终checkpoint。
+数据准备、实测历史接口和正式评测命令见[ToolBench 文档](docs/benchmarks/toolbench.md)。
 
 BiGym 的集群和评测工具：`submit_bigym2.py`（提交到 Slurm 集群，训完自动评测）、
 `eval_run.py`（评一个 run 的若干 checkpoint）、`summarize_bigym2.py`（汇总成论文主表格式）、`gpu_queue.py`

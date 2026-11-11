@@ -6,9 +6,10 @@ from torch.utils.data import Sampler
 
 class WindowSampler(Sampler):
     def __init__(self, dataset, *, world=1, rank=0, seed=0, epoch=0,
-                 mode='window_uniform', offset=0):
+                 mode='window_uniform', offset=0, seeded=False):
         self.dataset, self.world, self.rank = dataset, world, rank
         self.seed, self.epoch, self.mode, self.offset = seed, epoch, mode, offset
+        self.seeded = seeded
         if mode not in ['window_uniform', 'task_uniform', 'level_balanced']:
             raise ValueError(mode)
         self.size = len(dataset)//world
@@ -32,4 +33,8 @@ class WindowSampler(Sampler):
                 mass = {t:level_mass[t.split('-')[1]]/levels[t.split('-')[1]] for t in counts}
             weights = torch.tensor([mass[t]/counts[t] for t in tasks], dtype=torch.double)
             indices = torch.multinomial(weights, n, replacement=True, generator=generator)
-        yield from indices[self.rank:n:self.world][self.offset:].tolist()
+        selected = indices[self.rank:n:self.world][self.offset:].tolist()
+        for draw, index in enumerate(selected, start=self.offset):
+            # Include draw position: replacement sampling may visit a cut twice.
+            seed = (self.seed + self.epoch * 1_000_000_007 + draw * self.world + self.rank) % (2**63)
+            yield (index, seed) if self.seeded else index

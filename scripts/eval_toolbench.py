@@ -19,9 +19,38 @@ import sys
 import time
 import threading
 import urllib.request
-from run_config import inference_fingerprint
+from run_config import inference_fingerprint, current_observation_mode
 
 REPO = Path(__file__).resolve().parents[1]
+
+
+def simulator_source_identity(benchmark):
+    """Use the scorer's complete source/asset identity and its relative keys."""
+    benchmark = Path(benchmark)
+    source = benchmark / 'src/humanoidtoolbench'
+    paths = set(source.rglob('*.py')) | set(source.rglob('*.c'))
+    paths.update(p for p in (source / 'resources').rglob('*') if p.is_file())
+    hashes = {str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)}
+    for name in ('run_mujoco.sh', 'select_mujoco_device.py'):
+        hashes[f'scripts/{name}'] = hashlib.sha256((benchmark / 'scripts' / name).read_bytes()).hexdigest()
+    return hashes
+
+
+def receipt_matches(r, settings):
+    """Shared by condition recovery and final merge; missing provenance is stale."""
+    try:
+        info = r['policy_info']
+        return (r['status']=='validated' and r['episodes']==settings['episodes']
+            and r['seeds']==list(range(settings['seed_start'],settings['seed_start']+settings['episodes']))
+            and r['configuration']['max_episode_steps']==settings['max_steps']
+            and r['source_sha256']==settings['simulator_source_sha256']
+            and info['checkpoint_sha256']==settings['checkpoint_sha256']
+            and info['config_sha256']==settings['policy_config_sha256']
+            and info['adapter_sha256']==settings['adapter_sha256']
+            and info['inference']['execution_frames']==settings['execution_frames']
+            and info['inference']['diffusion_steps']==settings['diffusion_steps'])
+    except (KeyError, TypeError):
+        return False
 
 
 def lock_evaluation_output(output):
@@ -52,15 +81,7 @@ def matching_receipt(directory, settings):
     files=sorted(Path(directory).glob('run-*/benchmark_result.json'),key=lambda p:p.stat().st_mtime,reverse=True)
     for path in files:
         try:
-            r=json.loads(path.read_text());info=r['policy_info']
-            if (r['status']=='validated' and r['episodes']==settings['episodes']
-                and r['seeds']==list(range(settings['seed_start'],settings['seed_start']+settings['episodes']))
-                and r['configuration']['max_episode_steps']==settings['max_steps']
-                and info['checkpoint_sha256']==settings['checkpoint_sha256']
-                and info['config_sha256']==settings['policy_config_sha256']
-                and info['adapter_sha256']==settings['adapter_sha256']
-                and info['inference']['execution_frames']==settings['execution_frames']
-                and info['inference']['diffusion_steps']==settings['diffusion_steps']):return path
+            if receipt_matches(json.loads(path.read_text()), settings):return path
         except (KeyError,ValueError,OSError):continue
     return None
 
@@ -107,14 +128,17 @@ def main():
     p.add_argument('--episodes', type=int, default=100)
     p.add_argument('--max-steps', type=int, default=3000)
     p.add_argument('--diffusion-steps', type=int, default=10)
-    p.add_argument('--execution-frames', type=int, default=50)
+    p.add_argument('--execution-frames', type=int, default=20, help='model frames at 30 Hz; E20 is approximately 33 simulator steps')
     p.add_argument('--seed-start', type=int, default=10000)
     p.add_argument('--policy-seed', type=int, default=1000)
     p.add_argument('--conditions', nargs='+', help='default all 18 conditions')
     p.add_argument('--base-port', type=int, default=27300)
     p.add_argument('--video-workers', type=int, default=2, choices=[1,2,3,4])
+    p.add_argument('--current-observation', choices=['checkpoint','on','off'], default='checkpoint', help='follow checkpoint config unless explicitly overridden')
+    p.add_argument('--attention-backend', choices=['auto','math'], default='auto')
     a = p.parse_args()
     a.checkpoint, a.output, a.benchmark = a.checkpoint.resolve(), a.output.resolve(), a.benchmark.resolve()
+    a.current_observation = current_observation_mode(a.checkpoint / 'config.json', a.current_observation)
     a.output.mkdir(parents=True, exist_ok=True)
     output_lock=lock_evaluation_output(a.output)
     gpus = [int(s) for s in a.gpus.split(',')]
@@ -133,10 +157,15 @@ def main():
         checkpoint_config_sha256=hashlib.sha256((a.checkpoint/'config.json').read_bytes()).hexdigest(), execution_frames=a.execution_frames,
         diffusion_steps=a.diffusion_steps, policy_seed=a.policy_seed, seed_start=a.seed_start,
         episodes=a.episodes, max_steps=a.max_steps, conditions=conditions)
+    diagnostic_options = {}
+    if a.current_observation != 'on': diagnostic_options['current_observation'] = a.current_observation
+    if a.attention_backend != 'auto': diagnostic_options['attention_backend'] = a.attention_backend
+    settings.update(diagnostic_options)
     settings['policy_config_sha256']=inference_fingerprint(a.checkpoint/'config.json',dict(dtype='bf16',execution_frames=a.execution_frames,
-        diffusion_steps=a.diffusion_steps,rtc_overlap_frames=0,turn='operator',seed=a.policy_seed))
+        diffusion_steps=a.diffusion_steps,rtc_overlap_frames=0,turn='operator',seed=a.policy_seed,**diagnostic_options))
     core={str(p.relative_to(REPO)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (REPO/'kimodo_vla').rglob('*.py')}
     settings['adapter_sha256']=hashlib.sha256(json.dumps(core,sort_keys=True).encode()).hexdigest()
+    settings['simulator_source_sha256'] = simulator_source_identity(a.benchmark)
     manifest = a.output/'evaluation_settings.json'
     if manifest.exists() and json.loads(manifest.read_text()) != settings:
         raise ValueError('output directory belongs to different evaluation settings')
@@ -193,7 +222,8 @@ def main():
             server = own(subprocess.Popen([sys.executable, str(REPO/'scripts/serve_toolbench.py'),
                 '--checkpoint', str(a.checkpoint), '--text-cache', str(a.text_cache), '--port', str(port),
                 '--dtype', 'bf16', '--seed', str(a.policy_seed), '--diffusion-steps', str(a.diffusion_steps),
-                '--execution-frames', str(a.execution_frames)],
+                '--execution-frames', str(a.execution_frames),'--current-observation',a.current_observation,
+                '--attention-backend',a.attention_backend],
                 cwd=REPO, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True))
             try:
                 deadline = time.monotonic()+180
@@ -264,17 +294,16 @@ def main():
     merge = '''import json,sys
 from pathlib import Path
 from humanoidtoolbench.cli.public_eval import write_summary,run_fingerprint
+sys.path.insert(0,sys.argv[4])
+from eval_toolbench import matching_receipt
 root=Path(sys.argv[1]);rows=[]
 settings=json.loads((root/'evaluation_settings.json').read_text())
 for condition in json.loads(sys.argv[2]):
     files=sorted((root/condition).glob('run-*/benchmark_result.json'),key=lambda p:p.stat().st_mtime)
     assert files,condition
-    candidates=[(p,json.loads(p.read_text())) for p in files]
-    path,r=next((p,r) for p,r in reversed(candidates) if r.get('status')=='validated'
-        and r.get('policy_info',{}).get('checkpoint_sha256')==settings['checkpoint_sha256']
-        and r.get('policy_info',{}).get('config_sha256')==settings['policy_config_sha256']
-        and r.get('policy_info',{}).get('adapter_sha256')==settings['adapter_sha256']
-        and r.get('seeds')==list(range(settings['seed_start'],settings['seed_start']+settings['episodes'])))
+    path=matching_receipt(root/condition,settings)
+    assert path is not None,condition
+    r=json.loads(path.read_text())
     assert r['status']=='validated' and r['policy_info']['checkpoint_sha256']==sys.argv[3]
     assert r['policy_info']['config_sha256']==settings['policy_config_sha256']
     assert r['policy_info']['adapter_sha256']==settings['adapter_sha256']
@@ -288,8 +317,9 @@ print(write_summary(root,rows))
 '''
     env = os.environ.copy()
     env['PYTHONPATH'] = str(a.benchmark / 'src')
-    subprocess.run([sim_python, '-c', merge, str(a.output), json.dumps(conditions), weight_hash], env=env, check=True)
+    subprocess.run([sim_python, '-c', merge, str(a.output), json.dumps(conditions), weight_hash, str(REPO/'scripts')], env=env, check=True)
     assert source_hash == hashlib.sha256(b''.join(p.read_bytes() for p in sorted((REPO/'kimodo_vla').rglob('*.py')))).hexdigest(), 'implementation changed during evaluation'
+    assert settings['simulator_source_sha256'] == simulator_source_identity(a.benchmark), 'simulator source/assets changed during evaluation'
     summary = json.loads((a.output/'summary.json').read_text())
     assert summary['completed']+summary['skipped'] == len(conditions) and summary['failed'] == 0
     if a.episodes == 100 and a.max_steps == 3000 and a.seed_start==10000:

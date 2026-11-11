@@ -29,7 +29,8 @@ def main():
     image = demo.images(np.array([cut]))[0,0]
     history[-1].images = {'head':image}
     planner = KimodoPlanner.from_checkpoint(a.checkpoint,a.text_cache,device='cuda',dtype=torch.bfloat16,
-        control_fps=50,execution_frames=50,diffusion_steps=10,root_boundary='extrapolate')
+        control_fps=50,execution_frames=15,diffusion_steps=10,root_boundary='extrapolate',
+        condition_current_observation=True)
 
     def predict(instruction, picture):
         for obs in history:

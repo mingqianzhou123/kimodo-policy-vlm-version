@@ -60,6 +60,22 @@ ARCHITECTURE_FIELDS = (
 log = logging.getLogger("train")
 
 
+def check_resume_data(saved, current):
+    if saved.get("data_identity") != current:
+        raise ValueError("Resume data identity differs or is missing: the episode contents, window sampling, "
+                         "batching, or GPU count changed. Start a new run; do not continue a legacy sampler offset.")
+
+
+def prepared_requirements(tasks, configured):
+    required = dict(configured or {})
+    if any(t.startswith(("G1BallMove-", "G1BallRetrieve-", "G1IceBreak-")) for t in tasks):
+        from kimodo_vla.benchmarks.toolbench.adapter import HISTORY_SOURCE, IMAGE_PREPROCESSING, CURRENT_OBSERVATION_SOURCE
+        required.update(history_source=HISTORY_SOURCE, image_preprocessing=IMAGE_PREPROCESSING,
+                        current_observation_source=CURRENT_OBSERVATION_SOURCE,
+                        target_padding="pose_before_features_with_last_command_v1")
+    return required
+
+
 def load_config(args, rank: int = 0) -> tuple:
     """``(config, run_dir)``; a resumed run reads its own ``config.json`` and takes no overrides.
 
@@ -196,7 +212,8 @@ def batches(dataset, config, start_step: int, rank: int = 0, world: int = 1):
         sampler = WindowSampler(dataset, world=world, rank=rank,
             seed=config.main.seed*1_000_003, epoch=epoch,
             mode=config.main.get('sampling', 'window_uniform'),
-            offset=(skipped*config.main.micro_batch_size if epoch==first_epoch else 0))
+            offset=(skipped*config.main.micro_batch_size if epoch==first_epoch else 0),
+            seeded=isinstance(dataset, KimodoWindowDataset))
         loader = DataLoader(
             dataset,
             batch_size=config.main.micro_batch_size,
@@ -284,6 +301,9 @@ def main() -> None:
 
     text = load_text_embeddings(main_cfg.text_cache)
     tasks = list(main_cfg.get("tasks") or [main_cfg.task])
+    # Real measured history and a current-frame command anchor are independent
+    # choices. Prepared-data metadata still enforces real history when the
+    # experimental anchor is disabled for a matched training ablation.
     dataset = KimodoWindowDataset(
         [Path(main_cfg.data_root) / task for task in tasks],
         action_history=main_cfg.action_history,
@@ -292,6 +312,8 @@ def main() -> None:
         cameras=cameras,
         image_shift=augmentation.get("image_shift", 0),
         proprio_mask_prob=augmentation.get("proprio_mask_prob", 0.0),
+        required_metadata=prepared_requirements(tasks, main_cfg.get("prepared_metadata")),
+        condition_current_observation=main_cfg.get("condition_current_observation", False),
     )
     for instruction in {e["instruction"] for e in dataset.episodes}:
         if instruction not in text:
@@ -301,8 +323,19 @@ def main() -> None:
         raise SystemExit(f"no episodes for tasks: {sorted(missing_tasks)}")
     if main_cfg.get("require_scratch") and "initialization" in config:
         raise SystemExit("scratch run forbids policy checkpoint initialization")
-    if rank == 0:
+    data_identity = {**dataset.identity, "world_size": world, "batch_size": main_cfg.batch_size,
+                     "micro_batch_size": main_cfg.micro_batch_size, "seed": main_cfg.seed,
+                     "sampling": main_cfg.get('sampling', 'window_uniform')}
+    state = None
+    if args.resume:
+        check_resume_data(json.loads((run_dir / "dataset.json").read_text()), data_identity)
+        state = torch.load(run_dir / "resume.pt", map_location="cpu", weights_only=True)
+        check_resume_data(state, data_identity)
+        if len(state.get("rng_states", [])) != world:
+            raise ValueError("Resume requires one saved RNG state for each GPU/rank")
+    if rank == 0 and not args.resume:
         (run_dir / "dataset.json").write_text(json.dumps({
+            "data_identity": data_identity,
             "episodes": dict(Counter(e["task"] for e in dataset.episodes)),
             "windows": dict(Counter(dataset.episodes[e]["task"] for e, _ in dataset.index)),
             "sampling": main_cfg.get('sampling', 'window_uniform'),
@@ -330,9 +363,8 @@ def main() -> None:
     opt = config.training.optimizer
     optimizer = torch.optim.AdamW(groups, betas=tuple(opt.betas), eps=opt.eps, fused=device.type == "cuda")
     scheduler = LambdaLR(optimizer, lr_schedule(config))
-    step, state = 0, None
+    step = 0
     if args.resume:
-        state = torch.load(run_dir / "resume.pt", map_location="cpu", weights_only=True)
         model.load_state_dict(state["model"], strict=False)
         optimizer.load_state_dict(state["optimizer"])
         scheduler.load_state_dict(state["scheduler"])
@@ -345,7 +377,8 @@ def main() -> None:
     if state and 'rng_states' in state:
         rng = state['rng_states'][rank]
         torch.set_rng_state(rng['cpu'])
-        torch.cuda.set_rng_state(rng['cuda'], device)
+        if device.type == "cuda":
+            torch.cuda.set_rng_state(rng['cuda'], device)
 
     hand_params = [p for g in groups if g["name"].startswith("hand") for p in g["params"]]
     control_params = [p for g in groups if not g["name"].startswith("hand") for p in g["params"]]
@@ -353,6 +386,10 @@ def main() -> None:
              sum(p.numel() for p in control_params) / 1e6, sum(p.numel() for p in hand_params) / 1e6)
     accumulation = main_cfg.batch_size // (main_cfg.micro_batch_size * world)
     autocast = torch.autocast(device.type, dtype=torch.bfloat16, enabled=main_cfg.dtype == "bf16")
+    attention_backend = config.training.get("attention_backend", "auto")
+    if attention_backend not in ("auto", "math"):
+        raise ValueError(f"Unknown training attention_backend: {attention_backend}")
+    log.info("training attention backend: %s", attention_backend)
     saves = checkpoint_steps(config.main)
     stop_step = min(main_cfg.max_steps, args.stop_after or main_cfg.max_steps)
     if stop_step <= step:
@@ -371,7 +408,9 @@ def main() -> None:
             window_data += time.time() - data_start
             sync = forward.no_sync() if world > 1 and micro < accumulation - 1 else contextlib.nullcontext()
             with sync:
-                with autocast:
+                attention_context = (torch.nn.attention.sdpa_kernel(torch.nn.attention.SDPBackend.MATH)
+                                     if attention_backend == "math" else contextlib.nullcontext())
+                with autocast, attention_context:
                     output = forward(
                         batch["instruction"],
                         batch["egoview"],
@@ -383,6 +422,7 @@ def main() -> None:
                         gt_hand_mask=batch["gt_hand_mask"],
                         text_feat=batch["text_embedding"],
                         text_length=batch["text_length"],
+                        current_hand_state=batch.get("current_hand_state"),
                     )
                 (output["loss"] / accumulation).backward()
             for key, value in output.items():
@@ -396,6 +436,8 @@ def main() -> None:
             raise SystemExit(f"step {step + 1}: loss is {losses['loss']}")
         control_norm = float(torch.nn.utils.clip_grad_norm_(control_params, main_cfg.gradient.grad_clip_norm, error_if_nonfinite=True))
         hand_norm = float(torch.nn.utils.clip_grad_norm_(hand_params, main_cfg.gradient.hand_grad_clip_norm, error_if_nonfinite=True)) if hand_params else 0.0
+        if control_norm > main_cfg.gradient.get("abort_control_norm", float("inf")):
+            raise RuntimeError(f"Control gradient norm {control_norm} exceeded the configured stability limit before optimizer.step")
         optimizer.step()
         scheduler.step()
         step += 1
@@ -419,7 +461,8 @@ def main() -> None:
             window_start, window_data = time.time(), 0.0
 
         if step in saves:
-            local_rng = {'cpu':torch.get_rng_state(), 'cuda':torch.cuda.get_rng_state(device)}
+            local_rng = {'cpu':torch.get_rng_state(),
+                         'cuda':torch.cuda.get_rng_state(device) if device.type == "cuda" else None}
             rng_states = [None]*world if rank==0 else None
             if world > 1:
                 dist.gather_object(local_rng, rng_states, dst=0)
@@ -433,6 +476,7 @@ def main() -> None:
             save(checkpoint / "training_state.pt", {"global_step": step, "model": trainable, **ema})
             (checkpoint / "config.json").write_text((run_dir / "config.json").read_text())
             resume_payload = {"global_step": step, "model": trainable, **ema,
+                                         "data_identity": data_identity,
                                          "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict(),
                                          "rng_states":rng_states}
             save(run_dir / "resume.pt", resume_payload)

@@ -21,7 +21,7 @@ import subprocess
 import sys
 import threading
 import time
-from eval_toolbench import REPO, stop
+from eval_toolbench import REPO, stop, simulator_source_identity
 from run_config import load_yaml
 from toolbench_results import write_stage_reports
 
@@ -86,6 +86,7 @@ class Search:
         self.invariants=dict(model=json.loads((REPO/'log/toolbench/joint18_scratch40k_20261027_8gpu/config.json').read_text())['model'],loss=dict(self.base.training.loss))
         self.source_hash={str(p.relative_to(REPO)):digest(p) for p in (REPO/'kimodo_vla').rglob('*.py')}
         self.adapter_sha256=hashlib.sha256(json.dumps(self.source_hash,sort_keys=True).encode()).hexdigest()
+        self.simulator_sha256=simulator_source_identity(Path('/root/workspace/HumanoidToolBench'))
         if (self.root/'plan.json').exists():
             assert read(self.root/'plan.json')['core_source_sha256']==self.source_hash,'core source changed since registration'
         self.protocol_hash=read(self.root/'plan.json').get('protocol_source_sha256',{})
@@ -103,6 +104,7 @@ class Search:
     def phase(self,name):
         assert all(digest(REPO/p)==h for p,h in self.source_hash.items()), 'core source changed during search'
         assert all(digest(REPO/p)==h for p,h in self.protocol_hash.items()), 'training/evaluation protocol changed during search'
+        assert simulator_source_identity(Path('/root/workspace/HumanoidToolBench'))==self.simulator_sha256, 'simulator source/assets changed during search'
         self.state['phase']=name;self.persist();print(now(),name,flush=True)
 
     def acquire_gpus(self,preferred,all_gpus=False):
@@ -224,7 +226,7 @@ class Search:
         seed_start=seed_start if seed_start is not None else (22000 if stage=='confirm' else 20000)
         out=self.root/'evaluation'/name;score=out/'selection_score.json'
         identity=dict(checkpoint_sha256=digest(checkpoint/'training_state.pt'),checkpoint_config_sha256=digest(checkpoint/'config.json'),
-            adapter_sha256=self.adapter_sha256,
+            adapter_sha256=self.adapter_sha256,simulator_source_sha256=self.simulator_sha256,
             execution_frames=execution,diffusion_steps=diffusion,policy_seed=1000,seed_start=seed_start,episodes=episodes,max_steps=3000,
             conditions=[f'{s}-L{l}-{m}' for s in ['G1BallMove','G1BallRetrieve','G1IceBreak'] for l in range(3) for m in ['S','R']])
         if not score.exists():
@@ -270,12 +272,19 @@ class Search:
     def rank(row):return (row['primary_l12'],row['auxiliary_all18'],-row.get('diffusion',10),row.get('execution',50),-row.get('step',row.get('training_step',0)))
 
     def prepared(self,execution):
-        if execution==50:return REPO/'data/toolbench/prepared'
-        out=REPO/f'data/toolbench/history_e{execution}'
-        if not (out/'history_audit.json').exists():
+        from kimodo_vla.benchmarks.toolbench.adapter import HISTORY_SOURCE, IMAGE_PREPROCESSING, CURRENT_OBSERVATION_SOURCE
+        # Every control step is measured; training data no longer depend on
+        # how many predicted frames are executed before replanning.
+        out=(REPO/self.base.main.data_root).resolve()
+        if not (out/'preparation_complete.json').exists():
             self.process([sys.executable,'-u','scripts/recondition_toolbench.py','--source',str(REPO/'data/toolbench/prepared'),
                 '--out',str(out),'--execution-frames',str(execution)],f'prepare_e{execution}',0)
-        assert read(out/'history_audit.json')['passed'];return out
+        settings=read(out/'preparation.json');complete=read(out/'preparation_complete.json')
+        assert settings['history_source']==HISTORY_SOURCE and settings['image_preprocessing']==IMAGE_PREPROCESSING, 'legacy prepared inputs'
+        assert settings['current_observation_source']==CURRENT_OBSERVATION_SOURCE, 'current cut measurements missing'
+        assert complete['passed'] and complete['episodes']==settings['episodes']
+        assert complete['settings_sha256']==digest(out/'preparation.json'), 'incomplete or changed preparation'
+        return out
 
     def train(self,spec,step,execution,slot):
         from omegaconf import OmegaConf
@@ -487,7 +496,7 @@ class Search:
         assert read(self.root/'smoke/metric_aggregation.json')['passed']
         assert read(REPO/'outputs/toolbench_validation/raw_audit.json')['passed']
         assert read(REPO/'outputs/toolbench_validation/prepared_audit.json')['passed']
-        execution,diffusion=50,10
+        execution,diffusion=15,10
         self.prepared_path=self.prepared(execution)
         specs=[dict(name=f'{s}_simple1_seed1000_e{execution}',sampling=s,rates=[1e-5,3e-5,3e-5],seed=1000) for s in ['window_uniform','task_uniform','level_balanced']]
         provisional=getattr(self,'provisional_sampling',None)

@@ -12,6 +12,20 @@ from eval_toolbench import matching_receipt, lock_evaluation_output
 from toolbench_results import table_values
 from tune_toolbench import Search, AdoptedTraining, reusable_training_prefix
 from toolbench_eval_worker import parallel_validation
+from run_config import current_observation_mode
+
+
+@pytest.mark.parametrize('main,requested,expected', [
+    ({'condition_current_observation': True}, 'checkpoint', 'on'),
+    ({'condition_current_observation': False}, 'checkpoint', 'off'),
+    ({}, 'checkpoint', 'off'),
+    ({'condition_current_observation': True}, 'off', 'off'),
+    ({'condition_current_observation': False}, 'on', 'on'),
+])
+def test_serving_condition_follows_training_unless_overridden(tmp_path, main, requested, expected):
+    path = tmp_path / 'config.json'
+    path.write_text(json.dumps({'main': main}))
+    assert current_observation_mode(path, requested) == expected
 
 
 def row(step, primary, auxiliary=0.1):
@@ -117,18 +131,23 @@ def test_training_reuse_normalizes_paths_like_training_loader(tmp_path,monkeypat
 def test_condition_resume_requires_exact_official_identity(tmp_path):
     settings = dict(episodes=2, seed_start=22000, max_steps=3000,
                     checkpoint_sha256='weights', policy_config_sha256='config',
-                    adapter_sha256='adapter', execution_frames=50, diffusion_steps=10)
+                    adapter_sha256='adapter', execution_frames=50, diffusion_steps=10,
+                    simulator_source_sha256={'policies/composition.py': 'sim-v1'})
     info = dict(checkpoint_sha256='weights', config_sha256='config', adapter_sha256='adapter',
                 inference=dict(execution_frames=50, diffusion_steps=10))
     result = dict(status='validated', episodes=2, seeds=[22000, 22001],
-                  configuration=dict(max_episode_steps=3000), policy_info=info)
+                  configuration=dict(max_episode_steps=3000), policy_info=info,
+                  source_sha256={'policies/composition.py': 'sim-v1'})
     path = tmp_path / 'run-first' / 'benchmark_result.json'
     path.parent.mkdir();path.write_text(json.dumps(result))
     assert matching_receipt(tmp_path, settings) == path
     for key, value in [('episodes', 3), ('seed_start', 22001), ('max_steps', 2000),
                        ('checkpoint_sha256', 'other'), ('adapter_sha256', 'other'),
-                       ('execution_frames', 10), ('diffusion_steps', 20)]:
+                       ('execution_frames', 10), ('diffusion_steps', 20),
+                       ('simulator_source_sha256', {'policies/composition.py': 'sim-v2'})]:
         assert matching_receipt(tmp_path, dict(settings, **{key: value})) is None
+    result.pop('source_sha256');path.write_text(json.dumps(result))
+    assert matching_receipt(tmp_path, settings) is None
 
 
 def fake_search(tmp_path):

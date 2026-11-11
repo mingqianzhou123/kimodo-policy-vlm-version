@@ -73,7 +73,7 @@ def _commands(mode: str, demo, motion):
     from kimodo_vla.benchmarks.toolbench.policy import make_policy
 
     if mode in ("recorded", "jitter"):
-        rows, interval = demo.recorded_commands(), demo.request_interval or 83
+        rows, interval = demo.recorded_commands(include_terminal=True), 83
         if mode == "jitter":
             rows[:, 32:34] += np.random.default_rng(0).uniform(-3e-6, 3e-6, rows[:, 32:34].shape).astype(np.float32)
 
@@ -90,7 +90,7 @@ def _commands(mode: str, demo, motion):
 
         return Recorded()
     planner = (DemoPlanner(motion, hand_mode=demo.hand_mode) if mode == "kimodo"
-               else DirectPlanner(motion, chunk=demo.request_interval or 83))
+               else DirectPlanner(motion, chunk=83))
     return make_policy(planner, turn=1.0 if mode == "always" else "operator")
 
 
@@ -116,7 +116,7 @@ def _run_one(job) -> dict:
     recording = Path(recording)
     condition = demos.canonical(recording.parent.name)
     demo = demos.ToolBenchDemo(demos.read_recording(recording, episode), demos.instruction(recording.parent.name))
-    motion = demo.commanded_motion()
+    motion = demo.commanded_motion(include_terminal=True)
     spawn = json.loads(next(e for e in demos.episodes(recording) if e["episode_index"] == episode)["environment_config"])
     spawn = spawn["dr_state_dict"]["spatial"]["g1_sonic"]
 
@@ -137,8 +137,12 @@ def _run_one(job) -> dict:
         def predict(self, observation, instruction=None, **kwargs):
             request = {"image": {"rgb_head_stereo_left": blank}, "instruction": instruction,
                        "state": self._state(observation), "history": {"reset": self._reset_history}}
+            chunk = self._chunk(commands(request), transport="local")
             self._reset_history = False
-            return self._chunk(commands(request), transport="local")
+            self._measured_states.clear()
+            self._measured_body.clear()
+            self._measured_poses.clear()
+            return chunk
 
     agent = make_humanoid_policy_agent(robot=task.robot, policy=Local(policy_name="replay"), controller="decoupled_wbc",
                                        host="", port=0, sonic_config=sonic_config)
@@ -153,7 +157,7 @@ def _run_one(job) -> dict:
     agent.body_controller.finish_stabilization()
 
     pose, arms, fell = [], [], False
-    for _ in range(len(demo) - 1):
+    for _ in range(len(demo)):
         observation, _, _, _, info = env.step(agent.get_action(observation, info=info, instruction=demo.instruction))
         proprio = info["proprio"]
         base = np.asarray(proprio["floating_base_pose"], np.float64)
@@ -164,7 +168,7 @@ def _run_one(job) -> dict:
             break
     task.reset = original_reset.__get__(task)
     return {"condition": condition, "recording": str(recording), "episode": episode, "mode": mode, "fell": fell,
-            "steps": len(pose), "demo_steps": len(demo) - 1, "pose": np.asarray(pose).tolist(),
+            "steps": len(pose), "demo_steps": len(demo), "pose": np.asarray(pose).tolist(),
             "arms": np.asarray(arms).tolist(), "commanded_xy": motion.root_pos[1:, :2].tolist(),
             "seconds": round(time.time() - start, 1)}
 
@@ -248,7 +252,10 @@ def main() -> None:
                      f"{result['steps']}/{result['demo_steps']} steps, fell={result['fell']} ({result['seconds']}s)"), flush=True)
     rows = summarize(results)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps({"runs": results, "summary": rows}))
+    args.out.write_text(json.dumps({"runs": results, "summary": rows,
+        "scope": "robot-spawn-matched motion replay; not a recorded full-layout task-success replay"}))
+    if not jobs or any(r.get("error") for r in results):
+        raise SystemExit("Replay validation failed: no jobs or one or more replay errors; see output")
 
 
 if __name__ == "__main__":
