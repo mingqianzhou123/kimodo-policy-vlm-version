@@ -542,8 +542,13 @@ def main() -> None:
         if rank == 0 and (step % main_cfg.log_every == 0 or step == main_cfg.max_steps):
             seconds = (time.time() - window_start) / main_cfg.log_every
             lrs = {g["name"]: g["lr"] for g in optimizer.param_groups}
+            # Legacy runs call this injection rate ``adapter``.  AdaLN-Zero
+            # has its own group so its larger gate-opening rate is visible in
+            # the same metrics field without breaking old monitors.
+            injection_lr = lrs.get("adapter", lrs.get("adaln", 0.0))
             record = {"step": step, **losses, "grad_control": control_norm, "grad_hand": hand_norm,
-                      "lr_backbone": lrs.get("backbone", 0.0), "lr_adapter": lrs["adapter"], "stage": stage, "s_per_step": seconds,
+                      "lr_backbone": lrs.get("backbone", 0.0), "lr_adapter": injection_lr,
+                      "lr_adaln": lrs.get("adaln", 0.0), "stage": stage, "s_per_step": seconds,
                       "data_s_per_step": window_data / main_cfg.log_every,
                       "gpu_peak_memory_gb": torch.cuda.max_memory_allocated(device) / 1e9 if device.type == "cuda" else 0}
             if main_cfg.get("max_update_loss") is not None or main_cfg.get("max_update_grad_norm") is not None:
@@ -553,7 +558,7 @@ def main() -> None:
             eta = seconds * (main_cfg.max_steps - step) / 3600
             log.info("step %d/%d | %s | grad %.2f / %.2f | lr %.1e | %.2fs/step (data %.2fs) | eta %.1fh",
                      step, main_cfg.max_steps, " ".join(f"{k.removesuffix('_loss') or k} {v:.4f}" for k, v in losses.items()),
-                     control_norm, hand_norm, lrs["adapter"], seconds, record["data_s_per_step"], eta)
+                     control_norm, hand_norm, injection_lr, seconds, record["data_s_per_step"], eta)
             window_start, window_data = time.time(), 0.0
 
         if step in saves or stop_requested:
