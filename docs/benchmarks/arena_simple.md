@@ -42,8 +42,38 @@
 和旧代码不同的一处：SIMPLE 的速度保护拒绝一段动作时，旧代码会把内部状态回滚，新代码不回滚
 （回合本来就在这里报错结束）。
 
-## 4. 待办
+## 4. HumanoidArena 训练（2026-11-05）
+
+数据：Hugging Face `WilliamWang16/HumanoidArena_dataset_v3_1`（revision ca04c2d5），每个任务 × tracker
+（`sonic`、`twist2`、`mimic_lite`）一份 LeRobot v3 数据，50Hz，每份 100 条左右。代码：`benchmarks/arena/demos.py`、
+`scripts/prepare_arena.py`、`configs/arena.yaml`；文本 embedding 用 `cache_text_embeddings.py --arena-data <数据集>`。
+
+```bash
+python scripts/prepare_arena.py --data-dir <数据集> --out $ARENA_PREPARED --tasks HOI_double_desk --trackers sonic
+python scripts/cache_text_embeddings.py --out $ARENA_TEXT_CACHE --arena-data <数据集>
+torchrun --standalone --nproc_per_node=4 scripts/train.py --config configs/arena.yaml \
+    --task HOI_double_desk/sonic --init-checkpoint <pt_419h checkpoint_1000000>
+```
+
+- **历史**：`observation.state` 的 64 维行，经过 Arena 服务处理请求时用的同一个函数（`adapter.state64_observations`）。
+- **目标**：`action` 的 40 维全身参考（tracker 实际跟踪的东西），根位置按旧解码器的方式积分；第 `t` 帧的目标是第 `t` 行。
+  手的历史用指令里的手（Arena 的状态里没有手），和旧仓库一致。
+- **和旧仓库逐项一致**：`test_arena_demos.py` 把同一条轨迹交给旧仓库的 `HumanoidArenaAdapter.load_episode` 和新代码，
+  历史、目标、手部差 < 1e-4（需要 `KIMODO_ORIGINAL_REPO`）。
+- **图像**：存成 224×224（DINOv3 本来就把每张图缩到 224×224）。按它的顺序先转成 0–1 浮点再缩放、最后取整，
+  和直接喂 480×640 原图相比每个像素最多差半个灰度级（平均 0.17）；录像本身的压缩误差远大于此。每条约 110 MB，
+  一个任务 × tracker 约 11 GB；准备一条约 4 秒（单核）。
+- **采样**：已发布的微调用 `episode_uniform`：先等概率选一条演示，再在其中等概率选切点（短演示的窗口被抽得更勤）。
+  `main.sampling: episodes` 复现它；BiGym 仍是每个窗口每轮一次（`windows`）。
+- **配置**：`arena.yaml` 照 ft_419h 的实际 `config.json`：从 pt_419h 初始化，20 万步，全局 batch 64（4 卡 × 16），
+  warmup 2000，余弦降到 0.1 倍，seed 42，只用头部相机；结构、损失、学习率和 `bigym2.yaml` 相同。
+  不加 `--init-checkpoint` 就是从头训（旧仓库的 `humanoidarena_single_*`）。
+- **多任务**：`--task` 可以给几个文件夹，所有窗口合成一个数据集。下载里的 merged 数据集只是各任务的拷贝，
+  不必另外准备；旧仓库的多任务训练不含 `HOI_grap_cup`（不在官方评测里），`prepare_arena.py --tasks evaluated` 同样跳过它。
+
+## 5. 待办
 
 - SIMPLE 的同进程评测：新代码的 `ChunkPolicy` 可以直接调用，但还没接进 SIMPLE 自己的评测循环
   （它的环境依赖和我们的不同，要实际装环境才能做）。
-- 两者都还没在真实 Isaac 仿真里跑过。
+- Arena：已在 L40S 的 Isaac 仿真里跑通一局（2026-11-05，已发布的 ft_419h 权重）；SIMPLE 还没在真实仿真里跑过。
+- Arena 训练：新代码训出的权重还没在 Arena 里评测过；完整复现 ft_419h（4 卡 20 万步）之前先跑短程检查。

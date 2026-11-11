@@ -293,8 +293,7 @@ dishwasher_load_cups，第二套设置，按 101k 步的学习率曲线训到 25
 6. 频繁重新规划没有收益（RTC 只能拉回默认水平）；三路相机比头部高 3 个点，pt_419h 初始化高 2 个点。
 
 **调参规则**：只在验证种子（`eval_bigym2.py --seed-base 700000`）上比较和挑选，官方种子只在最后评一次；
-所有任务共用一套配置；先和用户确定报哪个口径（ACT/DP 口径训练量固定 101k × 256、算分 80k–100k；预训练 + 微调口径
-训练步数自定、需写明）。
+所有任务共用一套配置；两个口径都报，调参在 ACT/DP 口径（训练量固定 101k × 256、算分 80k–100k）上做，见第 10 节。
 
 **优先级**：
 1. 训练稳定性：学习率峰值和曲线形状、训练长度、梯度裁剪、bf16 或 fp32、遇到损失尖峰跳过更新；每种设置 2–3 个种子，
@@ -309,7 +308,55 @@ dishwasher_load_cups，第二套设置，按 101k 步的学习率曲线训到 25
 `scripts/summarize_bigym2.py`；`scripts/diag/` 下有遮图（`diag_vision.py`）、训练场景（`diag_trainscenes.py`）、录像
 （`record_episodes.py`，需要 `imageio-ffmpeg`）和损失扫描（`loss_spikes.py`）。
 
-## 10. 待办
+## 10. 报告口径和训练稳定性实验（2026-10-29 定）
 
-- 按第 9 节的优先级调参，先解决训练稳定性。
+**最终出两行结果**（用户 2026-10-29 定）：
+1. **预训练 + 微调（π0.5 那一组）**：从 pt_419h 起步，用 BiGym 演示微调，训练量和 π0.5 相同（30k 步 × 48）。回答「我们的预训练有没有帮助」，
+   对照是同样 30k × 48 的从零训练（第一套）。pt_419h 只有头部一路，三路相机要另写加载：除了随相机路数变宽的那层 token 压缩，其余照搬。
+2. **从零训练（ACT/DP 那一组）**：只用 BiGym 演示，训练量固定 101k 步 × 256，算分 80k–100k。**所有调参都在这一行做**，
+   目标是同样预算下到 SOTA。这一行也就是合作者要的只用 BiGym 数据从零训练。
+
+**稳定性第一批：短实验**。按 101k 步的学习率曲线训到 30k 步停（这一段学习率一直接近峰值，最容易发散），
+装杯子和 move_plate（都在早期发散过），每组 3 个种子（1000–1002），8 卡，约 3.8 小时；30k 前分两批交，每批 12 个训练。
+
+| 组 | 配置 | 改了什么 |
+|---|---|---|
+| 原设置 | `configs/bigym2_recipe.yaml` | 无（先测出原设置的发散比例） |
+| 学习率减半 | `configs/bigym2_recipe_lr05.yaml` | 三组学习率峰值都减半，曲线形状不变 |
+| β2 = 0.95 | `configs/bigym2_recipe_beta095.yaml` | AdamW 的二阶矩衰减 0.999 → 0.95 |
+| 跳过尖峰 | `configs/bigym2_recipe_skip5.yaml` | 某步损失超过最近 200 个被接受步的中位数 5 倍，就丢掉这一步的更新（`train.py` 的 `SpikeGuard`，学习率曲线照走；连续丢 10 步后照常更新） |
+
+```bash
+python scripts/submit_bigym2.py --out log/bigym2/stability/recipe_lr05 --config configs/bigym2_recipe_lr05.yaml \
+    --tasks dishwasher_load_cups move_plate --variants 3cam --seeds 1000 1001 1002 --stop-after 30000 \
+    --gpus-per-train 8 --execution-frames 50 --eval-seed-base 700000 --eval-steps 25000 30000 --eval-episodes 50
+python scripts/diag/stability_summary.py log/bigym2/stability/*
+```
+
+判断看四样：几个种子发散（连续 10 个记录点，即 500 步，运动损失中位数超过 0.5；单个被跳过的尖峰不算）、损失最高值、
+最后 10% 的平均损失、验证种子（700000 起，`val700000/`，官方汇总不读）上 25k 和 30k 的成功率。fp32（慢 2.5 倍）和
+梯度裁剪暂不做：先看已发散训练的记录里梯度是不是一直被裁剪（是的话调裁剪约等于调学习率）。
+
+**2026-11-09 改为单种子、三项合一（用户：GPU 有限，不跑多种子，只做最关键的）**。上面 24 个训练（4 组 × 2 任务 × 3 种子）
+在商汤排队后全部取消，一个都没开始。改成一组「稳定组合」：学习率减半 + β2 = 0.95 + 跳过尖峰（`configs/bigym2_recipe_lr05.yaml`
+加 `training.optimizer.betas=[0.9,0.95] training.spike_skip.factor=5`），种子 1000，装杯子和 move_plate 各一个，8 卡，
+先训到 30k 停、评 25k / 30k（验证种子 700000）。没发散就把同一训练接着跑到 101k，按 80k–100k 算分，和第二套（装杯子 0、
+move_plate 23）比；发散就停。原设置不重跑，用第二套的记录当对照。单种子只能说明「这套设置有没有用」，说明不了发散比例；
+有效之后需要时再拆开看是哪一项起作用。商汤作业名 `kvla-bg-stable-{cups,plate}-s1000`，输出
+`$H/runs/bigym2/stability/stable_combo/`。接着跑到 101k：先把该训练 `config.json` 里的 `main.stop_after` 改成 null，
+再用 `bigym_run.sh ... 1000 full 80000,85000,90000,95000,100000` 重新提交（会从 `resume.pt` 接上）。
+
+**2026-11-11：第一次提交没跑起来，已修**。两个作业 11-10 排了约 30 小时拿到 8 卡，一分钟内就失败：ACP 镜像没有系统 EGL，
+`MUJOCO_GL=egl` 下一 `import mujoco` 就崩，生成文字特征那步（会载入 BiGym）报 `BIGYM_TEXT_CACHE_MISSING`，训练没开始。
+修法（`bigym_run.sh`，旧版留作 `bigym_run.sh.v1109`）：文字特征和训练用 `MUJOCO_GL=disable`（训练不载入 MuJoCo）；
+评测用 `$H/envs/egl_loader` 里的 glvnd 加载器去调驱动自带的 NVIDIA EGL；训练前用 `$H/render_probe.py` 检查能不能用 GPU 画图，
+不能就照常训练、跳过评测（日志 `BIGYM_EVAL_SKIPPED`，之后用同一条命令补评）。CPU 软件渲染（Mesa llvmpipe）能画但每秒 0.55 步，
+只算物理是 241 步，评测用不了。重新提交时加一个 1 卡检查作业，先确认任务机上 GPU 画图行不行。
+
+**第二批：跑满 101k 步**。第一批最好的 1–2 组，reach_target_dual（两次都在 63k–67k 发散，最好复现）和 move_plate（后期损失上爬），
+各 2 个种子，8 卡，约 13 小时。稳住后再把这套设置在 9 个任务上跑，在验证种子上挑，官方种子最后只评一次。
+
+## 11. 待办
+
+- 按第 9、10 节调参，先解决训练稳定性。A800 的 ssh 2026-10-28 起被拒，恢复后先同步代码再提交。
 - 把实测夹爪开合状态加进模型输入（用户说先放一放）。
