@@ -1,0 +1,8 @@
+# Stability arm (docs/benchmarks/bigym2.md section 10): bigym2_recipe.yaml, dropping any update whose loss is
+# over 5x the median of the last 200 accepted steps (train.py SpikeGuard).
+
+_base_: bigym2_recipe.yaml
+
+training:
+  spike_skip:
+    factor: 5

@@ -20,21 +20,32 @@ Rerunning fills in what is missing: a job of the same name still in the Slurm qu
 (job names carry the output folder's name) is reused (evaluation then waits for that training job), a finished run is not trained
 again, an unfinished one with a ``resume.pt`` continues with ``--resume``, and
 evaluation skips checkpoints that already have a result. Slurm output goes to ``<out>/slurm/``.
+
+Tuning (only ever on a validation seed block, docs/benchmarks/bigym2.md section 9): ``--seeds``
+trains one run per training seed (``<task>_<variant>_s<seed>``, ``main.seed=<seed>``);
+``--stop-after`` ends runs early while the learning-rate schedule still spans ``main.max_steps``;
+``--eval-seed-base 700000`` scores ``--eval-steps`` with ``--eval-episodes`` each on that block::
+
+    python scripts/submit_bigym2.py --out log/bigym2/stability/recipe --config configs/bigym2_recipe.yaml \
+        --tasks dishwasher_load_cups move_plate --variants 3cam --seeds 1000 1001 1002 --stop-after 30000 \
+        --gpus-per-train 8 --execution-frames 50 --eval-seed-base 700000 --eval-steps 25000 30000 --eval-episodes 50
 """
 
 from __future__ import annotations
 
 import argparse
 import getpass
+import itertools
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
-from eval_run import DEFAULT_EXECUTION_FRAMES, eval_dir  # noqa: E402
+from eval_run import DEFAULT_EXECUTION_FRAMES, OFFICIAL_SEED_BASE, eval_dir  # noqa: E402
 from summarize_bigym2 import PI05  # noqa: E402  the paper's nine main tasks
 from run_config import DEFAULT_CONFIG, checkpoint_steps, load_yaml, score_steps  # noqa: E402
 
@@ -82,6 +93,11 @@ def main() -> None:
     parser.add_argument("--gpus-per-train", type=int, default=1)
     parser.add_argument("--eval-watch", action="store_true", help="evaluate checkpoints while the run trains")
     parser.add_argument("--eval-parallel", type=int, default=5, help="checkpoints one evaluation job scores at once")
+    parser.add_argument("--seeds", type=int, nargs="+", help="one run per training seed (main.seed); default: the config's seed")
+    parser.add_argument("--stop-after", type=int, help="end training at this step (a saved checkpoint); the schedule still spans max_steps")
+    parser.add_argument("--eval-steps", type=int, nargs="+", help="checkpoints to evaluate; default: scored ones and the learning curve")
+    parser.add_argument("--eval-episodes", type=int, default=100)
+    parser.add_argument("--eval-seed-base", type=int, default=OFFICIAL_SEED_BASE, help="700000: the validation block for tuning")
     parser.add_argument("--env-script", default=os.environ.get("KIMODO_ENV_SCRIPT"), help="sourced by every job; default $KIMODO_ENV_SCRIPT")
     parser.add_argument("--partition", default="train")
     parser.add_argument("--exclude", help="nodes to avoid, e.g. gpu27 (sbatch --exclude)")
@@ -96,50 +112,62 @@ def main() -> None:
 
     config = load_yaml(args.config.expanduser().resolve())
     steps = sorted(checkpoint_steps(config.main))
-    final = score_steps(config.main)
+    if args.stop_after and args.stop_after not in steps:
+        raise SystemExit(f"--stop-after {args.stop_after} is not a checkpoint step of {args.config}")
+    steps = [s for s in steps if s <= (args.stop_after or steps[-1])]
+    final = [s for s in score_steps(config.main) if s in steps]
     curve = [s for s in steps if s not in final]
+    if args.eval_steps and not set(args.eval_steps) <= set(steps):
+        raise SystemExit(f"--eval-steps {sorted(set(args.eval_steps) - set(steps))} are not saved by these runs")
+    overrides = [f"main.stop_after={args.stop_after}"] if args.stop_after else []
+    validation = "" if args.eval_seed_base == OFFICIAL_SEED_BASE else f"-v{args.eval_seed_base}"
     gpus = args.gpus_per_train
     # torchrun's launcher script points at the login node's Python; the module works on every node
     trainer = ["python"] if gpus == 1 else ["python", "-m", "torch.distributed.run", "--standalone", f"--nproc_per_node={gpus}"]
     config_args = [] if args.config.resolve() == DEFAULT_CONFIG else ["--config", str(args.config.resolve())]
-    queued = queued_jobs()
-    for task in args.tasks:
-        for variant in args.variants:
-            name = f"{task}_{variant}"
-            run_dir = args.out / name
-            tag = f"{args.out.name}-{name}"  # job names carry the output folder: run sets share task names
-            train = queued.get(f"kv-train-{tag}")
-            if train is None and not (run_dir / f"checkpoint_{steps[-1]}").is_dir():
-                if (run_dir / "resume.pt").exists():
-                    command = shlex.join([*trainer, "scripts/train.py", "--resume", str(run_dir)])
-                elif run_dir.exists():
-                    print(f"{name}: {run_dir} exists without resume.pt; remove it to start over")
-                    continue
-                else:
-                    extra = [a.format(pt419h=args.pt419h) for a in VARIANTS[variant]]
-                    command = shlex.join([*trainer, "scripts/train.py", "--task", task, *extra, *config_args, "--run-dir", str(run_dir)])
-                train = sbatch(args, f"kv-train-{tag}", command, cpus=12 if gpus == 1 else 8 * gpus,
-                               mem="96G" if gpus == 1 else f"{64 * gpus}G", time="16:00:00" if gpus == 1 else "3-00:00:00",
-                               after=None, gpus=gpus)
-            jobs = []
-            for frames in args.execution_frames:
-                suffix = "" if frames == DEFAULT_EXECUTION_FRAMES else f"-x{frames}"
+    queued = {} if args.dry_run and not shutil.which("squeue") else queued_jobs()  # a dry run also works off the cluster
+    for task, variant, seed in itertools.product(args.tasks, args.variants, args.seeds or [None]):
+        name = f"{task}_{variant}" + (f"_s{seed}" if seed is not None else "")
+        run_dir = args.out / name
+        tag = f"{args.out.name}-{name}"  # job names carry the output folder: run sets share task names
+        train = queued.get(f"kv-train-{tag}")
+        if train is None and not (run_dir / f"checkpoint_{steps[-1]}").is_dir():
+            if (run_dir / "resume.pt").exists():
+                command = shlex.join([*trainer, "scripts/train.py", "--resume", str(run_dir)])
+            elif run_dir.exists():
+                print(f"{name}: {run_dir} exists without resume.pt; remove it to start over")
+                continue
+            else:
+                extra = [a.format(pt419h=args.pt419h) for a in VARIANTS[variant]]
+                seeded = [f"main.seed={seed}"] if seed is not None else []
+                command = shlex.join([*trainer, "scripts/train.py", "--task", task, *extra, *config_args, "--run-dir", str(run_dir),
+                                      *overrides, *seeded])
+            train = sbatch(args, f"kv-train-{tag}", command, cpus=12 if gpus == 1 else 8 * gpus,
+                           mem="96G" if gpus == 1 else f"{64 * gpus}G", time="16:00:00" if gpus == 1 else "3-00:00:00",
+                           after=None, gpus=gpus)
+        jobs = []
+        for frames in args.execution_frames:
+            suffix = ("" if frames == DEFAULT_EXECUTION_FRAMES else f"-x{frames}") + validation
+            if args.eval_steps:
+                groups = (("chosen", args.eval_steps),)
+            else:
                 groups = (("all", final + curve),) if args.eval_watch else (("final", final), ("curve", curve))
-                for label, eval_steps in groups:
-                    job_name = f"kv-eval-{label}{suffix}-{tag}"
-                    if job_name in queued:
-                        jobs.append(f"{queued[job_name]}(queued)")
-                        continue
-                    if all((eval_dir(run_dir, frames) / f"checkpoint_{s}.json").exists() for s in eval_steps):
-                        continue
-                    command = ["python", "scripts/eval_run.py", "--run-dir", str(run_dir), "--execution-frames", str(frames),
-                               "--parallel", str(args.eval_parallel), "--steps", *map(str, sorted(eval_steps))]
-                    if args.eval_watch:  # starts when training starts and waits for each checkpoint
-                        jobs.append(sbatch(args, job_name, shlex.join([*command, "--watch"]), cpus=5 * args.eval_parallel,
-                                           mem=f"{16 * args.eval_parallel}G", time="3-00:00:00", after=train, dependency="after"))
-                    else:
-                        jobs.append(sbatch(args, job_name, shlex.join(command), cpus=24, mem="128G", time="1-00:00:00", after=train))
-            print(f"{name}: train {train or 'done'}, eval {' '.join(jobs)}", flush=True)
+            for label, eval_steps in groups:
+                job_name = f"kv-eval-{label}{suffix}-{tag}"
+                if job_name in queued:
+                    jobs.append(f"{queued[job_name]}(queued)")
+                    continue
+                if all((eval_dir(run_dir, frames, args.eval_seed_base) / f"checkpoint_{s}.json").exists() for s in eval_steps):
+                    continue
+                command = ["python", "scripts/eval_run.py", "--run-dir", str(run_dir), "--execution-frames", str(frames),
+                           "--seed-base", str(args.eval_seed_base), "--episodes", str(args.eval_episodes),
+                           "--parallel", str(args.eval_parallel), "--steps", *map(str, sorted(eval_steps))]
+                if args.eval_watch:  # starts when training starts and waits for each checkpoint
+                    jobs.append(sbatch(args, job_name, shlex.join([*command, "--watch"]), cpus=5 * args.eval_parallel,
+                                       mem=f"{16 * args.eval_parallel}G", time="3-00:00:00", after=train, dependency="after"))
+                else:
+                    jobs.append(sbatch(args, job_name, shlex.join(command), cpus=24, mem="128G", time="1-00:00:00", after=train))
+        print(f"{name}: train {train or 'done'}, eval {' '.join(jobs)}", flush=True)
 
 
 if __name__ == "__main__":

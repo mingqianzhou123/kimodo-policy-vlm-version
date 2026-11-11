@@ -35,7 +35,7 @@ kimodo_vla/
                    server.py：RequestAdapter、ChunkPolicy、make_server（按请求要整段动作的 benchmark）
                    replay.py：DemoPlanner / DirectPlanner（把演示当完美预测回放）
                    bigym2/  arena/  simple/  toolbench/：每个 benchmark 的适配器、读演示、入口
-scripts/           每个 benchmark 几个薄脚本（见 README）；train.py 及其集群脚本目前按 BiGym 配置
+scripts/           每个 benchmark 几个薄脚本（见 README）；train.py 通用（--task 指准备好的文件夹），集群脚本按 BiGym 配置
 configs/           训练配置（bigym2.yaml 为基础，其它配置只写不同的几项）
 tests/             见第 8 节
 ```

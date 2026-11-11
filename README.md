@@ -36,7 +36,7 @@ checkpoints/
 |---|---|---|---|
 | BiGym 2.0 | `prepare_bigym2.py` | `check_bigym2_roundtrip.py` | `eval_bigym2.py`（同一进程，官方评测器） |
 | HumanoidToolBench | `prepare_toolbench.py` | `check_toolbench_roundtrip.py`（在 ToolBench 的环境里跑） | `serve_toolbench.py`，再让 ToolBench 的评测器连过来 |
-| HumanoidArena | 旧仓库已有 | — | `serve_arena.py`，Arena 的评测器连过来 |
+| HumanoidArena | `prepare_arena.py` | — | `serve_arena.py`，Arena 的评测器连过来 |
 | SIMPLE | 旧仓库已有 | — | `serve_simple.py`（HTTP）；同进程评测还没接上 |
 
 ```bash
@@ -54,7 +54,8 @@ python scripts/serve_arena.py --checkpoint <checkpoint 目录> --text-cache <文
 python scripts/serve_simple.py --checkpoint <checkpoint 目录> --text-cache <文本 embedding 目录>
 ```
 
-训练目前按 BiGym 配置：`train.py`（单卡或多卡）、`submit_bigym2.py`（提交到 Slurm 集群，训完自动评测）、
+训练：BiGym 用 `configs/bigym2.yaml`，HumanoidArena 用 `configs/arena.yaml`（复现已发布的 ft_419h 单任务微调，见
+[Arena 文档](docs/benchmarks/arena_simple.md) 第 4 节）。脚本：`train.py`（单卡或多卡）、`submit_bigym2.py`（提交到 Slurm 集群，训完自动评测）、
 `eval_run.py`（评一个 run 的若干 checkpoint）、`summarize_bigym2.py`（汇总成论文主表格式）、`gpu_queue.py`
 （不走集群时排到单机的空闲 GPU）、`cache_text_embeddings.py`（任务指令的文本 embedding）；
 用法见 [BiGym 文档](docs/benchmarks/bigym2.md) 的训练一节。

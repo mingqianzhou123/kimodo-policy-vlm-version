@@ -7,7 +7,10 @@ Each checkpoint gets its own ``eval_bigym2.py`` process (100 episodes, seeds 620
 official env) on the same GPU; results go to ``<run-dir>/eval/checkpoint_<step>.json``
 with a log next to each. ``--execution-frames`` sets how many of the 50 predicted 30 Hz
 frames run before the next prediction (default all 50, 1.67 s; 10 is 0.33 s, close to
-π0.5's 0.32 s); other values write to ``<run-dir>/eval_exec<frames>/``. A checkpoint that
+π0.5's 0.32 s); other values write to ``<run-dir>/eval_exec<frames>/``. ``--seed-base`` other than
+620000 scores a validation block of seeds instead (for choosing settings; never the official seeds)
+into ``<run-dir>/val<seed-base>/`` (``val<seed-base>_exec<frames>/``), which the official summaries
+do not read. A checkpoint that
 already has a result is skipped, so a rerun only does what is missing. Task and text
 cache come from the run's ``config.json``. With ``--watch`` it starts while the run is
 still training: each checkpoint is evaluated once it is saved (its ``config.json`` is
@@ -25,10 +28,12 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
 DEFAULT_EXECUTION_FRAMES = 50  # the whole predicted chunk, as eval_bigym2.py
+OFFICIAL_SEED_BASE = 620000  # bigym.loco.eval.protocol.EVAL_SEED_BASE; not imported, so this runs without BiGym
 
 
-def eval_dir(run_dir: Path, execution_frames: int) -> Path:
-    return run_dir / ("eval" if execution_frames == DEFAULT_EXECUTION_FRAMES else f"eval_exec{execution_frames}")
+def eval_dir(run_dir: Path, execution_frames: int, seed_base: int = OFFICIAL_SEED_BASE) -> Path:
+    name = "eval" if seed_base == OFFICIAL_SEED_BASE else f"val{seed_base}"
+    return run_dir / (name if execution_frames == DEFAULT_EXECUTION_FRAMES else f"{name}_exec{execution_frames}")
 
 
 def main() -> None:
@@ -38,6 +43,7 @@ def main() -> None:
     parser.add_argument("--parallel", type=int, default=5, help="checkpoints evaluated at once")
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--execution-frames", type=int, default=DEFAULT_EXECUTION_FRAMES)
+    parser.add_argument("--seed-base", type=int, default=OFFICIAL_SEED_BASE, help="e.g. 700000: a validation block")
     parser.add_argument("--watch", action="store_true", help="wait for checkpoints that are not saved yet")
     parser.add_argument("--give-up-hours", type=float, default=6.0)
     args = parser.parse_args()
@@ -53,7 +59,7 @@ def main() -> None:
         time.sleep(60)
     config = json.loads((run_dir / "config.json").read_text())
     steps = args.steps or sorted(int(p.name.removeprefix("checkpoint_")) for p in run_dir.glob("checkpoint_*"))
-    out_dir = eval_dir(run_dir, args.execution_frames)
+    out_dir = eval_dir(run_dir, args.execution_frames, args.seed_base)
     out_dir.mkdir(exist_ok=True)
     todo = [s for s in steps if not (out_dir / f"checkpoint_{s}.json").exists()]
     missing = [s for s in todo if not ready(s)]
@@ -75,6 +81,7 @@ def main() -> None:
                 "--text-cache", config["main"]["text_cache"],
                 "--episodes", str(args.episodes),
                 "--execution-frames", str(args.execution_frames),
+                "--seed-base", str(args.seed_base),
                 "--out", str(out_dir / f"checkpoint_{step}.json"),
             ]
             with open(out_dir / f"checkpoint_{step}.log", "w") as log:

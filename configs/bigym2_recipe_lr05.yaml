@@ -1,0 +1,10 @@
+# Stability arm (docs/benchmarks/bigym2.md section 10): bigym2_recipe.yaml with every peak learning rate halved.
+# Same warmup and cosine shape over the same 101k steps.
+
+_base_: bigym2_recipe.yaml
+
+training:
+  optimizer:
+    control_backbone_lr: 1.5e-5
+    control_adapter_lr: 5.0e-5
+    hand_lr: 5.0e-5

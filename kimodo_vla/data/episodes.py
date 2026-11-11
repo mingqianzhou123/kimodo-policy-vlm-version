@@ -21,7 +21,7 @@ from typing import Mapping, Sequence
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Sampler
 
 MOTION_DIM = 417
 PLANAR_ROOT_FEATURES = (0, 2)  # smooth_root_pos x and z (Kimodo is y-up)
@@ -174,3 +174,32 @@ class KimodoWindowDataset(Dataset):
             sample["text_embedding"] = embedding
             sample["text_length"] = torch.tensor(embedding.shape[0], dtype=torch.long)
         return sample
+
+
+class EpisodeUniformSampler(Sampler[int]):
+    """Window indices of a ``KimodoWindowDataset``: an episode uniformly, then one of its windows uniformly.
+
+    The original repository's ``episode_uniform`` sampling (the released HumanoidArena
+    fine-tunes): every episode is drawn equally often whatever its length, unlike the
+    window-uniform ``DistributedSampler``. Draws with replacement; each of ``num_replicas``
+    ranks gets ``len(dataset) // num_replicas`` indices per pass from its own stream.
+    """
+
+    def __init__(self, dataset: KimodoWindowDataset, num_replicas: int = 1, rank: int = 0, seed: int = 0):
+        counts = torch.zeros(len(dataset.episodes), dtype=torch.long)
+        for e, _ in dataset.index:
+            counts[e] += 1
+        self.starts = torch.cumsum(counts, 0) - counts  # dataset.index is episode-major
+        self.episodes = torch.nonzero(counts).flatten()  # episodes shorter than one chunk have no window
+        self.counts = counts
+        self.num_samples = len(dataset) // int(num_replicas)
+        self.seed = int(seed) * 1_000_003 + int(rank)
+
+    def __len__(self) -> int:
+        return self.num_samples
+
+    def __iter__(self):
+        generator = torch.Generator().manual_seed(self.seed)
+        episodes = self.episodes[torch.randint(len(self.episodes), (self.num_samples,), generator=generator)]
+        offsets = (torch.rand(self.num_samples, generator=generator, dtype=torch.float64) * self.counts[episodes]).long()
+        return iter((self.starts[episodes] + offsets).tolist())

@@ -1,9 +1,12 @@
-"""Precompute the LLM2Vec embedding of every BiGym 2.0 task instruction (run on a GPU server).
+"""Precompute the LLM2Vec embedding of every task instruction of a benchmark (run on a GPU server).
 
     python scripts/cache_text_embeddings.py --out data/cache/bigym2
+    python scripts/cache_text_embeddings.py --out data/cache/arena --arena-data <HumanoidArena dataset>
 
-Reads all tasks of BiGym's ``task_instructions.yaml`` (the sentences in the
-demonstrations, and the ones the paper gave π0.5) and writes ``<out>/<task>.pt`` =
+BiGym 2.0: all tasks of BiGym's ``task_instructions.yaml`` (the sentences in the
+demonstrations, and the ones the paper gave π0.5). HumanoidArena: each task's
+instruction in the dataset's ``meta/tasks.parquet``, the string the simulator sends
+as ``task`` (the SONIC, TWIST2 and mimic_lite datasets must agree). Writes ``<out>/<task>.pt`` =
 ``{version, source, task_id, task_name, instruction, embedding [1, 4096] bf16}``,
 the per-task cache format of the original repository, which
 ``model.planner.load_text_embeddings`` reads. Training and evaluation both use
@@ -21,12 +24,26 @@ from pathlib import Path
 
 import torch
 
-from kimodo_vla.benchmarks.bigym2.adapter import task_instructions
 from kimodo_vla.model.modules.llm2vec.llm2vec_wreapper import LLM2VecEncoder
 from kimodo_vla.model.planner import load_text_embeddings
 
 CACHE_VERSION = 3  # the original repository's _TEXT_EMBEDDING_CACHE_VERSION
-SOURCE = "bigym2"
+
+
+def arena_instructions(root: Path) -> dict[str, str]:
+    """Task folder -> instruction; refuses a task whose trackers' datasets disagree."""
+    from kimodo_vla.benchmarks.arena import demos
+
+    per_tracker = [demos.task_instructions(root, tracker) for tracker in demos.TRACKERS]
+    instructions = {}
+    for task in sorted(set().union(*per_tracker)):
+        found = {table[task] for table in per_tracker if task in table}
+        if len(found) != 1:
+            raise SystemExit(f"{task}: the trackers' datasets give different instructions {sorted(found)}")
+        instructions[task] = found.pop()
+    if not instructions:
+        raise SystemExit(f"no HumanoidArena task under {root}")
+    return instructions
 CHECKPOINTS = Path(__file__).resolve().parents[1] / "checkpoints"
 
 
@@ -35,9 +52,15 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--checkpoints", type=Path, default=CHECKPOINTS, help="folder holding the two LLM2Vec checkpoints")
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--arena-data", type=Path, help="HumanoidArena dataset root: cache its tasks instead of BiGym's")
     args = parser.parse_args()
 
-    instructions = task_instructions()
+    if args.arena_data:
+        source, instructions = "HumanoidArena", arena_instructions(args.arena_data)
+    else:
+        from kimodo_vla.benchmarks.bigym2.adapter import task_instructions
+
+        source, instructions = "bigym2", task_instructions()
     encoder = LLM2VecEncoder(checkpoint_path=str(args.checkpoints)).to(args.device).eval()
     args.out.mkdir(parents=True, exist_ok=True)
     for task, instruction in sorted(instructions.items()):
@@ -47,8 +70,8 @@ def main() -> None:
         torch.save(
             {
                 "version": CACHE_VERSION,
-                "source": SOURCE,
-                "task_id": f"{SOURCE}::{task}",
+                "source": source,
+                "task_id": f"{source}::{task}",
                 "task_name": task,
                 "instruction": instruction,
                 "embedding": embedding,

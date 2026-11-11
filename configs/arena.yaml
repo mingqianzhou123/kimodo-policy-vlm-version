@@ -1,0 +1,34 @@
+# Kimodo-VLA on HumanoidArena: the released single-task fine-tunes
+# (ft_419h_humanoidarena_single_gbs64_20w_controlnet4_detach_true_mse_<task>_<tracker>, config.json checked
+# 2026-10-16): pt_419h start, 200k updates, global batch 64 (4 GPUs x 16), 2k warmup, cosine to 0.1x,
+# seed 42, head camera, episode-uniform sampling. Architecture, loss and learning rates are bigym2.yaml's.
+#
+#   python scripts/prepare_arena.py --data-dir <dataset> --out $ARENA_PREPARED --tasks HOI_double_desk
+#   python scripts/cache_text_embeddings.py --out $ARENA_TEXT_CACHE --arena-data <dataset>
+#   torchrun --standalone --nproc_per_node=4 scripts/train.py --config configs/arena.yaml \
+#       --task HOI_double_desk/sonic --init-checkpoint <pt_419h checkpoint_1000000>
+#
+# Without --init-checkpoint it trains from scratch (the released humanoidarena_single_* runs).
+# On one GPU the four micro-batches accumulate; raise micro_batch_size if memory allows.
+
+_base_: bigym2.yaml
+
+main:
+  data_root: ${oc.env:ARENA_PREPARED,data/arena/prepared}     # prepare_arena.py output; --task <task>/<tracker>
+  text_cache: ${oc.env:ARENA_TEXT_CACHE,data/cache/arena}
+  save_root: ${oc.env:ARENA_RUNS,log/arena}
+  max_steps: 200000
+  batch_size: 64
+  micro_batch_size: 16
+  seed: 42
+  sampling: episodes               # an episode uniformly, then a window in it (the original repository's episode_uniform)
+  checkpoint_every: 20000
+  final_checkpoints: 1             # the released fine-tunes are their last checkpoint
+  final_checkpoint_spacing: 1000
+
+model:
+  cameras: [head]                  # Arena's front camera
+
+training:
+  scheduler:
+    warmup_steps: 2000             # warmup_ratio 0.01 of 200k

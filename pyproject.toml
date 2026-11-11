@@ -19,6 +19,7 @@ dependencies = [
     "safetensors>=0.4",
     "transformers==5.1.0",
     "peft==0.18.1",
+    "pillow",                         # DINOv3's AutoImageProcessor; bigym2's deps happened to bring it in
     "tqdm",
 ]
 

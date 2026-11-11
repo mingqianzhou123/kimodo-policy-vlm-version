@@ -173,3 +173,29 @@ def test_proprio_masking_keeps_only_the_base(tmp_path):
     assert bool(b[:100, heading].all())  # the base stays observed
     assert int(b[:100].sum()) < int(a[:100].sum())  # the arm joints do not
     assert bool((b <= a).all())
+
+
+def test_episode_uniform_sampling():
+    """Every episode is drawn about equally often, whatever its length; ranks draw different streams."""
+    from kimodo_vla.data.episodes import EpisodeUniformSampler
+
+    lengths = [10, 100, 0, 40]  # windows per episode; the third has none
+    dataset = _Windows([(e, cut) for e, n in enumerate(lengths) for cut in range(n)], len(lengths))
+    indices = [i for seed in range(200) for i in EpisodeUniformSampler(dataset, num_replicas=2, rank=0, seed=seed)]
+    episodes = np.array([dataset.index[i][0] for i in indices])
+    share = np.bincount(episodes, minlength=4) / len(episodes)
+    assert share[2] == 0 and np.allclose(share[[0, 1, 3]], 1 / 3, atol=0.02)
+    cuts_of_long = np.array([dataset.index[i][1] for i in indices])[episodes == 1]
+    assert cuts_of_long.min() == 0 and cuts_of_long.max() == 99
+    sampler, other = (EpisodeUniformSampler(dataset, num_replicas=2, rank=rank, seed=3) for rank in (0, 1))
+    assert len(sampler) == len(other) == 75 and list(sampler) == list(sampler) != list(other)
+
+
+class _Windows:
+    """The two attributes of a KimodoWindowDataset the sampler reads."""
+
+    def __init__(self, index, episodes):
+        self.index, self.episodes = index, [None] * episodes
+
+    def __len__(self):
+        return len(self.index)

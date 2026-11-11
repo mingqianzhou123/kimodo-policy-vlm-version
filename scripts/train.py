@@ -1,11 +1,17 @@
-"""Train Kimodo-Policy's ControlNet and hand head on one BiGym 2.0 task (one or several GPUs).
+"""Train Kimodo-Policy's ControlNet and hand head on prepared episodes (one or several GPUs).
 
-    python scripts/train.py --task move_plate                       # three cameras
+    python scripts/train.py --task move_plate                       # BiGym 2.0, three cameras
     python scripts/train.py --task move_plate --cameras head        # head only
     python scripts/train.py --task move_plate --cameras head --init-checkpoint <pt_419h checkpoint dir>
     python scripts/train.py --task move_plate main.max_steps=200    # any config field, OmegaConf dotlist
     python scripts/train.py --resume log/bigym2/<run>
     torchrun --standalone --nproc_per_node=8 scripts/train.py --task move_plate --config configs/bigym2_recipe.yaml
+    torchrun --standalone --nproc_per_node=4 scripts/train.py --config configs/arena.yaml \
+        --task HOI_double_desk/sonic --init-checkpoint <pt_419h checkpoint dir>   # HumanoidArena, as ft_419h
+    python scripts/train.py --config configs/arena.yaml --task HOI_football/sonic HSI_boxing/sonic   # several folders
+
+``--task`` names folders under ``main.data_root`` (a BiGym task, or ``<task>/<tracker>`` from
+``prepare_arena.py``); with several, every window of every folder is one sample, as one dataset.
 
 Settings come from ``configs/bigym2.yaml`` (a config may name another as ``_base_``
 and list only what differs, like ``configs/bigym2_recipe.yaml``). Under ``torchrun``
@@ -26,12 +32,14 @@ A run directory (``--run-dir``, or ``<save_root>/<task>_<n>cam_<time>/``) holds 
 from __future__ import annotations
 
 import argparse
+import collections
 import contextlib
 import itertools
 import json
 import logging
 import math
 import os
+import statistics
 import time
 from datetime import datetime
 from pathlib import Path
@@ -43,7 +51,7 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader, DistributedSampler
 
-from kimodo_vla.data.episodes import KimodoWindowDataset
+from kimodo_vla.data.episodes import EpisodeUniformSampler, KimodoWindowDataset
 from kimodo_vla.model.kimodo_policy import KimodoPolicy, KimodoPolicyConfig
 from kimodo_vla.model.planner import load_text_embeddings
 from run_config import DEFAULT_CONFIG, REPO, checkpoint_steps, load_yaml  # scripts/ is on sys.path when run as a script
@@ -71,7 +79,7 @@ def load_config(args, rank: int = 0) -> tuple:
 
     config = OmegaConf.merge(load_yaml(args.config), OmegaConf.from_dotlist(args.overrides))
     if args.task:
-        config.main.task = args.task
+        config.main.task = args.task[0] if len(args.task) == 1 else list(args.task)
     if args.cameras:
         config.model.cameras = list(args.cameras)
     if not config.main.task:
@@ -85,12 +93,19 @@ def load_config(args, rank: int = 0) -> tuple:
     if args.run_dir:
         run_dir = Path(args.run_dir).expanduser().resolve()
     else:
-        name = args.name or f"{config.main.task}_{len(config.model.cameras)}cam{'_init' if args.init_checkpoint else ''}"
+        tasks = "+".join(t.replace("/", "-") for t in task_folders(config))
+        name = args.name or f"{tasks}_{len(config.model.cameras)}cam{'_init' if args.init_checkpoint else ''}"
         run_dir = Path(config.main.save_root) / f"{name}_{datetime.now():%Y-%m-%d_%H-%M-%S}"
     if rank == 0:
         run_dir.mkdir(parents=True)  # never mixes two runs; continue one with --resume
         (run_dir / "config.json").write_text(json.dumps(OmegaConf.to_container(config, resolve=True), indent=2))
     return config, run_dir
+
+
+def task_folders(config) -> list[str]:
+    """``main.task`` as a list: one folder name, or several."""
+    task = config.main.task
+    return [task] if isinstance(task, str) else list(task)
 
 
 def share_run_dir(run_dir: Path) -> Path:
@@ -182,10 +197,17 @@ def lr_schedule(config):
 
 
 def batches(dataset, config, start_step: int, rank: int = 0, world: int = 1):
-    """Endless shuffled micro-batches of this rank; each pass over the windows gets its own seed."""
+    """Endless shuffled micro-batches of this rank; each pass over the windows gets its own seed.
+
+    ``main.sampling``: ``windows`` (default) shuffles every window once per pass; ``episodes`` draws
+    an episode uniformly and then one of its windows, as the released HumanoidArena fine-tunes did.
+    """
     for epoch in itertools.count():
         seed = config.main.seed * 1_000_003 + start_step * 1_009 + epoch
-        sampler = DistributedSampler(dataset, num_replicas=world, rank=rank, shuffle=True, seed=seed, drop_last=True)
+        if config.main.get("sampling", "windows") == "episodes":
+            sampler = EpisodeUniformSampler(dataset, num_replicas=world, rank=rank, seed=seed)
+        else:
+            sampler = DistributedSampler(dataset, num_replicas=world, rank=rank, shuffle=True, seed=seed, drop_last=True)
         loader = DataLoader(
             dataset,
             batch_size=config.main.micro_batch_size,
@@ -228,6 +250,31 @@ class WeightAverages:
         return {d: {n: t.detach().cpu() for n, t in zip(self.names, avg)} for d, avg in self.averages.items()}
 
 
+class SpikeGuard:
+    """Drops updates whose loss jumps far above the recent level (``training.spike_skip``).
+
+    A step is skipped when its loss (the mean over GPUs, so every rank decides alike) is above
+    ``factor`` times the median of the last ``window`` accepted steps; the learning-rate schedule
+    still advances. Nothing is skipped until the window is full. After ``max_consecutive`` skips
+    in a row the step is taken anyway: then the loss level itself has moved.
+    """
+
+    def __init__(self, factor: float, window: int = 200, max_consecutive: int = 10):
+        self.factor, self.max_consecutive = float(factor), int(max_consecutive)
+        self.recent: collections.deque[float] = collections.deque(maxlen=int(window))
+        self.consecutive = self.total = 0
+
+    def skip(self, loss: float) -> bool:
+        full = len(self.recent) == self.recent.maxlen
+        if full and self.consecutive < self.max_consecutive and loss > self.factor * statistics.median(self.recent):
+            self.consecutive += 1
+            self.total += 1
+            return True
+        self.consecutive = 0
+        self.recent.append(loss)
+        return False
+
+
 def save(path: Path, payload: dict) -> None:
     temporary = path.with_name(path.name + ".tmp")
     torch.save(payload, temporary)
@@ -236,12 +283,12 @@ def save(path: Path, payload: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--task")
+    parser.add_argument("--task", nargs="+", help="prepared folder(s) under main.data_root")
     parser.add_argument("--cameras", nargs="+", help="default: model.cameras of the config (all three)")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--init-checkpoint", help="start ControlNet and hand head from this checkpoint directory")
     parser.add_argument("--resume", help="run directory to continue")
-    parser.add_argument("--name", help="run directory prefix; default <task>_<n>cam")
+    parser.add_argument("--name", help="run directory prefix; default <task(s)>_<n>cam")
     parser.add_argument("--run-dir", help="exact run directory instead of <save_root>/<name>_<time>; must not exist")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("overrides", nargs="*", help="config fields, e.g. main.max_steps=200")
@@ -271,7 +318,7 @@ def main() -> None:
 
     text = load_text_embeddings(main_cfg.text_cache)
     dataset = KimodoWindowDataset(
-        [Path(main_cfg.data_root) / main_cfg.task],
+        [Path(main_cfg.data_root) / task for task in task_folders(config)],
         action_history=main_cfg.action_history,
         action_chunk=main_cfg.action_chunk,
         text_embeddings=text,
@@ -279,10 +326,10 @@ def main() -> None:
         image_shift=augmentation.get("image_shift", 0),
         proprio_mask_prob=augmentation.get("proprio_mask_prob", 0.0),
     )
-    instruction = dataset.episodes[0]["instruction"]
-    if instruction not in text:
-        raise SystemExit(f"no cached text embedding for {instruction!r} in {main_cfg.text_cache}")
-    log.info("%s: %d demos, %d windows, cameras %s, %d GPU(s), augmentation %s, run %s", main_cfg.task,
+    missing = sorted({e["instruction"] for e in dataset.episodes} - set(text))
+    if missing:
+        raise SystemExit(f"no cached text embedding for {missing} in {main_cfg.text_cache}")
+    log.info("%s: %d demos, %d windows, cameras %s, %d GPU(s), augmentation %s, run %s", " + ".join(task_folders(config)),
              len(dataset.episodes), len(dataset), cameras, world, dict(augmentation), run_dir)
 
     model = build_model(config)
@@ -306,6 +353,8 @@ def main() -> None:
         log.info("resumed at step %d", step)
     decays = list(config.training.get("ema_decays") or [])
     averages = WeightAverages(model, decays, (state or {}).get("ema")) if decays and rank == 0 else None
+    spike = config.training.get("spike_skip") or {}
+    guard = SpikeGuard(spike.factor, spike.get("window", 200), spike.get("max_consecutive", 10)) if spike.get("factor") else None
     forward = DistributedDataParallel(model, device_ids=[device.index]) if world > 1 else model
     torch.manual_seed(main_cfg.seed + 7919 * rank)  # different diffusion noise and augmentation per rank
 
@@ -355,7 +404,11 @@ def main() -> None:
             raise SystemExit(f"step {step + 1}: loss is {losses['loss']}")
         control_norm = float(torch.nn.utils.clip_grad_norm_(control_params, main_cfg.gradient.grad_clip_norm))
         hand_norm = float(torch.nn.utils.clip_grad_norm_(hand_params, main_cfg.gradient.hand_grad_clip_norm)) if hand_params else 0.0
-        optimizer.step()
+        skipped = guard is not None and guard.skip(losses["loss"])
+        if skipped:
+            log.info("step %d: loss %.4f is over %g x the recent median, update skipped", step + 1, losses["loss"], guard.factor)
+        else:
+            optimizer.step()
         scheduler.step()
         step += 1
         if averages:
@@ -367,6 +420,8 @@ def main() -> None:
             record = {"step": step, **losses, "grad_control": control_norm, "grad_hand": hand_norm,
                       "lr_backbone": lrs["backbone"], "lr_adapter": lrs["adapter"], "s_per_step": seconds,
                       "data_s_per_step": window_data / main_cfg.log_every}
+            if guard:
+                record.update(skipped=skipped, skipped_steps=guard.total)
             metrics_file.write(json.dumps(record) + "\n")
             metrics_file.flush()
             eta = seconds * (end - step) / 3600
