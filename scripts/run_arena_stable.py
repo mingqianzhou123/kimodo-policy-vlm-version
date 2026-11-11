@@ -72,6 +72,10 @@ def main():
     try:
         common = ['--config', str(args.config.resolve()), '--audit-distributed']
         overrides = ['main.require_preflight=false', 'main.log_every=1',
+                     # Validation starts/stops three DDP jobs in one process.
+                     # Keep this lifecycle check deterministic; production
+                     # retains the configured worker pool for throughput.
+                     'main.num_workers=0',
                      'training.stages.adapter_start=3', 'training.scheduler.warmup_steps=10',
                      'training.scheduler.adapter_warmup_steps=5']
         train([*common, '--run-dir', str(validation/'continuous'), '--stop-after', '48', *overrides],

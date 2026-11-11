@@ -27,6 +27,10 @@ and VLM adapter 1e-5.  The Kimodo denoiser and VLM backbone remain frozen;
 the VLM adapter joins at step 10,000.  The dedicated AdaLN optimizer group is
 saved in checkpoints and included in the architecture fingerprint.
 
+The short DDP continuity/resume audit overrides workers to zero while it
+starts and stops three jobs in one process; the production run uses the eight
+worker pool above.
+
 Run the checks in this order on a GPU host:
 
 ```bash
