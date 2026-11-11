@@ -115,9 +115,10 @@ def main():
         for left, right in zip(a['rng_states'], b['rng_states']):
             assert torch.equal(left['cpu'], right['cpu']) and torch.equal(left['cuda'], right['cuda'])
         rows = [json.loads(x) for x in (validation/'continuous/metrics.jsonl').read_text().splitlines()]
+        timing_rows = rows[10:] or rows[1:] or rows
         result = dict(passed=True, steps=validation_steps, resumed_at=split_steps, gpus=gpus,
                       max_parameter_error=max(errors.values()),
-                      median_seconds_per_step=sorted(r['s_per_step'] for r in rows[10:])[len(rows[10:])//2],
+                      median_seconds_per_step=sorted(r['s_per_step'] for r in timing_rows)[len(timing_rows)//2],
                       final_loss=rows[-1]['loss'], simulated_adapter_start=3,
                       simulated_global_warmup=10, simulated_adapter_warmup=5,
                       optimizer_scheduler_rng_checked=True, fingerprint=fingerprint(config))
