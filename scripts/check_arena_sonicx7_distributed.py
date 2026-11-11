@@ -55,7 +55,9 @@ def main():
         raise ValueError('Safe checkpoint-and-stop was not exercised')
     atomic_json(args.out, {'passed': True, 'fingerprint': fingerprint(config),
         'gpus': [int(v) for v in args.gpus.split(',')], 'world_size': 4,
-        'global_batch': 128, 'micro_batch': 32, 'workers_per_gpu': 24, 'compiled': True,
+        'global_batch': int(config.main.batch_size),
+        'micro_batch': int(config.main.micro_batch_size),
+        'workers_per_gpu': int(config.main.num_workers), 'compiled': True,
         'test_overrides': {'adapter_start': 3, 'stop_after': [6, 10], 'require_preflight': False, 'log_every': 1},
         'audits': audits, 'optimizer_steps_by_group': steps, 'metrics': rows,
         'safe_stop_and_resume': True, 'production_initialization': 'fresh, not this smoke checkpoint'})

@@ -16,6 +16,10 @@ model:
 
 main:
   preflight_report: outputs/sonicx7_adaln_preflight/groot_preflight.json
+  # Four ranks already keep the decoded episode cache warm.  Eight workers per
+  # rank avoids the 96-worker fork/shutdown instability seen in repeated DDP
+  # resume validation while keeping the input pipeline ahead of the GPU.
+  num_workers: 8
 
 training:
   optimizer:

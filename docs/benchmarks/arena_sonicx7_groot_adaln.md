@@ -20,8 +20,8 @@ separate condition stems and heads.  The old Cross-Attention path remains
 available with `model.groot_injection_mode: cross_attention`; its checkpoints
 are intentionally not loaded into AdaLN runs.
 
-The seven-task run uses global batch 128 (four GPUs × micro-batch 32), bf16
-autocast, fused AdamW, 5,000-step warmup and cosine decay.  Compared with the
+The seven-task run uses global batch 128 (four GPUs × micro-batch 32), eight
+data workers per GPU, bf16 autocast, fused AdamW, 5,000-step warmup and cosine decay.  Compared with the
 previous conservative VLM recipe, the new rates are AdaLN 5e-5, HandNet 3e-5,
 and VLM adapter 1e-5.  The Kimodo denoiser and VLM backbone remain frozen;
 the VLM adapter joins at step 10,000.  The dedicated AdaLN optimizer group is
