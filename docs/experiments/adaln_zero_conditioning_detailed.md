@@ -161,20 +161,28 @@ body VLM condition → body visual projection → body condition MLP → 4 heads
 - [`KimodoPolicy.checkpoint_parameters`](/root/workspace/kimodo-policy-vlm-version-model_improvement_lct1/kimodo_vla/model/kimodo_policy.py:265)
 - [`training_stage`](/root/workspace/kimodo-policy-vlm-version-model_improvement_lct1/scripts/train.py:204)
 
-## 8. optimizer 分组和学习率调整
+## 8. 当前 AdaLN 配置中的 optimizer 分组和学习率
 
 原 VLM 改进版的学习率较保守，主要使用 `2e-5` 和 `5e-6`。对于零初始化 AdaLN，过小的 modulation 学习率会导致 gate 打开过慢，因此单独增加了 `adaln` optimizer group：
 
 | 参数组 | 当前学习率 | 作用 |
 |---|---:|---|
-| AdaLN adapter | `5e-5` | 打开 zero-initialized shift/scale/gate |
-| Control adapter | `5e-5` | 训练视觉控制适配层 |
+| AdaLN adapter | `5e-5` | 训练 VLM+timestep 到 Kimodo hidden 的 shift/scale/gate 调制 |
 | HandNet | `3e-5` | 训练手部动作头 |
-| VLM adapter | `1e-5` | 第 10,000 步后加入训练 |
+| VLM adapter（4层vl selfattention） | `1e-5` | 第 10,000 步后加入训练 |
 | Kimodo backbone | `0` | 始终冻结 |
 | VLM backbone | `0` | 始终冻结 |
 
-实现位置是 [`param_groups()`](/root/workspace/kimodo-policy-vlm-version-model_improvement_lct1/scripts/train.py:163)。AdaLN 参数通过 `controlnet.root_hint_fusion.*` 和 `controlnet.body_hint_fusion.*` 识别，并以 `adaln` 名称写入 checkpoint optimizer state。
+当前生产配置使用 `visual_conditioning=groot_n1d7` 和 `groot_injection_mode=adaln_zero`。在这个配置下，`KimodoPolicy` 中虽然仍使用历史成员名 `self.controlnet`，实际创建的是 `GrootInjection`，并没有额外的传统 ControlNet branch。真正训练的视觉注入参数是：
+
+```text
+controlnet.root_hint_fusion.*
+controlnet.body_hint_fusion.*
+```
+
+它们包括 `visual_projection`、timestep embedding、condition MLP，以及第 3/7/11/15 层的 AdaLN modulation heads。`param_groups()` 会把这些参数识别为 `adaln` group，并使用 `adaln_lr=5e-5`。
+
+当前 AdaLN 配置中的 `control_adapter_lr=5e-5` 只是保留的兼容字段，不对应一个额外的活动参数组；当前训练实际生效的是 `adaln_lr`。
 
 调度方式是全局 cosine decay、5000 步 warmup，VLM adapter 进入训练后单独使用 5000 步 adapter warmup。生产配置保持 bf16 autocast、fused AdamW、global batch 128。
 
@@ -203,6 +211,7 @@ main:
 training:
   optimizer:
     adaln_lr: 5.0e-5
+    # 兼容旧配置；当前 AdaLN VLM 路径实际使用 adaln_lr。
     control_adapter_lr: 5.0e-5
     hand_lr: 3.0e-5
     vl_adapter_lr: 1.0e-5
