@@ -40,7 +40,7 @@ HTML = r'''<!doctype html>
 <section class="panel"><h2>阅读方式</h2><div class="note">优先观察左上角总损失和 Root/Body/Hand 子损失。切换“最近 5,000 条记录”可以看清当前收敛趋势，切换“全程”可以看整体阶段变化。平滑窗口只影响实线，不会隐藏原始曲线。训练初期编译和缓存会抬高 step time，ETA 使用最近 100 条记录估计。最终是否继续训练，应以固定 checkpoint 的 Arena 成功率为准。</div></section>
 </div></main>
 <script>
-const MAX_STEPS=500000, colors=['#61a8ff','#40d4c1','#ffb454','#f58cb5','#78db91','#bd9cff'];let rows=[];
+const MAX_STEPS=500000, colors=['#61a8ff','#40d4c1','#ffb454','#f58cb5','#78db91','#bd9cff'];let rows=__INITIAL_ROWS__;
 const num=(x)=>Number.isFinite(+x)?+x:NaN, fmt=(x,n=4)=>Number.isFinite(+x)?(+x).toFixed(n):'—', sci=(x)=>Number.isFinite(+x)?(+x).toExponential(2):'—';
 function moving(values,w){if(w<=1)return values.slice();const out=[],q=[];let sum=0;for(const value of values){q.push(Number.isFinite(value)?value:0);sum+=q.at(-1);if(q.length>w)sum-=q.shift();out.push(sum/q.length)}return out}
 function selected(){const v=document.getElementById('range').value;if(v==='all')return rows.slice();return rows.slice(-Number(v))}
@@ -48,9 +48,9 @@ function sample(a,max=1200){if(a.length<=max)return a;return Array.from({length:
 function renderLegend(id,series){document.getElementById(id).innerHTML=series.map((s,i)=>`<span><i style="background:${colors[i%colors.length]}"></i>${s.name}</span>`).join('')}
 function chart(id,legendId,defs){const data=sample(selected()),c=document.getElementById(id),dpr=devicePixelRatio||1,w=Math.max(340,c.clientWidth),h=250;c.width=w*dpr;c.height=h*dpr;const g=c.getContext('2d');g.scale(dpr,dpr);g.fillStyle='#121b2e';g.fillRect(0,0,w,h);const pad={left:54,right:15,top:25,bottom:32},cw=w-pad.left-pad.right,ch=h-pad.top-pad.bottom;const series=defs.map(d=>({name:d.name,steps:data.map(r=>num(r.step)),raw:data.map(r=>num(r[d.key]))})),all=series.flatMap(s=>s.raw.filter(Number.isFinite));if(!all.length)return;let lo=Math.min(...all),hi=Math.max(...all);if(lo===hi){lo-=1;hi+=1}const extra=(hi-lo)*.1;lo-=extra;hi+=extra;g.font='11px system-ui';g.strokeStyle='#2b3b5d';g.fillStyle='#9eafcc';for(let i=0;i<=4;i++){const y=pad.top+ch*i/4,v=hi-(hi-lo)*i/4;g.beginPath();g.moveTo(pad.left,y);g.lineTo(w-pad.right,y);g.stroke();g.fillText(fmt(v,3),5,y+4)}for(let i=0;i<=4;i++){const x=pad.left+cw*i/4,j=Math.min(data.length-1,Math.round((data.length-1)*i/4));g.fillText(data[j]?.step??'',x-17,h-10)}const xAt=i=>pad.left+(data.length<=1?0:i/(data.length-1))*cw,yAt=v=>pad.top+(hi-v)/(hi-lo)*ch;const win=Number(document.getElementById('smooth').value);series.forEach((s,si)=>{const col=colors[si%colors.length];g.strokeStyle=col;g.lineWidth=1;g.globalAlpha=.25;g.beginPath();s.raw.forEach((v,i)=>{if(!Number.isFinite(v))return;i?g.lineTo(xAt(i),yAt(v)):g.moveTo(xAt(i),yAt(v))});g.stroke();g.globalAlpha=1;g.lineWidth=2.4;g.beginPath();moving(s.raw,win).forEach((v,i)=>{i?g.lineTo(xAt(i),yAt(v)):g.moveTo(xAt(i),yAt(v))});g.stroke();const last=moving(s.raw,win).at(-1);g.fillStyle=col;g.beginPath();g.arc(xAt(data.length-1),yAt(last),3,0,Math.PI*2);g.fill()});renderLegend(legendId,series)}
 function render(){if(!rows.length)return;const last=rows.at(-1),step=num(last.step),pct=100*step/MAX_STEPS;document.getElementById('step').textContent=step.toLocaleString();document.getElementById('progress').textContent=pct.toFixed(2)+'%';document.getElementById('bar').style.width=Math.min(100,pct)+'%';document.getElementById('loss').textContent=fmt(last.loss);document.getElementById('motion').textContent=fmt(last.motion_loss);document.getElementById('hand').textContent=fmt(last.hand_loss);document.getElementById('lr').textContent=sci(last.lr_adaln??last.lr_adapter);const tail=rows.slice(-100),avg=tail.reduce((a,r)=>a+(num(r.s_per_step)||0),0)/Math.max(1,tail.length),eta=(MAX_STEPS-step)*avg/3600;document.getElementById('eta').textContent=eta>48?(eta/24).toFixed(1)+' d':eta.toFixed(1)+' h';document.getElementById('updated').textContent='最新 step '+step.toLocaleString()+' · '+new Date().toLocaleTimeString();document.getElementById('run').textContent=location.pathname.replace(/\/training_dashboard\.html$/,'');chart('main','mainLegend',[{name:'loss',key:'loss'},{name:'motion',key:'motion_loss'},{name:'hand',key:'hand_loss'}]);chart('parts','partsLegend',[{name:'root',key:'root_loss'},{name:'body',key:'body_loss'},{name:'hand state',key:'hand_state_loss'},{name:'hand transition',key:'hand_transition_loss'}]);chart('lrChart','lrLegend',[{name:'AdaLN',key:'lr_adaln'},{name:'adapter',key:'lr_adapter'},{name:'backbone',key:'lr_backbone'}]);chart('grad','gradLegend',[{name:'control',key:'grad_control'},{name:'hand',key:'grad_hand'}]);chart('time','timeLegend',[{name:'step',key:'s_per_step'},{name:'data',key:'data_s_per_step'}]);document.getElementById('recent').innerHTML=rows.slice(-14).reverse().map(r=>`<tr><td>${r.step}</td><td>${fmt(r.loss)}</td><td>${fmt(r.motion_loss)}</td><td>${fmt(r.root_loss)}</td><td>${fmt(r.body_loss)}</td><td>${fmt(r.hand_loss)}</td><td>${r.stage||''}</td><td>${fmt(r.s_per_step,2)}</td></tr>`).join('')}
-+async function load(){try{const text=await fetch('metrics.jsonl?ts='+Date.now(),{cache:'no-store'}).then(r=>r.text());rows=text.trim().split(/\n+/).map(x=>{try{return JSON.parse(x)}catch(e){return null}}).filter(Boolean);render()}catch(e){document.getElementById('updated').textContent='等待 metrics.jsonl…'}}
-document.getElementById('range').onchange=render;document.getElementById('smooth').oninput=e=>{document.getElementById('smoothValue').textContent=e.target.value;render()};window.onresize=render;load();setInterval(load,10000);
-+</script></body></html>
+async function load(){try{const text=await fetch('metrics.jsonl?ts='+Date.now(),{cache:'no-store'}).then(r=>r.text());rows=text.trim().split(/\n+/).map(x=>{try{return JSON.parse(x)}catch(e){return null}}).filter(Boolean);render()}catch(e){document.getElementById('updated').textContent='等待 metrics.jsonl…'}}
+document.getElementById('range').onchange=render;document.getElementById('smooth').oninput=e=>{document.getElementById('smoothValue').textContent=e.target.value;render()};window.onresize=render;render();load();setInterval(load,10000);
+</script></body></html>
 '''
 
 
@@ -70,7 +70,17 @@ def main() -> None:
     run_dir = args.run_dir.expanduser().resolve()
     run_dir.mkdir(parents=True, exist_ok=True)
     dashboard = run_dir / "training_dashboard.html"
-    dashboard.write_text(HTML.replace("__MAX_STEPS__", str(args.max_steps)), encoding="utf-8")
+    initial_rows = []
+    metrics = run_dir / "metrics.jsonl"
+    if metrics.is_file():
+        for line in metrics.read_text(encoding="utf-8").splitlines()[-20000:]:
+            try:
+                initial_rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+    initial_payload = json.dumps(initial_rows, ensure_ascii=False, separators=(",", ":"))
+    page = HTML.replace("__MAX_STEPS__", str(args.max_steps)).replace("__INITIAL_ROWS__", initial_payload)
+    dashboard.write_text(page, encoding="utf-8")
     if args.write_only:
         print(str(dashboard), flush=True)
         return
