@@ -101,11 +101,15 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--max-steps", type=int, default=500000)
+    parser.add_argument("--write-only", action="store_true", help="write HTML and exit without opening a port")
     args = parser.parse_args()
     run_dir = args.run_dir.expanduser().resolve()
     run_dir.mkdir(parents=True, exist_ok=True)
     dashboard = run_dir / "training_dashboard.html"
     dashboard.write_text(HTML.replace("__MAX_STEPS__", str(args.max_steps)), encoding="utf-8")
+    if args.write_only:
+        print(str(dashboard), flush=True)
+        return
     os.chdir(run_dir)
     with socketserver.ThreadingTCPServer((args.host, args.port), QuietHandler) as server:
         print(json.dumps({"dashboard": str(dashboard), "url": f"http://{args.host}:{args.port}/training_dashboard.html", "metrics": str(run_dir / "metrics.jsonl")}), flush=True)
