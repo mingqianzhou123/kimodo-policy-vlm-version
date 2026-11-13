@@ -94,6 +94,12 @@ class KimodoPolicyConfig:
     groot_checkpoint: Optional[str] = None
     groot_repo: Optional[str] = None
     groot_vlm_model: Optional[str] = None
+    groot_vision_lora: bool = False
+    groot_vision_lora_rank: int = 8
+    groot_vision_lora_alpha: float = 16.0
+    groot_vision_lora_dropout: float = 0.0
+    groot_vision_lora_targets: tuple[str, ...] = ("qkv", "proj")
+    kimodo_unfreeze_layers: int = 0
     # Keep the historical cross-attention path selectable for paired
     # comparisons; AdaLN-Zero is an external adapter around frozen Kimodo.
     groot_injection_mode: str = "cross_attention"
@@ -176,7 +182,14 @@ class KimodoPolicy(nn.Module):
 
             if config.num_cameras != 1 or not config.groot_checkpoint or not config.groot_repo:
                 raise ValueError("N1.7 requires one camera, groot_checkpoint and groot_repo")
-            self.image_encoder = GrootN17Encoder(config.groot_checkpoint, config.groot_repo, config.groot_vlm_model)
+            self.image_encoder = GrootN17Encoder(
+                config.groot_checkpoint, config.groot_repo, config.groot_vlm_model,
+                vision_lora=config.groot_vision_lora,
+                vision_lora_rank=config.groot_vision_lora_rank,
+                vision_lora_alpha=config.groot_vision_lora_alpha,
+                vision_lora_dropout=config.groot_vision_lora_dropout,
+                vision_lora_targets=config.groot_vision_lora_targets,
+            )
             self.controlnet = GrootInjection(
                 self.denoiser,
                 config.action_chunk,
@@ -249,8 +262,17 @@ class KimodoPolicy(nn.Module):
     def set_training_stage(self, stage):
         if self.config.visual_conditioning != "groot_n1d7":
             raise ValueError("Staged VLM training requires groot_n1d7")
-        self.image_encoder.set_stage(stage)
+        vlm_stage = stage if stage in {"injection", "adapter", "vision", "vision_lora"} else "adapter"
+        self.image_encoder.set_stage(vlm_stage)
         self.denoiser.requires_grad_(False)
+        if stage == "kimodo":
+            layers = int(getattr(self.config, "kimodo_unfreeze_layers", 0))
+            if layers <= 0:
+                raise ValueError("kimodo stage requires kimodo_unfreeze_layers > 0")
+            for block in (self.denoiser.root_model, self.denoiser.body_model):
+                for layer in block.seqTransEncoder.layers[-layers:]:
+                    layer.requires_grad_(True)
+                block.output_linear.requires_grad_(True)
         if self.text_encoder is not None:
             self.text_encoder.requires_grad_(False)
         self.controlnet.requires_grad_(True)
@@ -269,7 +291,21 @@ class KimodoPolicy(nn.Module):
             prefixes += ("image_encoder.adapter.",)
             if getattr(self, "training_stage", "") == "vision":
                 prefixes += ("image_encoder.backbone.model.model.visual.",)
-        return {n: p for n, p in self.named_parameters() if n.startswith(prefixes)}
+            if getattr(self.image_encoder, "vision_lora", False):
+                # The frozen visual base is in the N1.7 safetensors checkpoint;
+                # only PEFT's low-rank parameters belong in policy checkpoints.
+                prefixes += ("__vision_lora_marker__",)
+        state = {n: p for n, p in self.named_parameters() if n.startswith(prefixes)}
+        if getattr(self.image_encoder, "vision_lora", False):
+            state.update({n: p for n, p in self.named_parameters()
+                          if n.startswith("image_encoder.backbone.model.model.visual.") and ".lora_" in n})
+        if getattr(self, "training_stage", "") == "kimodo":
+            state.update({n: p for n, p in self.named_parameters()
+                          if n.startswith(("denoiser.root_model.seqTransEncoder.layers.",
+                                           "denoiser.body_model.seqTransEncoder.layers.",
+                                           "denoiser.root_model.output_linear.",
+                                           "denoiser.body_model.output_linear."))})
+        return state
 
     @property
     def device(self) -> torch.device:
@@ -278,6 +314,12 @@ class KimodoPolicy(nn.Module):
     def train(self, mode: bool = True):
         super().train(mode)
         self.denoiser.eval()
+        if getattr(self, "training_stage", "") == "kimodo":
+            layers = int(getattr(self.config, "kimodo_unfreeze_layers", 0))
+            for block in (self.denoiser.root_model, self.denoiser.body_model):
+                for layer in block.seqTransEncoder.layers[-layers:]:
+                    layer.train(mode)
+                block.output_linear.train(mode)
         if self.text_encoder is not None:
             self.text_encoder.eval()
         if getattr(self.config, "visual_conditioning", "dinov3_controlnet") == "groot_n1d7":
@@ -1439,14 +1481,41 @@ class KimodoPolicy(nn.Module):
             state_dict = averages[weights.removeprefix("ema")]
         if self.config.visual_conditioning == "groot_n1d7":
             expected = self.checkpoint_parameters()
-            state_dict = {n.removeprefix("_orig_mod."): v for n, v in state_dict.items()}
+            # PEFT wraps targeted visual Linear layers under ``base_layer``.
+            # Warm-start checkpoints predate LoRA and therefore store the
+            # same tensors at the unwrapped path (``...qkv.weight``). Map
+            # those legacy names into the wrapped model before comparing
+            # keys; LoRA tensors remain intentionally missing/zero-init.
+            state_dict = {
+                n.removeprefix("_orig_mod.").replace(".base_layer.", "."): v
+                for n, v in state_dict.items()
+            }
+            if int(getattr(self.config, "kimodo_unfreeze_layers", 0)) > 0:
+                expected.update({n: p for n, p in self.named_parameters()
+                                 if n.startswith(("denoiser.root_model.seqTransEncoder.layers.",
+                                                  "denoiser.body_model.seqTransEncoder.layers.",
+                                                  "denoiser.root_model.output_linear.",
+                                                  "denoiser.body_model.output_linear."))})
             # A vision-finetuned checkpoint also carries visual-encoder tensors.
             visual_prefix = "image_encoder.backbone.model.model.visual."
-            if any(n.startswith(visual_prefix) for n in state_dict):
+            # LoRA-only snapshots contain visual ``lora_A/B`` tensors but
+            # intentionally omit the frozen base, which is restored from the
+            # official N1.7 source during model construction. Require the
+            # complete visual module only when legacy/full visual tensors are
+            # actually present in the checkpoint.
+            if any(n.startswith(visual_prefix) and ".lora_" not in n
+                   for n in state_dict):
                 expected.update({n: p for n, p in self.named_parameters() if n.startswith(visual_prefix)})
-            if strict and set(state_dict) != set(expected):
-                raise RuntimeError(f"N1.7 checkpoint mismatch: missing={set(expected)-set(state_dict)}, "
-                                   f"unexpected={set(state_dict)-set(expected)}")
+            missing = set(expected) - set(state_dict)
+            unexpected = set(state_dict) - set(expected)
+            # A warm-start from a pre-LoRA N1.7 policy intentionally has no
+            # low-rank tensors. They are zero-initialized by PEFT and become
+            # trainable in the new run; all other checkpoint mismatches remain
+            # hard errors.
+            allowed_missing = {n for n in missing if ".lora_" in n or n.startswith("denoiser.")}
+            if strict and (missing - allowed_missing or unexpected):
+                raise RuntimeError(f"N1.7 checkpoint mismatch: missing={missing - allowed_missing}, "
+                                   f"unexpected={unexpected}")
             self.load_state_dict(state_dict, strict=False)
             return int(payload.get("global_step", -1))
         controlnet_state = {}

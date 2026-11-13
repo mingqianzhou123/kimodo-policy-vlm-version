@@ -1,0 +1,32 @@
+_base_: arena_sonicx7_groot_stable.yaml
+
+main:
+  batch_size: 64
+  micro_batch_size: 32
+  max_steps: 50000
+  reset_optimizer: true
+  extra_checkpoints: [1000, 5000, 10000, 25000]
+  score_checkpoints: [50000]
+  save_root: log/arena_sonicx7_groot
+
+model:
+  compile: false
+  vision_lora: true
+  vision_lora_rank: 8
+  vision_lora_alpha: 16.0
+  vision_lora_dropout: 0.0
+  vision_lora_targets: [qkv, proj]
+
+training:
+  stages:
+    adapter_start: 1
+    initial_stage: vision_lora
+    vision_start: null
+  optimizer:
+    control_adapter_lr: 5.0e-6
+    hand_lr: 5.0e-6
+    vl_adapter_lr: 2.0e-6
+    vision_lr: 5.0e-7
+  scheduler:
+    warmup_steps: 3000
+    adapter_warmup_steps: 1000

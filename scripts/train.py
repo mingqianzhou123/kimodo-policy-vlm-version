@@ -136,6 +136,12 @@ def build_model(config) -> KimodoPolicy:
         groot_checkpoint=m.get("groot_checkpoint"),
         groot_repo=m.get("groot_repo"),
         groot_vlm_model=m.get("groot_vlm_model"),
+        groot_vision_lora=m.get("vision_lora", False),
+        groot_vision_lora_rank=m.get("vision_lora_rank", 8),
+        groot_vision_lora_alpha=m.get("vision_lora_alpha", 16.0),
+        groot_vision_lora_dropout=m.get("vision_lora_dropout", 0.0),
+        groot_vision_lora_targets=tuple(m.get("vision_lora_targets", ["qkv", "proj"])),
+        kimodo_unfreeze_layers=m.get("kimodo_unfreeze_layers", 0),
         groot_injection_mode=m.get("groot_injection_mode", "cross_attention"),
         adaln_condition_dim=m.get("adaln_condition_dim", 512),
         adaln_pool=m.get("adaln_pool", "masked_mean"),
@@ -166,6 +172,7 @@ def param_groups(model: KimodoPolicy, config) -> list[dict]:
     lr = {"backbone": opt.control_backbone_lr, "adapter": opt.control_adapter_lr, "hand": opt.hand_lr,
           "vl_adapter": opt.get("vl_adapter_lr", opt.control_backbone_lr),
           "vision": opt.get("vision_lr", 1e-6),
+          "kimodo": opt.get("kimodo_lr", 1e-6),
           # AdaLN starts with zero modulation heads.  A mildly larger
           # dedicated rate lets the gates open in a few updates while the
           # frozen Kimodo backbone remains untouched.
@@ -185,6 +192,8 @@ def param_groups(model: KimodoPolicy, config) -> list[dict]:
             family = "vl_adapter"
         elif name.startswith("image_encoder.backbone."):
             family = "vision"
+        elif name.startswith(("denoiser.root_model.", "denoiser.body_model.")):
+            family = "kimodo"
         elif name.startswith(("controlnet.root_layers.", "controlnet.body_layers.")):
             family = "backbone"
         elif (injection_mode == "adaln_zero"
@@ -202,6 +211,12 @@ def training_stage(config, step):
         return None
     if config.model.get("visual_conditioning") != "groot_n1d7":
         raise ValueError("Staged training requires groot_n1d7")
+    initial_stage = stages.get("initial_stage")
+    if initial_stage is not None:
+        valid = {"injection", "adapter", "vision", "vision_lora", "kimodo"}
+        if initial_stage not in valid:
+            raise ValueError(f"Unknown initial training stage {initial_stage!r}")
+        return str(initial_stage)
     if not 0 < int(stages.adapter_start) < config.main.max_steps:
         raise ValueError("adapter_start must lie inside the training run")
     vision_start = stages.get("vision_start")
@@ -339,7 +354,17 @@ def training_forward(model, config, device, world):
                     dynamic=config.model.get("compile_dynamic"))
         else:
             forward = torch.compile(model, mode=config.model.get("compile_mode", "reduce-overhead"), dynamic=False)
-    return DistributedDataParallel(forward, device_ids=[device.index], gradient_as_bucket_view=True) if world > 1 else forward
+    if world > 1:
+        # PEFT visual LoRA can legitimately leave a subset of injected
+        # projections unused for a batch/model path. Enable unused-parameter
+        # discovery for the LoRA experiment so DDP does not abort at the next
+        # iteration; the normal Kimodo/adapter path keeps the faster default.
+        find_unused = bool(config.model.get("vision_lora", False))
+        return DistributedDataParallel(
+            forward, device_ids=[device.index], gradient_as_bucket_view=True,
+            find_unused_parameters=find_unused,
+        )
+    return forward
 
 
 def restore_training_rng(state, config, device, world, rank, step):
@@ -443,7 +468,7 @@ def main() -> None:
     if stage:
         model.set_training_stage(stage)
     groups, optimizer, scheduler = make_optimizer(model, config, device, step)
-    if state:
+    if state and not main_cfg.get("reset_optimizer", False):
         optimizer.load_state_dict(state["optimizer"])
         scheduler.load_state_dict(state["scheduler"])
     decays = list(config.training.get("ema_decays") or [])

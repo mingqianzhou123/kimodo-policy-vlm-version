@@ -117,7 +117,10 @@ class GrootN17Encoder(nn.Module):
     output_dim = 2048
     token_count = None  # image AND text tokens, variable length
 
-    def __init__(self, checkpoint: str, repo: str, vlm_model: str | None = None):
+    def __init__(self, checkpoint: str, repo: str, vlm_model: str | None = None,
+                 vision_lora: bool = False, vision_lora_rank: int = 8,
+                 vision_lora_alpha: float = 16.0, vision_lora_dropout: float = 0.0,
+                 vision_lora_targets: tuple[str, ...] = ("qkv", "proj")):
         super().__init__()
         from transformers import AutoProcessor
 
@@ -179,22 +182,66 @@ class GrootN17Encoder(nn.Module):
             for name in ("gr00t/model/modules/qwen3_backbone.py", "gr00t/model/modules/dit.py")
         }
         self.requires_grad_(False)
+        self.vision_lora = bool(vision_lora)
+        self.vision_lora_rank = int(vision_lora_rank)
+        self.vision_lora_alpha = float(vision_lora_alpha)
+        self.vision_lora_dropout = float(vision_lora_dropout)
+        self.vision_lora_targets = tuple(vision_lora_targets)
+        if self.vision_lora:
+            self._install_vision_lora()
         self.tune_visual = False
 
+    def _install_vision_lora(self):
+        """Attach PEFT LoRA modules to the visual attention projections only."""
+        if getattr(self, "_vision_lora_installed", False):
+            return
+        from peft import LoraConfig, get_peft_model
+        targets = list(self.vision_lora_targets)
+        if not targets:
+            raise ValueError("vision_lora_targets must contain at least one module suffix")
+        self.backbone.model.visual = get_peft_model(
+            self.backbone.model.visual,
+            LoraConfig(
+                r=self.vision_lora_rank,
+                lora_alpha=self.vision_lora_alpha,
+                lora_dropout=self.vision_lora_dropout,
+                target_modules=targets,
+                bias="none",
+                task_type=None,
+            ),
+        )
+        self._vision_lora_installed = True
+        self.backbone.model.visual.requires_grad_(False)
+
+    def _set_vision_lora_trainable(self, enabled: bool):
+        if not self.vision_lora:
+            if enabled:
+                raise ValueError("vision_lora stage requested but vision_lora is disabled")
+            return
+        self.backbone.model.visual.requires_grad_(False)
+        for name, parameter in self.backbone.model.visual.named_parameters():
+            if "lora_" in name:
+                parameter.requires_grad_(enabled)
+
     def set_stage(self, stage: str):
-        if stage not in {"injection", "adapter", "vision"}:
+        if stage not in {"injection", "adapter", "vision", "vision_lora"}:
             raise ValueError(f"Unknown VLM training stage {stage!r}")
         self.requires_grad_(False)
-        self.adapter.requires_grad_(stage != "injection")
+        self.adapter.requires_grad_(stage not in {"injection"})
         self.tune_visual = stage == "vision"
+        self._set_vision_lora_trainable(stage == "vision_lora")
         self.backbone.tune_visual = self.tune_visual
-        self.backbone.model.visual.requires_grad_(self.tune_visual)
+        if self.tune_visual:
+            self.backbone.model.visual.requires_grad_(True)
+        elif self.vision_lora:
+            self._set_vision_lora_trainable(stage == "vision_lora")
         self.train(self.training)
 
     def train(self, mode: bool = True):
         super().train(mode)
         self.backbone.eval()
-        if self.tune_visual:
+        if self.tune_visual or (self.vision_lora and any("lora_" in n and p.requires_grad
+                                                         for n, p in self.backbone.model.visual.named_parameters())):
             self.backbone.model.visual.train(mode)
         if not any(p.requires_grad for p in self.adapter.parameters()):
             self.adapter.eval()

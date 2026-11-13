@@ -191,6 +191,18 @@ class KimodoPlanner:
             groot_checkpoint=model_cfg.get("groot_checkpoint"),
             groot_repo=model_cfg.get("groot_repo"),
             groot_vlm_model=model_cfg.get("groot_vlm_model"),
+            # Training configs historically use the short ``vision_lora``
+            # names; accept both spellings when reconstructing a checkpoint.
+            groot_vision_lora=bool(model_cfg.get("groot_vision_lora", model_cfg.get("vision_lora", False))),
+            groot_vision_lora_rank=int(model_cfg.get("groot_vision_lora_rank", model_cfg.get("vision_lora_rank", 8))),
+            groot_vision_lora_alpha=float(model_cfg.get("groot_vision_lora_alpha", model_cfg.get("vision_lora_alpha", 16.0))),
+            groot_vision_lora_dropout=float(model_cfg.get("groot_vision_lora_dropout", model_cfg.get("vision_lora_dropout", 0.0))),
+            groot_vision_lora_targets=tuple(model_cfg.get("groot_vision_lora_targets", model_cfg.get("vision_lora_targets", ("qkv", "proj")))),
+            kimodo_unfreeze_layers=int(model_cfg.get("kimodo_unfreeze_layers", 0)),
+            groot_injection_mode=str(model_cfg.get("groot_injection_mode", "cross_attention")),
+            adaln_condition_dim=int(model_cfg.get("adaln_condition_dim", 512)),
+            adaln_pool=str(model_cfg.get("adaln_pool", "masked_mean")),
+            adaln_max_diffusion_steps=int(model_cfg.get("adaln_max_diffusion_steps", 1000)),
         )
         model = KimodoPolicy(config)
         model.load_controlnet_checkpoint(str(checkpoint_dir), weights=weights)

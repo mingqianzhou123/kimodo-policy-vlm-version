@@ -38,7 +38,11 @@ def main():
     parser.add_argument("--sim-python", default="/root/workspace/miniforge3/envs/unitree_sim_env/bin/python")
     parser.add_argument("--server-python", default=sys.executable)
     parser.add_argument("--gpu", type=int, default=7)
+    parser.add_argument("--server-gpu", type=int,
+                        help="GPU for the VLM server; defaults to the simulator GPU")
     parser.add_argument("--port", type=int, default=19871)
+    parser.add_argument("--persistent-sim", type=int, choices=(0, 1), default=0,
+                        help="reuse one simulator process per seed; reduces CUDA allocator churn")
     parser.add_argument("--smoke", action="store_true", help="one short episode; NEVER a success-rate measurement")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--reference-manifest", type=Path,
@@ -57,14 +61,15 @@ def main():
     command = [args.sim_python, str(evaluator),
         "--task", task["task"],
         "--env_config_yaml", str(environment), "--model-path", str(args.checkpoint.resolve()),
-        "--repeats_per_seed", "1" if args.smoke else "20", "--persistent_sim", "0",
+        "--repeats_per_seed", "1" if args.smoke else "20", "--persistent_sim", str(args.persistent_sim),
         "--max_steps", "30" if args.smoke else str(task["max_steps"]), "--video_fps", "50",
         "--post_termination_record_steps", "10", "--record_video_every_n", "0", "--step_log_every_n", "100",
         "--robot_type", "unitree_g1_refpose_v3_1", "--sonic_encoder_path", str(sonic / "model_encoder.onnx"),
         "--sonic_decoder_path", str(sonic / "model_decoder.onnx"), "--sonic_vla_root_rot6d_layout", "row",
         "--sonic_vla_root_max_delta_deg", "26", "--results_dir", str(args.out.resolve()), "--headless",
         "--isaac_device", f"cuda:{args.gpu}", "--server_python", args.server_python,
-        "--server_script", str(REPO / "scripts/serve_arena_original.py"), "--server_device", f"cuda:{args.gpu}",
+        "--server_script", str(REPO / "scripts/serve_arena_original.py"), "--server_device",
+        f"cuda:{args.server_gpu if args.server_gpu is not None else args.gpu}",
         "--server_host", "127.0.0.1", "--server_port", str(args.port), "--server_scheme", "http",
         "--server_ready_timeout", "600", "--lerobot_server_timeout", "30"]
     for seed in ([0] if args.smoke else [0, 1, 2]):
