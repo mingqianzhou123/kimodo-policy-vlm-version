@@ -1,0 +1,27 @@
+{
+  "adapters": [
+    {
+      "adapter": "LLM2Vec-Meta-Llama-3-8B-Instruct-mntp",
+      "matched_tensors": 448
+    },
+    {
+      "adapter": "LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised",
+      "matched_tensors": 448
+    }
+  ],
+  "cache_reproduction": [
+    {
+      "task": "HOI_pp_box",
+      "max_absolute_difference": 0.0
+    },
+    {
+      "task": "HSI_boxing",
+      "max_absolute_difference": 0.0
+    },
+    {
+      "task": "HSI_vision_navi",
+      "max_absolute_difference": 0.0
+    }
+  ],
+  "passed": true
+}

@@ -1,0 +1,27 @@
+{
+  "run_id": "interface-gpu-20261113-r3",
+  "created_utc": "2026-11-13T13:35:58.457011+00:00",
+  "stage": "diagnostic",
+  "purpose": "Real simulator task-name lookup plus repeated GPU HTTP inference",
+  "platform": "baidu",
+  "seed": 17,
+  "sources": [
+    "sonic"
+  ],
+  "command": [
+    "/root/workspace/humanoidVLA/.venv/bin/python",
+    "-u",
+    "/root/workspace/humanoidVLA/cross_tracker/runs/interface-gpu-20261113-r3/check_http.py"
+  ],
+  "status": "prepared",
+  "training_started": false,
+  "dependency": {
+    "path": "/root/workspace/humanoidVLA",
+    "head": "d61b5cf99ce865523ad9746f8d060881d279cc16",
+    "status": "?? cross_tracker/\n?? docs/experiments/\n?? scripts/diag/paired_cups_replay.py\n?? scripts/diag/summarize_cups_replay.py\n?? scripts/experiment_dashboard.py\n?? scripts/experiment_ledger.py\n?? tools/\n",
+    "untracked_files_not_archived": true
+  },
+  "runtime_environment": null,
+  "parent_run": "interface-gpu-20261113-r2",
+  "formal_training_started": false
+}

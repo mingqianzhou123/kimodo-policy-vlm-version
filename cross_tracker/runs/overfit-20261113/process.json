@@ -1,0 +1,16 @@
+{
+  "pid": 1884292,
+  "command": [
+    ".venv/bin/python",
+    "-u",
+    "cross_tracker/scripts/check_model.py",
+    "overfit-20261113",
+    "--data",
+    "cross_tracker/data/cache/prepared-v1/train/HOI_pp_box/sonic",
+    "--steps",
+    "200"
+  ],
+  "started_unix": 1794576482.6343718,
+  "gpu_before": "0, 1, 0\n1, 1, 0\n2, 1644, 98\n3, 1, 0\n4, 1, 0\n5, 1, 0\n6, 1, 0\n7, 1, 0\n",
+  "CUDA_VISIBLE_DEVICES": "0"
+}

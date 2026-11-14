@@ -1,0 +1,28 @@
+{
+  "episodes": 744,
+  "train": 594,
+  "validation": 150,
+  "counts": {
+    "HOI_pp_box/mimic_lite/train": 43,
+    "HOI_pp_box/mimic_lite/validation": 11,
+    "HOI_pp_box/sonic/train": 43,
+    "HOI_pp_box/sonic/validation": 11,
+    "HOI_pp_box/twist2/train": 43,
+    "HOI_pp_box/twist2/validation": 11,
+    "HSI_boxing/mimic_lite/train": 80,
+    "HSI_boxing/mimic_lite/validation": 20,
+    "HSI_boxing/sonic/train": 80,
+    "HSI_boxing/sonic/validation": 20,
+    "HSI_boxing/twist2/train": 80,
+    "HSI_boxing/twist2/validation": 20,
+    "HSI_vision_navi/mimic_lite/train": 75,
+    "HSI_vision_navi/mimic_lite/validation": 19,
+    "HSI_vision_navi/sonic/train": 75,
+    "HSI_vision_navi/sonic/validation": 19,
+    "HSI_vision_navi/twist2/train": 75,
+    "HSI_vision_navi/twist2/validation": 19
+  },
+  "manifest_sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+  "exact_frozen_coverage": true,
+  "demonstration_success": "unverified"
+}

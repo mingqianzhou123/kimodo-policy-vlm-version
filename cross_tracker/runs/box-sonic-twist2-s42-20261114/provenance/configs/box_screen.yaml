@@ -1,0 +1,19 @@
+# One task, one seed; global batch stays 8 on eight GPUs (one sample/rank).
+_base_: ../../configs/arena.yaml
+main:
+  data_root: cross_tracker/data/cache/prepared-v1/train
+  text_cache: cross_tracker/data/cache/text
+  save_root: cross_tracker/runs
+  max_steps: 10000
+  batch_size: 8
+  micro_batch_size: 1
+  seed: 42
+  num_workers: 0
+  log_every: 50
+  checkpoint_every: 5000
+  final_checkpoints: 1
+  final_checkpoint_spacing: 1000
+  score_checkpoints: [10000]
+training:
+  scheduler:
+    warmup_steps: 333

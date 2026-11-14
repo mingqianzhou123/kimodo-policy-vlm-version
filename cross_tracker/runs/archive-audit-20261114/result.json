@@ -1,0 +1,23 @@
+{
+  "started_utc": "2026-11-13T16:45:15.665376+00:00",
+  "status": "completed",
+  "expected_bytes": 29160726392,
+  "expected_sha256": "a92723e304046fb6073a6cca05eb21f6d5e88b0dea782496a5f33b54f3719782",
+  "revision": "fb35e9a5be95d4c9b7fefd1913c2ca558bb3cb4c",
+  "source": "https://modelscope.cn/datasets/Twang2026/HumanoidArenaV3.1",
+  "sha256": "a92723e304046fb6073a6cca05eb21f6d5e88b0dea782496a5f33b54f3719782",
+  "entries": 512,
+  "suffix_counts": {
+    ".parquet": 86,
+    ".bak": 16,
+    ".json": 41,
+    ".mp4": 156
+  },
+  "weight_candidates": [],
+  "nested_archives": [],
+  "mimic_paths": [],
+  "exact_weight_found": false,
+  "xz_eof_verified": true,
+  "listing_sha256": "506b129c139ea1194dbcb6877f8eef51ed928a93f12b24c9879275f49efc517e",
+  "finished_utc": "2026-11-13T16:46:58.276973+00:00"
+}

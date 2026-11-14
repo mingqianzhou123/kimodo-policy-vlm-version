@@ -1,0 +1,68 @@
+[
+  {
+    "episode": "HSI_boxing/mimic_lite/000070",
+    "model_frames": 746,
+    "windows": 697,
+    "image_frames_checked": [
+      0,
+      373,
+      745
+    ],
+    "window_cuts_checked": [
+      0,
+      100,
+      696
+    ],
+    "source_mapping": {
+      "instruction": "Strike the green markers on the punching bag.",
+      "video": "HSI_boxing/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+      "video_offset_s": 0.5199999809265137,
+      "source_frame_start": 26,
+      "source_frame_stop": 1269
+    }
+  },
+  {
+    "episode": "HSI_vision_navi/mimic_lite/000000",
+    "model_frames": 769,
+    "windows": 720,
+    "image_frames_checked": [
+      0,
+      384,
+      768
+    ],
+    "window_cuts_checked": [
+      0,
+      100,
+      719
+    ],
+    "source_mapping": {
+      "instruction": "Avoid obstacles and move to the yellow marked area.",
+      "video": "HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+      "video_offset_s": 0.7200000286102295,
+      "source_frame_start": 36,
+      "source_frame_stop": 1317
+    }
+  },
+  {
+    "episode": "HSI_vision_navi/sonic/000000",
+    "model_frames": 567,
+    "windows": 518,
+    "image_frames_checked": [
+      0,
+      283,
+      566
+    ],
+    "window_cuts_checked": [
+      0,
+      100,
+      517
+    ],
+    "source_mapping": {
+      "instruction": "Avoid obstacles and move to the yellow marked area.",
+      "video": "HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+      "video_offset_s": 0.0,
+      "source_frame_start": 0,
+      "source_frame_stop": 945
+    }
+  }
+]

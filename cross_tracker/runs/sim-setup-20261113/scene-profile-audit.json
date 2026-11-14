@@ -1,0 +1,10 @@
+{
+  "source_sha256": "a9d9893c1f01f22484f1d187cb6a6541e61db85cc0b1356da546497ea241e8c4",
+  "vision_navigation": {
+    "live_evaluation": "small_warehouse_digital_twin_validation.usd",
+    "recorded_demo_replay": "small_warehouse_digital_twin.usd",
+    "both_present_in_official_asset_archive": true
+  },
+  "interpretation": "The upstream replay and evaluation profiles use distinct room assets. Freeze the same evaluation profile across trackers; do not interpret a replay in the other scene as evidence of bad demonstrations.",
+  "runtime_validated": false
+}

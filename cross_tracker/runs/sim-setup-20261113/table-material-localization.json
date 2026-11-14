@@ -1,0 +1,26 @@
+[
+  {
+    "path": "objects/semantic/small_warehouse_box_semantic_validation.usd",
+    "replacements": 16,
+    "before_sha256": "cf62bf779857bbad8262b2ac17e3596d45dadd11779394fb8bff35be67d00185",
+    "after_sha256": "3fe7bee3d6d5b71f762e57cc032e59e23f0cf2a736b30e8bed7b6ec3f7c870f9"
+  },
+  {
+    "path": "objects/small_warehouse/small_warehouse_box/small_warehouse_box_semantic_validation.usd",
+    "replacements": 16,
+    "before_sha256": "4959a953d91b9e7904e5791bda29b9e313e5518b6462719cbec3303218f087f1",
+    "after_sha256": "5e70d9e078b4d841c28338dd269e49627dafaeb924858ed81806278ab7a16a61"
+  },
+  {
+    "path": "objects/small_warehouse/small_warehouse_box/small_warehouse_box_vision.usd",
+    "replacements": 16,
+    "before_sha256": "c22695799ea3b6bbf629f9e6ec72b9eb2f2b16e7398445133e4ba72b6d2810cc",
+    "after_sha256": "890f2b4e3ab9af836387401ebe92c3521107201459418db2011ce6676c95aeb1"
+  },
+  {
+    "path": "objects/small_warehouse/small_warehouse_box/small_warehouse_box.usd",
+    "replacements": 16,
+    "before_sha256": "0e9d02754a0d208a0742c00da14311a9a4b505e8c92a7b0032094e4e59fcdc85",
+    "after_sha256": "5f3cb7b9027d9c7b09fc836fb232ee2353eb6d131c6a70951ffe09df0846d233"
+  }
+]

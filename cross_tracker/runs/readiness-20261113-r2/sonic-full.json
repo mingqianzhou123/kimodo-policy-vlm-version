@@ -1,0 +1,15 @@
+{
+  "pid": 2257676,
+  "command": [
+    "/root/workspace/humanoidVLA/.venv/bin/python",
+    "-u",
+    "cross_tracker/scripts/prepare_kimodo.py",
+    "--paths",
+    "cross_tracker/configs/paths.local.json",
+    "--video-root",
+    "cross_tracker/data/cache/videos",
+    "--datasets",
+    "HOI_pp_box/sonic_refpose_v3_1"
+  ],
+  "reason": "Earlier one-episode diagnostic already occupied the previous log name; reuse verified episodes and finish the frozen set."
+}

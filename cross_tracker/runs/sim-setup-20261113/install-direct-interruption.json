@@ -1,0 +1,4 @@
+{
+  "time_unix": 1794576990.8145616,
+  "reason": "CUDA and torch downloaded; numpy pillow sympy stalled on PyTorch index. Reuse cache; fetch common packages from official PyPI."
+}

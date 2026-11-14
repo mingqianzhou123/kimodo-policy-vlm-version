@@ -1,0 +1,15 @@
+{
+  "pid": 1933077,
+  "command": [
+    "/root/workspace/humanoidVLA/.venv/bin/python",
+    "-u",
+    "/root/workspace/humanoidVLA/cross_tracker/scripts/train_baseline.py",
+    "baseline-sonic-s42-20261114-r2",
+    "--gpu",
+    "0"
+  ],
+  "started_unix": 1794588686.5850425,
+  "status": "running",
+  "gpu": 0,
+  "verified_step": 150
+}

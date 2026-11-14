@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://download.pytorch.org/whl/cu128/torch/",
+    "exit": 0,
+    "headers": "HTTP/2 200 \ncontent-type: text/html\ncontent-length: 89396\nserver: AmazonS3\nlast-modified: Fri, 13 Nov 2026 12:20:22 GMT\nx-amz-server-side-encryption: AES256\nx-amz-version-id: dGT1PwP4Pe662L52BF3IsKHAQfxK1tDq\naccept-ranges: bytes\ndate: Fri, 13 Nov 2026 12:59:32 GMT\ncache-control: max-age=600, public, must-revalidate\netag: \"9f0ba50ee78097508e238bb3c7766eb7\"\nx-cache: Hit from cloudfront\nvia: 1.1 2cc971d26b831870b92629cfee720cf2.cloudfront.net (CloudFront)\nx-amz-cf-pop: NRT57-P10\nx-amz-cf-id: kX-VNnkrlS-dEp3DeirLKQpGflKK1NgIkVc-eGhUXlMt1GTYY2aQ8A==\nage: 459\n\n",
+    "error": ""
+  },
+  {
+    "url": "https://pypi.org/simple/isaacsim/",
+    "exit": 0,
+    "headers": "trol-max-age: 86400\nserver: gunicorn\nreferrer-policy: origin-when-cross-origin\naccess-control-allow-origin: *\nx-pypi-last-serial: 42160410\naccess-control-allow-headers: Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since\naccess-control-allow-methods: GET\ncontent-security-policy: default-src 'none'; sandbox allow-top-navigation\netag: \"qipbkiY91fhMJ4mNMTNM7Q\"\naccept-ranges: bytes\ndate: Fri, 13 Nov 2026 13:07:10 GMT\nx-served-by: cache-iad-khef600035-IAD, cache-iad-khef600033-IAD, cache-nrt-rjaa8190071-NRT\nx-cache: MISS, HIT, HIT\nx-cache-hits: 0, 3, 0\nx-timer: S1794575230.374580,VS0,VE2\ncontent-type: text/html\nvary: Accept, Accept-Encoding\nstrict-transport-security: max-age=31536000; includeSubDomains; preload\nx-frame-options: deny\nx-xss-protection: 1; mode=block\nx-content-type-options: nosniff\nx-permitted-cross-domain-policies: none\npermissions-policy: publickey-credentials-create=(self),publickey-credentials-get=(self),accelerometer=(),ambient-light-sensor=(),autoplay=(),battery=(),camera=(),display-capture=(),document-domain=(),encrypted-media=(),execution-while-not-rendered=(),execution-while-out-of-viewport=(),fullscreen=(),gamepad=(),geolocation=(),gyroscope=(),hid=(),identity-credentials-get=(),idle-detection=(),local-fonts=(),magnetometer=(),microphone=(),midi=(),otp-credentials=(),payment=(),picture-in-picture=(),screen-wake-lock=(),serial=(),speaker-selection=(),storage-access=(),usb=(),web-share=(),xr-spatial-tracking=()\ncontent-length: 8787\n\n",
+    "error": ""
+  },
+  {
+    "url": "https://pypi.nvidia.com/isaacsim/",
+    "exit": 28,
+    "headers": "",
+    "error": "curl: (28) SSL connection timeout\n"
+  }
+]

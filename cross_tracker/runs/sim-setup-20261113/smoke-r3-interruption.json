@@ -1,0 +1,6 @@
+{
+  "pid": 1896126,
+  "command": "python cross_tracker/runs/sim-setup-20261113/run_smoke_r3.py ",
+  "reason": "Physics and RGB passed; process remained in shutdown. Retry with compatible Warp and no replicator drain.",
+  "time_unix": 1794579701.4359796
+}

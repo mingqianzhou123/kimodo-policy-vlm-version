@@ -1,0 +1,12 @@
+{
+  "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
+  "glibc": [
+    "glibc",
+    "2.35"
+  ],
+  "lab_version": "v2.2.0",
+  "lab_head": "46dff135f44683f031edf346e544fcfd8456b2bb",
+  "lab_status": "",
+  "gpu": "index, driver_version, memory.used [MiB], utilization.gpu [%]\n0, 580.159.04, 1 MiB, 0 %\n1, 580.159.04, 1 MiB, 0 %\n2, 580.159.04, 1644 MiB, 98 %\n3, 580.159.04, 1 MiB, 0 %\n4, 580.159.04, 1 MiB, 0 %\n5, 580.159.04, 1 MiB, 0 %\n6, 580.159.04, 1 MiB, 0 %\n7, 580.159.04, 1 MiB, 0 %",
+  "free_bytes": 2997182058496
+}

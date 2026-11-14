@@ -1,0 +1,7 @@
+{
+  "configs/baseline.json": "32a961bd9054c348b96c41ecee452f4ae03456011f81f14d12cc29c755032cfb",
+  "configs/kimodo_baseline.yaml": "a0debc98aa3d2e38606194d700a217f45e514b77808ba4f099b3477a939b7423",
+  "scripts/train_baseline.py": "e96db922664ae8a4562683fbb9f463850682e6b38fcee3acecb2ace32124e282",
+  "scripts/register_run.py": "f7b54e9f9285919469cf1e97efe778c9d7620047b2bb42517d330da89c47c0fb",
+  "docs/baseline-protocol.md": "2ea53218c4c6367cd704271d0d951710d907224a92fb7045f7678854e6eac2e7"
+}

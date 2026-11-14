@@ -1,0 +1,15 @@
+{
+  "protocol": "box-screen-v1",
+  "platform": "sensecore",
+  "run_order": [
+    "box-sonic-s42-20261114",
+    "box-twist2-s42-20261114",
+    "box-sonic-twist2-s42-20261114"
+  ],
+  "gpu_count": 8,
+  "gpu_type": "A800-80GB",
+  "execution": "sequential_in_one_allocation",
+  "status": "submitted",
+  "evaluation": "separate_on_verified_Baidu_environment",
+  "job_id": "kvla-cross-box-s42-20261114"
+}

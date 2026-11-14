@@ -1,0 +1,45 @@
+{
+  "commands": [
+    [
+      "cmake",
+      "-S",
+      "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/cyclonedds-9995905bce6c4cf9f740d6438bbf7fcfd1c83dfd",
+      "-B",
+      "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/cyclonedds-9995905bce6c4cf9f740d6438bbf7fcfd1c83dfd/build",
+      "-DCMAKE_INSTALL_PREFIX=/root/workspace/humanoidVLA/cross_tracker/data/cache/cyclonedds-0.10.2",
+      "-DBUILD_TESTING=OFF",
+      "-DBUILD_EXAMPLES=OFF"
+    ],
+    [
+      "cmake",
+      "--build",
+      "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/cyclonedds-9995905bce6c4cf9f740d6438bbf7fcfd1c83dfd/build",
+      "--target",
+      "install",
+      "-j",
+      "8"
+    ],
+    [
+      "uv",
+      "pip",
+      "install",
+      "--python",
+      "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python",
+      "--no-build-isolation",
+      "--index-url",
+      "https://pypi.tuna.tsinghua.edu.cn/simple",
+      "--constraint",
+      "/root/workspace/humanoidVLA/cross_tracker/runs/sim-setup-20261113/sim-constraints-r3.txt",
+      "-e",
+      "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/unitree_sdk2_python-814556d15970dd2ecf1c9984e845ca02ab07e206"
+    ],
+    [
+      "uv",
+      "pip",
+      "check",
+      "--python",
+      "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python"
+    ]
+  ],
+  "passed": true
+}

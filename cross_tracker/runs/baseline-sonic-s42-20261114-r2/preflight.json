@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "argv": [
+    "/root/workspace/humanoidVLA/scripts/train.py",
+    "--config",
+    "/root/workspace/humanoidVLA/cross_tracker/configs/kimodo_baseline.yaml",
+    "--run-dir",
+    "/root/workspace/humanoidVLA/cross_tracker/runs/baseline-sonic-s42-20261114-r2/training",
+    "--init-checkpoint",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/weights/Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000",
+    "--task",
+    "HOI_pp_box/sonic",
+    "HSI_boxing/sonic",
+    "HSI_vision_navi/sonic",
+    "--device",
+    "cuda",
+    "main.seed=42",
+    "main.max_steps=30000",
+    "main.checkpoint_every=2000",
+    "main.final_checkpoint_spacing=2000",
+    "main.score_checkpoints=[26000,28000,30000]",
+    "training.scheduler.warmup_steps=1000"
+  ],
+  "gpu": "GPU-b7a6f87b-0903-15e8-2539-6aa1452f908c, 1, 0",
+  "steps": 30000,
+  "score_checkpoints": [
+    26000,
+    28000,
+    30000
+  ],
+  "python": "3.11.15 (main, Mar 10 2026, 18:16:52) [Clang 21.1.4 ]",
+  "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
+  "checked_utc": "2026-11-13T16:51:27.937088+00:00"
+}

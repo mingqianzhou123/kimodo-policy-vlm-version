@@ -1,0 +1,370 @@
+{
+  "runs/archive-audit-20261114/audit_archive.py": {
+    "bytes": 3115,
+    "sha256": "60e8b27bdfd2afb3b59feb69ac6d21e3f2f7ce89dd3bd67b30a6472dd842c200"
+  },
+  "runs/archive-audit-20261114/download-result.json": {
+    "bytes": 118,
+    "sha256": "52616fca551391caa98f36d776294ccc790c93ff7cf6ad46ee393bcce6f9a3bb"
+  },
+  "runs/archive-audit-20261114/download.log": {
+    "bytes": 12246,
+    "sha256": "8e97d6eea1561af3cf0a0278b914843e34fcf7b836522c68d55ae3c15c7fbd34"
+  },
+  "runs/archive-audit-20261114/download_parts.py": {
+    "bytes": 2415,
+    "sha256": "4b22e6fb45ffefd32f41b2455b442b36903e6c2618e8225738b8264a3b0acad0"
+  },
+  "runs/archive-audit-20261114/download_parts_direct8.py": {
+    "bytes": 2371,
+    "sha256": "f561f4c69310c793f97bba46c13f3557909d2630e80efc7b0cb6a4e458f976bb"
+  },
+  "runs/archive-audit-20261114/download_parts_proxy.py": {
+    "bytes": 2353,
+    "sha256": "7456c30e53cf30d290010cc90bc2de93c984e03310631cbbed2efc958f2407c1"
+  },
+  "runs/archive-audit-20261114/entries.jsonl": {
+    "bytes": 71211,
+    "sha256": "506b129c139ea1194dbcb6877f8eef51ed928a93f12b24c9879275f49efc517e"
+  },
+  "runs/archive-audit-20261114/parts-download-direct.log": {
+    "bytes": 920,
+    "sha256": "56c6f09a5938b4a8678bdcbcb4319824e9f8711decf4f37fdcbe07e1abaec2d0"
+  },
+  "runs/archive-audit-20261114/parts-download-direct32.log": {
+    "bytes": 4876,
+    "sha256": "01a76e488e34e4d15824e2d8bca1e27b0c1fd291a11dbc947ffb63cb66fe23c2"
+  },
+  "runs/archive-audit-20261114/parts-download.log": {
+    "bytes": 414,
+    "sha256": "3587453a0fd76a9b9699d90cc421fadd05011c86c005364f514828ae74c56f81"
+  },
+  "runs/archive-audit-20261114/progress.jsonl": {
+    "bytes": 259,
+    "sha256": "e8a8b58fe5b45386c897ed51de5d3f383f994bc998b70831222c583cd604a44c"
+  },
+  "runs/archive-audit-20261114/result.json": {
+    "bytes": 801,
+    "sha256": "994bf2354caeef2dfe30e2f1da9272741fb0f40191bcc6ba6c7c381970eab835"
+  },
+  "runs/archive-audit-20261114/resume-tails.log": {
+    "bytes": 6602,
+    "sha256": "b53e19211e7b0bdc7fa518db744ced8a5bdd2e23d7143e904614f244c4a19868"
+  },
+  "runs/archive-audit-20261114/resume_tails.py": {
+    "bytes": 1907,
+    "sha256": "7321dd14bb36663ddc8d24f0aaff6ff635d765950411eaf9c4f1072b4da9b628"
+  },
+  "runs/baseline-protocol-20261114/collect_start_evidence.py": {
+    "bytes": 3691,
+    "sha256": "1ddc03d186f9fa40ba6c35ff6469dfa47834bd57f840e074caa97bda32a7a77b"
+  },
+  "runs/baseline-protocol-20261114/config-check.json": {
+    "bytes": 897,
+    "sha256": "adfd69905f523f0f9578f4556dd472adc65ff294715daeee2325c41304a2bd38"
+  },
+  "runs/baseline-protocol-20261114/evidence-collect.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runs/baseline-protocol-20261114/frozen-files-r2.json": {
+    "bytes": 495,
+    "sha256": "f4256c3706ca15b214dc0f078911c641ce72f47be5551340bb800032fac9ae7e"
+  },
+  "runs/baseline-protocol-20261114/frozen-files.json": {
+    "bytes": 495,
+    "sha256": "5c85c25f52b6c04ad425e56e3d9bf03d82637b2a93eebfaef16ffda33d4974a6"
+  },
+  "runs/baseline-protocol-20261114/launch-first-process.json": {
+    "bytes": 61,
+    "sha256": "beefb6c1951c726bb6b94db4d7a97697bc4af3dea710a6e1375cf5a583df6dc7"
+  },
+  "runs/baseline-protocol-20261114/launch-first-r2.log": {
+    "bytes": 1323,
+    "sha256": "0245b42accc765a9ed2caea4de40a7c81800cce7fc86bb1e56f22a456b3cd53e"
+  },
+  "runs/baseline-protocol-20261114/launch-first.log": {
+    "bytes": 1143,
+    "sha256": "2057ff1375ad9a84599b9cebdd3a551795ca189779e71ad12d57f7262a2be3fe"
+  },
+  "runs/baseline-protocol-20261114/launch_first.py": {
+    "bytes": 1495,
+    "sha256": "2c163122583287dd2fcbcefa7985564b2ffb46544a64835cfd41a783d196cc1a"
+  },
+  "runs/baseline-protocol-20261114/launch_first_r2.py": {
+    "bytes": 1610,
+    "sha256": "357026f5e686aa08e5745b7ef94cf85f91647f965ae8b5d0f1a120f200940f61"
+  },
+  "runs/baseline-protocol-20261114/plan.json": {
+    "bytes": 1656,
+    "sha256": "f9e95edebb76ebe4f15687ac698a4fcd16d4e6fef00441bd83912a908f49497b"
+  },
+  "runs/baseline-protocol-20261114/progress.jsonl": {
+    "bytes": 7801,
+    "sha256": "acbdd87ad670c375fee88223f8b6d8dbff6e5419485f43cf906fd53e7b51ada8"
+  },
+  "runs/baseline-protocol-20261114/sync.json": {
+    "bytes": 930,
+    "sha256": "1142130a9daadeafe5c305d8406d2257a5357785c3ad6a17c8371a51944c6b3c"
+  },
+  "runs/baseline-protocol-20261114/tests.log": {
+    "bytes": 98,
+    "sha256": "09836410bca56f75db960b5a72f30a98bfd36280429a2d37e48c06aae23de399"
+  },
+  "runs/baseline-sonic-s42-20261114/config.json": {
+    "bytes": 3034,
+    "sha256": "32a961bd9054c348b96c41ecee452f4ae03456011f81f14d12cc29c755032cfb"
+  },
+  "runs/baseline-sonic-s42-20261114/manifest.json": {
+    "bytes": 191581,
+    "sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/configs/baseline.json": {
+    "bytes": 3034,
+    "sha256": "32a961bd9054c348b96c41ecee452f4ae03456011f81f14d12cc29c755032cfb"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/configs/kimodo_baseline.yaml": {
+    "bytes": 517,
+    "sha256": "a0debc98aa3d2e38606194d700a217f45e514b77808ba4f099b3477a939b7423"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/configs/kimodo_pilot.yaml": {
+    "bytes": 532,
+    "sha256": "03bb82eaaa498af2fdffefa40aa4455ff10c296f813edfdccfcc2da248e05810"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/configs/paths.example.json": {
+    "bytes": 98,
+    "sha256": "05524cbd7c656612aa2c36a40fecd90a223743e60c78c852ad16e5221ab91c07"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/dependency-status.txt": {
+    "bytes": 195,
+    "sha256": "107f4052a9fb0e70f443ceef3485f8e9e5496cda830919029b2778821d3603eb"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/dependency.patch": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/dependency.tar": {
+    "bytes": 921600,
+    "sha256": "d34b2887f2a551e294e1d1966d3bf0ef4be9f206228313aede6656b67de47bd5"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/check_data.py": {
+    "bytes": 5039,
+    "sha256": "4315ca2b1d932aa5b0235177db00a8e17c907cbb00d9e42f2cc0059b9a35b4b8"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/check_model.py": {
+    "bytes": 7343,
+    "sha256": "4b856c9a076ded871c1db388f3d064b945474dcfd20f8c3ba3428780169f036a"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/fetch_assets.py": {
+    "bytes": 4913,
+    "sha256": "31d12f6cdbc7ea9f9f3736da921323ca0a0ea2a689cf9b9d220308cd542c7ac1"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/freeze_data.py": {
+    "bytes": 6055,
+    "sha256": "c5a0c2a26a2207a575d5ed3be410f38402e865f7410f605a7976cb96088fa6b8"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/package_data.py": {
+    "bytes": 3335,
+    "sha256": "d50ddf757983e0f1afdfd0f0c3aed9ec84b03fb9e6005e5e724a1276525193a9"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/prepare_eval_text.py": {
+    "bytes": 1602,
+    "sha256": "d17a2ecb478b3a8398d4355963123fe13404e647ea92b24bafd21e1e30bc6ee6"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/prepare_kimodo.py": {
+    "bytes": 3581,
+    "sha256": "db82ba68294800d9c1e8462d45f18d8ea6b6cbae8e250a873949855e60bc4a4f"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/prepare_text.py": {
+    "bytes": 2708,
+    "sha256": "7d28fb0083cd77e31785ab04cf031932c4ac772941cca563c04a5f87940f9237"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/register_run.py": {
+    "bytes": 4658,
+    "sha256": "f7b54e9f9285919469cf1e97efe778c9d7620047b2bb42517d330da89c47c0fb"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/train_baseline.py": {
+    "bytes": 6185,
+    "sha256": "e96db922664ae8a4562683fbb9f463850682e6b38fcee3acecb2ace32124e282"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/scripts/train_pilot.py": {
+    "bytes": 4339,
+    "sha256": "508e08e1f1a108576677a839efb8b28a97013fdbfd2ced7e70bbec9784a4e02d"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/src/arena_history.py": {
+    "bytes": 2863,
+    "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/src/repaired_data.py": {
+    "bytes": 5436,
+    "sha256": "dae85aad8b51164dece346528dc663f71a2973302dcfbbc8019655caab280ee8"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/src/sampling.py": {
+    "bytes": 3080,
+    "sha256": "f4a4b4024bc8aa6d184e407dda689f238df448c2b7cba4ff36ea06d25ffc8167"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/tests/test_arena_history.py": {
+    "bytes": 2361,
+    "sha256": "4e35626e08e6daed31bb8af5e8817bcb8b0b852bdadf5e8f3dc20d3060ee9af7"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/tests/test_fetch_assets.py": {
+    "bytes": 2866,
+    "sha256": "b04f6ea492d812fbe75f7c4b45be0c97f2ebc6237d45f0c826920ef7e4012b32"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/tests/test_preparation.py": {
+    "bytes": 3644,
+    "sha256": "ecc2de1f467906f3ddef70bc433e0dbaee1cfc3c9652e46496b5c1d0e4def6e4"
+  },
+  "runs/baseline-sonic-s42-20261114/provenance/tests/test_repaired_data.py": {
+    "bytes": 4105,
+    "sha256": "e12af54e0ab45389944ec287c7d592f5c3bd33736cc0af60e5504662fe1840a7"
+  },
+  "runs/baseline-sonic-s42-20261114/run.json": {
+    "bytes": 4064,
+    "sha256": "9826aad7a2234411c2284a6a89e6ddfabb8e83469c732f4f84944c26e203b40b"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/config.json": {
+    "bytes": 3034,
+    "sha256": "32a961bd9054c348b96c41ecee452f4ae03456011f81f14d12cc29c755032cfb"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/environment.txt": {
+    "bytes": 1966,
+    "sha256": "ce3434abe7d2ed86efd61335c03b942aaa165f4815226ec0089c6f01474f5e52"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/manifest.json": {
+    "bytes": 191581,
+    "sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/preflight.json": {
+    "bytes": 1145,
+    "sha256": "5d87b4c6051ca7ec4bc3dbb640a11aebe61e9c94e95c4dc921e8abe54234cb6b"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/process.json": {
+    "bytes": 334,
+    "sha256": "90238562a9e5b78c6c75cea89f7b490d3ecbce99e1061f739a0bbb31a4187d78"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/configs/baseline.json": {
+    "bytes": 3034,
+    "sha256": "32a961bd9054c348b96c41ecee452f4ae03456011f81f14d12cc29c755032cfb"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/configs/kimodo_baseline.yaml": {
+    "bytes": 517,
+    "sha256": "a0debc98aa3d2e38606194d700a217f45e514b77808ba4f099b3477a939b7423"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/configs/kimodo_pilot.yaml": {
+    "bytes": 532,
+    "sha256": "03bb82eaaa498af2fdffefa40aa4455ff10c296f813edfdccfcc2da248e05810"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/configs/paths.example.json": {
+    "bytes": 98,
+    "sha256": "05524cbd7c656612aa2c36a40fecd90a223743e60c78c852ad16e5221ab91c07"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/dependency-status.txt": {
+    "bytes": 195,
+    "sha256": "107f4052a9fb0e70f443ceef3485f8e9e5496cda830919029b2778821d3603eb"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/dependency.patch": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/dependency.tar": {
+    "bytes": 921600,
+    "sha256": "d34b2887f2a551e294e1d1966d3bf0ef4be9f206228313aede6656b67de47bd5"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/check_data.py": {
+    "bytes": 5039,
+    "sha256": "4315ca2b1d932aa5b0235177db00a8e17c907cbb00d9e42f2cc0059b9a35b4b8"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/check_model.py": {
+    "bytes": 7343,
+    "sha256": "4b856c9a076ded871c1db388f3d064b945474dcfd20f8c3ba3428780169f036a"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/fetch_assets.py": {
+    "bytes": 4913,
+    "sha256": "31d12f6cdbc7ea9f9f3736da921323ca0a0ea2a689cf9b9d220308cd542c7ac1"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/freeze_data.py": {
+    "bytes": 6055,
+    "sha256": "c5a0c2a26a2207a575d5ed3be410f38402e865f7410f605a7976cb96088fa6b8"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/package_data.py": {
+    "bytes": 3335,
+    "sha256": "d50ddf757983e0f1afdfd0f0c3aed9ec84b03fb9e6005e5e724a1276525193a9"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/prepare_eval_text.py": {
+    "bytes": 1602,
+    "sha256": "d17a2ecb478b3a8398d4355963123fe13404e647ea92b24bafd21e1e30bc6ee6"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/prepare_kimodo.py": {
+    "bytes": 3581,
+    "sha256": "db82ba68294800d9c1e8462d45f18d8ea6b6cbae8e250a873949855e60bc4a4f"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/prepare_text.py": {
+    "bytes": 2708,
+    "sha256": "7d28fb0083cd77e31785ab04cf031932c4ac772941cca563c04a5f87940f9237"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/register_run.py": {
+    "bytes": 4658,
+    "sha256": "f7b54e9f9285919469cf1e97efe778c9d7620047b2bb42517d330da89c47c0fb"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/train_baseline.py": {
+    "bytes": 6500,
+    "sha256": "66e8c39cd3957b31760e9ca840d4d280bb219acb4ab4d8241d05a6ecc797488a"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/scripts/train_pilot.py": {
+    "bytes": 4339,
+    "sha256": "508e08e1f1a108576677a839efb8b28a97013fdbfd2ced7e70bbec9784a4e02d"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/src/arena_history.py": {
+    "bytes": 2863,
+    "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/src/repaired_data.py": {
+    "bytes": 5436,
+    "sha256": "dae85aad8b51164dece346528dc663f71a2973302dcfbbc8019655caab280ee8"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/src/sampling.py": {
+    "bytes": 3080,
+    "sha256": "f4a4b4024bc8aa6d184e407dda689f238df448c2b7cba4ff36ea06d25ffc8167"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/tests/test_arena_history.py": {
+    "bytes": 2361,
+    "sha256": "4e35626e08e6daed31bb8af5e8817bcb8b0b852bdadf5e8f3dc20d3060ee9af7"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/tests/test_fetch_assets.py": {
+    "bytes": 2866,
+    "sha256": "b04f6ea492d812fbe75f7c4b45be0c97f2ebc6237d45f0c826920ef7e4012b32"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/tests/test_preparation.py": {
+    "bytes": 3644,
+    "sha256": "ecc2de1f467906f3ddef70bc433e0dbaee1cfc3c9652e46496b5c1d0e4def6e4"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/provenance/tests/test_repaired_data.py": {
+    "bytes": 4105,
+    "sha256": "e12af54e0ab45389944ec287c7d592f5c3bd33736cc0af60e5504662fe1840a7"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/run.json": {
+    "bytes": 6139,
+    "sha256": "3fd126acf7049906abdba242853d12a446e5f5b9ea16f0562bb006a6d9c29ee6"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/startup-check.json": {
+    "bytes": 1297,
+    "sha256": "9af52e1d07b90420e19636bf8e68fb7860fa8163878bfb52e4efee2c1716cde2"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/train.log": {
+    "bytes": 108502,
+    "sha256": "e29ac045a294ca91197ec567930421c0bef6f0b54ec32f4835b4e3586d8b97fb"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/training/config.json": {
+    "bytes": 2366,
+    "sha256": "e6ec4859c9649f2a5a782279f775ab86e7407e6754b721196adbfc0b3ba563ff"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/training/metrics.jsonl": {
+    "bytes": 1359,
+    "sha256": "c5d48d038d534b1bf3aca59c1b29842153d6e3d51362efec06e03b300b2d4b89"
+  },
+  "runs/baseline-sonic-s42-20261114-r2/training/train.log": {
+    "bytes": 1209,
+    "sha256": "a2a68d5a95daabab95e875f9ce656db29c8c9fe21646d30308ef3a2131cd0818"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "manifest_sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+  "selected_episodes": 744,
+  "quarantine_count": 17,
+  "quarantined_selected": 0,
+  "split_overlap": 0,
+  "source_and_overlay_files_verified": 18,
+  "unit_tests_passed": 4,
+  "training_started": false,
+  "checks_scope": "Numerical manifest and run registration only; not model, video-loader or simulation verification",
+  "datasets": [
+    {
+      "dataset": "HOI_pp_box/sonic_refpose_v3_1",
+      "train": 43,
+      "validation": 11,
+      "train_windows": 28228
+    },
+    {
+      "dataset": "HOI_pp_box/twist2_refpose_v3_1",
+      "train": 43,
+      "validation": 11,
+      "train_windows": 16965
+    },
+    {
+      "dataset": "HOI_pp_box/mimic_lite_refpose_v3_1",
+      "train": 43,
+      "validation": 11,
+      "train_windows": 58579
+    },
+    {
+      "dataset": "HSI_boxing/sonic_refpose_v3_1",
+      "train": 80,
+      "validation": 20,
+      "train_windows": 40781
+    },
+    {
+      "dataset": "HSI_boxing/twist2_refpose_v3_1",
+      "train": 80,
+      "validation": 20,
+      "train_windows": 18374
+    },
+    {
+      "dataset": "HSI_boxing/mimic_lite_refpose_v3_1",
+      "train": 80,
+      "validation": 20,
+      "train_windows": 42124
+    },
+    {
+      "dataset": "HSI_vision_navi/sonic_refpose_v3_1",
+      "train": 75,
+      "validation": 19,
+      "train_windows": 74351
+    },
+    {
+      "dataset": "HSI_vision_navi/twist2_refpose_v3_1",
+      "train": 75,
+      "validation": 19,
+      "train_windows": 38985
+    },
+    {
+      "dataset": "HSI_vision_navi/mimic_lite_refpose_v3_1",
+      "train": 75,
+      "validation": 19,
+      "train_windows": 60719
+    }
+  ]
+}

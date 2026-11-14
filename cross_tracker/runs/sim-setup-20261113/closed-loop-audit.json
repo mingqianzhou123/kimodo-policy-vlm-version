@@ -1,0 +1,103 @@
+{
+  "passed": true,
+  "meaning": "short closed-loop diagnostics only; not a baseline success-rate table",
+  "bridge_sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd",
+  "runs": [
+    {
+      "run": "runs/sim-closed-loop-20261113-r9/sonic",
+      "controller": "sonic",
+      "task": "box",
+      "steps": 50,
+      "inference_requests": 2,
+      "history_packet_sizes": [
+        1,
+        25
+      ],
+      "object_seed": 11400714785074694806,
+      "video_sha256": "bd25cf8a84a89b3016a304c917180f5885c9d8e030c6a04da420dc87ac76a7c4",
+      "video_frames": 51,
+      "task_success": false,
+      "termination": "timeout"
+    },
+    {
+      "run": "runs/sim-closed-loop-20261113-r10/sonic-boxing",
+      "controller": "sonic",
+      "task": "boxing",
+      "steps": 50,
+      "inference_requests": 2,
+      "history_packet_sizes": [
+        1,
+        25
+      ],
+      "object_seed": 11400714785074694806,
+      "video_sha256": "fd0bd83e441e7405982a813f03e07c134c1932b63285316c92ab05e63bb6032e",
+      "video_frames": 51,
+      "task_success": false,
+      "termination": "timeout"
+    },
+    {
+      "run": "runs/sim-closed-loop-20261113-r10/sonic-navigation",
+      "controller": "sonic",
+      "task": "navigation",
+      "steps": 50,
+      "inference_requests": 2,
+      "history_packet_sizes": [
+        1,
+        25
+      ],
+      "object_seed": 11400714785074694806,
+      "video_sha256": "778c3afc3e8ecccff168e5ca626fa36e72711085c1e26f2244d80aa18ce7087c",
+      "video_frames": 51,
+      "task_success": false,
+      "termination": "timeout"
+    },
+    {
+      "run": "runs/sim-closed-loop-20261113-r10/twist2",
+      "controller": "twist2",
+      "task": "box",
+      "steps": 50,
+      "inference_requests": 2,
+      "history_packet_sizes": [
+        1,
+        25
+      ],
+      "object_seed": 11400714785074694806,
+      "video_sha256": "4a8ca8b3759c0f3d62b0040dbeaaba5627996d4711d6c9120ba015597eef591e",
+      "video_frames": 51,
+      "task_success": false,
+      "termination": "timeout"
+    },
+    {
+      "run": "runs/sim-closed-loop-20261113-r10/twist2-boxing",
+      "controller": "twist2",
+      "task": "boxing",
+      "steps": 50,
+      "inference_requests": 2,
+      "history_packet_sizes": [
+        1,
+        25
+      ],
+      "object_seed": 11400714785074694806,
+      "video_sha256": "cdbf654908ff0a36511de544289b77293cdaf78c45210b917a3735427bb50295",
+      "video_frames": 51,
+      "task_success": false,
+      "termination": "timeout"
+    },
+    {
+      "run": "runs/sim-closed-loop-20261113-r10/twist2-navigation",
+      "controller": "twist2",
+      "task": "navigation",
+      "steps": 50,
+      "inference_requests": 2,
+      "history_packet_sizes": [
+        1,
+        25
+      ],
+      "object_seed": 11400714785074694806,
+      "video_sha256": "e8ab557ba4eae83ce3c3db8bd2debe6c832c701d7d97188b2a51fd4a48d33b6c",
+      "video_frames": 51,
+      "task_success": false,
+      "termination": "timeout"
+    }
+  ]
+}

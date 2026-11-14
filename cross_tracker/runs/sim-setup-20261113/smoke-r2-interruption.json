@@ -1,0 +1,6 @@
+{
+  "pid": 1895273,
+  "command": "python cross_tracker/runs/sim-setup-20261113/run_smoke_r2.py ",
+  "reason": "Unmasked CUDA discovery allocated contexts on all GPUs; stop and restore GPU-0 visibility restriction",
+  "time_unix": 1794579552.7769334
+}

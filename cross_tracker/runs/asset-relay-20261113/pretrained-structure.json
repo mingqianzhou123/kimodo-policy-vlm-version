@@ -1,0 +1,35 @@
+{
+  "architecture_matches_pilot": true,
+  "keys": [
+    "global_step",
+    "model",
+    "optimizer",
+    "scheduler",
+    "world_size",
+    "rng_state_version",
+    "data_state",
+    "seed_metadata"
+  ],
+  "tensor_groups": {
+    "model": {
+      "tensors": 253,
+      "elements": 91715990
+    },
+    "optimizer": {
+      "tensors": 0,
+      "elements": 0
+    },
+    "scheduler": {
+      "tensors": 0,
+      "elements": 0
+    },
+    "data_state": {
+      "tensors": 0,
+      "elements": 0
+    },
+    "seed_metadata": {
+      "tensors": 0,
+      "elements": 0
+    }
+  }
+}

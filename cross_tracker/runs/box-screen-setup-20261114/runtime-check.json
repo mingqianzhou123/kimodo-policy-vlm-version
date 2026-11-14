@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "world_size": 8,
+  "global_batch": 8,
+  "datasets": [
+    {
+      "sources": [
+        "sonic"
+      ],
+      "episodes": 43,
+      "windows": 16111
+    },
+    {
+      "sources": [
+        "twist2"
+      ],
+      "episodes": 43,
+      "windows": 9352
+    },
+    {
+      "sources": [
+        "sonic",
+        "twist2"
+      ],
+      "episodes": 86,
+      "windows": 25463
+    }
+  ],
+  "python": "3.11.18",
+  "packages": {
+    "torch": "2.14.1+cu126",
+    "torchvision": "0.29.1+cu126",
+    "transformers": "5.1.0",
+    "numpy": "2.4.6",
+    "pyarrow": "26.0.1",
+    "av": "18.1.0",
+    "omegaconf": "2.4.0"
+  },
+  "gpu_execution_verified": false,
+  "note": "CPU acceptance; actual DDP starts only after ACP allocation"
+}

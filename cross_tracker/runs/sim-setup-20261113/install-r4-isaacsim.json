@@ -1,0 +1,19 @@
+{
+  "command": [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python",
+    "isaacsim[all,extscache]==5.0.0",
+    "--default-index",
+    "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "--index",
+    "https://pypi.nvidia.com",
+    "--index-strategy",
+    "unsafe-best-match"
+  ],
+  "exit_code": 2,
+  "started_unix": 1794577224.962689,
+  "finished_unix": 1794577469.1708903
+}

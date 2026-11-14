@@ -1,0 +1,9 @@
+{
+  "scripts/run_box_screen.py": "c79238b65e347dbf757b3e90a810761d07550b43b9732ad5ec9a02bd2434b52c",
+  "scripts/train_worker.py": "582345accb699b54f0231e5ce22dd71b6248a3c914249e5f070cd287b11f50b3",
+  "src/sampling.py": "f4a4b4024bc8aa6d184e407dda689f238df448c2b7cba4ff36ea06d25ffc8167",
+  "configs/box_screen.yaml": "8a8d606d272ab68d5be515ce2fcdb9acb8090b4ed3654c25e72debbdb62c16c6",
+  "configs/box-screen.json": "10b1fb09f22273138dd46fae3922acb50e275c430d0742bfabeba5ca4c40dbe7",
+  "data/manifests/balanced-v1.json": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+  "runs/box-screen-setup-20261114/launch.sh": "21d03c5f643f39c7e40b22673106798838b5ea85ddeedfec683e987babee0f76"
+}

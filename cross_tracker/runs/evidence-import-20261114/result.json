@@ -1,0 +1,8 @@
+{
+  "verified_files": 92,
+  "archive_sha256": "29a555033cc4d24d8ef38bad2a719864077494d41fe9b31a95acc35e58452a97",
+  "preserved_local_differences": [
+    "runs/archive-audit-20261114/download.log",
+    "runs/baseline-protocol-20261114/plan.json"
+  ]
+}

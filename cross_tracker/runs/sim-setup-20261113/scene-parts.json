@@ -1,0 +1,31 @@
+{
+  "bytes": 2683806071,
+  "sha256": "d0a0c6be2e47ac9a3b161ec9ca11a9d67908ef755fe0fd96445404938376447b",
+  "parts": [
+    {
+      "name": "arena-assets.part-00",
+      "bytes": 536870912,
+      "sha256": "3062cbe323c4d81dbb0397b84cccf1df14e69b088d503fbc118ea07c09752101"
+    },
+    {
+      "name": "arena-assets.part-01",
+      "bytes": 536870912,
+      "sha256": "16a21070d30cee80e5823b48ee11d84bf33220ea4d48c36ea721d59e9d64516d"
+    },
+    {
+      "name": "arena-assets.part-02",
+      "bytes": 536870912,
+      "sha256": "165db1591040f28edc0c107c557450bec9dd4b3b60ae087446812341bc226de0"
+    },
+    {
+      "name": "arena-assets.part-03",
+      "bytes": 536870912,
+      "sha256": "69da2eb9c495e22e77eb4d2da8152b273767febb69e386f9f8fa7d75edff7a43"
+    },
+    {
+      "name": "arena-assets.part-04",
+      "bytes": 536322423,
+      "sha256": "dada2a711a1bf16538aec5e3ae256dc958b0e65ad7a4ca1c0aa74f715f093bec"
+    }
+  ]
+}

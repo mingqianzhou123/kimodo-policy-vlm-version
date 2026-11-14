@@ -1,0 +1,14 @@
+{
+  "checkpoints/Kimodo-G1-RP-v1/config.yaml": true,
+  "checkpoints/Kimodo-G1-RP-v1/model.safetensors": true,
+  "checkpoints/Kimodo-G1-RP-v1/stats/motion/body/mean.npy": true,
+  "checkpoints/Kimodo-G1-RP-v1/stats/motion/body/std.npy": true,
+  "checkpoints/Kimodo-G1-RP-v1/stats/motion/global_root/mean.npy": true,
+  "checkpoints/Kimodo-G1-RP-v1/stats/motion/global_root/std.npy": true,
+  "checkpoints/Kimodo-G1-RP-v1/stats/motion/local_root/mean.npy": true,
+  "checkpoints/Kimodo-G1-RP-v1/stats/motion/local_root/std.npy": true,
+  "checkpoints/dinov3-vitl16-pretrain-lvd1689m/config.json": true,
+  "checkpoints/dinov3-vitl16-pretrain-lvd1689m/configuration.json": true,
+  "checkpoints/dinov3-vitl16-pretrain-lvd1689m/model.safetensors": true,
+  "checkpoints/dinov3-vitl16-pretrain-lvd1689m/preprocessor_config.json": true
+}

@@ -1,0 +1,54 @@
+{
+  "repository": "YunhengWang/kimodo-policy",
+  "revision": "aed6ac74d774f869eccd3010e0352424ee3bd248",
+  "files": {
+    "checkpoints/Kimodo-G1-RP-v1/config.yaml": {
+      "bytes": 673,
+      "git_blob_sha1": "c2fb230eb07b1a1a66eb2e852aaa8de35b8517d0"
+    },
+    "checkpoints/Kimodo-G1-RP-v1/model.safetensors": {
+      "bytes": 1134168268,
+      "sha256": "e18c1de73e2ce17a107b06d85155fbbc5debe68eb35455aa5b033e6ddbe056a5"
+    },
+    "checkpoints/Kimodo-G1-RP-v1/stats/motion/body/mean.npy": {
+      "bytes": 3424,
+      "sha256": "185564a7246ee03d7a7aa2a16b3c7e49cffd5a858f637ab2b8fa04574f18d29b"
+    },
+    "checkpoints/Kimodo-G1-RP-v1/stats/motion/body/std.npy": {
+      "bytes": 3424,
+      "sha256": "5df7b200de9bdb0d92cf23cd1426d2ded6c7688d1dcb6e403c3886f1d130f59e"
+    },
+    "checkpoints/Kimodo-G1-RP-v1/stats/motion/global_root/mean.npy": {
+      "bytes": 168,
+      "sha256": "c292f97ed86266332abdbb7e98d464eb91115a4ec1def3c87aa9362ae483b062"
+    },
+    "checkpoints/Kimodo-G1-RP-v1/stats/motion/global_root/std.npy": {
+      "bytes": 168,
+      "sha256": "691f1ada7ac34f4854d8d5920cafb26fd22f1d5fb9dbc331030292eb6675c6eb"
+    },
+    "checkpoints/Kimodo-G1-RP-v1/stats/motion/local_root/mean.npy": {
+      "bytes": 160,
+      "sha256": "b0aab16477bd39f03934bb930786526563b6e5955d1ee0b2face7d1e2c04bba8"
+    },
+    "checkpoints/Kimodo-G1-RP-v1/stats/motion/local_root/std.npy": {
+      "bytes": 160,
+      "sha256": "9b8f34564fda07cffb5689b2f509b6864b4031a764ca53bfa149ce8487495c62"
+    },
+    "checkpoints/dinov3-vitl16-pretrain-lvd1689m/config.json": {
+      "bytes": 745,
+      "git_blob_sha1": "ab2a8b183fd4fd5213e9898a7f499c7c857b1a86"
+    },
+    "checkpoints/dinov3-vitl16-pretrain-lvd1689m/configuration.json": {
+      "bytes": 74,
+      "git_blob_sha1": "7dec3e8fb4138a31623b56bbda3970b88133a414"
+    },
+    "checkpoints/dinov3-vitl16-pretrain-lvd1689m/model.safetensors": {
+      "bytes": 1212559808,
+      "sha256": "dcb2e45127cccbf1601e5f42fef165eea275c8e5213197e8dcf3f48822718179"
+    },
+    "checkpoints/dinov3-vitl16-pretrain-lvd1689m/preprocessor_config.json": {
+      "bytes": 585,
+      "git_blob_sha1": "0126173c1ab7b75bbd9102e37de8a56ffe0a012b"
+    }
+  }
+}

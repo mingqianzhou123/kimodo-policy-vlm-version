@@ -1,0 +1,6 @@
+{
+  "pid": 1906591,
+  "reason": "Native renderer stall persists after MDL typo fix; discovered four remote HTTP MDL dependencies in USDA; stop own process before localizing unchanged official materials",
+  "time": 1794581178.7803576,
+  "signal": "SIGKILL"
+}

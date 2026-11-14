@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "steps": 180,
+  "initial_cube_z": 0.9979562759399414,
+  "final_cube_z": 0.125,
+  "rgb_shape": [
+    240,
+    320,
+    3
+  ],
+  "rgb_std": 10.337518928197637,
+  "meaning": "physics and RGB only, not task evaluation"
+}

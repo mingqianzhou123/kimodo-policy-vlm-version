@@ -1,0 +1,11 @@
+{
+  "run_id": "box-twist2-s42-20261114",
+  "job_id": "kvla-cross-box-twist2-s42-1114",
+  "display_name": "kvla-cross-box-twist2-s42-1114",
+  "gpus": 8,
+  "nodes": 1,
+  "status": "submitted",
+  "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-screen-setup-20261114/launch_single.sh box-twist2-s42-20261114",
+  "submitted_at": "2026-11-14T15:31:08+08:00",
+  "scheduler_state_observed": "排队中"
+}

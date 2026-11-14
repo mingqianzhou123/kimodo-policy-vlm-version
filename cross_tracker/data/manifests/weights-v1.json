@@ -1,0 +1,111 @@
+{
+  "repository": "YunhengWang/kimodo-policy",
+  "revision": "aed6ac74d774f869eccd3010e0352424ee3bd248",
+  "files": {
+    "Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000/config.json": {
+      "bytes": 3257,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000/config.json",
+      "git_blob_sha1": "117cbfc3ec0c6ff8d2ac125aa0a02c0fd4ebd2fb"
+    },
+    "Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000/training_state.pt": {
+      "bytes": 1100901863,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000/training_state.pt",
+      "sha256": "97a92c5932aff96b78b5ead0195e6d77795c7cb530b1ee8ab5f2a451f728fa06"
+    },
+    "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised/adapter_config.json": {
+      "bytes": 850,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised/adapter_config.json",
+      "git_blob_sha1": "0ed8c1e962b9d32864449938986fded38946f3a6"
+    },
+    "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised/adapter_model.safetensors": {
+      "bytes": 167829552,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised/adapter_model.safetensors",
+      "sha256": "53f8f94ebdf396667ba99dd96e78203edae27bbcdbd1cf5f12b611e1d916b225"
+    },
+    "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/adapter_config.json": {
+      "bytes": 850,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/adapter_config.json",
+      "git_blob_sha1": "a5ef5e13c2974ce7b76c835cf8620cf127dab8e0"
+    },
+    "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/adapter_model.safetensors": {
+      "bytes": 167829552,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/adapter_model.safetensors",
+      "sha256": "de9c8736618a13173c6a1623cdef1b75e86c69317f1073ae82cd516ac36a632d"
+    },
+    "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/config.json": {
+      "bytes": 781,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/config.json",
+      "git_blob_sha1": "39f55d1c23baaafa017440d54e8a99fcb62f2500"
+    },
+    "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/special_tokens_map.json": {
+      "bytes": 335,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/special_tokens_map.json",
+      "git_blob_sha1": "04829afa78a2d2df203ac846968db37269b01f7f"
+    },
+    "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/tokenizer.json": {
+      "bytes": 9085671,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/tokenizer.json",
+      "git_blob_sha1": "b32575ff2e452db7c5ce3b1319f3257a49b1d38c"
+    },
+    "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/tokenizer_config.json": {
+      "bytes": 51042,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/tokenizer_config.json",
+      "git_blob_sha1": "2fad33212371de0544cc49647a81029f79b4894b"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/config.json": {
+      "bytes": 654,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/config.json",
+      "git_blob_sha1": "31553d63b8f18df5d6d440860751533ada3759e4"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/configuration.json": {
+      "bytes": 48,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/configuration.json",
+      "git_blob_sha1": "f9291c34499303a5103dea21c45e605bb20981bb"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/generation_config.json": {
+      "bytes": 187,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/generation_config.json",
+      "git_blob_sha1": "8675015d20a4b12ee2ee0197a0937beba318122a"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/model-00001-of-00004.safetensors": {
+      "bytes": 4976698672,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/model-00001-of-00004.safetensors",
+      "sha256": "d8cf9c4d0dd972e1a2131bfe656235ee98221679711a3beef6d46dadf0f20b5c"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/model-00002-of-00004.safetensors": {
+      "bytes": 4999802720,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/model-00002-of-00004.safetensors",
+      "sha256": "8d4782b4a69ef03845159ce1a15e272aadaaf134dc138d68f616098e8531729c"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/model-00003-of-00004.safetensors": {
+      "bytes": 4915916176,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/model-00003-of-00004.safetensors",
+      "sha256": "3acdd690e65c24f42a24581b8467af98bd3ca357444580f8012aacd2bd607921"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/model-00004-of-00004.safetensors": {
+      "bytes": 1168138808,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/model-00004-of-00004.safetensors",
+      "sha256": "67e9ad31c8c32abf3a55ee7fc7217b3ecb35fd3c74d98a5bd233e0e4d6964f46"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/model.safetensors.index.json": {
+      "bytes": 23950,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/model.safetensors.index.json",
+      "git_blob_sha1": "0fd8120f1c6acddc268ebc2583058efaf699a771"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/special_tokens_map.json": {
+      "bytes": 73,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/special_tokens_map.json",
+      "git_blob_sha1": "d8cd5076496dbe4be2320312abc10adc43097b81"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/tokenizer.json": {
+      "bytes": 9085698,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/tokenizer.json",
+      "git_blob_sha1": "b197f72effb9d5ed16ee0f5663e11e4cfac2ba62"
+    },
+    "checkpoints/Meta-Llama-3-8B-Instruct/tokenizer_config.json": {
+      "bytes": 50977,
+      "url": "https://huggingface.co/YunhengWang/kimodo-policy/resolve/aed6ac74d774f869eccd3010e0352424ee3bd248/checkpoints/Meta-Llama-3-8B-Instruct/tokenizer_config.json",
+      "git_blob_sha1": "1bfd1146b7bde6168de7bb673bfe0acaea6e684c"
+    }
+  }
+}

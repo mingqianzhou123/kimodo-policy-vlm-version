@@ -1,0 +1,71 @@
+{
+  "run_id": "box-twist2-s42-20261114",
+  "created_utc": "2026-11-14T07:05:00.532388+00:00",
+  "stage": "baseline",
+  "purpose": "箱子搬放单任务、跨tracker三组初筛；初筛不代表收敛或正式统计结论",
+  "platform": "sensecore",
+  "seed": 42,
+  "sources": [
+    "twist2"
+  ],
+  "command": [
+    "bash",
+    "cross_tracker/runs/box-screen-setup-20261114/launch_single.sh",
+    "box-twist2-s42-20261114"
+  ],
+  "status": "planned",
+  "training_started": false,
+  "dependency": {
+    "path": "/Users/zmqsfiles/Research/人形 vla/kimodo-vla version",
+    "head": "d61b5cf99ce865523ad9746f8d060881d279cc16",
+    "status": " M docs/benchmarks/bigym2.md\n?? cross_tracker/\n?? docs/experiments/\n?? scripts/diag/paired_cups_replay.py\n?? scripts/experiment_dashboard.py\n?? scripts/experiment_ledger.py\n?? tools/\n",
+    "untracked_files_not_archived": true
+  },
+  "sha256": {
+    "config.json": "10b1fb09f22273138dd46fae3922acb50e275c430d0742bfabeba5ca4c40dbe7",
+    "manifest.json": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+    "provenance/dependency-status.txt": "c19aa1efc87fc1b05da04069d2656164f046fa018b7e9925cd520d38ff41bbb2",
+    "provenance/dependency.patch": "111b6c019c0d639e10f3570ccf3f68aad03c3c24b196814e3383316da9caa521",
+    "provenance/dependency.tar": "d34b2887f2a551e294e1d1966d3bf0ef4be9f206228313aede6656b67de47bd5",
+    "provenance/tests/test_repaired_data.py": "e12af54e0ab45389944ec287c7d592f5c3bd33736cc0af60e5504662fe1840a7",
+    "provenance/tests/test_box_screen.py": "17747d619793e7163fc7c4934f32d1aa0b4223f724f4a0135eeac1c8206a2506",
+    "provenance/tests/test_arena_history.py": "4e35626e08e6daed31bb8af5e8817bcb8b0b852bdadf5e8f3dc20d3060ee9af7",
+    "provenance/tests/test_fetch_assets.py": "b04f6ea492d812fbe75f7c4b45be0c97f2ebc6237d45f0c826920ef7e4012b32",
+    "provenance/tests/test_preparation.py": "ecc2de1f467906f3ddef70bc433e0dbaee1cfc3c9652e46496b5c1d0e4def6e4",
+    "provenance/configs/kimodo_baseline.yaml": "a0debc98aa3d2e38606194d700a217f45e514b77808ba4f099b3477a939b7423",
+    "provenance/configs/box_screen.yaml": "8a8d606d272ab68d5be515ce2fcdb9acb8090b4ed3654c25e72debbdb62c16c6",
+    "provenance/configs/paths.example.json": "05524cbd7c656612aa2c36a40fecd90a223743e60c78c852ad16e5221ab91c07",
+    "provenance/configs/kimodo_pilot.yaml": "03bb82eaaa498af2fdffefa40aa4455ff10c296f813edfdccfcc2da248e05810",
+    "provenance/configs/baseline.json": "32a961bd9054c348b96c41ecee452f4ae03456011f81f14d12cc29c755032cfb",
+    "provenance/configs/box-screen.json": "10b1fb09f22273138dd46fae3922acb50e275c430d0742bfabeba5ca4c40dbe7",
+    "provenance/scripts/register_run.py": "f7b54e9f9285919469cf1e97efe778c9d7620047b2bb42517d330da89c47c0fb",
+    "provenance/scripts/package_data.py": "d50ddf757983e0f1afdfd0f0c3aed9ec84b03fb9e6005e5e724a1276525193a9",
+    "provenance/scripts/train_worker.py": "582345accb699b54f0231e5ce22dd71b6248a3c914249e5f070cd287b11f50b3",
+    "provenance/scripts/prepare_text.py": "7d28fb0083cd77e31785ab04cf031932c4ac772941cca563c04a5f87940f9237",
+    "provenance/scripts/freeze_data.py": "c5a0c2a26a2207a575d5ed3be410f38402e865f7410f605a7976cb96088fa6b8",
+    "provenance/scripts/prepare_kimodo.py": "db82ba68294800d9c1e8462d45f18d8ea6b6cbae8e250a873949855e60bc4a4f",
+    "provenance/scripts/fetch_assets.py": "31d12f6cdbc7ea9f9f3736da921323ca0a0ea2a689cf9b9d220308cd542c7ac1",
+    "provenance/scripts/train_baseline.py": "66e8c39cd3957b31760e9ca840d4d280bb219acb4ab4d8241d05a6ecc797488a",
+    "provenance/scripts/run_box_screen.py": "c79238b65e347dbf757b3e90a810761d07550b43b9732ad5ec9a02bd2434b52c",
+    "provenance/scripts/check_model.py": "4b856c9a076ded871c1db388f3d064b945474dcfd20f8c3ba3428780169f036a",
+    "provenance/scripts/train_pilot.py": "508e08e1f1a108576677a839efb8b28a97013fdbfd2ced7e70bbec9784a4e02d",
+    "provenance/scripts/check_data.py": "4315ca2b1d932aa5b0235177db00a8e17c907cbb00d9e42f2cc0059b9a35b4b8",
+    "provenance/scripts/prepare_eval_text.py": "d17a2ecb478b3a8398d4355963123fe13404e647ea92b24bafd21e1e30bc6ee6",
+    "provenance/src/repaired_data.py": "dae85aad8b51164dece346528dc663f71a2973302dcfbbc8019655caab280ee8",
+    "provenance/src/arena_history.py": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd",
+    "provenance/src/sampling.py": "f4a4b4024bc8aa6d184e407dda689f238df448c2b7cba4ff36ea06d25ffc8167",
+    "selected-data.json": "35819dc5d6919bf0b753466dc977feec569fdcac11fd34fa2c34cfe17cfb02cb",
+    "provenance/scheduler-split/run_box_screen.py": "e6bd5248600c6942f3d287b0b39f7a708f774644053c294b0db0973a7cb27e6f",
+    "provenance/scheduler-split/launch_single.sh": "5568ec0bc389c8f1ff5543e6fcd9cef0787d1210776c122413514ccfda73d663"
+  },
+  "runtime_environment": null,
+  "parent_run": null,
+  "scheduler_change": {
+    "reason": "User correction: one eight-GPU ACP job per experiment",
+    "previous_command": [
+      "python",
+      "cross_tracker/scripts/run_box_screen.py"
+    ],
+    "old_job_stopped_before_training": true
+  }
+}

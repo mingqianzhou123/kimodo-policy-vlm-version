@@ -1,0 +1,22 @@
+{
+  "data": "/root/workspace/humanoidVLA/cross_tracker/data/cache/prepared-v1/train/HOI_pp_box/sonic",
+  "steps": 200,
+  "scheduler": null,
+  "gradient_clip": 1.0,
+  "evaluation_seeds": [
+    7001,
+    7002,
+    7003
+  ],
+  "seed": 42,
+  "torch": "2.10.0+cu129",
+  "cuda": "12.9",
+  "argv": [
+    "cross_tracker/scripts/check_model.py",
+    "overfit-20261113",
+    "--data",
+    "cross_tracker/data/cache/prepared-v1/train/HOI_pp_box/sonic",
+    "--steps",
+    "200"
+  ]
+}

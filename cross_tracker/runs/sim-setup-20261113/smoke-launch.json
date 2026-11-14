@@ -1,0 +1,8 @@
+{
+  "exit_code": -11,
+  "started_unix": 1794579299.5118628,
+  "finished_unix": 1794579322.5568795,
+  "script_sha256": "aa101e7fd232c8378fb5e316572f95a2f5c1beb3535527f54e976211256ead54",
+  "gpu_before": "1, 0",
+  "formal_training_started": false
+}

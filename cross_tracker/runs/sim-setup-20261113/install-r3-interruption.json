@@ -1,0 +1,4 @@
+{
+  "time_unix": 1794577216.481094,
+  "reason": "PyPI direct partial index download at 8 sec; TUNA HTTPS returns full index in 0.675 sec. General packages use TUNA mirror; vendor wheels retain official sources."
+}

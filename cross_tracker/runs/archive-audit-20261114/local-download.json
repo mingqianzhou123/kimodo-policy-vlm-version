@@ -1,0 +1,7 @@
+{
+  "status": "stopped_local_duplicate",
+  "reason": "Baidu official direct download selected; local partial retained, not treated as complete",
+  "partial_bytes": 248246272,
+  "xz_index_blocks": 1175,
+  "xz_total_uncompressed_bytes": 29564375040
+}

@@ -1,0 +1,17 @@
+{
+  "command": [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python",
+    "torch==2.7.0",
+    "torchvision==0.22.0",
+    "torchaudio==2.7.0",
+    "--index-url",
+    "https://download.pytorch.org/whl/cu128"
+  ],
+  "exit_code": 0,
+  "started_unix": 1794577218.1655128,
+  "finished_unix": 1794577224.9624271
+}

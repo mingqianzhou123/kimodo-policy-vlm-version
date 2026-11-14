@@ -1,0 +1,6 @@
+{
+  "source": "/Users/zmqsfiles/Research/\u4eba\u5f62 vla/humanoid_robot_suite/workspace/projects/isaaclab_twist2_g1/assets/checkpoints/mimic_lite/policy-xua2csee-4000.yaml",
+  "sha256": "2d98275f3c215e59bbfb069d21b1ac17897ce0abeb529192f47139d4d7b3fe38",
+  "onnx_present": false,
+  "meaning": "configuration only, not a runnable policy"
+}

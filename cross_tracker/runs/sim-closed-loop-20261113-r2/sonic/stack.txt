@@ -1,0 +1,41 @@
+Process 1904555: /root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python -u /root/workspace/humanoidVLA/cross_tracker/runs/sim-setup-20261113/arena_sim_bootstrap.py /root/workspace/humanoidVLA/cross_tracker/data/cache/sources/HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783/isaaclab_twist2_g1/script/eval_scripts/sonic/sim_eval_vla.py --headless --device cuda:0 --kit_args --allow-root --portable-root /root/workspace/humanoidVLA/cross_tracker/data/cache/sim-runtime --task Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody --env_config_yaml /root/workspace/humanoidVLA/cross_tracker/data/cache/sources/HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783/isaaclab_twist2_g1/tasks/common_env_config/pickplace_box_sonic.yaml --seed 17 --episode_seed 17 --max_steps 50 --lerobot_server_url http://127.0.0.1:47331 --lerobot_server_timeout 120 --result_json /root/workspace/humanoidVLA/cross_tracker/runs/sim-closed-loop-20261113-r2/sonic/episode.json --verbose_startup --success_video_dir /root/workspace/humanoidVLA/cross_tracker/runs/sim-closed-loop-20261113-r2/sonic/videos --failure_video_dir /root/workspace/humanoidVLA/cross_tracker/runs/sim-closed-loop-20261113-r2/sonic/videos --recording_save_dir /root/workspace/humanoidVLA/cross_tracker/runs/sim-closed-loop-20261113-r2/sonic/recordings --step_log_every_n 10 --sonic_encoder_path /root/workspace/humanoidVLA/cross_tracker/data/cache/sim-assets/sonic/model_encoder.onnx --sonic_decoder_path /root/workspace/humanoidVLA/cross_tracker/data/cache/sim-assets/sonic/model_decoder.onnx
+Python v3.11.15 (/root/workspace/humanoidVLA/.runtime/python/cpython-3.11.15-linux-x86_64-gnu/bin/python3.11)
+
+Thread 1904555 (idle): "MainThread"
+    play (api/simulation_context/simulation_context.py:913)
+    reset (api/simulation_context/simulation_context.py:644)
+    reset (isaaclab/sim/simulation_context.py:583)
+    __init__ (isaaclab/envs/manager_based_env.py:166)
+    __init__ (isaaclab/envs/manager_based_rl_env.py:82)
+    make (gymnasium/envs/registration.py:734)
+    main (sim_eval_vla.py:903)
+    <module> (sim_eval_vla.py:974)
+    _run_code (<frozen runpy>:88)
+    _run_module_code (<frozen runpy>:98)
+    run_path (<frozen runpy>:291)
+    <module> (arena_sim_bootstrap.py:40)
+Thread 1904828 (idle): "ThreadPoolExecutor-0_0"
+    _worker (concurrent/futures/thread.py:81)
+    run (threading.py:982)
+    _bootstrap_inner (threading.py:1045)
+    _bootstrap (threading.py:1002)
+Thread 1904837 (idle): "ThreadPoolExecutor-0_1"
+    _worker (concurrent/futures/thread.py:81)
+    run (threading.py:982)
+    _bootstrap_inner (threading.py:1045)
+    _bootstrap (threading.py:1002)
+Thread 1904850 (idle): "ThreadPoolExecutor-0_2"
+    _worker (concurrent/futures/thread.py:81)
+    run (threading.py:982)
+    _bootstrap_inner (threading.py:1045)
+    _bootstrap (threading.py:1002)
+Thread 1904914 (idle): "ThreadPoolExecutor-0_3"
+    _worker (concurrent/futures/thread.py:81)
+    run (threading.py:982)
+    _bootstrap_inner (threading.py:1045)
+    _bootstrap (threading.py:1002)
+Thread 1905066 (idle): "asyncio_0"
+    _worker (concurrent/futures/thread.py:81)
+    run (threading.py:982)
+    _bootstrap_inner (threading.py:1045)
+    _bootstrap (threading.py:1002)

@@ -1,0 +1,18 @@
+# First mixed-data comparison; separate budget from released 200k/batch64 fine-tunes.
+_base_: ../../configs/arena.yaml
+main:
+  data_root: cross_tracker/data/cache/prepared-v1/train
+  text_cache: cross_tracker/data/cache/text
+  save_root: cross_tracker/runs
+  max_steps: 30000
+  batch_size: 8
+  micro_batch_size: 2
+  num_workers: 2
+  log_every: 50
+  checkpoint_every: 2000
+  final_checkpoints: 3
+  final_checkpoint_spacing: 2000
+  score_checkpoints: [26000, 28000, 30000]
+training:
+  scheduler:
+    warmup_steps: 1000

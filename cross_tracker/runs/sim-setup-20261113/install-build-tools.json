@@ -1,0 +1,16 @@
+{
+  "command": [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python",
+    "--index-url",
+    "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "toml",
+    "wheel"
+  ],
+  "exit_code": 0,
+  "started_unix": 1794578954.3068938,
+  "finished_unix": 1794578954.729171
+}

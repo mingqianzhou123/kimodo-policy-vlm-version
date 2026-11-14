@@ -1,0 +1,9 @@
+{
+  "exit_code": 0,
+  "physics_and_rgb_passed": true,
+  "started_unix": 1794580071.2237325,
+  "finished_unix": 1794580090.3140368,
+  "script_sha256": "33b72105e7e26b7bd9a01a03dad97cacdb3cab25ea38320fe66e2ad3d7f27af7",
+  "gpu_before": "1, 0",
+  "formal_training_started": false
+}

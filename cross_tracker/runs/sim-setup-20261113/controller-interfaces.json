@@ -1,0 +1,81 @@
+{
+  "controllers": [
+    {
+      "controller": "twist2",
+      "sha256": "2d1fb3a31e4e967f70ecfefc3ad1e7b2ac491677068b89f60b565a94e7735061",
+      "inputs": [
+        {
+          "name": "input",
+          "shape": [
+            "batch_size",
+            1432
+          ],
+          "type": "tensor(float)"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "shape": [
+            "batch_size",
+            29
+          ],
+          "type": "tensor(float)"
+        }
+      ],
+      "loaded": true
+    },
+    {
+      "controller": "sonic_encoder",
+      "sha256": "013ab0287236aa2721e13f1e936d699db982302d0de0bfcdae76d5c3245362d3",
+      "inputs": [
+        {
+          "name": "obs_dict",
+          "shape": [
+            1,
+            1762
+          ],
+          "type": "tensor(float)"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "encoded_tokens",
+          "shape": [
+            1,
+            64
+          ],
+          "type": "tensor(float)"
+        }
+      ],
+      "loaded": true
+    },
+    {
+      "controller": "sonic_decoder",
+      "sha256": "c7241a123eaa36b5d64bad19540efde93cac1ad443bd4572fd12ca99898118ed",
+      "inputs": [
+        {
+          "name": "obs_dict",
+          "shape": [
+            1,
+            994
+          ],
+          "type": "tensor(float)"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "action",
+          "shape": [
+            1,
+            29
+          ],
+          "type": "tensor(float)"
+        }
+      ],
+      "loaded": true
+    }
+  ],
+  "mimic_lite": "missing original ONNX",
+  "meaning": "ONNX load and interface only; no control rollout"
+}

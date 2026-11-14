@@ -1,0 +1,116 @@
+[
+  {
+    "order": 1,
+    "sources": [
+      "sonic"
+    ],
+    "seed": 42,
+    "steps": 30000,
+    "status": "planned"
+  },
+  {
+    "order": 2,
+    "sources": [
+      "sonic"
+    ],
+    "seed": 43,
+    "steps": 30000,
+    "status": "planned"
+  },
+  {
+    "order": 3,
+    "sources": [
+      "twist2"
+    ],
+    "seed": 42,
+    "steps": 30000,
+    "status": "planned"
+  },
+  {
+    "order": 4,
+    "sources": [
+      "twist2"
+    ],
+    "seed": 43,
+    "steps": 30000,
+    "status": "planned"
+  },
+  {
+    "order": 5,
+    "sources": [
+      "mimic_lite"
+    ],
+    "seed": 42,
+    "steps": 30000,
+    "status": "planned"
+  },
+  {
+    "order": 6,
+    "sources": [
+      "mimic_lite"
+    ],
+    "seed": 43,
+    "steps": 30000,
+    "status": "planned"
+  },
+  {
+    "order": 7,
+    "sources": [
+      "sonic",
+      "twist2"
+    ],
+    "seed": 42,
+    "steps": 60000,
+    "status": "planned"
+  },
+  {
+    "order": 8,
+    "sources": [
+      "sonic",
+      "twist2"
+    ],
+    "seed": 43,
+    "steps": 60000,
+    "status": "planned"
+  },
+  {
+    "order": 9,
+    "sources": [
+      "twist2",
+      "mimic_lite"
+    ],
+    "seed": 42,
+    "steps": 60000,
+    "status": "planned"
+  },
+  {
+    "order": 10,
+    "sources": [
+      "twist2",
+      "mimic_lite"
+    ],
+    "seed": 43,
+    "steps": 60000,
+    "status": "planned"
+  },
+  {
+    "order": 11,
+    "sources": [
+      "sonic",
+      "mimic_lite"
+    ],
+    "seed": 42,
+    "steps": 60000,
+    "status": "planned"
+  },
+  {
+    "order": 12,
+    "sources": [
+      "sonic",
+      "mimic_lite"
+    ],
+    "seed": 43,
+    "steps": 60000,
+    "status": "planned"
+  }
+]

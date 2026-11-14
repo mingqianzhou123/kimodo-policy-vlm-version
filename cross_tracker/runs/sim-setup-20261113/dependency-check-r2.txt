@@ -1,0 +1,6 @@
+Using Python 3.11.15 environment at: cross_tracker/data/cache/envs/isaaclab-2.2
+Checked 246 packages in 3ms
+Found 3 incompatibilities
+The package `isaacsim-core` requires `packaging==23.0`, but `26.3` is installed
+The package `isaacsim-kernel` requires `click==8.1.7`, but `8.5.1` is installed
+The package `isaacsim-kernel` requires `idna==3.10`, but `3.20` is installed

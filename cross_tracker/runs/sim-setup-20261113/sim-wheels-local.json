@@ -1,0 +1,132 @@
+{
+  "isaacsim": {
+    "file": "isaacsim-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "85751ff84d137ccb3d0bd5031a38fd904d6a76e77f72ead63e0ca9620819e15d",
+    "bytes": 33120
+  },
+  "isaacsim-app": {
+    "file": "isaacsim_app-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "6122e9c60eba398f1529cbde1a8e6c2497a01838089c60f31735ef5c2c8e312e",
+    "bytes": 2969752
+  },
+  "isaacsim-asset": {
+    "file": "isaacsim_asset-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "e59fdc81eb1ed1130b06c125b021659a2096a7477b43c61c2e80df2f597dd7bc",
+    "bytes": 31275504
+  },
+  "isaacsim-benchmark": {
+    "file": "isaacsim_benchmark-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "9be382e4d7d69bc83f695e4e8ef9091ce6de1db2dbdb3f5022547b54e53fdfc5",
+    "bytes": 1266444
+  },
+  "isaacsim-code-editor": {
+    "file": "isaacsim_code_editor-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "6f7bf09a1d0d89e9744f563a189feb14c7f5cf1b93dd94e10a9cd99599a6eb6c",
+    "bytes": 1305719
+  },
+  "isaacsim-core": {
+    "file": "isaacsim_core-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "05d8c2e686eee1a66785a30c51bc4fdc97dffbb1834a4660e2a31e4248e02984",
+    "bytes": 12796949
+  },
+  "isaacsim-cortex": {
+    "file": "isaacsim_cortex-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "7c003b5cc0555e686e9cf7c9fa83712ed4173fe6897af720788fb1121830380d",
+    "bytes": 1303487
+  },
+  "isaacsim-example": {
+    "file": "isaacsim_example-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "d759a7b4fcb16b59270335cb222008007a8b2c49834360b20ad84dd2b21c20e4",
+    "bytes": 2698077
+  },
+  "isaacsim-extscache-kit": {
+    "file": "isaacsim_extscache_kit-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "5c402b12a595322e8bd2ff3854080bff70e5dd58b5ec2c0a0bcc1039f2c73b71",
+    "bytes": 3029525902
+  },
+  "isaacsim-extscache-kit-sdk": {
+    "file": "isaacsim_extscache_kit_sdk-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "774909365c0ed25ecf22f3e7b658243443fc588844b87f619cc253b3cc9746b2",
+    "bytes": 1308677371
+  },
+  "isaacsim-extscache-physics": {
+    "file": "isaacsim_extscache_physics-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "e8d8f824db11af1e4972e03e4c6d58073908d13c7ca617afed091f682f74dffb",
+    "bytes": 17418
+  },
+  "isaacsim-gui": {
+    "file": "isaacsim_gui-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "49ece620aa204766b4ee6fbcd9a302b36ab88712b8c741bc1cf2edf593004d66",
+    "bytes": 18317335
+  },
+  "isaacsim-kernel": {
+    "file": "isaacsim_kernel-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "34fca8cde4047b2fdd2ddd08003bb83e7b6e1ce0c5dd719705069990b95f4d37",
+    "bytes": 22164
+  },
+  "isaacsim-replicator": {
+    "file": "isaacsim_replicator-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "a54b17b258974a4f86616ea49bdb2ff4a8dc330769af0d7247fe387a69591fbd",
+    "bytes": 20685147
+  },
+  "isaacsim-rl": {
+    "file": "isaacsim_rl-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "64f6d4ac920eee31aa310bff7e7f7fb3c44a6121b322d73d21b8bbc3a2d56776",
+    "bytes": 17273
+  },
+  "isaacsim-robot": {
+    "file": "isaacsim_robot-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "f138efc71fd9d157dbb29640d5475cbdefe21eec81382779e2cb30c2548705a2",
+    "bytes": 11128832
+  },
+  "isaacsim-robot-motion": {
+    "file": "isaacsim_robot_motion-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "aca8992ae7fbee7ba58435ebdca1e8902b72ce6eda7d7eda39d594a84cb91271",
+    "bytes": 6211312
+  },
+  "isaacsim-robot-setup": {
+    "file": "isaacsim_robot_setup-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "207ae1cb4e62124376a7a71985d00f4579ebddcf1ca2269b0b59b07bfe9438a6",
+    "bytes": 5105847
+  },
+  "isaacsim-ros1": {
+    "file": "isaacsim_ros1-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "061ef349f5c6acd94ddc20643fe56612e75cd6c799d9659d26a909ccc45d0412",
+    "bytes": 17289
+  },
+  "isaacsim-ros2": {
+    "file": "isaacsim_ros2-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "d20fbe03d79a9278e91eb0f802a96cea91025bc5040f65b0abc2d9c16f320de9",
+    "bytes": 98687537
+  },
+  "isaacsim-sensor": {
+    "file": "isaacsim_sensor-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "b999d844913606d4350324e60625b518b481f30b3e3eff96ff6401a8a4d31464",
+    "bytes": 15046373
+  },
+  "isaacsim-storage": {
+    "file": "isaacsim_storage-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "0723ee71f1e822740ada61c652c28b0ecfcb23359cbcf8c7e673ace4f8be083c",
+    "bytes": 1200278
+  },
+  "isaacsim-template": {
+    "file": "isaacsim_template-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "de51bf81a2fc502f21f1cbd235ce44ec534def8b0b80842a3213d41408e115e6",
+    "bytes": 334152
+  },
+  "isaacsim-test": {
+    "file": "isaacsim_test-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "1192878df8b7195c3199cfe89fdeac19b9929327878d7c7dd4b6e577b30d6b59",
+    "bytes": 1266323
+  },
+  "isaacsim-utils": {
+    "file": "isaacsim_utils-5.0.0.0-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "b0f64913814621a6ced5fda40a267a4e04d91f961b014712e2223685164608af",
+    "bytes": 2198580
+  },
+  "omniverse-kit": {
+    "file": "omniverse_kit-107.3.1.206797-cp311-none-manylinux_2_35_x86_64.whl",
+    "sha256": "15b14affe6390adca27b36e5f5eae153666440dfe61a7b17b23356f12544f43d",
+    "bytes": 91463764
+  }
+}

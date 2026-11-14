@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "preparation_tests": 4,
+  "ddp_sampling_and_argument_tests": 2,
+  "shell_syntax": true,
+  "real_eight_gpu_execution": "pending_queue"
+}

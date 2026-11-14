@@ -1,0 +1,1637 @@
+[
+  {
+    "path": "data/cache/sim-assets/table-materials/manifest.json",
+    "bytes": 6353,
+    "sha256": "049597a4ce68088366d54cb8fa6777a999867828508c19c9ef44df6f04e161e3"
+  },
+  {
+    "path": "data/cache/text-eval/manifest.json",
+    "bytes": 970,
+    "sha256": "ca4db9132c497b99b55a0b69bef12a8a2215ae725da7f7b4dcaba9e6bf9c7aac"
+  },
+  {
+    "path": "runs/interface-gpu-20261113-r3/check_http.py",
+    "bytes": 4522,
+    "sha256": "b2738e1e6400d3648dca237db6bcd561e05906b9070295e3afa0d5b453be0a0c"
+  },
+  {
+    "path": "runs/interface-gpu-20261113-r3/launch.log",
+    "bytes": 216033,
+    "sha256": "5caa854b3edf92d80e7b64f0fa82abf78a2b88da4771cbbe26653d6c7667a864"
+  },
+  {
+    "path": "runs/interface-gpu-20261113-r3/result.json",
+    "bytes": 787,
+    "sha256": "05245ba89660eb23c7b843a9591247e53c85d156d5e1ca63deb8411a88fb46f4"
+  },
+  {
+    "path": "runs/interface-gpu-20261113-r3/run.json",
+    "bytes": 1126,
+    "sha256": "366cb4ade3caf4653d6be89126c9b8ea1f472ee248ada28dbbe3dd16b45ba45c"
+  },
+  {
+    "path": "runs/interface-gpu-20261113-r3/sonic-actions.npy",
+    "bytes": 24128,
+    "sha256": "c9f6648ec97247bd6e9b0248db44f4fb86d3641ad56954a45f0fff0bd11eafe3"
+  },
+  {
+    "path": "runs/interface-gpu-20261113-r3/twist2-actions.npy",
+    "bytes": 24128,
+    "sha256": "c9f6648ec97247bd6e9b0248db44f4fb86d3641ad56954a45f0fff0bd11eafe3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113/sonic/run.json",
+    "bytes": 2631,
+    "sha256": "6beaead56505f365987452f5796f4a407647cf9651c5a1b27303532d4e79a80c"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113/sonic/server.log",
+    "bytes": 107377,
+    "sha256": "afc6ca4e7f4762b65b2aeb605dc56bcf7025acff2bd8f7f7149465774274bb4d"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113/sonic/simulation.log",
+    "bytes": 19951,
+    "sha256": "15486b6c17e540bab8e6134e049ce1527ad634603d3f59e4a346be9e878c898a"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/arena_history.py",
+    "bytes": 2863,
+    "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/check_closed_loop.py",
+    "bytes": 6912,
+    "sha256": "dc63fd981626e9f3d61385fead9c078ab55518ddb9c8a29b5e611a1e6ca5d961"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/episode.json",
+    "bytes": 799,
+    "sha256": "e86356ac0135a2b24a47a9312fe38bd178447363a704073d4d6c6e704595161f"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/first-frame.png",
+    "bytes": 87854,
+    "sha256": "2aab0c6bbcddb030c5e1d6e396b4314918df57d4c57158fba5fab56dda5c31f4"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/run.json",
+    "bytes": 2783,
+    "sha256": "94b61a0fd87c9c36174147f730b041839b9093d533a5f56c2317a4e4de7fc93a"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/server.log",
+    "bytes": 107585,
+    "sha256": "0f4b12ad986c0ffeeceb81db09fa90f4bd95e685efb275a5580717d5e667a29b"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/simulation.log",
+    "bytes": 33599,
+    "sha256": "fd5106ff92c4c33b29e1eb646ac7d1bd9a2506402a60bdfda83421a4b0603b09"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/state-history.jsonl",
+    "bytes": 34675,
+    "sha256": "78102e160bda0b5071645a8404af806fad3b7702abfa75b82088adee7aef0c45"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-boxing/videos/__seed_17__repeat_0__episode_0__timeout.mp4",
+    "bytes": 131114,
+    "sha256": "fd0bd83e441e7405982a813f03e07c134c1932b63285316c92ab05e63bb6032e"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/arena_history.py",
+    "bytes": 2863,
+    "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/check_closed_loop.py",
+    "bytes": 6912,
+    "sha256": "dc63fd981626e9f3d61385fead9c078ab55518ddb9c8a29b5e611a1e6ca5d961"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/episode.json",
+    "bytes": 823,
+    "sha256": "e6e4c062c202dc48fff454bcbd584a52b5a00156ecb1930d94940bfd081ea508"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/first-frame.png",
+    "bytes": 101098,
+    "sha256": "1c1ff84849abe25b58b15594b07e8f964076998d3f2b2adb2adc9d24ca1fd737"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/run.json",
+    "bytes": 2847,
+    "sha256": "64add0e55733368b31fc4cb757841663c446a4c5e5f5ff7f7f12741de16be4f0"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/server.log",
+    "bytes": 107585,
+    "sha256": "d6f4f93994fa93235cdd62008f1ac4fefd8420332052d20d9f90b3b9f2548f3a"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/simulation.log",
+    "bytes": 35394,
+    "sha256": "1e75a7eda9d3bd1a18c28614d04f3a9639a6696bb81852e787ee9dca457eaea9"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/state-history.jsonl",
+    "bytes": 34726,
+    "sha256": "fcdcec63ebc6a603dbf5abb8962e308d8800fac0f3937126242f1457808aa0de"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/sonic-navigation/videos/__seed_17__repeat_0__episode_0__timeout.mp4",
+    "bytes": 136230,
+    "sha256": "778c3afc3e8ecccff168e5ca626fa36e72711085c1e26f2244d80aa18ce7087c"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/arena_history.py",
+    "bytes": 2863,
+    "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/check_closed_loop.py",
+    "bytes": 6912,
+    "sha256": "dc63fd981626e9f3d61385fead9c078ab55518ddb9c8a29b5e611a1e6ca5d961"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/episode.json",
+    "bytes": 827,
+    "sha256": "1f47a51b12e8bdb1fd1b679785dbf838bb99c9b1c589ae38cdcb2c4b53069e1e"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/first-frame.png",
+    "bytes": 94444,
+    "sha256": "aaf187ba7ceec023383d0d9c58361a5ded556f10b010dcda619004bf5915d208"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/run.json",
+    "bytes": 2701,
+    "sha256": "0c42b08821a74a8267dbcbb5c4a903bf88b910ba783252156cb9f65dcc36ec29"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/server.log",
+    "bytes": 107721,
+    "sha256": "6b470c22429d595455a0c8eff556e7529220149e071841ebdeac7548144dd836"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/simulation.log",
+    "bytes": 32472,
+    "sha256": "a984650a7b0cfe63fa18dd821afc01ee197892a0698e24523d000e53cde6bac3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/state-history.jsonl",
+    "bytes": 34797,
+    "sha256": "b9e4c56019488b17b96f39504ad3b8a68689c48626a4d454e1f61550ae85f929"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2/videos/twist2_1017_20k__seed_17__repeat_0__episode_0__timeout.mp4",
+    "bytes": 183553,
+    "sha256": "4a8ca8b3759c0f3d62b0040dbeaaba5627996d4711d6c9120ba015597eef591e"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/arena_history.py",
+    "bytes": 2863,
+    "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/check_closed_loop.py",
+    "bytes": 6912,
+    "sha256": "dc63fd981626e9f3d61385fead9c078ab55518ddb9c8a29b5e611a1e6ca5d961"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/episode.json",
+    "bytes": 830,
+    "sha256": "42acc307f17ed61ddf1d9d1a93f94491ead953e1473aa0b929577cf75e9b1734"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/first-frame.png",
+    "bytes": 89070,
+    "sha256": "d92cb0d2805e2a3d03e2b4277662a681ed02609e60924535d1f70843c2418447"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/run.json",
+    "bytes": 2727,
+    "sha256": "6955283301f94df34e63c11f5a766117c5d859b77ae52975cabb300660e08456"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/server.log",
+    "bytes": 107585,
+    "sha256": "eb3dabc13f3efd6e710cdb55d51f41753b9ae33abdbb7eac0de58014fb1b12b6"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/simulation.log",
+    "bytes": 32865,
+    "sha256": "09058e866e4c4d054aed9ade81ff6788bc0508656b4070c9c40092b8f6da9dbf"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/state-history.jsonl",
+    "bytes": 34813,
+    "sha256": "ba1e3996b39895eb125d2f0ad83a9dcb0a43a735490686f48f5534705b768679"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-boxing/videos/twist2_1017_20k__seed_17__repeat_0__episode_0__timeout.mp4",
+    "bytes": 128689,
+    "sha256": "cdbf654908ff0a36511de544289b77293cdaf78c45210b917a3735427bb50295"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/arena_history.py",
+    "bytes": 2863,
+    "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/check_closed_loop.py",
+    "bytes": 6912,
+    "sha256": "dc63fd981626e9f3d61385fead9c078ab55518ddb9c8a29b5e611a1e6ca5d961"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/episode.json",
+    "bytes": 856,
+    "sha256": "58c4c3e708c0d1cc300105907bbcf586d671c77f4d2c63e3132688488d0ddbb3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/first-frame.png",
+    "bytes": 107057,
+    "sha256": "1808632328ab2d75de18d44833cd7e563ea1efa182f664d447d2a5b97d49feb1"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/run.json",
+    "bytes": 2791,
+    "sha256": "3f2bce28408b60af8c124cb6bad0337d2e2efad39428cbfa4ef779948e6cb671"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/server.log",
+    "bytes": 107585,
+    "sha256": "fb8fe310286148b0df66656af494855bf4529dd5b8729d88c03f1310fcd302a2"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/simulation.log",
+    "bytes": 34691,
+    "sha256": "aad3cf5a19caf5909962b3150ca5cde2b91dafd8c8d92b4078ae41ff84c4fe75"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/state-history.jsonl",
+    "bytes": 34945,
+    "sha256": "e9d08b5237e8dab2b9e33a92021d6c6396ccb350c84bb23efc064ce0515e8782"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r10/twist2-navigation/videos/twist2_1017_20k__seed_17__repeat_0__episode_0__timeout.mp4",
+    "bytes": 131834,
+    "sha256": "e8ab557ba4eae83ce3c3db8bd2debe6c832c701d7d97188b2a51fd4a48d33b6c"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r2/sonic/arena_sim_bootstrap.py",
+    "bytes": 1219,
+    "sha256": "329acede62f21f44fbf5dcda3000a1fb3b7affa08c4cb6073f0abeeccef27953"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r2/sonic/check_closed_loop.py",
+    "bytes": 5749,
+    "sha256": "c04fa1af4accc8e5b3d64595ac6648e4ced9ee8b329daeead05e3e1699122acb"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r2/sonic/interruption.json",
+    "bytes": 1791,
+    "sha256": "55a5b5df196a2d323b3b05f8cf06fc9c23036e4f4313990345d0da4d0370c082"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r2/sonic/native-stack.txt",
+    "bytes": 5421,
+    "sha256": "3d2199f25fbdf61ecf627ed113a9cc01799e0ec0a92ec2ac4ee6b1a5bf9975e6"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r2/sonic/run.json",
+    "bytes": 2611,
+    "sha256": "fb80fbccae38a3025425c04cc568c796c4d94e8f1e8c917326dbc1f02b6e7864"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r2/sonic/server.log",
+    "bytes": 107377,
+    "sha256": "03e74cac49ec0af16e7a67f9e9924c37fcf7a5b74c67fbfbd6c102054c8a41b7"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r2/sonic/simulation.log",
+    "bytes": 24055,
+    "sha256": "7d7509f0dac6454874c2b457146fd55f1f9748115527fa5ac25bd32128f3ab37"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r2/sonic/stack.txt",
+    "bytes": 3230,
+    "sha256": "71265effb890dc127d9a92686d6cc70e0b0b3109baf0259c33da551edf753a9f"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r4/sonic/arena_sim_bootstrap.py",
+    "bytes": 1219,
+    "sha256": "329acede62f21f44fbf5dcda3000a1fb3b7affa08c4cb6073f0abeeccef27953"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r4/sonic/check_closed_loop.py",
+    "bytes": 5749,
+    "sha256": "c04fa1af4accc8e5b3d64595ac6648e4ced9ee8b329daeead05e3e1699122acb"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r4/sonic/interruption.json",
+    "bytes": 257,
+    "sha256": "2b36e0d15ba5d6eab2fc7676dc98256f5da49eede7c8f3c92b041e1a97d61f14"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r4/sonic/native-stack.txt",
+    "bytes": 5027,
+    "sha256": "72c1561b657b77cd89c39f7f36d62c5690708385a9d6d0dc41ee0f3f94f29502"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r4/sonic/run.json",
+    "bytes": 2610,
+    "sha256": "93b7aff4cd0854bb3a5ffa68cab67b7d806f6658396beba0c88a18f47a93d9ac"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r4/sonic/server.log",
+    "bytes": 107377,
+    "sha256": "5a0e391d232cecd05d1b04cac62a5ba9bdb3925485fd63378a63f38f96d3d911"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r4/sonic/simulation.log",
+    "bytes": 19564,
+    "sha256": "a2d440f3436bb6f9642fd4dae7eab2815d017ba43f997670028da9252634e029"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r5/sonic/arena_sim_bootstrap.py",
+    "bytes": 1219,
+    "sha256": "329acede62f21f44fbf5dcda3000a1fb3b7affa08c4cb6073f0abeeccef27953"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r5/sonic/check_closed_loop.py",
+    "bytes": 5749,
+    "sha256": "c04fa1af4accc8e5b3d64595ac6648e4ced9ee8b329daeead05e3e1699122acb"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r5/sonic/run.json",
+    "bytes": 2643,
+    "sha256": "c2e30309d35390b49cab8a463cec1471fcab2d0430074176c1812e8ca37c4b94"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r5/sonic/server.log",
+    "bytes": 107377,
+    "sha256": "743949022987e9fc1cb003f3962c0d2f19e56332e779593e569b38844100d2e0"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r5/sonic/simulation.log",
+    "bytes": 28486,
+    "sha256": "ad5686604c9a1ff1ae6a611efde08a97ad2732a328d51b84889fb221b7d68953"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r6/sonic/arena_sim_bootstrap.py",
+    "bytes": 1219,
+    "sha256": "329acede62f21f44fbf5dcda3000a1fb3b7affa08c4cb6073f0abeeccef27953"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r6/sonic/check_closed_loop.py",
+    "bytes": 6520,
+    "sha256": "56352dcf55689826ae3e8f60608df009c094740ce71ed93a8125663d02637b44"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r6/sonic/run.json",
+    "bytes": 2659,
+    "sha256": "ba629c1db4731fe025ac2814eb86df12636a09de865d86feb1820d8bc40d3c2e"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r6/sonic/server.log",
+    "bytes": 107377,
+    "sha256": "ef70e53514a04e1fbb4902349f245a385b37c6e6dd0c24056d559b26f662e426"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r6/sonic/simulation.log",
+    "bytes": 29373,
+    "sha256": "c10e5b326d780d96074469140bc674009fd563b29cf6e6ee77a2479d6f75d9ca"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r7/sonic/arena_sim_bootstrap.py",
+    "bytes": 1779,
+    "sha256": "b07ee222fe289d8130d4226b26454c2fdf03cc418fdc9476d63782d421adc1be"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r7/sonic/check_closed_loop.py",
+    "bytes": 6520,
+    "sha256": "56352dcf55689826ae3e8f60608df009c094740ce71ed93a8125663d02637b44"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r7/sonic/episode.json",
+    "bytes": 793,
+    "sha256": "26ea9fb8916b2e9a237481223fdaaab7fa9c438b1d50c4219c58a2a839a7656c"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r7/sonic/run.json",
+    "bytes": 2675,
+    "sha256": "54419732dda0d5ffa4d81bd6d3148654361054325064da1d81d27050a49ecda9"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r7/sonic/server.log",
+    "bytes": 153033,
+    "sha256": "3911d298279d0bcab36c27c9188a6877114838ac509690c34d930113804e8cc6"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r7/sonic/simulation.log",
+    "bytes": 256227,
+    "sha256": "829a7a7d9195a18cb3f6f5123d03b2b898eb60159bdf526b575a8124150e300a"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r7/sonic/videos/__seed_17__repeat_0__episode_0__timeout.mp4",
+    "bytes": 114998,
+    "sha256": "dba8c744338a6d96557a68329006bfb2ee3aa8d972d73773adcaeb47ec565aba"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/arena_history.py",
+    "bytes": 2374,
+    "sha256": "2bfcc141608160468297e3b16933a8f201cd63e82243d1d9a5cac4a84663e505"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/check_closed_loop.py",
+    "bytes": 6763,
+    "sha256": "f3257967cfcaf0f2ca2ee1f312adffcf214e796f1cf8d515bb604035d4bdafc9"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/episode.json",
+    "bytes": 792,
+    "sha256": "38428b399ce1bd22a3ee102f2e06a89275743fa0b0173eef28e26b4ce17c700d"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/first-control-stack.txt",
+    "bytes": 46,
+    "sha256": "d2cbaf8487975d7014ed516c05a71225192152e28ec311c046c3d35e8c2c38f3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/run.json",
+    "bytes": 2754,
+    "sha256": "8fb8fd5f2b63b315281cb75deb09bda269e67f329d0b3a1d70645f5319d39a76"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/server.log",
+    "bytes": 107728,
+    "sha256": "5f0540744e0166195413f6b2207ca697f3bc5f74a8dcd739ac4deb3346bd1ac6"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/simulation.log",
+    "bytes": 33368,
+    "sha256": "39f250e80c6002dfd59444b1fb87cce4a1b0abc8f0f33346ab1930414bf03ee4"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/state-history.jsonl",
+    "bytes": 34621,
+    "sha256": "9ed4ff2c464229f11a56af2acf53f995f9af4562dc59fb18a2a07c03ea130ac5"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/sonic/videos/__seed_17__repeat_0__episode_0__timeout.mp4",
+    "bytes": 168388,
+    "sha256": "77af30d49c49be4dd508e2182aea6cdc3f29f6ea967eb590bc4c835aefdf7302"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/arena_history.py",
+    "bytes": 2374,
+    "sha256": "2bfcc141608160468297e3b16933a8f201cd63e82243d1d9a5cac4a84663e505"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/check_closed_loop.py",
+    "bytes": 6763,
+    "sha256": "f3257967cfcaf0f2ca2ee1f312adffcf214e796f1cf8d515bb604035d4bdafc9"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/episode.json",
+    "bytes": 925,
+    "sha256": "a1e7bdd860e0dbfde9718451a38df72a6e0d465cd4657cb1056fe70fb71559fe"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/run.json",
+    "bytes": 3445,
+    "sha256": "941a40926bdcf5534b80a9ee2a8f1d90e2932fe0695d885f92588f86d6395b2c"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/server.log",
+    "bytes": 107533,
+    "sha256": "9ad841813be2325a82177cbfc8493eed7e482d7b0b4b36ee43c54dc5070d52cf"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/simulation.log",
+    "bytes": 32275,
+    "sha256": "5806d553c1bcd542c6cfe8e2d2764d922ace8be21cf7340ae6136523a52f6e18"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/state-history.jsonl",
+    "bytes": 528,
+    "sha256": "0066e71e8fd0fd6d58e338316ab1cf9d8f2d0c56baca438067d2f5f88def0e60"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r8/twist2/videos/twist2_1017_20k__seed_17__repeat_0__episode_0__sim_error.mp4",
+    "bytes": 97435,
+    "sha256": "96e166961a5e20f42c575af0daff5906b16e8af2122d1ece8f48e39467380d97"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/arena_history.py",
+    "bytes": 2863,
+    "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/check_closed_loop.py",
+    "bytes": 6763,
+    "sha256": "f3257967cfcaf0f2ca2ee1f312adffcf214e796f1cf8d515bb604035d4bdafc9"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/episode.json",
+    "bytes": 795,
+    "sha256": "c26ce0344bf5b203358654a3d533f63e68ca8977b6ece9457ce782097dd76230"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/first-frame.png",
+    "bytes": 93280,
+    "sha256": "360c13652541bdfb05925e1715f87b2d7d537f03171c6061f91d5cb4d2a63d9b"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/run.json",
+    "bytes": 2754,
+    "sha256": "75b20bc1e7b34a0a71d43b551d81d2b1a7589b6b7727f422205f2577023ee1bb"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/server.log",
+    "bytes": 107585,
+    "sha256": "fddfce58b6e13c3a9f58a6cc29be459fad7361e5f1c562d930681bd9ab9b9d37"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/simulation.log",
+    "bytes": 33368,
+    "sha256": "38dec62fefe8a79d4f4d146bbf2f618f4a8d700535a570a9685d2645380a7caa"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/state-history.jsonl",
+    "bytes": 34673,
+    "sha256": "ad632c81edf402637d13d31aa73ba07c906656eee202e754b6cb57e8fc5996ae"
+  },
+  {
+    "path": "runs/sim-closed-loop-20261113-r9/sonic/videos/__seed_17__repeat_0__episode_0__timeout.mp4",
+    "bytes": 163656,
+    "sha256": "bd25cf8a84a89b3016a304c917180f5885c9d8e030c6a04da420dc87ac76a7c4"
+  },
+  {
+    "path": "runs/sim-setup-20261113/arena-source.json",
+    "bytes": 371,
+    "sha256": "3561a9f0bebe9e537413ea85e5c643317d2a711631cc8f32db410f0740517fa3"
+  },
+  {
+    "path": "runs/sim-setup-20261113/arena_sim_bootstrap.py",
+    "bytes": 1955,
+    "sha256": "b3827c2e45e1822fe1fad6bca7f2a52acd17d54873589dcd22187d2263b167e3"
+  },
+  {
+    "path": "runs/sim-setup-20261113/assets-import.json",
+    "bytes": 262,
+    "sha256": "99ed2a045e0a358b229c9a3d1a0abd14dace2bd57d662ebc3c29f2e6762c1652"
+  },
+  {
+    "path": "runs/sim-setup-20261113/audit_closed_loop.py",
+    "bytes": 2760,
+    "sha256": "f41b49927f8f28c2718664aa1279330a8d0926d65008ff172bf030be001de7b3"
+  },
+  {
+    "path": "runs/sim-setup-20261113/bundle_evidence.py",
+    "bytes": 1228,
+    "sha256": "76d6c3c2571dc18898a27d2c6585c11ee3a2237dd7cdf9b4976be1ab1858924f"
+  },
+  {
+    "path": "runs/sim-setup-20261113/check_closed_loop.py",
+    "bytes": 6912,
+    "sha256": "dc63fd981626e9f3d61385fead9c078ab55518ddb9c8a29b5e611a1e6ca5d961"
+  },
+  {
+    "path": "runs/sim-setup-20261113/check_controller_weights.py",
+    "bytes": 1527,
+    "sha256": "830d5f733a0d7caeee33c3b34c68491b1811f18b22d5a60a571733f37bcae334"
+  },
+  {
+    "path": "runs/sim-setup-20261113/check_remaining_tasks.py",
+    "bytes": 774,
+    "sha256": "f880a7e9c1f4045c590c2cf29bc0a597bf1c39bc4d2e17cb0d8d2a965578605c"
+  },
+  {
+    "path": "runs/sim-setup-20261113/check_task_matrix.py",
+    "bytes": 684,
+    "sha256": "e58ed4bd74bfa3abd9db1ee7e55b3335b34a3b7284f9e78b508491b1f3100da7"
+  },
+  {
+    "path": "runs/sim-setup-20261113/check_task_matrix_r10.py",
+    "bytes": 907,
+    "sha256": "c5aa13b2de93d793f44d4f3172145a3b34e073b0df828711482279e2784e3e50"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-audit.json",
+    "bytes": 2976,
+    "sha256": "ddaf95ec00196124d3f5fd896b53671fc574e867b94a9f7ef8879db7a4622681"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-audit.log",
+    "bytes": 2977,
+    "sha256": "f1a0a399f3c32aa6d8ec2d5fc98afc1c737bd01a187068cfaab88d2da5ddd81d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-sonic-launch.log",
+    "bytes": 962,
+    "sha256": "340d7d967183b5a9a3cbcc1bf99d9e303f8fb2d231311c7df70c438c8b263cc9"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-sonic-r2-launch.log",
+    "bytes": 242,
+    "sha256": "8f8bb5d445aea2f374bba8b7e8f5a18326915207d6160e1cfb9a40a79ae90bf4"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-sonic-r3-launch.log",
+    "bytes": 313,
+    "sha256": "98b965244828470c374a843862445558f0806e627171fd1f2a3d6ebe83b935d1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-sonic-r4-launch.log",
+    "bytes": 264,
+    "sha256": "8f39ca98c74093b4d40492184d0ca7ceba8642a0f365e66861d1d1c0f22fa5a7"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-sonic-r5-launch.log",
+    "bytes": 987,
+    "sha256": "4642466c7c3d671641eccb80f8ca7605279bf750e497de22f82c896dd9493906"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-sonic-r6-launch.log",
+    "bytes": 965,
+    "sha256": "250afc6ff97e9d352bfdf1b213b773c0d05251431706f8b356ace9ede5905edb"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-sonic-r7-launch.log",
+    "bytes": 359,
+    "sha256": "464b027e8e2759991a98b5eb46b7ed43d654bd44ebcc1cc890240fb2bca4f110"
+  },
+  {
+    "path": "runs/sim-setup-20261113/closed-loop-sonic-r8-launch.log",
+    "bytes": 2537,
+    "sha256": "dc8843f533448d245ccc6705c25d8a07d610cb986a72b430bbc5a5a702445d12"
+  },
+  {
+    "path": "runs/sim-setup-20261113/config.json",
+    "bytes": 1094,
+    "sha256": "cc33cbc315eca19cd51f77887de88220035a45dffb271b0c4b325bb32eed3738"
+  },
+  {
+    "path": "runs/sim-setup-20261113/controller-interfaces.json",
+    "bytes": 1668,
+    "sha256": "dbd6dd83e177247f9376f4ba842b6da4c5abb11c211f0a9c1d2e2034b1aeb41b"
+  },
+  {
+    "path": "runs/sim-setup-20261113/cyclonedds-source.json",
+    "bytes": 353,
+    "sha256": "f15494100568509ac6b0b91ea844e1b685005f85fd36cb2e0b5ae6a0ece9b424"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dds-install-launch.log",
+    "bytes": 18,
+    "sha256": "9eee1de2408768a7243ca6047550e10771a7a12396faa5fec425f84f103fb3f5"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dds-install.json",
+    "bytes": 1421,
+    "sha256": "0081c688ac98d02e6c190843a2081c0a3197f2ec5cdd0566be84247c1b2e618e"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dds-install.log",
+    "bytes": 58489,
+    "sha256": "01445c023ce42c4511742502e303b5b754817b48dcc7d59f92047e04337c6467"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dependency-check-ort-gpu.txt",
+    "bytes": 146,
+    "sha256": "8f8148072c93390c55f9794025ae816608f9cc984096e21deb80922c9d9a2b43"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dependency-check-r2.txt",
+    "bytes": 371,
+    "sha256": "71e180be42e20e044abda011ad7cc10286e96d903901a7b6338c06e9fb6f2f17"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dependency-check-r3.txt",
+    "bytes": 354,
+    "sha256": "e46df72ee1dad1960c05d6cf6969e2c4c3e54f21da92aac4ef7edfa0a3f57871"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dependency-repair-launch.log",
+    "bytes": 764,
+    "sha256": "4f7304b5a0285296e7bcf2197c89b6bb08bd85d1998b6d6c3234fb952bfef4fe"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dependency-repair-r2.json",
+    "bytes": 490,
+    "sha256": "04fb8cd0268456b2c6c5ec1d398605b537bd5e478682084a517fe6dd90e44165"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dependency-repair-r2.log",
+    "bytes": 379,
+    "sha256": "1f07407aacc7a7a876aa3bcfebe6876c8f59f68b024ac6590cf268eedb5eb8e8"
+  },
+  {
+    "path": "runs/sim-setup-20261113/dependency-repair.log",
+    "bytes": 639,
+    "sha256": "23e1c835807286837e0eefa660589bd016471b25534559493087346d64464b8a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/direct-index-check.json",
+    "bytes": 2478,
+    "sha256": "77cea1517780e0c4815652e83ed2aaa7fe9991f7990a0bb04271f465a2029a26"
+  },
+  {
+    "path": "runs/sim-setup-20261113/eval-text-aliases.log",
+    "bytes": 891,
+    "sha256": "ec32faa6bd0787cea188e85b8b13bc7084016d7eb6e793a4dc8b3473c13f4793"
+  },
+  {
+    "path": "runs/sim-setup-20261113/final-dependency-check.txt",
+    "bytes": 146,
+    "sha256": "8f8148072c93390c55f9794025ae816608f9cc984096e21deb80922c9d9a2b43"
+  },
+  {
+    "path": "runs/sim-setup-20261113/final-runtime-files.json",
+    "bytes": 724,
+    "sha256": "f9e9622a7845ebd18bb8ccc4d4372690b547b6961193e6e93c37d51908ec293c"
+  },
+  {
+    "path": "runs/sim-setup-20261113/history-tests-r2.log",
+    "bytes": 100,
+    "sha256": "bbf220d889d409913082932298af56e5c6199e198725dc0cb2584e097ddc68d6"
+  },
+  {
+    "path": "runs/sim-setup-20261113/history-tests.log",
+    "bytes": 98,
+    "sha256": "a146ffbdf9b07bb226ef66ce59c2a411149b39de43ba5ad86bc5ec9e95a7fb61"
+  },
+  {
+    "path": "runs/sim-setup-20261113/import-assets.log",
+    "bytes": 267,
+    "sha256": "34905d07238dae9d8b99aeafa216a915a56280bc57ee79c6acd9dd7a67e4dc76"
+  },
+  {
+    "path": "runs/sim-setup-20261113/import-assets.pid",
+    "bytes": 7,
+    "sha256": "598819d4207d8f578fd8850557ef5dcea7f685f05ebd1e5aa343006a9d2f1128"
+  },
+  {
+    "path": "runs/sim-setup-20261113/import_assets.py",
+    "bytes": 2084,
+    "sha256": "adf6fafdcfc6fc0dc4883062fbb3831907aa556348dc71f315877f43e75d103b"
+  },
+  {
+    "path": "runs/sim-setup-20261113/import_sim_wheels.py",
+    "bytes": 2007,
+    "sha256": "2157ee7602aed9d33975603d10cac68d1dd94e7b050735f83f2c8348ad42eacb"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-build-tools.json",
+    "bytes": 348,
+    "sha256": "fe02cc49439ce5e081970a160ad460960a70e7594c6acaaf2a562ad557f7aacf"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-build-tools.log",
+    "bytes": 253,
+    "sha256": "9636260f2eb1333e6acdddaed940c27fdca4573d27e45d6185ddea0cb00be9e0"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-direct-interruption.json",
+    "bytes": 179,
+    "sha256": "930fc5a8d73498c53f9644e4b6a2ec54fd0826ad42cbc80c784f2808f42159c3"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-direct-process.json",
+    "bytes": 97,
+    "sha256": "2f7989a60e3f494e2269f27a08171c3e3db4f3fd49827408d01bcd22742363ff"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-direct-torch.log",
+    "bytes": 1349,
+    "sha256": "7fb06f82370785bb65a3f0f6b732d8483cc1de09ee2449be81161f36174c5f4a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-direct.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-lab-arena.json",
+    "bytes": 1086,
+    "sha256": "9e870a149798b7f0388fe2a564775166be6c98cb77c4ed59bc658d3ad7fcb910"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-lab-arena.log",
+    "bytes": 1848,
+    "sha256": "05319ba3ef306f21b0849c3e0e474cafc8360cca37b3cb4fc20aa24d1e94e062"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-lab-r2-launch.log",
+    "bytes": 642,
+    "sha256": "23e62b00cdf70dfc62fd549a8abdfa676e72b4cac79d54820b49d93344edcf43"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-lab-r2-process.json",
+    "bytes": 107,
+    "sha256": "cfc2872916bd678046f98d14877e3b032c72cd459e6f3327ad170cd351b1b83f"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-lab-r3-launch.log",
+    "bytes": 642,
+    "sha256": "1d094b5510f61a351210017011720d2f58229777f9072b59f99b9f330e890d31"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-lab-r3-process.json",
+    "bytes": 107,
+    "sha256": "6c536291da96b35b101989dcb0538617f8004a599933a7b05c5b1b4d185662d7"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-process.json",
+    "bytes": 94,
+    "sha256": "a4ab40273ef7555b0effe5b78daf9c7f8ebb86b4699d2e48fecead08e3e09a47"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r2-build-tools.json",
+    "bytes": 374,
+    "sha256": "6a5993958bea55b5d05e8b3966c0d228c28ed33098ca23f680e95ad5066d5baa"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r2-build-tools.log",
+    "bytes": 294,
+    "sha256": "d960fe12f05fa446a8d2df18398c9e92d655f8c17187be9c02babf15ff44fdc6"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r2-lab-arena.json",
+    "bytes": 1088,
+    "sha256": "6b8b678a3d4b2953ec7c0f2b2efab1fd3874859fdfe33e9d2f9126e99154a0ac"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r2-lab-arena.log",
+    "bytes": 5270,
+    "sha256": "8d268650e58206f5398d1543e64fbac82cdfa55b11439322a24fc7a5e8979bee"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r3-build-tools.json",
+    "bytes": 375,
+    "sha256": "4158c72b0d9632f36438c6ebd562d0146f4aa4265d81289cd843d69c875cc6e6"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r3-build-tools.log",
+    "bytes": 106,
+    "sha256": "ccc546f0aa18f8506261d0857a82aede0455e865c2d800f3ceed4625be62d6bb"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r3-common.log",
+    "bytes": 252,
+    "sha256": "56220422a1329e9b985d1970478a8a2803322fa733a9dbfc372c2f488b40a9a0"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r3-interruption.json",
+    "bytes": 213,
+    "sha256": "9ba7c51bb36db94425db5ada0f43905cd178931885635264192e34229d463e83"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r3-lab-arena.json",
+    "bytes": 1089,
+    "sha256": "a5e5e4c18d0d1409d3e26a58345f7829d32ea899bbda046614d23edaa9eda6c9"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r3-lab-arena.log",
+    "bytes": 2157,
+    "sha256": "02470218ce07e0976439dbb792f4b57542ab8712cf66964fd652fb7bf7cfdc22"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r3-process.json",
+    "bytes": 145,
+    "sha256": "28667d98069726cac062a1547ec902868d0544fdc0f0dd729df00b07cc185faf"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r3.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r4-common.json",
+    "bytes": 483,
+    "sha256": "855739bdb1298395ecd780ffd836acc7e40ae4cde190570c73d0af1765bbc004"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r4-common.log",
+    "bytes": 577,
+    "sha256": "173cced2d34392c3f72e11e33c765ec4535703c29260319dd21088394241e52e"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r4-isaacsim.json",
+    "bytes": 460,
+    "sha256": "7055f7d7dea1416eae9f6fb61ed39d74fd0a71a53c7f9d0358e30da267956304"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r4-isaacsim.log",
+    "bytes": 306,
+    "sha256": "b2433951c9d790c17853551d86302c551635b05ac62bf17aa2714a4774b3e541"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r4-process.json",
+    "bytes": 145,
+    "sha256": "0c28dd05cbfdf05a62918221f71340dc0030a77b8d27b0926ee3c56bf9cdbdf0"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r4-torch.json",
+    "bytes": 394,
+    "sha256": "af8b232d2c2e0e0853369fc87dd31112ac590908ebcb0650eb89ba3312e6013a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r4-torch.log",
+    "bytes": 699,
+    "sha256": "b145fe337c24230670f1bc7c580673c4794ba5e1ffa272ad33e329e8c211d900"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r4.log",
+    "bytes": 28,
+    "sha256": "d5328c2b6c70d1cc3096d1b445bf23964e17adffa8ea31fe9f29151f0da7708a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r5-isaacsim.json",
+    "bytes": 534,
+    "sha256": "0b486a1fbf7829f5927aa61ed8bfeaffdf1f565cb9e745ac411795c069679918"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r5-isaacsim.log",
+    "bytes": 1237,
+    "sha256": "7cae88997bef9a4e3c0a0035e7837c365b6027b7daafb812e64d05da5107814d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r5-process.json",
+    "bytes": 145,
+    "sha256": "07c0f23f1b1c5d43d28cbfc7fc06d90756a1d8718a99a907c0d40103dfa1b539"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r5.log",
+    "bytes": 486,
+    "sha256": "c5f844d5cbb021b609931e5f1c1511058f1850d949411059ba348b52c55c63e1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r6-isaacsim.json",
+    "bytes": 573,
+    "sha256": "86e52f6fc237b54011578f17423cfd7dc7a28ad4be60891adab80338ccee9e8d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-r6-isaacsim.log",
+    "bytes": 8064,
+    "sha256": "9d5a4b5f33d676b5c4a3a20f567e442319597835ab2830dfd58bfbe051fe07d9"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-relay-chain.log",
+    "bytes": 1099,
+    "sha256": "242e9b20d4c78c554e5f8961bc345d179c98d1fcc4426b2f28d616db09e007d1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-relay-process.json",
+    "bytes": 314,
+    "sha256": "375e968a08da55264e8679502eea399de23af7c157e6cc57a7409573d5e22b4c"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install-torch.log",
+    "bytes": 536,
+    "sha256": "c226c712e29abbef6314ed466461244aaa529ce26b26f0625e561dc9d00794ce"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_dds.py",
+    "bytes": 2361,
+    "sha256": "d04bdcb932e826b46c962a99c23b7a509334091bfa0d2a51a5ca49eca4026945"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_lab.py",
+    "bytes": 2387,
+    "sha256": "9b7c25fccf968740d35f6c2e54822c95e04554034cfd92bb2eb1a53385eaefbd"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_lab_r2.py",
+    "bytes": 2444,
+    "sha256": "81d13f85b6060175957bda9e14b01ce81abed79152f60b7302d0f20364c135b2"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_lab_r3.py",
+    "bytes": 2487,
+    "sha256": "bc3516a49ee5c6b5d0eb5278b0bce4c87f005f15c866df7e85215afb03587a28"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_ort_gpu.py",
+    "bytes": 1349,
+    "sha256": "2f70018532e69ff2ba1dfb5a8a6a6ddd58666aa7b2c20067b25db74628cf9661"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_ort_gpu_r2.py",
+    "bytes": 1072,
+    "sha256": "c2e3accfc6b6be984a2dfb148e08b9fcc43dc9f9ac7b41009907fc420356e54a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_relay_chain.py",
+    "bytes": 354,
+    "sha256": "fad1cb653ce99db7d8f4979f66dfc1672ae553ea06c5ff47b645be55a39c515e"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_runtime.py",
+    "bytes": 1974,
+    "sha256": "03b19556aad17658049feffdcdaf8b7d568b9b6bb7ab62480f7c6b44abbbc730"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_runtime_direct.py",
+    "bytes": 2096,
+    "sha256": "e4ed4341fae189d11aecf396373da562eef9da721545ce44e15bde6c3bc62c97"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_runtime_r3.py",
+    "bytes": 2273,
+    "sha256": "d9a29277a04b7833ba4f287459aa2e080c5eff76873765dc2a8bdd7180fa4c6f"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_runtime_r4.py",
+    "bytes": 2333,
+    "sha256": "dc2380305c8f102b2fc4c6e646b8b118d94f692d07c274f9ccc1d649635f157f"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_runtime_r5.py",
+    "bytes": 2051,
+    "sha256": "2c5744930915227e93769a570e442b935879daf6e8248a390031205e4ef8ab5a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/install_runtime_r6.py",
+    "bytes": 2315,
+    "sha256": "37cb63dae22c7621a6bc9b205af48e9d77da75908a937cbb52fd3eee4db3a2df"
+  },
+  {
+    "path": "runs/sim-setup-20261113/installed-packages-actual.txt",
+    "bytes": 8581,
+    "sha256": "93b7b0c9ad99b9e3b7f349735105b9178eaaa29c4e81cf9343d91ab41917b51d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/installed-packages-final.txt",
+    "bytes": 8468,
+    "sha256": "557e495806f7e78f45836e41bfd26221a78f9d6d9110dc5d1432febdb7fc0d1b"
+  },
+  {
+    "path": "runs/sim-setup-20261113/installed-packages-ort-gpu.txt",
+    "bytes": 8733,
+    "sha256": "bdf84c2bd8aa0ec506fba2aa5bd35de58a20031bffae9cf29703a58220f84b90"
+  },
+  {
+    "path": "runs/sim-setup-20261113/installed-packages-r2.txt",
+    "bytes": 8452,
+    "sha256": "f43426c7190d1af280c00c3cf109b8714ea55e5348a9a5fa77cd507fde41aa71"
+  },
+  {
+    "path": "runs/sim-setup-20261113/installed-packages-r3.txt",
+    "bytes": 8483,
+    "sha256": "610581209923fe649db62b02cceeda0d258082f0c6739744ecffe7c2aea6cd65"
+  },
+  {
+    "path": "runs/sim-setup-20261113/isaaclab-source.json",
+    "bytes": 239,
+    "sha256": "207536099e4210a0f0e27ce604e2fdce058c029663ab51a4a5540bfbd53c6717"
+  },
+  {
+    "path": "runs/sim-setup-20261113/launch_smoke_chain.py",
+    "bytes": 350,
+    "sha256": "3d5aec86bfad836ddfe1a7b42b4920a89f0bf151d735ce8a347b19dc03991d2f"
+  },
+  {
+    "path": "runs/sim-setup-20261113/localize_table_materials.py",
+    "bytes": 2019,
+    "sha256": "c38a47c9d94a286d576f7871bf3d4be3cc5cb1ebfe8f7f7851bb3e428ab31a02"
+  },
+  {
+    "path": "runs/sim-setup-20261113/manifest.json",
+    "bytes": 191581,
+    "sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b"
+  },
+  {
+    "path": "runs/sim-setup-20261113/material-originals/root.mdl",
+    "bytes": 2518,
+    "sha256": "703a4ee5efadce47c83d6af5c7e476e096e8395656f6fc4960554fc5662032a1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/material-originals/small_warehouse_box.mdl",
+    "bytes": 2518,
+    "sha256": "703a4ee5efadce47c83d6af5c7e476e096e8395656f6fc4960554fc5662032a1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/material-originals/small_warehouse_boxing.mdl",
+    "bytes": 2518,
+    "sha256": "703a4ee5efadce47c83d6af5c7e476e096e8395656f6fc4960554fc5662032a1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/material-originals/small_warehouse_vision_navigation.mdl",
+    "bytes": 2518,
+    "sha256": "703a4ee5efadce47c83d6af5c7e476e096e8395656f6fc4960554fc5662032a1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/material-repair.json",
+    "bytes": 1119,
+    "sha256": "9ee6b7039f7ada01c07397c7a0a5ec7f3b4195a649f24281952871df778cae6f"
+  },
+  {
+    "path": "runs/sim-setup-20261113/mimic-lite-config.json",
+    "bytes": 338,
+    "sha256": "f7b1aa58a86e1ec88bb3a37dc29495d662cff99a9ed8b461e3d6cdb0bc3d438a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/nvidia-wheel-pins.json",
+    "bytes": 8417,
+    "sha256": "602aa4ee81d9d129582fed47a413b442c32d531182327920e95cebab13ced945"
+  },
+  {
+    "path": "runs/sim-setup-20261113/ort-gpu-install-r2.json",
+    "bytes": 539,
+    "sha256": "8c80cb723181a4788756c54deb0cf11c301d2e5ded802d3dcc9fa3fc53ba2f1c"
+  },
+  {
+    "path": "runs/sim-setup-20261113/ort-gpu-install-r2.log",
+    "bytes": 918,
+    "sha256": "16b00bf55ebf6215c16fc92f7d81310b96ce4e4e542996f8881485ff071883cd"
+  },
+  {
+    "path": "runs/sim-setup-20261113/ort-gpu-install.json",
+    "bytes": 841,
+    "sha256": "b7c605c3b4d7bc0909a3631267e709b76413eded783423cfc2ce751aa46a8b6b"
+  },
+  {
+    "path": "runs/sim-setup-20261113/ort-gpu-install.log",
+    "bytes": 835,
+    "sha256": "2216e4d8b34ef3e1d8c049d5f7b40e12a93fbf50b40f6fc2685d3e2130f99bb5"
+  },
+  {
+    "path": "runs/sim-setup-20261113/ort-gpu-launch.log",
+    "bytes": 1871,
+    "sha256": "602ec05568838e8eeb3f3ba1274780b5590aaaa142113f518d130e87a6a2ca2d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/preflight.json",
+    "bytes": 536,
+    "sha256": "a0187bb31e4aca6b61ddefc8027e665e1d1378af33a830b12db8c1aa5c180485"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/dependency-status.txt",
+    "bytes": 195,
+    "sha256": "107f4052a9fb0e70f443ceef3485f8e9e5496cda830919029b2778821d3603eb"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/dependency.patch",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/dependency.tar",
+    "bytes": 921600,
+    "sha256": "d34b2887f2a551e294e1d1966d3bf0ef4be9f206228313aede6656b67de47bd5"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/check_data.py",
+    "bytes": 5039,
+    "sha256": "4315ca2b1d932aa5b0235177db00a8e17c907cbb00d9e42f2cc0059b9a35b4b8"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/check_model.py",
+    "bytes": 7343,
+    "sha256": "4b856c9a076ded871c1db388f3d064b945474dcfd20f8c3ba3428780169f036a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/fetch_assets.py",
+    "bytes": 4913,
+    "sha256": "31d12f6cdbc7ea9f9f3736da921323ca0a0ea2a689cf9b9d220308cd542c7ac1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/freeze_data.py",
+    "bytes": 6055,
+    "sha256": "c5a0c2a26a2207a575d5ed3be410f38402e865f7410f605a7976cb96088fa6b8"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/package_data.py",
+    "bytes": 3335,
+    "sha256": "d50ddf757983e0f1afdfd0f0c3aed9ec84b03fb9e6005e5e724a1276525193a9"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/prepare_kimodo.py",
+    "bytes": 3581,
+    "sha256": "db82ba68294800d9c1e8462d45f18d8ea6b6cbae8e250a873949855e60bc4a4f"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/prepare_text.py",
+    "bytes": 2708,
+    "sha256": "7d28fb0083cd77e31785ab04cf031932c4ac772941cca563c04a5f87940f9237"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/register_run.py",
+    "bytes": 4627,
+    "sha256": "7c371afc6ef54649b5e09195b5bf776f2b663057dff81e64fc36aca4992ff403"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/scripts/train_pilot.py",
+    "bytes": 4339,
+    "sha256": "508e08e1f1a108576677a839efb8b28a97013fdbfd2ced7e70bbec9784a4e02d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/src/repaired_data.py",
+    "bytes": 5436,
+    "sha256": "dae85aad8b51164dece346528dc663f71a2973302dcfbbc8019655caab280ee8"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/src/sampling.py",
+    "bytes": 3080,
+    "sha256": "f4a4b4024bc8aa6d184e407dda689f238df448c2b7cba4ff36ea06d25ffc8167"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/tests/test_fetch_assets.py",
+    "bytes": 2866,
+    "sha256": "b04f6ea492d812fbe75f7c4b45be0c97f2ebc6237d45f0c826920ef7e4012b32"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/tests/test_preparation.py",
+    "bytes": 3644,
+    "sha256": "ecc2de1f467906f3ddef70bc433e0dbaee1cfc3c9652e46496b5c1d0e4def6e4"
+  },
+  {
+    "path": "runs/sim-setup-20261113/provenance/tests/test_repaired_data.py",
+    "bytes": 4105,
+    "sha256": "e12af54e0ab45389944ec287c7d592f5c3bd33736cc0af60e5504662fe1840a7"
+  },
+  {
+    "path": "runs/sim-setup-20261113/remaining-tasks-r8.log",
+    "bytes": 1900,
+    "sha256": "99e1d6d21bcc4e0114643bac0ad7ca7ca53423fb3d6f3d6435f4e1c870fe62a6"
+  },
+  {
+    "path": "runs/sim-setup-20261113/repair_scene_materials.py",
+    "bytes": 1180,
+    "sha256": "45b3d9a87fe7ac7ea63847ef5542c41dc3e752686959fa131e29c41837e5c520"
+  },
+  {
+    "path": "runs/sim-setup-20261113/repair_sim_dependencies.py",
+    "bytes": 2096,
+    "sha256": "d81ac540b04d7e52a5c8948651582b377a1dde7ad3bf4272dcbc85bd1ae8cf89"
+  },
+  {
+    "path": "runs/sim-setup-20261113/repair_sim_dependencies_r2.py",
+    "bytes": 2149,
+    "sha256": "6b745718edf561c5527446f4c34b1163d1594cab8831b93dc4a00d29d31b3d0f"
+  },
+  {
+    "path": "runs/sim-setup-20261113/run.json",
+    "bytes": 3050,
+    "sha256": "ddec36a78d723e8e82b3f81e004a432006ce6d1e4beaf4277744f74ecc7bd487"
+  },
+  {
+    "path": "runs/sim-setup-20261113/run_smoke.py",
+    "bytes": 1906,
+    "sha256": "a02fbc6075db84968c66ea237787891cefde393e2a6a0e6a9d587a85c4f325d8"
+  },
+  {
+    "path": "runs/sim-setup-20261113/run_smoke_r2.py",
+    "bytes": 2050,
+    "sha256": "c91ef0a6f3ac3804e33ad0aa135968cb72cb646ee098a3de53d2e8bb96dda6e7"
+  },
+  {
+    "path": "runs/sim-setup-20261113/run_smoke_r3.py",
+    "bytes": 2046,
+    "sha256": "2c500d2dc17b8bdf08d20da4d066bed7f55cb0e3bdc9e8b850cb3d12f7ff8b6c"
+  },
+  {
+    "path": "runs/sim-setup-20261113/run_smoke_r4.py",
+    "bytes": 2049,
+    "sha256": "f5ffc816882ade929a08bf19989bf0c3b0110a6d95333e3d7ef13321b224ae98"
+  },
+  {
+    "path": "runs/sim-setup-20261113/run_smoke_r5.py",
+    "bytes": 2252,
+    "sha256": "1739b4ee2d5204d4617b7bd66f757f7e7cfcd135129989be0d9c21d79d985c95"
+  },
+  {
+    "path": "runs/sim-setup-20261113/run_smoke_r6.py",
+    "bytes": 2252,
+    "sha256": "c9b8e36e0a92c0f4e889d5e129774f4f585de45c1da08a435694d044e8a13477"
+  },
+  {
+    "path": "runs/sim-setup-20261113/run_smoke_r7.py",
+    "bytes": 2252,
+    "sha256": "0ca169689addc56665423fab4ccf988448be182e4a5bfe1543738265ec6183e9"
+  },
+  {
+    "path": "runs/sim-setup-20261113/scene-parts.json",
+    "bytes": 922,
+    "sha256": "2043f218aa5289adcc6db33d4a375c381f9f8ff2c584ad057046f591ee3db424"
+  },
+  {
+    "path": "runs/sim-setup-20261113/scene-profile-audit.json",
+    "bytes": 559,
+    "sha256": "c7247afbf58c8951a8b85c29f00ecf95aa3fcce3c6abcbc16031b1cdea5a4435"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-constraints-r2.txt",
+    "bytes": 118,
+    "sha256": "f1a5571b72de1c9603de910a1e892b68e048d5c9e1c822dde49c03d89179810e"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-constraints-r3.txt",
+    "bytes": 158,
+    "sha256": "f3700eeed298c539d7ab35f7c6dac3598e2fc45aa19f89b3036d5ebb7b5eb510"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-constraints.txt",
+    "bytes": 99,
+    "sha256": "4ae6a6982d08e114bd24ad7b4a526d490c67af51be5df0ac67a8327335af4b2e"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-dependency-check-r6.txt",
+    "bytes": 146,
+    "sha256": "4319b5b6af00270c5ae897918014f4360eccaf477a082d1cddf7d158ba5464f8"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-explicit.txt",
+    "bytes": 7445,
+    "sha256": "5ef5ab2017bc79f0649a7ae24c71d45cab643947cbf0471c04becb7c826da964"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-local-wheels.txt",
+    "bytes": 5677,
+    "sha256": "f4b2c128d87f297c5d5b88a9478c6b1474de2d7f0eebb10696af82ca7b131d13"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-resolved-r3.txt",
+    "bytes": 15870,
+    "sha256": "178eb5f6e4a4fc3e36d637dc8ce21eeed3de3ba4e790648408f2f3f42bfda3c0"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-wheels-import.json",
+    "bytes": 154,
+    "sha256": "fa2535c0757ca8e2946d32c9432073a5eea617334c033f08312aa91c6de70e73"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-wheels-import.log",
+    "bytes": 23,
+    "sha256": "497d64138c20f32d3af2220d2132cc1cd4e629ee968f7607f2698cce00ecfad1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/sim-wheels-transfer.json",
+    "bytes": 1588,
+    "sha256": "aeaa8781a7b67354e322125a72228dca3405292936e6bda14d4948401b1a31eb"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-chain.log",
+    "bytes": 1405,
+    "sha256": "2b89ec02dbdee629b311b0be9e4a3c84f4f371041eb4224bd9698fa7d5c0d1df"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch-r2.log",
+    "bytes": 11814,
+    "sha256": "6430660ed76ccce1c620164870451c8db28fe176e1da974f38fa7e980a973a7d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch-r3.log",
+    "bytes": 14735,
+    "sha256": "ac2f698f6beac930b8d93d0c632c2d8bff5b7fbb5dc5715b7c15042e53536985"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch-r4.json",
+    "bytes": 244,
+    "sha256": "eea4dd17deb73b6efdac310d110ba151e19c627d5549f06802d3973ad04880ff"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch-r4.log",
+    "bytes": 66194,
+    "sha256": "2bf1934557de805ec3abf359d41f84658cfde5f382916c9573454f951b24ac0a"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch-r5.log",
+    "bytes": 14826,
+    "sha256": "374261373871a5aece94fdfa4e0fec2db7870afa9d9ff0f02e605194decd709d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch-r6.log",
+    "bytes": 18155,
+    "sha256": "f4a08a2ad80b5d4eae96a0fd2e0dc8ab9c9511c3e5a9f98cee4bba3dfe6a9dec"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch-r7.json",
+    "bytes": 278,
+    "sha256": "7c31228cf686cf3f0f3e79ba3f07677f3ba87276266a8fed8b0b77d3fe410575"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch-r7.log",
+    "bytes": 14870,
+    "sha256": "61b47e3677cddc59f0481bd7958dda9c1ed01f277e6959b512f2b8209cbccabf"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch.json",
+    "bytes": 246,
+    "sha256": "eae63cc1ae601a86ae7c084cdd49f4ad9fd97a484ddcd9c44ac788745f903b47"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-launch.log",
+    "bytes": 110602,
+    "sha256": "0907147120e43f553df977d681478dc10b2f6efc97e337bc7269e3f0d2a71aec"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r2-chain.log",
+    "bytes": 146,
+    "sha256": "c6753260113588732f51ae603488462ec7d565f899d9ea956d33db7952a4b905"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r2-interruption.json",
+    "bytes": 250,
+    "sha256": "1ed11db9d53b168603858091c6ff0bdb7d67605152fe4de89c76a9d95e52349e"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r3-chain.log",
+    "bytes": 146,
+    "sha256": "c6753260113588732f51ae603488462ec7d565f899d9ea956d33db7952a4b905"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r3-interruption.json",
+    "bytes": 254,
+    "sha256": "544d7508a958c098e33167d68c0453d2dc3295c0b86714ac257ca1542201c99b"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r4-chain.log",
+    "bytes": 377,
+    "sha256": "e4dba4ad7141b8e8141287d28ac39639ed84dbd65b0ef1f338982dd95156f477"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r5-chain.log",
+    "bytes": 146,
+    "sha256": "c6753260113588732f51ae603488462ec7d565f899d9ea956d33db7952a4b905"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r5-interruption.json",
+    "bytes": 175,
+    "sha256": "6ca97814152a5c2c5e73c683195355c4e38d6b784468e2a6319380cc1a02905c"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r6-chain.log",
+    "bytes": 146,
+    "sha256": "c6753260113588732f51ae603488462ec7d565f899d9ea956d33db7952a4b905"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r6-interruption.json",
+    "bytes": 196,
+    "sha256": "78ffebaf6dae8c83df9f6e3ad57ef82e5fc2c0e282945c0049a4c8f092a1b046"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-r7-chain.log",
+    "bytes": 409,
+    "sha256": "34251d202570ac5f9c41732457ede80bac1f896551f497bbfc82e773db617421"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-result-r5.json",
+    "bytes": 238,
+    "sha256": "536d244133b6b74f777270f15902816d0d1b61013fa5b52b7be1e415bb3f3911"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-result-r6.json",
+    "bytes": 238,
+    "sha256": "8b900c617b1afeb9160b87a0c02ae0c4b6f4b4764e7c649f83c81896d26bb83d"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-result-r7.json",
+    "bytes": 238,
+    "sha256": "d5615dbc2ac1004b8e83667a3762bfbaa5e4f38438bbfc2baf533872abc93ba4"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-result.json",
+    "bytes": 238,
+    "sha256": "f4f14cfe072566ebda496de1164021c837b11d8298e34cd125b983cc28119c88"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-rgb-r5.png",
+    "bytes": 17801,
+    "sha256": "f549406c1d4cd713665167a890984cfd513ba029fd1996ad16c5360f3a69d504"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-rgb-r6.png",
+    "bytes": 17715,
+    "sha256": "96084f1e3c3e33b1a83c6c1639da6d7cbf773d3d5bb1b1f7453307d218c5b4d1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-rgb-r7.png",
+    "bytes": 18019,
+    "sha256": "9b2e2d5b6d8686c3c95e250f37ca1d5be7221e96779847f32f3612d86dd74bc1"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke-rgb.png",
+    "bytes": 17755,
+    "sha256": "708c9f04a25695efb78d237b42ce5db93affdf50a5d87719cb6f3b8cf42af261"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke_sim.py",
+    "bytes": 2965,
+    "sha256": "aa101e7fd232c8378fb5e316572f95a2f5c1beb3535527f54e976211256ead54"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke_sim_r4.py",
+    "bytes": 3089,
+    "sha256": "8de9d4c53858ece270fc72a71a7d5b74a3cc0e0a0b52df618701a07df328a2fe"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke_sim_r5.py",
+    "bytes": 3138,
+    "sha256": "eaf6cf41751d7eb70d95604cde2b4d8909ece0dd65f4c5688007202facf5df9e"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke_sim_r6.py",
+    "bytes": 3411,
+    "sha256": "4580dbcebe40d84f1cc0dec1cde6dce22b04fd654276b6d40223ca749333b4d5"
+  },
+  {
+    "path": "runs/sim-setup-20261113/smoke_sim_r7.py",
+    "bytes": 3462,
+    "sha256": "33b72105e7e26b7bd9a01a03dad97cacdb3cab25ea38320fe66e2ad3d7f27af7"
+  },
+  {
+    "path": "runs/sim-setup-20261113/system-libs-download-r2.log",
+    "bytes": 546,
+    "sha256": "52c74b2655566fb83cb799d851d936255590f174a5e2734e7ddd833a5d4def4b"
+  },
+  {
+    "path": "runs/sim-setup-20261113/system-libs-download.log",
+    "bytes": 1049,
+    "sha256": "71bfdee8fa364518440f7aea5c8150814c2516db1624794940a4ed862fa81ea8"
+  },
+  {
+    "path": "runs/sim-setup-20261113/system-libs.json",
+    "bytes": 314,
+    "sha256": "301288f1d5db76dc1c014077d88a367a4753361601606c898447b53c593dd116"
+  },
+  {
+    "path": "runs/sim-setup-20261113/table-material-localization.json",
+    "bytes": 1190,
+    "sha256": "29b306c2a7c3c1543dabf2f498cbdde946fa99316c787d618b4917f3ecd9fcd6"
+  },
+  {
+    "path": "runs/sim-setup-20261113/task-matrix-r10.log",
+    "bytes": 12864,
+    "sha256": "0cbeb26b73917cfc1470f3f6639e7b2e2d28de7f982a30e5b0a9807a69a174b3"
+  },
+  {
+    "path": "runs/sim-setup-20261113/task-matrix-r9.log",
+    "bytes": 3528,
+    "sha256": "e195049af9a8e32c4b3defdc02815446b7429f3db5cfe7db8cda7238c0ca93c0"
+  },
+  {
+    "path": "runs/sim-setup-20261113/twist2-weight-pin.json",
+    "bytes": 406,
+    "sha256": "ebb2e2f2a566fbbcfb3dccad4d20a555a4a7b25e40e9b2e8440bec8fca07b720"
+  },
+  {
+    "path": "runs/sim-setup-20261113/unitree-sdk-source.json",
+    "bytes": 359,
+    "sha256": "d12ed291b0d0da1bdb47b802c2e5ead0fadeeeb99e9e62b6c4716cca5f8a1248"
+  },
+  {
+    "path": "runs/sim-setup-20261113/warp-compat-install.log",
+    "bytes": 292,
+    "sha256": "0e9efd9bec616223b67ac75ad98f468c43ca68461cd00a3e54b52854b9869908"
+  }
+]

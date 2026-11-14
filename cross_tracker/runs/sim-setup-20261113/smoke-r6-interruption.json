@@ -1,0 +1,5 @@
+{
+  "pid": 1898995,
+  "reason": "Traceback located stop callback rendering indefinitely while timeline stopped; disable this callback for programmatic shutdown.",
+  "time_unix": 1794580061.36649
+}

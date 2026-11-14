@@ -1,0 +1,57 @@
+{
+  "protocol": "naive-mix-v1",
+  "tasks": {
+    "HOI_pp_box": 54,
+    "HSI_boxing": 100,
+    "HSI_vision_navi": 94
+  },
+  "trackers": [
+    "sonic",
+    "twist2",
+    "mimic_lite"
+  ],
+  "subset_seed": 20261113,
+  "validation_fraction": 0.2,
+  "train_seeds": [
+    42,
+    43
+  ],
+  "action_chunk_frames": 50,
+  "observation_history_frames": 0,
+  "sampling": "uniform_task_then_source_then_episode_then_valid_window",
+  "source_groups": [
+    [
+      "sonic"
+    ],
+    [
+      "twist2"
+    ],
+    [
+      "mimic_lite"
+    ],
+    [
+      "sonic",
+      "twist2"
+    ],
+    [
+      "twist2",
+      "mimic_lite"
+    ],
+    [
+      "sonic",
+      "mimic_lite"
+    ]
+  ],
+  "dual_source_step_multiplier": 2,
+  "model": "Kimodo-VLA",
+  "initial_checkpoint": {
+    "manifest": "data/manifests/weights-v1.json",
+    "path": "Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000"
+  },
+  "single_source_steps": null,
+  "evaluation_scene_seeds": null,
+  "training_ready": false,
+  "model_fps": 30,
+  "model_action_history": 100,
+  "model_action_chunk": 50
+}

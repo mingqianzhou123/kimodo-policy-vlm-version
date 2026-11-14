@@ -1,0 +1,24 @@
+[
+  {
+    "episode": "HOI_pp_box/sonic/000071",
+    "model_frames": 545,
+    "windows": 496,
+    "image_frames_checked": [
+      0,
+      272,
+      544
+    ],
+    "window_cuts_checked": [
+      0,
+      100,
+      495
+    ],
+    "source_mapping": {
+      "instruction": "Move the box from the table onto the shelf.",
+      "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+      "video_offset_s": 0.0,
+      "source_frame_start": 0,
+      "source_frame_stop": 907
+    }
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "exit_code": 0,
+  "gpu_inventory_before": "0, 1, 0\n1, 1, 0\n2, 1644, 97\n3, 1, 0\n4, 1, 0\n5, 1, 0\n6, 1, 0\n7, 1, 0\n",
+  "embedding_files": {
+    "HOI_pp_box.pt": {
+      "instruction": "Move the box from the table onto the shelf.",
+      "norm": 132.37783813476562,
+      "sha256": "4e262edad992b254b4291578014b8753854f33e1a52ff3e77293f4919fcea32b"
+    },
+    "HSI_boxing.pt": {
+      "instruction": "Strike the green markers on the punching bag.",
+      "norm": 137.3876953125,
+      "sha256": "2119739fae385153d1be0f42181ad8b9e9795a7fdb4db5f20302e513645f9b02"
+    },
+    "HSI_vision_navi.pt": {
+      "instruction": "Avoid obstacles and move to the yellow marked area.",
+      "norm": 133.09310913085938,
+      "sha256": "24852d8a7fba0e62a0602ef4077755b8ab1be2270de5eb76ded6c6280ddc2c9f"
+    }
+  }
+}

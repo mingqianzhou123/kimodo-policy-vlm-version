@@ -1,0 +1,27 @@
+{
+  "command": [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python",
+    "--index-url",
+    "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "--no-build-isolation",
+    "--constraint",
+    "/root/workspace/humanoidVLA/cross_tracker/runs/sim-setup-20261113/sim-constraints.txt",
+    "-r",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783/isaaclab_twist2_g1/requirements.txt",
+    "-e",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/IsaacLab-2.2.0/source/isaaclab",
+    "-e",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/IsaacLab-2.2.0/source/isaaclab_assets",
+    "-e",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/IsaacLab-2.2.0/source/isaaclab_tasks",
+    "-e",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/sources/IsaacLab-2.2.0/source/isaaclab_rl"
+  ],
+  "exit_code": 1,
+  "started_unix": 1794578954.7293453,
+  "finished_unix": 1794578955.8269403
+}

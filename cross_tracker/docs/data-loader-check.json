@@ -1,0 +1,111 @@
+{
+  "manifest_sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+  "numeric_segments": {
+    "HOI_pp_box/sonic_refpose_v3_1": {
+      "episodes": 54,
+      "min_control_frames": 380
+    },
+    "HOI_pp_box/twist2_refpose_v3_1": {
+      "episodes": 54,
+      "min_control_frames": 230
+    },
+    "HOI_pp_box/mimic_lite_refpose_v3_1": {
+      "episodes": 54,
+      "min_control_frames": 767
+    },
+    "HSI_boxing/sonic_refpose_v3_1": {
+      "episodes": 100,
+      "min_control_frames": 271
+    },
+    "HSI_boxing/twist2_refpose_v3_1": {
+      "episodes": 100,
+      "min_control_frames": 130
+    },
+    "HSI_boxing/mimic_lite_refpose_v3_1": {
+      "episodes": 100,
+      "min_control_frames": 348
+    },
+    "HSI_vision_navi/sonic_refpose_v3_1": {
+      "episodes": 94,
+      "min_control_frames": 538
+    },
+    "HSI_vision_navi/twist2_refpose_v3_1": {
+      "episodes": 94,
+      "min_control_frames": 303
+    },
+    "HSI_vision_navi/mimic_lite_refpose_v3_1": {
+      "episodes": 94,
+      "min_control_frames": 429
+    }
+  },
+  "prepared_checks": [
+    {
+      "episode": "HSI_boxing/mimic_lite/000070",
+      "model_frames": 746,
+      "windows": 697,
+      "image_frames_checked": [
+        0,
+        373,
+        745
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        696
+      ],
+      "source_mapping": {
+        "instruction": "Strike the green markers on the punching bag.",
+        "video": "HSI_boxing/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 0.5199999809265137,
+        "source_frame_start": 26,
+        "source_frame_stop": 1269
+      }
+    },
+    {
+      "episode": "HSI_vision_navi/mimic_lite/000000",
+      "model_frames": 769,
+      "windows": 720,
+      "image_frames_checked": [
+        0,
+        384,
+        768
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        719
+      ],
+      "source_mapping": {
+        "instruction": "Avoid obstacles and move to the yellow marked area.",
+        "video": "HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 0.7200000286102295,
+        "source_frame_start": 36,
+        "source_frame_stop": 1317
+      }
+    },
+    {
+      "episode": "HSI_vision_navi/sonic/000000",
+      "model_frames": 567,
+      "windows": 518,
+      "image_frames_checked": [
+        0,
+        283,
+        566
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        517
+      ],
+      "source_mapping": {
+        "instruction": "Avoid obstacles and move to the yellow marked area.",
+        "video": "HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 0.0,
+        "source_frame_start": 0,
+        "source_frame_stop": 945
+      }
+    }
+  ],
+  "training_started": false,
+  "demonstration_success": "unverified"
+}

@@ -1,0 +1,23 @@
+{
+  "command": [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python",
+    "numpy==1.26.4",
+    "sympy",
+    "networkx",
+    "pillow==11.2.1",
+    "filelock",
+    "typing-extensions",
+    "jinja2",
+    "fsspec",
+    "setuptools",
+    "--index-url",
+    "https://pypi.tuna.tsinghua.edu.cn/simple"
+  ],
+  "exit_code": 0,
+  "started_unix": 1794577216.5096257,
+  "finished_unix": 1794577218.1652539
+}

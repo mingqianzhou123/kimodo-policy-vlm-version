@@ -1,0 +1,61 @@
+{
+  "github-main": {
+    "source": "https://api.github.com/repos/William-wAng618/HumanoidArena/git/trees/main?recursive=1",
+    "revision": "44a72229f11bab47a145e12db39ed891b677e783",
+    "entries": 1720,
+    "truncated": false,
+    "weight_matches": [
+      "TWIST2/assets/ckpts/twist2_1017_20k.onnx",
+      "TWIST2/assets/ckpts/twist2_1017_25k.onnx"
+    ],
+    "checkpoint_paths": []
+  },
+  "hf-raw": {
+    "source": "https://huggingface.co/api/datasets/WilliamWang16/HumanoidArena_raw",
+    "revision": "fd66c68926abc90c0211ae2076c828a65b7be02d",
+    "entries": 13914,
+    "truncated": false,
+    "weight_matches": [],
+    "checkpoint_paths": []
+  },
+  "hf-v3_1": {
+    "source": "https://huggingface.co/api/datasets/WilliamWang16/HumanoidArena_dataset_v3_1",
+    "revision": "ca04c2d53598d640bb3580edb5c6af78d59ea6b1",
+    "entries": 348,
+    "truncated": false,
+    "weight_matches": [],
+    "checkpoint_paths": []
+  },
+  "hf-models": {
+    "source": "https://huggingface.co/api/models/WilliamWang16/HumanoidArena_models",
+    "revision": "da13e072902840e2682afde360b763f1edb76d32",
+    "entries": 901,
+    "truncated": false,
+    "weight_matches": [],
+    "checkpoint_paths": []
+  },
+  "modelscope-raw": {
+    "page_sizes": [
+      3000,
+      3000,
+      3000,
+      3000,
+      2086
+    ],
+    "unique_paths": 14086,
+    "matches": []
+  },
+  "modelscope-v3_1-mimic": {
+    "url": "https://modelscope.cn/datasets/Twang2026/HumanoidArenaV3.1",
+    "archive_sha256": "42ca74a1cacc9ce026ffeb759090412e66d1d143b7f2ef5065930f2def6bbd78",
+    "format": "tar.xz despite .zip suffix",
+    "entries": 280,
+    "matches": []
+  },
+  "modelscope-v3_1-main": {
+    "bytes": 29160726392,
+    "status": "archive internals not inspected",
+    "format_note": "XZ footer despite .zip extension; no seekable ZIP central directory",
+    "conclusion": "cannot rule out contents"
+  }
+}

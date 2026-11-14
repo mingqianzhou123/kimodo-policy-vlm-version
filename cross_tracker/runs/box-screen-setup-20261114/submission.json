@@ -1,0 +1,66 @@
+{
+  "status": "submitted",
+  "superseded_job": "kvla-cross-box-s42-20261114",
+  "old_job_state": "已停止",
+  "old_training_started": false,
+  "independent_jobs": true,
+  "jobs": [
+    {
+      "run_id": "box-sonic-s42-20261114",
+      "job_id": "kvla-cross-box-sonic-s42-1114",
+      "display_name": "kvla-cross-box-sonic-s42-1114",
+      "gpus": 8,
+      "nodes": 1,
+      "status": "submitted",
+      "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-screen-setup-20261114/launch_single.sh box-sonic-s42-20261114",
+      "submitted_at": "2026-11-14T15:30:30+08:00",
+      "scheduler_state_observed": "启动中"
+    },
+    {
+      "run_id": "box-twist2-s42-20261114",
+      "job_id": "kvla-cross-box-twist2-s42-1114",
+      "display_name": "kvla-cross-box-twist2-s42-1114",
+      "gpus": 8,
+      "nodes": 1,
+      "status": "submitted",
+      "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-screen-setup-20261114/launch_single.sh box-twist2-s42-20261114",
+      "submitted_at": "2026-11-14T15:31:08+08:00",
+      "scheduler_state_observed": "排队中"
+    },
+    {
+      "run_id": "box-sonic-twist2-s42-20261114",
+      "job_id": "kvla-cross-box-mix-s42-1114",
+      "display_name": "kvla-cross-box-mix-s42-1114",
+      "gpus": 8,
+      "nodes": 1,
+      "status": "submitted",
+      "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-screen-setup-20261114/launch_single.sh box-sonic-twist2-s42-20261114",
+      "submitted_at": "2026-11-14T15:31:41+08:00",
+      "scheduler_state_observed": "排队中"
+    }
+  ],
+  "submitted": true,
+  "recorded_utc": "2026-11-14T07:32:07.520114+00:00",
+  "console_url": "https://console.sensecore.cn/cn-sh-01/acp/list",
+  "evaluation_submitted": false,
+  "proof": "three-jobs-submitted.png",
+  "common_resources": {
+    "workspace": "sgresearch",
+    "cluster": "sgresearch",
+    "quota": "standard",
+    "priority": "normal",
+    "framework": "PyTorch DDP",
+    "nodes": 1,
+    "gpus_per_node": 8,
+    "gpu_type": "NVIDIA A800 80GB SXM4",
+    "vcpus": 80,
+    "memory_gib": 896,
+    "max_restarts": 0,
+    "afs": "afs-sgresearch",
+    "mount": "/data",
+    "image": "ubuntu22.04-pytorch2.3.0-py3.10-gpu-cuda12.4.1-deepspeed0.14.2-cudnn9.1.0.70-allreduce-llamafactory0.8.1",
+    "image_tag": "v0.1.6-20240705-bf16",
+    "python_environment": "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo",
+    "actual_torch": "2.14.1+cu126"
+  }
+}

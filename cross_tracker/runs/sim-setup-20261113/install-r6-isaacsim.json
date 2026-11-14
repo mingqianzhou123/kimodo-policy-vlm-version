@@ -1,0 +1,19 @@
+{
+  "command": [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python",
+    "--no-deps",
+    "--index-url",
+    "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "-r",
+    "/root/workspace/humanoidVLA/cross_tracker/runs/sim-setup-20261113/sim-local-wheels.txt"
+  ],
+  "exit_code": 0,
+  "requirements_sha256": "f4b2c128d87f297c5d5b88a9478c6b1474de2d7f0eebb10696af82ca7b131d13",
+  "started_unix": 1794578936.8419158,
+  "finished_unix": 1794578954.2481813,
+  "dependency_check_exit_code": 0
+}

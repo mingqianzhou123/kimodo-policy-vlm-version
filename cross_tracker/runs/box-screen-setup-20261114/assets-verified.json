@@ -1,0 +1,2729 @@
+{
+  "passed": true,
+  "prepared_episodes": 108,
+  "manifest_sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+  "files": {
+    "data/cache/videos/HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": "6172ce31841ace572e170bc79cfcffeee0299cc64f995bb4add2469cc42f7d71",
+    "data/cache/videos/HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": "7d03bc1f0552de5ecb278c69bcedf100ccbdc4de2b30b55a4e1b3dfc9d6e3755",
+    "data/cache/videos/HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4": "2c7577ced43c8134369ce8ee4714ec05eee9c66b5805fffe6c3a5b32d66c9f89",
+    "data/cache/videos/HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": "02de815156e5da6bf09abf87aba19c59d1e47387bfd08cbfaa1ab8c0a039d45d",
+    "data/cache/videos/HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": "18f4ef9dcf598cd6a60c82cd895b85fdb78433e95ba4145a1c3cf5593f585ac8",
+    "data/cache/weights/Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000/config.json": "c09f105a1934a0d5ae75eea3cf59e213dedb96374211ea9af64aa50fce158985",
+    "data/cache/weights/Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000/training_state.pt": "97a92c5932aff96b78b5ead0195e6d77795c7cb530b1ee8ab5f2a451f728fa06",
+    "data/cache/weights/checkpoints/Kimodo-G1-RP-v1/config.yaml": "73b550ba606d69847725ee257d5d99fa5cd56bd8bac320dbe5c2a49f0873846c",
+    "data/cache/weights/checkpoints/Kimodo-G1-RP-v1/model.safetensors": "e18c1de73e2ce17a107b06d85155fbbc5debe68eb35455aa5b033e6ddbe056a5",
+    "data/cache/weights/checkpoints/Kimodo-G1-RP-v1/stats/motion/body/mean.npy": "185564a7246ee03d7a7aa2a16b3c7e49cffd5a858f637ab2b8fa04574f18d29b",
+    "data/cache/weights/checkpoints/Kimodo-G1-RP-v1/stats/motion/body/std.npy": "5df7b200de9bdb0d92cf23cd1426d2ded6c7688d1dcb6e403c3886f1d130f59e",
+    "data/cache/weights/checkpoints/Kimodo-G1-RP-v1/stats/motion/global_root/mean.npy": "c292f97ed86266332abdbb7e98d464eb91115a4ec1def3c87aa9362ae483b062",
+    "data/cache/weights/checkpoints/Kimodo-G1-RP-v1/stats/motion/global_root/std.npy": "691f1ada7ac34f4854d8d5920cafb26fd22f1d5fb9dbc331030292eb6675c6eb",
+    "data/cache/weights/checkpoints/Kimodo-G1-RP-v1/stats/motion/local_root/mean.npy": "b0aab16477bd39f03934bb930786526563b6e5955d1ee0b2face7d1e2c04bba8",
+    "data/cache/weights/checkpoints/Kimodo-G1-RP-v1/stats/motion/local_root/std.npy": "9b8f34564fda07cffb5689b2f509b6864b4031a764ca53bfa149ce8487495c62",
+    "data/cache/weights/checkpoints/dinov3-vitl16-pretrain-lvd1689m/config.json": "135ecd23e34a70b6fbed8b083fdecb319b7e3a54e3d849258bbe4ddcf1783bb5",
+    "data/cache/weights/checkpoints/dinov3-vitl16-pretrain-lvd1689m/configuration.json": "2e298ee07ca76e112e8cb5524061000871a464b0088d14becb7d0564215a9380",
+    "data/cache/weights/checkpoints/dinov3-vitl16-pretrain-lvd1689m/model.safetensors": "dcb2e45127cccbf1601e5f42fef165eea275c8e5213197e8dcf3f48822718179",
+    "data/cache/weights/checkpoints/dinov3-vitl16-pretrain-lvd1689m/preprocessor_config.json": "960c41d1f3a7778b936365769a2d90550b318a6c0a53a0296957adacfe5e0dd7",
+    "data/cache/text/HOI_pp_box.pt": "b0b3f0c04e21566df5c7c81d68245ecd77300304f95fc5f2d1e4d43e7a03ece0",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000001.frames.npy": "ccfac72e5b1ac33904346f0177b269866683a0bd6c1052b4615d6680e97121ce",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000001.json": "22fb0532e7c4a3cef0a8ef7316669d2c4ab47eed8be7e4c633c0d916d4a59597",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000001.pt": "3e9aad5dd3210fcfb37340c9ed365c035ab91f8c8aae3e3a0e87b1bb6c65fcce",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000002.frames.npy": "c7df8958c841d609de75fe302bbce6207c6912748463d7df212b8be200367c98",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000002.json": "b33c4ac357fe97ff3ec26433fa56daf33c0117a1fa6e527e9bc4122acda68dd4",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000002.pt": "47514968364b19de1e3fb1a1cd2ade939d770c48abd4bd4b8ff9bc04885f0d1c",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000006.frames.npy": "4489a9c2c8dd0162ab86037618df125e7570c5238b22b3efd1cb9ec73233cfc3",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000006.json": "7385d3ff8dff4d7f82bf8af67268752378916a78a120a8a00db405d63b71556b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000006.pt": "d48abc46fd1b1b12b06f59260c5d4787b38c37ff8c05e46f19dcbbde4cb087e8",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000011.frames.npy": "36d177a9ed787ab44cc678d97562a4c8c0cb81898ebee6193086c26e990f05da",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000011.json": "2520418431742cf315642e97327cd55f16d6015541ee229f6b4cae647ce5830b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000011.pt": "8770eef5771b10991cfd2df721ea3e25a29b857bb9f067ef47b8d6cf1fe68b5c",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000014.frames.npy": "0192e50c44b72349de953907c1754fff49ff5584bb06b149f47397ae9e24a32f",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000014.json": "833a1d5d9cd7ecd13befa0d10eaebb41b2711763a60a590358913703aad324af",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000014.pt": "0d4ac8354ac14083b892ac942597afd636b3bcf90e2e2122c9c560e74bc48200",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000015.frames.npy": "23db104919f01a7513662f0fcebec5e7e3f5a99388672920e30d91572637f129",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000015.json": "5d41703b7b9fc088d7bad780ac8e59a96c56c45daafe8611b4d1b45f9302cf75",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000015.pt": "e6414ddc2cef5a25c55cbbe7652fa35bdd85ba4898efe9b993e2b950245b4115",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000016.frames.npy": "208671899cae7af3f2d1ffd9878f96df2518b4c7585ebc9c13f7ca0f33dcae2d",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000016.json": "6ad2d98bb296ac0b437142851309a9f296f63b316acb27e379eff4ec2f402154",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000016.pt": "eaae30b0b3cb4529910aac6428b7ffc310d847a3148649bb0f72910f9af790af",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000017.frames.npy": "8dd0db7a71583e7df5d428e6cedb4179b47f878aa7a17607339ae0e540326945",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000017.json": "66f8b30d0b5fa03b701a91731a9465e721a0ce20d42adf15ba1254892e724ad4",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000017.pt": "c61cabd304ecae719c7357379e9a7ef30fd36571064b315722c1d40d97d83174",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000023.frames.npy": "f79a8de0b2f6b0046d081b11cc529a56f61ddd0a82f81dbd6c8327ebfc76d750",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000023.json": "50ba4494fbbedc4c3c7b1949d76be31311d83767f77248111399b388ebb983bc",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000023.pt": "8871d7d93e0e83e51dd2440012fc889167c2574fb4346f7837519fc4f12b2a42",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000026.frames.npy": "4bbb7d9a3e79ea1caadbf3a9f05edbee1e573b158a89d4e2031f69b2f6f8c4d0",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000026.json": "53785ce9c4f76359a31e987f5d1195eca226fa05a72bdd8af7c18792f32df2cf",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000026.pt": "df6b3cc43f5d0f6f1959c9113545cb02ae2b5d20f50d1e49627b794bde9ade9b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000030.frames.npy": "ed90103964ea1e28abdf98b3af3c4b026e1abb492cbe64889941664fc3838b31",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000030.json": "c31b93ded6afa25ec8690e846aa98c70dbdc9344362b1c0bcb85f36af4a0931e",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000030.pt": "3e909f1a15907a280b4968b6791245c157f4c110f8686827cb8664da201fc6f9",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000031.frames.npy": "66f986074873bbd1da64446cc0d16df0aa73de4871e23744dc5f6c45a6154734",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000031.json": "3e1302f17ced9e696bf2a02b467704db09cb06d525bdfd30daf7e95e1c77d27b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000031.pt": "bc442a53ed89272c825693b53d04950de266dc9e704019f840535f66406a815a",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000034.frames.npy": "6704f710848d7742d1d7117306321d7f6de4088f3fdb6c9bcc5319e2c94ff469",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000034.json": "d3047e33a5d192ce9ecc0aae1abf62fbe8e2d399ed3520188d399119ae282085",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000034.pt": "37e2dc94f9a7790817675454d19cb0ef0290d682d4aff138283582620a455a45",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000042.frames.npy": "e990e6d82150bfc8b05143ee938472a636c37a018d8ca0cc4272ab8aa13afb68",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000042.json": "2ece3300a244caab0f4e12d82990250b034aab222e28c686f4c327c1ac1a36ba",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000042.pt": "112dbd8c3b25e3ea48656ecdbbc386ded317b4d927313ab4a20de95834f5d316",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000046.frames.npy": "00a27d5d4388907e05be54a2a7756879fce8e6d12dc79bb4173c695cc797f0a3",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000046.json": "b006615704bd4562e168363495233b2bd61ab03da560a36319efa58536001e24",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000046.pt": "32f3a98acc77f9dd44277a66d9bb26b0c45224474b21531f8b5b6269267fbaeb",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000047.frames.npy": "104cadfee7d1ce3bd86864577d8572b203704edbadfa1946f8faa7f35517f9dd",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000047.json": "d983176e44d224e3cb23e0c68e965e50f115769e58696bfa6f5b9b1608f12f28",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000047.pt": "d3301c9d57f4ec095671ed53f3bf5123fa0d42dc6502df889c67eefd41532081",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000049.frames.npy": "9cae24bcab2be3d17d3e90eaed09bf96dc556b57917cea6d8f7f4340a41d32fe",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000049.json": "584abfdde213bac97e049d66cf001d097dc5eb5d8b2e55d4cad745f5feecc190",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000049.pt": "51cc3befd8f48125edd51ba81d424c7ab15f19b3ef29eeebd4e28737e4c8bc55",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000050.frames.npy": "6ea981c623aea84c3a270d380718a14328814c0fe33595a2244dc38166bd8bc7",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000050.json": "ef9752106b2d833e95f37c60730a02cfe39c49bb4f55ce1751f93b393220ae7d",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000050.pt": "bce1f77b4c62ac68ee38d4ace2e3cb382ae10468b3d4455bf52bb03cc5ceac2b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000051.frames.npy": "fa2973561c6b6ecfba3c7324a84fc02af714a7f52cd6b9ff55426fff2e45bb17",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000051.json": "2e552e6849b1467109269464178ef112c0fd8d283cd1554e980694968a42d15e",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000051.pt": "7f3af0e45321c01b943ce09fbf6c3351581a032ad273459a6b6662e66ff2c0a5",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000054.frames.npy": "cb9fc2b14cdfc7e693691ffa54525e1539b4fc754d173739d2db3dcf5d5fb7de",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000054.json": "466486d81bfcb3b7ee3f9f3e30a2530c856e0ff669db027b4ad0c85fd93d5dd5",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000054.pt": "1537813dfca769cfc1ed6f13967de30f007f4767cffb462ec2a6d1b30345c0e7",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000057.frames.npy": "9c3c05201fabf27bffa2f8458260d4b5ceffaf06d5090e1dc38e1fa83a8f0e98",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000057.json": "26f56dc7b6ad746518c83258cb321c4649829a9832cbe70b0273b5ed4f364d23",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000057.pt": "3fb1277f4093fb43b59d954e1a8400528c9ee940b34869a68e4573ae6ec3a7b8",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000058.frames.npy": "d62c67a7147ac866c2fd8fa6f844b0d9a29670a1e2f210539086c6a26e3ac3b9",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000058.json": "99c0763c422ee075cf31f3760c1a3e05efad894c78c8a1f9c6ea7d3f6aedacb3",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000058.pt": "d4b44072446659a6921e1e1f42f84d5a7c6f48fd7e0ea3d9dd477f7c4e25605d",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000059.frames.npy": "06337e4aa95c91aa29c80e0958c814b69c2e94466a9ebe8e618adf8d0ac2e2d3",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000059.json": "f8d283ea4300821847c9f08fc8e0aaaf7f3c01238a56bacdf1b3f31127c1e0b4",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000059.pt": "bf549d009d75cc676f1a03d3fb91f2d1d7bf6b1057f252740fff5d4c39492f99",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000060.frames.npy": "31c8c61a59bdb8ca25bded03a76c0090f857ce6e92647ec4badee1f97328f51a",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000060.json": "203f9a4e3bc8363165beb214cc005ed4a6d76359695977f63ba6c6ee68622bd9",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000060.pt": "487e934e85a51fbba9b10773fdcb28bf4d0847a564d4be2b12ea2c00391a52af",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000061.frames.npy": "439c5811a83af7ff69d9ba73d4ff6a55d8d506104befbdeacb1447157588cc66",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000061.json": "4168dc1cb2b453988fc551d9eea0f85f7da92d7527dfb47545bcd33e2410e4f2",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000061.pt": "c899b6c7139234e72ec0f8adf40955cd352010c4d5d93470076773c59fc85556",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000067.frames.npy": "501998842a276f7b49da75339e86ff5a34e1dfb3cb88d6b359cffeca4b67f2cd",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000067.json": "2f3b19f525e8b34a9e9ac6f538f4917bf52e3a675cc104adafd474fae154834b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000067.pt": "b0ed285fe8a800ee1cc156848da74117b2a67c7ec67d92258c2557e57e6b30ef",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000069.frames.npy": "6e83e1c44ab2a039d5412d6a4a537377c4c32c902be160464cb2c6cf6ad2fdb9",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000069.json": "8fecea52cae25216b5d7803dfe152bd859c15d73ff59487faeb66537c292cfa1",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000069.pt": "15a58dd324c14396bd6abdf52c56c7571d917ef218e259ff45996e037432065d",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000071.frames.npy": "a1ddf369bd283213ed5b061c1466bd6e3af2a8c26d760f4b54100797bc24f717",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000071.json": "dbaecbce2c184b6159db31fd3c6887a30ba6a604fc8da489312dc601881fb71a",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000071.pt": "f178631da87a66ef4ad48d923702b32ea2bdefd5787ca6dd96b1a1187fc26c64",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000072.frames.npy": "abf09e8548d42a56eb6c60da183d521eaae630a1d3f1f3c012c7198aa6e047ec",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000072.json": "a227856571759cd5f6994b505797231a53d3d89bc27a8b3fce488b5e17417716",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000072.pt": "eaac215e0c70196d74c2daefcd9ac1876fa60240d65ef0434795bd75cebc1f9b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000074.frames.npy": "25fb2bd4b98f77420b91d4d7767abfe5fd5ed751f7fb46c74cb4270a44e4e4f1",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000074.json": "6731adbaed3c27e7be19a6853a386f10fbb058d746196f50c70df86459585af3",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000074.pt": "8c1dd44777bbda79ef62141f2400dd42082cc41c3e6bec0daf9030b04ac665d3",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000076.frames.npy": "1d7986f5ffb75c87bbc368f94f9cc8f9d5e2142319e264e28960dfe4bf45f730",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000076.json": "ab9e177d96e8712e1dfdcd21ecde5ee6fb006ccefd980b6eb365ab34d269cfca",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000076.pt": "12ba2fc65a3dce6dd4dd8c4dce7ad1fd5924fb702937773cbedd0a88d409ffe4",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000079.frames.npy": "5a756155c0fb121c0890a02a97ec447605ba202e34032a414482e831ecd3dab9",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000079.json": "7f1aa16d3f618a6b26c6b80e5d964f6dc6dc4dad2e597fe9aef82ed953ec9a78",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000079.pt": "0076b28bd0833715924aed960227f171bde547ba3e5ecfc93c6215f219564d92",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000080.frames.npy": "834c85deda95d6465afc531956ea78c8426a2753c4eb59abe565d9960c9892ac",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000080.json": "29db7fb3c71dcdaa0ce87113ac3e24bc6dbb32bb6617381f87482872de18100e",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000080.pt": "2a2cef3ac4a11e6629c9572ec19359b4621af485d335b3b71467aea01745f94a",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000081.frames.npy": "fef1de2e10b3451dc425c52e5f429643f642b1aa319b845c468cc615f8bc3d2f",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000081.json": "bda097fc714cba2d36d771a03ad61b5bf6ba7d6c1abe700d4fb8c05a644b0af5",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000081.pt": "278c2768038832e9cb9e9b6afc8bc7bcc500aec0522535bdd69caf24769ed5d8",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000082.frames.npy": "364b14c803442862d3d251574a4258a49b41690e85e11564b6e394d3d87ad310",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000082.json": "3edf1240b7e59a122f7c86f0967d8ab543a44fd1f8dbbac6a08aed2461d1021a",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000082.pt": "fa7eb5499f569e791f309871ae3bc72a6e732ccf08e9279ee1c24949aeeeea66",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000083.frames.npy": "b12c1507c5b815c8a74993aa2b062a5026220066912eba2dc7dc238684ab3c56",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000083.json": "444d3c4efd9267a8980e0296f8aed499e08d431f841cdb7a05659795f1c70230",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000083.pt": "bd88232453b126747a0e9d17ea5bdc89c5f808d4a68ad9d6d1dca13b03b87c25",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000085.frames.npy": "164976d1473d612b1c1ff02d20059b5b5c7d6c27a15278abb6f73faea404af8b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000085.json": "5dcadb1091c941eae88d7e6f712126e0e51470305eee651b52443acf1826d13b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000085.pt": "3f1686d429fa5f38e6fc4a33a3579359f9b220510818b08d5b8d5e71d1089f1c",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000091.frames.npy": "8161dd05b3e621dd42ebb57da644090b91e63f322d745dcb7286f44c64aff5a4",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000091.json": "5963a623ba6a854a188ecddb85ef5145bde5151cb3af8af5fcba04bb0cbe484b",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000091.pt": "becf4d9ef04f8be516a3793c5d62a2980f32ef666b8e417cba63753e30841ba0",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000092.frames.npy": "a956e49e8dbd9743c81a17d2ef4b957f2481b952b0c3e02d337277b0bb6ef911",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000092.json": "780895113472a4db3c1cc98ade574066ae07532f4b83d67fb93bf4fed14895cd",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000092.pt": "4070fdd8a60129cc9da31d16e3e90fa9c7003b8dd05d05db7034d3440886b615",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000095.frames.npy": "4fdf56418b9a7033388637b8df0291de670b68211e2c3413e33678fd3d37b7d7",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000095.json": "db122973926283ff25acded1742083b622a0952e32a00ef570c78aa75c483e90",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000095.pt": "3be61e828bff69913c21310c378a2405b1027eab7c123eef9d98d30ffbcb7e1e",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000096.frames.npy": "50334148694f3b600e74a2cbaaede6dea280d67c5213846d5afafec2d0efd1fe",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000096.json": "adee0f50eb9971095f59d917f8f6195f89060edf5df7ff658c6ff8736899cde6",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000096.pt": "0366f91d2b4f8c1333666d21b21b6f0cbcd64ec855253a223ce269e98dec86ba",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000097.frames.npy": "6db5f699b5ebeca1feb29c66f2c456a77d95d8c8cf255a6fb80ea15ded161026",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000097.json": "9776e0c75709ff12dd09f050cda046d9699965f55b179be3dec3916dbba693c8",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000097.pt": "f0aa224ca8da626389a9dd4e8c75cbde4a56d4185a4e5e8fc1be7ea616e18652",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000098.frames.npy": "897ffbed0ddad36de1f4b07cd3c0c51a22fe7ca1757756e0a14656f28c70c768",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000098.json": "6ec1e3b1599f25b6e6948e69940e743f9a7b12d0662af1ce0dcf5866cbd60cac",
+    "data/cache/prepared-v1/train/HOI_pp_box/sonic/episode_000098.pt": "c6cdfffe2766a39a814b9d90b5b6b796d8bea0796dcf9bddc9f215c03334f6f5",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000004.frames.npy": "6ed3e1a591aa877194ed487efac53e0d2849daf9ac2c1584c85e55b41bcb22d1",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000004.json": "8d0f61ee755d139082bbef559e067c417358660bf541496b046ac73d13ca6039",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000004.pt": "0d0317a7735eb68583b5bf9da40f49d6f420773cbb1e95593813c6c69aa94295",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000007.frames.npy": "1eee3ffa2f0421e77394049b40d67b8ff8ce2fcff7162d14e55ada214ceaed9d",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000007.json": "f747adf55537e09afcf0fcb46d2b92cbcffefea54808195818d25ab5b24b9f6b",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000007.pt": "8207c2c62b0defece7872d6209b8e310baf42a48690df0a89bba6d73f2916f13",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000021.frames.npy": "740b9c728e00542a05c81719a1e950698c929519a240bc0d1c82a6c04ae795dd",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000021.json": "40b5364eaab3318128718876218255353deb5a982174bb324e9d3291cea5320d",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000021.pt": "4cc1a50257b63ac75335c55c9da6c77f122c9745350062d3aefe8c1e7ca2d56e",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000022.frames.npy": "fdefe65307d5f8e8f4d9896c6a8a86b548cb30154dae3e3c8223d6a27034ffd3",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000022.json": "c5493ee5003c78ef6b353c298922a9cccc47b71fc0a23985ecbfbe2b580bf3e4",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000022.pt": "4765edb42d26e0574db6469412a168c9670c7ae4ee2650cd43445287a553810e",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000037.frames.npy": "39409a1a96a010bfc157e33e23ebb25799bb4858037a63092537c9963ddecd52",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000037.json": "263513f917ac3dbc441216ef66ea1882769f5384c42e035615546da99302d7e8",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000037.pt": "1fe357d7bcaf7c962a937622bad6395be1389d6838712c8289fd5e448ebd7464",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000038.frames.npy": "dfc9c142c5b55d828b3126e3e65196649ed3907dd1679538d26f3f5d47671a2b",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000038.json": "db85734432985fb50b60fa5c01c7822bafea967d02159e702b4e5ac2960bcc10",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000038.pt": "34439c690847757db31d2739ef5eab14f3984f43c18746089af093747bbbcce3",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000043.frames.npy": "8a38d70abcf9bf3cf495300a5bc164853193b7665e9bd14339ebba1f83234a7f",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000043.json": "b8c8d56f775dce74de764a90cdbb1237ffcc6c5fbd214fa34e3e5b603fb92428",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000043.pt": "f175807d9add26bd2853ff1124d9e4493f55a12ee23f4c6e24ab94bbe17103e7",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000073.frames.npy": "43087b6ebafa87fa40a0aaab98e86f16b3edc3aba97a79175f9b9c8358ec4b25",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000073.json": "b008bc74dfca59d2db8d7749f30e4d59a740c7abf345b6953dc19f96fcc76404",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000073.pt": "dce30a650dc0ca7b55f973059d26568a7403db9a577fff4637508820bd14356d",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000075.frames.npy": "6593dbdddbe785c02bd2e5cf14d5540a15eb325b9960cde6b046d598a227a99e",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000075.json": "c95e8d2a0d609a436a2d2971c46148a93c8e329c999dd8ff6b00a4ac31631e71",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000075.pt": "1ea04fcf63f3cb8b77fa0e869b7e2f337fc7567bf298202b021947856a19b8a0",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000089.frames.npy": "51b483196d69e5b7d37d51ed6b25625a7cf703de9e74efc5ed30c6de5d85c4ee",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000089.json": "d5672a151e6ef9ecacb98f5a4787d482b4b3b4eb3553c8bdc0f34ff438440d0c",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000089.pt": "d6848966bb1f27b7813216ef2854c08b24e2ce24be5407d5e0070439523251ad",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000099.frames.npy": "e262adff808a2349e3ae7ffaf7c8596a578966bbafc09eec1917758d6e4d0fe5",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000099.json": "44b201c29c024163404b10da4f51b90a37d500de12ad0bb713d6c21529f2f9eb",
+    "data/cache/prepared-v1/validation/HOI_pp_box/sonic/episode_000099.pt": "756f615b9653ab40fa8c39702c60049506b5292d8c82022568f36da7fcb40720",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000000.frames.npy": "50c709fc7be0e41634550da81261d755fc67503c656cad6b2dab8d242a3a2943",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000000.json": "a8524dc1d768c5afe4216b3ef663bc38b9e4314e4f3ccafe0f94c9a7dc417af7",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000000.pt": "471988ed3cdf4fef99b3b1be57228e55c5b14fba67304258c69b5abb28179fd4",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000001.frames.npy": "c605427efe3eba7d578aaca2f8dc290c7381b2dadf5d2683b86650844549e95a",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000001.json": "f61a48a718b8158c436064eeb150e63a074e634c667b2a37348feedf03b92e5c",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000001.pt": "67de0b2858c52f2f28536b33b1fef64af2addf46ab3c942b4b9931c96eac817c",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000003.frames.npy": "943eab4526910a50d90faeff8142205ce0877020e75bf685ed0183bc0035031b",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000003.json": "48acc462a29153491607ca257c721666f112666ea4a54971f3ab0dfb27845b0b",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000003.pt": "88168ef0b90b5a4785d2b0284f01a908059e757fe511f6d47b962c3329d52b2a",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000005.frames.npy": "4588ea986c7fdd5b8169c2cf410c2ed383eb35423ed43ef3c2d427b9e5a7b019",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000005.json": "e5a80b04918ef3afb13b11b39152a845070140b07b706248d32b57e3d3f498b5",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000005.pt": "c807285fe470459ea6cd863f10027c4007d6d9afc34f9972c22b4ac919741e22",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000012.frames.npy": "8d7d94860987dc0718fe52216c6504fa70304ce30941d182cadeba0e8de746d0",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000012.json": "8c6a6a768ba3b3c2c8aaca6c761378859d106c161f2469840693851aadb7cb29",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000012.pt": "ac727ac05998d08f9135c4c797fcb1dc5badf52796cfc79922f1d3e2c1eeab71",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000016.frames.npy": "603458a2f9de237acdcb433bc1917912817fd07a76c684ad481f6988c06de857",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000016.json": "e59c6495d135f1619e7d131a01b4cda7dfa3f78a40bf16196e8d2c111ac4d9ff",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000016.pt": "038d979f5cf959394f457fdb01a3121a0209dc3a08c1243e4c33a9182e7a4176",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000018.frames.npy": "aa5974fe5d21f1b33a2e451ac6115957e7dcc1b84b9a1fb854f9b03d172d0a5a",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000018.json": "4a1986b419adddda5a31bd67ae7e48604b7a78dcc2994b9f33af6d57cd88f875",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000018.pt": "b7a005dce0eeb6e7464badce26155adf38aeda9a4b09a565321c8317d35af704",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000019.frames.npy": "f98f8a89b2c35cf828a769618c638e7f025df15c5332019828b9e649fe29b1fc",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000019.json": "3ce5761218a8ab4db637c151342135b448d047b436185e171f63f4458d98227b",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000019.pt": "f0c95d3f870412d8f1b4bc51ddc624533f5fb47a970cca19d910158192f002ed",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000021.frames.npy": "d121aac20ecb15a02c3672b5b60ca30589c55d1008bec88f7ae5daedc9b48fa5",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000021.json": "9bafde63616d0e9fb148ca9ab9298c8810bc1a738744378159a69df9e5e589c5",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000021.pt": "226b6e47d135c6800d15c015267d7ccbb430018a5fd62b31fb6172a4179b607e",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000025.frames.npy": "2974ab9a79b5b3947b06b54f58b060dfd451729676b85b29098fc08d915d7155",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000025.json": "71c612f1bb5a6d51e53a3b0efaaafb996be90c137adb7668e4548771968faaaf",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000025.pt": "dd878c9b47f5592d391bec376276b29c0b2ca05155ea388842f1e1da1a5c4cba",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000027.frames.npy": "d932754c828d1983a2da5b6f383e447f8c14a7dfb3e5fa82f19f4a236724affb",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000027.json": "5332329b4cf0cacc10b1420a13897039c7178be695ad5b073ca2690fad8552f6",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000027.pt": "687887f8fab10432be81aa94ea6f0a8763f199d8ec63638fc7366a2f55a14bd6",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000033.frames.npy": "cf98e69384eed6caea5e6505a13c3f9cef64d7e911165cb95368a8653c32c773",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000033.json": "f84cffc78f62607240fa5bb9c2749de6f54c7c87ab08e3fea851cd46fc54c95f",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000033.pt": "b2029d2501c530a0c13009e779b3ad76a9faaeaa02e499981fb207b18dd5357e",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000034.frames.npy": "b86217763114fbd73e82a367aac53445d0ff4030682dcfcf3dbab08d6b43ae52",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000034.json": "952c51eb9dde358e5990c08d9a579b319e380ed3471aee5c5e350a5b84f16aac",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000034.pt": "dd085a07f94c0dea9085b217c595814bc06c1d4f61b992680fb347478afe05b7",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000036.frames.npy": "142713f163c08a7c255824223eed3e21df8235594d9abe9526e6ff5df81b91bd",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000036.json": "6c511221b702db32a919e48834487affbe64561c756ecaecdbbb486ffc2434cf",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000036.pt": "1d790c926696454f389fcac4ce61d85de45d0bac02a99185a878bf1683677a00",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000039.frames.npy": "7849ab11c05793c6d97ad9925f3a9387c07a6a84e0fda24d255ca967c27152f0",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000039.json": "455fdf9c1ba98e151736973d18e4e410116e5c531fc3e22438a2cb5abc5ed3ec",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000039.pt": "da69fc793108e256350ccc168762e187ceb3679c1aae4f560b456f583bd5d60b",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000040.frames.npy": "19fbcf56da66660e430bae75bc47b776e61bc373f5591c91aafb906721ed4444",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000040.json": "6ab2cbbae01b6d763768433ddca791be039ca79536b446b28f1b637624b6fa49",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000040.pt": "df29ecc9e5c1b0fd2c9daf771f379e497eb805cfb392a080698f0b3335357a95",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000041.frames.npy": "d1943708b7d02a229e6e0d567f679d6c732162e4602e672f0fc145b7006a947f",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000041.json": "aea3f66e824938dc27abf73d65e867967f99bcc47918a70b1f3697fbb8b25aa6",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000041.pt": "0bc2db544af0522d44afe127ce83683d44bf5631136d7eee5233f7854d863ae2",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000042.frames.npy": "86f8ed4f180d6d0c6b53557c9adf7fb82fb07a75fa720a327a432f7cd223c2ed",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000042.json": "6a4eeca6b05e5f25e2d1ca3a32fb996e729bad8e2dca3b3a14dcec4e4fd3d368",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000042.pt": "0a8b58febed5a0f7d1b3fbae4b68bef690e7de9c654c932944535c56c7399240",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000043.frames.npy": "d94b774383c3592b292abffa035b1a995c67f28191f5688e930247da87d80f27",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000043.json": "ffcec3daa1cacf5ea592e8e5dacbf5228e08e75f0157336efc01732b6339f2a4",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000043.pt": "ea483d62776b4415b6d256f527b1ad55a6c807e80f4c201162e955e1555974ca",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000045.frames.npy": "90d07754bd7b33cadf68e6d1693bb59286070b918329a1bbeefa6c901a1baf4d",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000045.json": "d9130777fa0363d03db34f7c00678dedd02c60490277e437fea4d8cf68f40c02",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000045.pt": "04143b106a6dca84f444f68cc2d236366c277d9700507306155a95e3528b78e3",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000047.frames.npy": "ee66d181fc7ae1882b46f9e0e43555391b3220bcb54fbb71c7dc4946e4371be9",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000047.json": "579b14a8f4a2cc146737a1361c2256351a61d0f19f088d7ce7199913c148c123",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000047.pt": "c831ff7fc5b783ef30208221abf8463275ebbd437e7dc159dfe1fd3848296bd1",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000052.frames.npy": "2784bbfe3a3788a71bd8d3f24ad44e9b2a7f075551749b5652b1b410c0709a23",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000052.json": "b96304d6b3dd7e49c171362267dede2af56e66f84f5e2761d9644636c4891ece",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000052.pt": "a8660779a96e58e2a11d19ad0d88a25781404c645913a21262b2efadde95fce0",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000054.frames.npy": "90d963cfc68d778e1e326ff05ae13818e4c0b7e4fd6fb4b5548a04ea86f41c26",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000054.json": "827f81fd15a9eb6d4808a5445bdbdf8152d07e72ec4b3f31606042bd1dce65fe",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000054.pt": "30e97694f5b571faf60063cb97119fd191a22c7ea9b63e2108463b1efc8ae8fc",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000059.frames.npy": "9fcaaa673d0f7beb058eef41fffcc218c177d19b5c4a21659e71355b08983114",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000059.json": "af0b954257c0bbaef832f6b45a88512d4dfe149a18ee45a4ec5cccff696f1227",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000059.pt": "5d5b7a4fe38e0ab7e18935c9e100e147a0e6719b473c49f54715d594d2284a1a",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000060.frames.npy": "d476f5d1f4a2576023ca75bd7c54e17c9d93731a0c6270c558be079d06bdd0cf",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000060.json": "4eadaa59a0f88604c34add134b374ffa91cdb64e166ee1510289e77bb8fabb42",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000060.pt": "85f4f8fd671915c1f3bf8097777d39a14ed629b9f985ba866ff3ef1c87f3e1f4",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000063.frames.npy": "05a87097b7b648aedee76d50c97eec01f3073e957c5323bbcd103eb6735d9690",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000063.json": "a4b35a6fe12f919e16e42eafd7ce25d529eac8628ca78ebfbe08d299609fd151",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000063.pt": "aaae20780f493eb3e19ac4de096b9036c7c438f4ad7617dcbabc8f476a7225c8",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000065.frames.npy": "2fdc2e9afb03dd5386a305bc28ee95049f0cc796117d602dc97a5841f9ee2e06",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000065.json": "40e691c549f9a935be032635c9711e5e87c3678e30bb1709f2d4d682aa94ab5f",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000065.pt": "be9c42fc70174869a2b0d80f928213cd7ed16471176f67514b971d7e63d5a6de",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000070.frames.npy": "9625db555b3251cacd36596199f91f9843800ec73d790d348270432e9380e6be",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000070.json": "67c96ef2663de574d7b41b8a4be933d438b245b852fc41160415d117c370c3b0",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000070.pt": "de2a18865a3af0c2d134a7fdc1d5c8f414923830e225b9d6a955d04e47ab6674",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000072.frames.npy": "86ac36e0bc32ea6e36d61138ae9ae9032a975d0ba07cfa1423d777a8ccc4a034",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000072.json": "50951cf4f10d592d81e262108c044d068b920cf55b8da303d1882b2de1bc2de6",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000072.pt": "936a8d69d13dc8437097ae2e7ac84b702323e4ebf722b79085a3994634f1f906",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000077.frames.npy": "5a26cf725622541f1bca9eeebecd4fc77f7219e291de10b2e04a1f5aeaf52458",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000077.json": "84a25c493cd3ff7bde4128c0cf53e0c55eeddf80a708a77ffcfde33e840870c9",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000077.pt": "c04a81afb1b729c5016d696ed44f28cf53ac232335d7179ea614d9ffc6d6e120",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000078.frames.npy": "666836bfa5215f97b26edd8b904300cbed5f63f576abbaf59224f68b456174b4",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000078.json": "d1f0e22667e11ec43dabb76fb29c07efd278324daddebe915ff1c37e9e52c010",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000078.pt": "6ed75c5b8c10a44d1853f9372f4cf8ad1241d9406880bc095eba7d05d4df120a",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000080.frames.npy": "9518f204dc20d9e1e18dc5e06bf290189713dce89eb77305b2e1f1706c030cae",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000080.json": "6cdf160d8cbf2291590370dadf65e9f547bbbfc3d3571beab5f1bc6a60702e1e",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000080.pt": "357783fda70b7a0c603a14f18d5ac8f20a6edc762c6ed78263574fa6a84ad0cb",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000081.frames.npy": "703cb63883f465fee72799b11603e6182f44b20165ecac082ff21a289c0257a9",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000081.json": "b0a5908a13da24ea7ca3ce7efb623be71e13c39f8d51d7f256048e2d76180e44",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000081.pt": "a110348c343b078f2ef627789e36691855096d7ab8fc5d75dd84953691d2253f",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000084.frames.npy": "b5d6e20472f2272c95eca99896e109ab32922d471398a91c57db02f363fc0f7a",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000084.json": "9114ce4b297d59e3ca004d4b644a2704eb2f1151bf8f61f999c47db7f82a38e1",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000084.pt": "b31265963dff3b1f85e4a36214eaf3f06d0666026a6223c95d1682fd6656d60a",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000085.frames.npy": "0ba1b351bf36d7aee082df94c8a45a672babeb2c60288b5b5a9923d97320d1f9",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000085.json": "87ce9462025683bd6f6d96302176fe3290227de5d0a55d9e110898b1a7a47251",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000085.pt": "4c653a10e169cf0fa43f6f0a3dd061e4ba71c2650b192290b464fe5d8ad5084d",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000086.frames.npy": "9527df8450e28f3b675f262b154cf4386ce9f061aedc4e5ec6edfad718bd4fb3",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000086.json": "b324e6bef887ed7e3e6fbc1d7aaeb8b91f83feb832dcb4abc10e30dc09d3a608",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000086.pt": "85196a1bbfebb73f905494fa5a5ef36b553772e56e30cbb1e34f1707d84f644b",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000087.frames.npy": "757c484ce1b7595fd8f4c940ca6f65f2d0b07d953ce8526deb026d1d318dee4f",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000087.json": "8535811dddc0e97ddca3d1344f21377fa78c2961444b57c820b7f35d8b52b958",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000087.pt": "cc70b13b599000ea69dafa6cdc6d9a6e5fc2415d51ecd7cb1703524c86978e90",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000089.frames.npy": "4fddca01e3b7cd68208a0907a39433f09c99fb264ae37ac25ca88fd649ed20b2",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000089.json": "4c3eba6879fc87e26e72c0234e913b6078f6c1ad3fe8de3a776027a18e0177e9",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000089.pt": "2542a5dfe7ddf7e03ebdaa70de9dd3ff697b1091275132a69941caad29dbe904",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000092.frames.npy": "e43a6ffc4e3666efcfc3285562b0ae69122c421e6c87da0ec7f2a8ab5575758d",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000092.json": "3611540db5d9f51460d46611a4a6bdb335efd04477affb94de9837ad7307680a",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000092.pt": "4bfe7c3e0a7afedd4787be1f7fcd88700e6df092412c29b62f3912308e4234ae",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000093.frames.npy": "6c701df699a4b107ec5b00689282b811ef6d4c9e1f8c514025983c23b5b7e6ba",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000093.json": "760110d14ab02faea800b6b9d989c14e41aead858afc0cd8f6ab36bb616d9690",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000093.pt": "91b5cc4727030d5388d79930d5b3cb0a2ae9033c921f1ea6abc3431aea5fa1a2",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000094.frames.npy": "11ef49d96bc1404683a56395e4c3d65128e97d01743375753be901940a59c914",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000094.json": "61e0e78c0e74db99ed47dbbdbfa73f61c7c4b0a53e03c406dd3c901a8e5b51a3",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000094.pt": "1219dd3d60faa2c5b21ea281e3e2735a3e1f75bd250edcb66874561bc601a2b7",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000095.frames.npy": "903ef735e8e3eba2df6a2e61f72e2ada53a11c276f48c220ad78e72891d28394",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000095.json": "2d824f9b5b4fc65407166e984ad8e0418c93c44b4acd68ef88611abf844a79b8",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000095.pt": "3ed32129d6c9da1c1303cf061072f3ec384a57b559effd08030bef242c12d50c",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000098.frames.npy": "a7c9656a1bc58f6016f5120e0f00a9cd7b60687b65f32c083dd7277d3ed40fb8",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000098.json": "792653f05fe52eb8d493ba8f8ba45699d48b18f8ba699a3278aa3f25caaf3356",
+    "data/cache/prepared-v1/train/HOI_pp_box/twist2/episode_000098.pt": "7f425363d978be990b28ae376332c17fc08e59d442944aa4b0446abeadb5fee3",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000009.frames.npy": "953c88db9af8d671a520a4b51a60966421e03df6e4db0b6ce506a2c7866e1184",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000009.json": "800cb2a9aa7efc2ed1f00acfbbdba1f12ac5d94a3811e8c1b984fe69d2a26670",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000009.pt": "56cc08dce3a4efa204841a72729e43eb0f46e4b90bded884c735c5c13575864e",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000010.frames.npy": "02d21aee2c69c435b5f8adc54abd610be856e7d9c9a40ff59e52aac271dda121",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000010.json": "39006aac62bc28cd0b63e1353f0f4e608c1d71033701e84112913af8f8a8043a",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000010.pt": "ea9bb58c4dd1eaa15252386685ec965b2f4313bd346feeefea53b9629c6186bf",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000022.frames.npy": "632a20e08c84218f87d5278b27f87bad8b02f5994a8b14a7e61a67822917ae81",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000022.json": "123e3d331fad1d270bda2076ef6f222243f110156142866e626a7b8109fd7114",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000022.pt": "96361dbc6efb5aad5ffd6fb18a98222c3009fbee0e853e1f87fec8b212b5215e",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000046.frames.npy": "fcadd77a64fe032cdb6581a93224c4a3dd3e3e1d66581be6609c149a4bcbd421",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000046.json": "18cf72c0d54e3781c9191fab1d1e98676d4010ad10482e18f70eed583910feae",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000046.pt": "6624afc8051a6a89376af5f9f79dbeba8c65c39042ee46d2f2da6966d034b242",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000048.frames.npy": "2ad8aa406a2635887b53df8c196d8f7f99b5f73446e9ff5e605f0f658c6986d9",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000048.json": "8f1194018b8af3e0b4dfe273b426cd722f24ce069bbb5186a481347fd66ac794",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000048.pt": "bab250da9e9f19dc8ab6aefa7eaf031772f0ad86be73f9cf8aca82f9b660f229",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000053.frames.npy": "4ee132b84deaf5b9f706a4813122f5548a778f06f7c0349ed9d0dd40f320ae2a",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000053.json": "488afbc8abebd6c4bd21e5817a2d06685c5ba0b2680fe96ad70d7cd9836fd3ac",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000053.pt": "a03cfc8c113536b49592220acb82dd440b9bbb74ad6fdead27c676cdfe3df1bb",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000076.frames.npy": "6b124bceb9f9f077fca7dcc59bc1d4ab5fddf136d305fc6b513ba2d3235cb640",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000076.json": "e27b8031d3f10901a5278ec89c2c19b827903a5e4d254eabc4e3c15f97a2e97c",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000076.pt": "a8a424a0853fef6597e4adacf06414208f301adfc57d23cbc516526061bdd753",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000082.frames.npy": "cf4dc49c324646e2d2876c2384054fbd2cd0e4bf03dcaee6e596b75a1b770c2e",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000082.json": "1ff8122e609fda1e61e2506306a7e3d545863b9ddb04015ef86193031407f324",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000082.pt": "d13a22479211bd74c4c5f854559bc1e81977388d5d8e7011e4527bcccfa127a1",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000091.frames.npy": "43ade63b2fdcf80899b3acc321caed193b6bf0c9765e427679bfba92daab21dd",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000091.json": "6727cc77e8b490f7fcc3712bfcd18f9cd5c5319633db79e09c9fa9333bdee23e",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000091.pt": "fc8a6925e8f7d47689f7cabeaf023e67321c86b6174ed85a2df0fba453dcde11",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000096.frames.npy": "f15c714fb79cb6ba7b30976c67999a3a5ba65bbb553140753f9b668e3d38cfa3",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000096.json": "e45e3430f4c89c4fcb60ca23720f6e2379e9861d6fc25e44ca3dda46566bcf70",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000096.pt": "b2ffee092185cbacdbf4a95e0bcc8ec37e3dbc5e95fa99b83504137bf81af19d",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000097.frames.npy": "874ed71e6cba489a5c8ab6cedae159864f7bee84945ad2b76fda52e3d47e62e0",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000097.json": "fff0afba1b7d45c912c673ea8f662bd2accc56f162bdb1bf26fc0a1c688a1b20",
+    "data/cache/prepared-v1/validation/HOI_pp_box/twist2/episode_000097.pt": "2d70a25052949db4a5861d3d28833269154bf6e9f06de13406e8ef5d63e860f4"
+  },
+  "prepared_checks": [
+    {
+      "episode": "HOI_pp_box/sonic/000001",
+      "model_frames": 525,
+      "windows": 476,
+      "image_frames_checked": [
+        0,
+        262,
+        524
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        475
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 38.34,
+        "source_frame_start": 0,
+        "source_frame_stop": 875
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000002",
+      "model_frames": 707,
+      "windows": 658,
+      "image_frames_checked": [
+        0,
+        353,
+        706
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        657
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 55.84,
+        "source_frame_start": 0,
+        "source_frame_stop": 1178
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000006",
+      "model_frames": 474,
+      "windows": 425,
+      "image_frames_checked": [
+        0,
+        237,
+        473
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        424
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 135.98000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 790
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000011",
+      "model_frames": 407,
+      "windows": 358,
+      "image_frames_checked": [
+        0,
+        203,
+        406
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        357
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 216.70000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 677
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000014",
+      "model_frames": 483,
+      "windows": 434,
+      "image_frames_checked": [
+        0,
+        241,
+        482
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        433
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 264.8,
+        "source_frame_start": 0,
+        "source_frame_stop": 805
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000015",
+      "model_frames": 642,
+      "windows": 593,
+      "image_frames_checked": [
+        0,
+        321,
+        641
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        592
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 280.90000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 1069
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000016",
+      "model_frames": 659,
+      "windows": 610,
+      "image_frames_checked": [
+        0,
+        329,
+        658
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        609
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 302.28000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 1098
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000017",
+      "model_frames": 599,
+      "windows": 550,
+      "image_frames_checked": [
+        0,
+        299,
+        598
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        549
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 324.24,
+        "source_frame_start": 0,
+        "source_frame_stop": 997
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000023",
+      "model_frames": 381,
+      "windows": 332,
+      "image_frames_checked": [
+        0,
+        190,
+        380
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        331
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 410.46000000000004,
+        "source_frame_start": 0,
+        "source_frame_stop": 634
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000026",
+      "model_frames": 437,
+      "windows": 388,
+      "image_frames_checked": [
+        0,
+        218,
+        436
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        387
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 447.1,
+        "source_frame_start": 0,
+        "source_frame_stop": 727
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000030",
+      "model_frames": 484,
+      "windows": 435,
+      "image_frames_checked": [
+        0,
+        242,
+        483
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        434
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 508.00000000000006,
+        "source_frame_start": 0,
+        "source_frame_stop": 806
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000031",
+      "model_frames": 650,
+      "windows": 601,
+      "image_frames_checked": [
+        0,
+        325,
+        649
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        600
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 0.0,
+        "source_frame_start": 0,
+        "source_frame_stop": 1083
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000034",
+      "model_frames": 500,
+      "windows": 451,
+      "image_frames_checked": [
+        0,
+        250,
+        499
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        450
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 44.88,
+        "source_frame_start": 0,
+        "source_frame_stop": 832
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000042",
+      "model_frames": 317,
+      "windows": 268,
+      "image_frames_checked": [
+        0,
+        158,
+        316
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        267
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 142.92000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 528
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000046",
+      "model_frames": 361,
+      "windows": 312,
+      "image_frames_checked": [
+        0,
+        180,
+        360
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        311
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 188.56000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 601
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000047",
+      "model_frames": 521,
+      "windows": 472,
+      "image_frames_checked": [
+        0,
+        260,
+        520
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        471
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 200.58000000000004,
+        "source_frame_start": 0,
+        "source_frame_stop": 867
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000049",
+      "model_frames": 474,
+      "windows": 425,
+      "image_frames_checked": [
+        0,
+        237,
+        473
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        424
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 229.02000000000004,
+        "source_frame_start": 0,
+        "source_frame_stop": 789
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000050",
+      "model_frames": 482,
+      "windows": 433,
+      "image_frames_checked": [
+        0,
+        241,
+        481
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        432
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 244.80000000000004,
+        "source_frame_start": 0,
+        "source_frame_stop": 802
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000051",
+      "model_frames": 397,
+      "windows": 348,
+      "image_frames_checked": [
+        0,
+        198,
+        396
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        347
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 260.84000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 661
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000054",
+      "model_frames": 266,
+      "windows": 217,
+      "image_frames_checked": [
+        0,
+        133,
+        265
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        216
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 298.8400000000001,
+        "source_frame_start": 0,
+        "source_frame_stop": 442
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000057",
+      "model_frames": 334,
+      "windows": 285,
+      "image_frames_checked": [
+        0,
+        167,
+        333
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        284
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 332.74000000000007,
+        "source_frame_start": 0,
+        "source_frame_stop": 556
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000058",
+      "model_frames": 392,
+      "windows": 343,
+      "image_frames_checked": [
+        0,
+        196,
+        391
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        342
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 343.86000000000007,
+        "source_frame_start": 0,
+        "source_frame_stop": 652
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000059",
+      "model_frames": 421,
+      "windows": 372,
+      "image_frames_checked": [
+        0,
+        210,
+        420
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        371
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 356.9000000000001,
+        "source_frame_start": 0,
+        "source_frame_stop": 701
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000060",
+      "model_frames": 453,
+      "windows": 404,
+      "image_frames_checked": [
+        0,
+        226,
+        452
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        403
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 370.9200000000001,
+        "source_frame_start": 0,
+        "source_frame_stop": 755
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000061",
+      "model_frames": 384,
+      "windows": 335,
+      "image_frames_checked": [
+        0,
+        192,
+        383
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        334
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 386.0200000000001,
+        "source_frame_start": 0,
+        "source_frame_stop": 639
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000067",
+      "model_frames": 330,
+      "windows": 281,
+      "image_frames_checked": [
+        0,
+        165,
+        329
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        280
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 464.06000000000006,
+        "source_frame_start": 0,
+        "source_frame_stop": 550
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000069",
+      "model_frames": 360,
+      "windows": 311,
+      "image_frames_checked": [
+        0,
+        180,
+        359
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        310
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 486.4200000000001,
+        "source_frame_start": 0,
+        "source_frame_stop": 600
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000071",
+      "model_frames": 545,
+      "windows": 496,
+      "image_frames_checked": [
+        0,
+        272,
+        544
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        495
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 0.0,
+        "source_frame_start": 0,
+        "source_frame_stop": 907
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000072",
+      "model_frames": 411,
+      "windows": 362,
+      "image_frames_checked": [
+        0,
+        205,
+        410
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        361
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 18.14,
+        "source_frame_start": 0,
+        "source_frame_stop": 684
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000074",
+      "model_frames": 364,
+      "windows": 315,
+      "image_frames_checked": [
+        0,
+        182,
+        363
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        314
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 47.0,
+        "source_frame_start": 0,
+        "source_frame_stop": 606
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000076",
+      "model_frames": 338,
+      "windows": 289,
+      "image_frames_checked": [
+        0,
+        169,
+        337
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        288
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 69.02,
+        "source_frame_start": 0,
+        "source_frame_stop": 563
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000079",
+      "model_frames": 369,
+      "windows": 320,
+      "image_frames_checked": [
+        0,
+        184,
+        368
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        319
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 107.78,
+        "source_frame_start": 0,
+        "source_frame_stop": 615
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000080",
+      "model_frames": 438,
+      "windows": 389,
+      "image_frames_checked": [
+        0,
+        219,
+        437
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        388
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 120.08,
+        "source_frame_start": 0,
+        "source_frame_stop": 730
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000081",
+      "model_frames": 333,
+      "windows": 284,
+      "image_frames_checked": [
+        0,
+        166,
+        332
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        283
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 134.68,
+        "source_frame_start": 0,
+        "source_frame_stop": 555
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000082",
+      "model_frames": 350,
+      "windows": 301,
+      "image_frames_checked": [
+        0,
+        175,
+        349
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        300
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 145.78,
+        "source_frame_start": 0,
+        "source_frame_stop": 582
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000083",
+      "model_frames": 299,
+      "windows": 250,
+      "image_frames_checked": [
+        0,
+        149,
+        298
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        249
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 157.42000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 497
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000085",
+      "model_frames": 315,
+      "windows": 266,
+      "image_frames_checked": [
+        0,
+        157,
+        314
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        265
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 179.3,
+        "source_frame_start": 0,
+        "source_frame_stop": 524
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000091",
+      "model_frames": 342,
+      "windows": 293,
+      "image_frames_checked": [
+        0,
+        171,
+        341
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        292
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 243.21999999999997,
+        "source_frame_start": 0,
+        "source_frame_stop": 569
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000092",
+      "model_frames": 361,
+      "windows": 312,
+      "image_frames_checked": [
+        0,
+        180,
+        360
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        311
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 254.59999999999997,
+        "source_frame_start": 0,
+        "source_frame_stop": 601
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000095",
+      "model_frames": 228,
+      "windows": 179,
+      "image_frames_checked": [
+        0,
+        114,
+        227
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        178
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 290.84,
+        "source_frame_start": 0,
+        "source_frame_stop": 380
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000096",
+      "model_frames": 402,
+      "windows": 353,
+      "image_frames_checked": [
+        0,
+        201,
+        401
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        352
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 298.44,
+        "source_frame_start": 0,
+        "source_frame_stop": 670
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000097",
+      "model_frames": 338,
+      "windows": 289,
+      "image_frames_checked": [
+        0,
+        169,
+        337
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        288
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 311.84,
+        "source_frame_start": 0,
+        "source_frame_stop": 563
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000098",
+      "model_frames": 345,
+      "windows": 296,
+      "image_frames_checked": [
+        0,
+        172,
+        344
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        295
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 323.09999999999997,
+        "source_frame_start": 0,
+        "source_frame_stop": 575
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000000",
+      "model_frames": 254,
+      "windows": 205,
+      "image_frames_checked": [
+        0,
+        127,
+        253
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        204
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 0.0,
+        "source_frame_start": 0,
+        "source_frame_stop": 422
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000001",
+      "model_frames": 236,
+      "windows": 187,
+      "image_frames_checked": [
+        0,
+        118,
+        235
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        186
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 8.44,
+        "source_frame_start": 0,
+        "source_frame_stop": 392
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000003",
+      "model_frames": 232,
+      "windows": 183,
+      "image_frames_checked": [
+        0,
+        116,
+        231
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        182
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 25.240000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 386
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000005",
+      "model_frames": 192,
+      "windows": 143,
+      "image_frames_checked": [
+        0,
+        96,
+        191
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        142
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 42.18,
+        "source_frame_start": 0,
+        "source_frame_stop": 319
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000012",
+      "model_frames": 276,
+      "windows": 227,
+      "image_frames_checked": [
+        0,
+        138,
+        275
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        226
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 99.78,
+        "source_frame_start": 0,
+        "source_frame_stop": 459
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000016",
+      "model_frames": 237,
+      "windows": 188,
+      "image_frames_checked": [
+        0,
+        118,
+        236
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        187
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 141.48000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 394
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000018",
+      "model_frames": 303,
+      "windows": 254,
+      "image_frames_checked": [
+        0,
+        151,
+        302
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        253
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 155.74,
+        "source_frame_start": 0,
+        "source_frame_stop": 504
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000019",
+      "model_frames": 330,
+      "windows": 281,
+      "image_frames_checked": [
+        0,
+        165,
+        329
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        280
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 165.82000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 550
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000021",
+      "model_frames": 245,
+      "windows": 196,
+      "image_frames_checked": [
+        0,
+        122,
+        244
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        195
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 189.28000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 407
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000025",
+      "model_frames": 194,
+      "windows": 145,
+      "image_frames_checked": [
+        0,
+        97,
+        193
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        144
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 227.04000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 323
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000027",
+      "model_frames": 254,
+      "windows": 205,
+      "image_frames_checked": [
+        0,
+        127,
+        253
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        204
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 240.12000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 423
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000033",
+      "model_frames": 438,
+      "windows": 389,
+      "image_frames_checked": [
+        0,
+        219,
+        437
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        388
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 288.90000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 730
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000034",
+      "model_frames": 185,
+      "windows": 136,
+      "image_frames_checked": [
+        0,
+        92,
+        184
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        135
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 303.50000000000006,
+        "source_frame_start": 0,
+        "source_frame_stop": 308
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000036",
+      "model_frames": 201,
+      "windows": 152,
+      "image_frames_checked": [
+        0,
+        100,
+        200
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        151
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 319.9600000000001,
+        "source_frame_start": 0,
+        "source_frame_stop": 334
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000039",
+      "model_frames": 222,
+      "windows": 173,
+      "image_frames_checked": [
+        0,
+        111,
+        221
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        172
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 340.00000000000006,
+        "source_frame_start": 0,
+        "source_frame_stop": 370
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000040",
+      "model_frames": 305,
+      "windows": 256,
+      "image_frames_checked": [
+        0,
+        152,
+        304
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        255
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 347.40000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 507
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000041",
+      "model_frames": 282,
+      "windows": 233,
+      "image_frames_checked": [
+        0,
+        141,
+        281
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        232
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 357.54,
+        "source_frame_start": 0,
+        "source_frame_stop": 470
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000042",
+      "model_frames": 323,
+      "windows": 274,
+      "image_frames_checked": [
+        0,
+        161,
+        322
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        273
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 366.94,
+        "source_frame_start": 0,
+        "source_frame_stop": 537
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000043",
+      "model_frames": 296,
+      "windows": 247,
+      "image_frames_checked": [
+        0,
+        148,
+        295
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        246
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 377.68,
+        "source_frame_start": 0,
+        "source_frame_stop": 492
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000045",
+      "model_frames": 253,
+      "windows": 204,
+      "image_frames_checked": [
+        0,
+        126,
+        252
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        203
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 396.44,
+        "source_frame_start": 0,
+        "source_frame_stop": 421
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000047",
+      "model_frames": 305,
+      "windows": 256,
+      "image_frames_checked": [
+        0,
+        152,
+        304
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        255
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 414.40000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 507
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000052",
+      "model_frames": 461,
+      "windows": 412,
+      "image_frames_checked": [
+        0,
+        230,
+        460
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        411
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 0.0,
+        "source_frame_start": 0,
+        "source_frame_stop": 767
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000054",
+      "model_frames": 641,
+      "windows": 592,
+      "image_frames_checked": [
+        0,
+        320,
+        640
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        591
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 33.46,
+        "source_frame_start": 0,
+        "source_frame_stop": 1068
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000059",
+      "model_frames": 246,
+      "windows": 197,
+      "image_frames_checked": [
+        0,
+        123,
+        245
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        196
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 117.67999999999999,
+        "source_frame_start": 0,
+        "source_frame_stop": 410
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000060",
+      "model_frames": 223,
+      "windows": 174,
+      "image_frames_checked": [
+        0,
+        111,
+        222
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        173
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 125.88,
+        "source_frame_start": 0,
+        "source_frame_stop": 371
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000063",
+      "model_frames": 224,
+      "windows": 175,
+      "image_frames_checked": [
+        0,
+        112,
+        223
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        174
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 149.92,
+        "source_frame_start": 0,
+        "source_frame_stop": 373
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000065",
+      "model_frames": 226,
+      "windows": 177,
+      "image_frames_checked": [
+        0,
+        113,
+        225
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        176
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 165.38,
+        "source_frame_start": 0,
+        "source_frame_stop": 376
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000070",
+      "model_frames": 198,
+      "windows": 149,
+      "image_frames_checked": [
+        0,
+        99,
+        197
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        148
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 204.4,
+        "source_frame_start": 0,
+        "source_frame_stop": 330
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000072",
+      "model_frames": 293,
+      "windows": 244,
+      "image_frames_checked": [
+        0,
+        146,
+        292
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        243
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 217.18,
+        "source_frame_start": 0,
+        "source_frame_stop": 488
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000077",
+      "model_frames": 194,
+      "windows": 145,
+      "image_frames_checked": [
+        0,
+        97,
+        193
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        144
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 264.64,
+        "source_frame_start": 0,
+        "source_frame_stop": 322
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000078",
+      "model_frames": 216,
+      "windows": 167,
+      "image_frames_checked": [
+        0,
+        108,
+        215
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        166
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 271.08,
+        "source_frame_start": 0,
+        "source_frame_stop": 359
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000080",
+      "model_frames": 210,
+      "windows": 161,
+      "image_frames_checked": [
+        0,
+        105,
+        209
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        160
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 287.3,
+        "source_frame_start": 0,
+        "source_frame_stop": 350
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000081",
+      "model_frames": 313,
+      "windows": 264,
+      "image_frames_checked": [
+        0,
+        156,
+        312
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        263
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 294.3,
+        "source_frame_start": 0,
+        "source_frame_stop": 521
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000084",
+      "model_frames": 240,
+      "windows": 191,
+      "image_frames_checked": [
+        0,
+        120,
+        239
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        190
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 316.12000000000006,
+        "source_frame_start": 0,
+        "source_frame_stop": 400
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000085",
+      "model_frames": 241,
+      "windows": 192,
+      "image_frames_checked": [
+        0,
+        120,
+        240
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        191
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 324.12000000000006,
+        "source_frame_start": 0,
+        "source_frame_stop": 401
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000086",
+      "model_frames": 212,
+      "windows": 163,
+      "image_frames_checked": [
+        0,
+        106,
+        211
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        162
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 332.14000000000004,
+        "source_frame_start": 0,
+        "source_frame_stop": 353
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000087",
+      "model_frames": 252,
+      "windows": 203,
+      "image_frames_checked": [
+        0,
+        126,
+        251
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        202
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 339.20000000000005,
+        "source_frame_start": 0,
+        "source_frame_stop": 420
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000089",
+      "model_frames": 250,
+      "windows": 201,
+      "image_frames_checked": [
+        0,
+        125,
+        249
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        200
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 353.64000000000004,
+        "source_frame_start": 0,
+        "source_frame_stop": 416
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000092",
+      "model_frames": 387,
+      "windows": 338,
+      "image_frames_checked": [
+        0,
+        193,
+        386
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        337
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 378.54,
+        "source_frame_start": 0,
+        "source_frame_stop": 645
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000093",
+      "model_frames": 266,
+      "windows": 217,
+      "image_frames_checked": [
+        0,
+        133,
+        265
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        216
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 391.44,
+        "source_frame_start": 0,
+        "source_frame_stop": 443
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000094",
+      "model_frames": 246,
+      "windows": 197,
+      "image_frames_checked": [
+        0,
+        123,
+        245
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        196
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 400.3,
+        "source_frame_start": 0,
+        "source_frame_stop": 409
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000095",
+      "model_frames": 219,
+      "windows": 170,
+      "image_frames_checked": [
+        0,
+        109,
+        218
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        169
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 408.48,
+        "source_frame_start": 0,
+        "source_frame_stop": 365
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000098",
+      "model_frames": 138,
+      "windows": 89,
+      "image_frames_checked": [
+        0,
+        69,
+        137
+      ],
+      "window_cuts_checked": [
+        0,
+        88
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 429.56000000000006,
+        "source_frame_start": 0,
+        "source_frame_stop": 230
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000004",
+      "model_frames": 545,
+      "windows": 496,
+      "image_frames_checked": [
+        0,
+        272,
+        544
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        495
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 103.98,
+        "source_frame_start": 0,
+        "source_frame_stop": 907
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000007",
+      "model_frames": 441,
+      "windows": 392,
+      "image_frames_checked": [
+        0,
+        220,
+        440
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        391
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 151.78000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 735
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000021",
+      "model_frames": 345,
+      "windows": 296,
+      "image_frames_checked": [
+        0,
+        172,
+        344
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        295
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 387.48,
+        "source_frame_start": 0,
+        "source_frame_stop": 575
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000022",
+      "model_frames": 345,
+      "windows": 296,
+      "image_frames_checked": [
+        0,
+        172,
+        344
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        295
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 398.98,
+        "source_frame_start": 0,
+        "source_frame_stop": 574
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000037",
+      "model_frames": 375,
+      "windows": 326,
+      "image_frames_checked": [
+        0,
+        187,
+        374
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        325
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 84.2,
+        "source_frame_start": 0,
+        "source_frame_stop": 625
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000038",
+      "model_frames": 398,
+      "windows": 349,
+      "image_frames_checked": [
+        0,
+        199,
+        397
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        348
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 96.7,
+        "source_frame_start": 0,
+        "source_frame_stop": 662
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000043",
+      "model_frames": 287,
+      "windows": 238,
+      "image_frames_checked": [
+        0,
+        143,
+        286
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        237
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 153.48000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 478
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000073",
+      "model_frames": 456,
+      "windows": 407,
+      "image_frames_checked": [
+        0,
+        228,
+        455
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        406
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 31.82,
+        "source_frame_start": 0,
+        "source_frame_stop": 759
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000075",
+      "model_frames": 297,
+      "windows": 248,
+      "image_frames_checked": [
+        0,
+        148,
+        296
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        247
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 59.12,
+        "source_frame_start": 0,
+        "source_frame_stop": 495
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000089",
+      "model_frames": 348,
+      "windows": 299,
+      "image_frames_checked": [
+        0,
+        174,
+        347
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        298
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 221.14,
+        "source_frame_start": 0,
+        "source_frame_stop": 580
+      }
+    },
+    {
+      "episode": "HOI_pp_box/sonic/000099",
+      "model_frames": 298,
+      "windows": 249,
+      "image_frames_checked": [
+        0,
+        149,
+        297
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        248
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4",
+        "video_offset_s": 334.59999999999997,
+        "source_frame_start": 0,
+        "source_frame_stop": 496
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000009",
+      "model_frames": 378,
+      "windows": 329,
+      "image_frames_checked": [
+        0,
+        189,
+        377
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        328
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 70.16,
+        "source_frame_start": 0,
+        "source_frame_stop": 629
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000010",
+      "model_frames": 294,
+      "windows": 245,
+      "image_frames_checked": [
+        0,
+        147,
+        293
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        244
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 82.74,
+        "source_frame_start": 0,
+        "source_frame_stop": 489
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000022",
+      "model_frames": 262,
+      "windows": 213,
+      "image_frames_checked": [
+        0,
+        131,
+        261
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        212
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 197.42000000000002,
+        "source_frame_start": 0,
+        "source_frame_stop": 436
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000046",
+      "model_frames": 287,
+      "windows": 238,
+      "image_frames_checked": [
+        0,
+        143,
+        286
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        237
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 404.86,
+        "source_frame_start": 0,
+        "source_frame_stop": 477
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000048",
+      "model_frames": 503,
+      "windows": 454,
+      "image_frames_checked": [
+        0,
+        251,
+        502
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        453
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4",
+        "video_offset_s": 424.54,
+        "source_frame_start": 0,
+        "source_frame_stop": 838
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000053",
+      "model_frames": 544,
+      "windows": 495,
+      "image_frames_checked": [
+        0,
+        272,
+        543
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        494
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 15.34,
+        "source_frame_start": 0,
+        "source_frame_stop": 906
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000076",
+      "model_frames": 416,
+      "windows": 367,
+      "image_frames_checked": [
+        0,
+        208,
+        415
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        366
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 250.79999999999998,
+        "source_frame_start": 0,
+        "source_frame_stop": 692
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000082",
+      "model_frames": 159,
+      "windows": 110,
+      "image_frames_checked": [
+        0,
+        79,
+        158
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        109
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 304.72,
+        "source_frame_start": 0,
+        "source_frame_stop": 265
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000091",
+      "model_frames": 264,
+      "windows": 215,
+      "image_frames_checked": [
+        0,
+        132,
+        263
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        214
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 369.76000000000005,
+        "source_frame_start": 0,
+        "source_frame_stop": 439
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000096",
+      "model_frames": 242,
+      "windows": 193,
+      "image_frames_checked": [
+        0,
+        121,
+        241
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        192
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 415.78000000000003,
+        "source_frame_start": 0,
+        "source_frame_stop": 402
+      }
+    },
+    {
+      "episode": "HOI_pp_box/twist2/000097",
+      "model_frames": 173,
+      "windows": 124,
+      "image_frames_checked": [
+        0,
+        86,
+        172
+      ],
+      "window_cuts_checked": [
+        0,
+        100,
+        123
+      ],
+      "source_mapping": {
+        "instruction": "Move the box from the table onto the shelf.",
+        "video": "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4",
+        "video_offset_s": 423.82000000000005,
+        "source_frame_start": 0,
+        "source_frame_stop": 287
+      }
+    }
+  ],
+  "success_certified": false
+}

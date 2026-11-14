@@ -1,0 +1,5 @@
+{
+  "pid": 1898075,
+  "reason": "Physics and RGB passed with Warp 1.9; shutdown pending. Add explicit physics stop and stack diagnostics.",
+  "time_unix": 1794579917.4925556
+}

@@ -1,0 +1,172 @@
+{
+  "dataset_revision": "ca04c2d53598d640bb3580edb5c6af78d59ea6b1",
+  "metadata": {
+    "HOI_pp_box/sonic_refpose_v3_1": {
+      "meta/info.json": "f3f7303d765c72ef13cecb64f03e00e88ba3cab583f7d7e7c01e44d9bb15209b",
+      "meta/tasks.parquet": "043b2a3092d06740cb34e9658a58e4924003c435dabe0f42b12b6b91f8d0cbf0",
+      "meta/episodes/chunk-000/file-000.parquet": "61da7099d4a0aecafe114f59c23f1aeb6d59089cae37b7593572cd0b2dc25361"
+    },
+    "HOI_pp_box/twist2_refpose_v3_1": {
+      "meta/info.json": "947505b4fda5244ba850365122e77eb9c39c394e8d14b3b0755fdc718a32c445",
+      "meta/tasks.parquet": "043b2a3092d06740cb34e9658a58e4924003c435dabe0f42b12b6b91f8d0cbf0",
+      "meta/episodes/chunk-000/file-000.parquet": "7ccfc3c835f5d2157449db6f5acfbeb18df3a0ddb8ae5be2e3a9d6512530b283"
+    },
+    "HOI_pp_box/mimic_lite_refpose_v3_1": {
+      "meta/info.json": "c715bdeae302068a2e9583ee962fc7f185fb0681d608bb3fee62b7226c9c34f0",
+      "meta/tasks.parquet": "cc5d94ffd881d865e12d4d43b7a4da5e6b562a1b4145bcd1804e359e8872b1c1",
+      "meta/episodes/chunk-000/file-000.parquet": "e3cda0a2ce82f91fdd277b58cb3dea2bf3be9918d66090772dd78e92b5c26646"
+    },
+    "HSI_boxing/sonic_refpose_v3_1": {
+      "meta/info.json": "0d2cd77e487d5b72393382e9d4f0867c326783ae0f8abdf5b54a5d25189a334e",
+      "meta/tasks.parquet": "e4a2dce43fabc99c35ef2380dfc566687548fc045b87c35e136c841af043f3de",
+      "meta/episodes/chunk-000/file-000.parquet": "38390f9b0bdf576639de76f86b236d1572aedf401217947403ace1aeab59d41e"
+    },
+    "HSI_boxing/twist2_refpose_v3_1": {
+      "meta/info.json": "41194d27460f54f1c300b63b9a266b717e9799637aecf6d0e8374e634882b2ed",
+      "meta/tasks.parquet": "e4a2dce43fabc99c35ef2380dfc566687548fc045b87c35e136c841af043f3de",
+      "meta/episodes/chunk-000/file-000.parquet": "c6c1b43ac047b9ab4a06c903f0f2825d8c19c3c127a7e732f2460a0adc6db74e"
+    },
+    "HSI_boxing/mimic_lite_refpose_v3_1": {
+      "meta/info.json": "bd4d1931cd888c5b48e31a441cc895e3a299daa646add010cc3165880437ff2c",
+      "meta/tasks.parquet": "ccfc46d250bd605cfb75ed099720479d34c8095772d573c95c492c11c379be72",
+      "meta/episodes/chunk-000/file-000.parquet": "f0550c4411721157698e1398e5cdb0dd73d39638dbd688a94058507a72df3ada"
+    },
+    "HSI_vision_navi/sonic_refpose_v3_1": {
+      "meta/info.json": "ca80faacec4740f1bbd403b45815801d8701e92723f4520b4c52311078adaea7",
+      "meta/tasks.parquet": "a30dbf171c281cd5171ca75f37526b8c3557a227203dd98322aa3108fd09b04f",
+      "meta/episodes/chunk-000/file-000.parquet": "7d835b2877d07ae99274d0a254341c13107c627476fa800d75f1d3431780457b"
+    },
+    "HSI_vision_navi/twist2_refpose_v3_1": {
+      "meta/info.json": "ec913b91515c7aefce4738ef7b0a1cc9a845c0027636cb60ab7d259daa02c222",
+      "meta/tasks.parquet": "a30dbf171c281cd5171ca75f37526b8c3557a227203dd98322aa3108fd09b04f",
+      "meta/episodes/chunk-000/file-000.parquet": "c332d76f44d8cef181f8d112d18154a81905fe976459c4d6c5277e24b1a15043"
+    },
+    "HSI_vision_navi/mimic_lite_refpose_v3_1": {
+      "meta/info.json": "53855f7ab866b11fd7b018acafe23d6978c6f07b4c2ddcd1050dfb4bf0c91b3f",
+      "meta/tasks.parquet": "50847a7c86b366a92ce15fbf18a2c18ac43b24ecd961348fe4ee310d566fce5b",
+      "meta/episodes/chunk-000/file-000.parquet": "b4c3f422cc4df6bd7111034d6b2ee2e549b463a1ef580a81b32636b458938686"
+    }
+  },
+  "videos": {
+    "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 209092177,
+      "sha256": "6172ce31841ace572e170bc79cfcffeee0299cc64f995bb4add2469cc42f7d71",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": {
+      "bytes": 203439320,
+      "sha256": "7d03bc1f0552de5ecb278c69bcedf100ccbdc4de2b30b55a4e1b3dfc9d6e3755",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4"
+    },
+    "HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4": {
+      "bytes": 143252703,
+      "sha256": "2c7577ced43c8134369ce8ee4714ec05eee9c66b5805fffe6c3a5b32d66c9f89",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HOI_pp_box/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4"
+    },
+    "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 207224054,
+      "sha256": "02de815156e5da6bf09abf87aba19c59d1e47387bfd08cbfaa1ab8c0a039d45d",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": {
+      "bytes": 188411806,
+      "sha256": "18f4ef9dcf598cd6a60c82cd895b85fdb78433e95ba4145a1c3cf5593f585ac8",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HOI_pp_box/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4"
+    },
+    "HOI_pp_box/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 202594610,
+      "sha256": "6b71e41cf0dc90c4b5adf0dccb33a43241501b1a4f7f15012d51bcb1538a9409",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HOI_pp_box/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HOI_pp_box/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": {
+      "bytes": 201413416,
+      "sha256": "aed7d3e3306a9291e2b2093e5fcb89ec2d7ad9f44b417745a88bdb6caa7f316e",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HOI_pp_box/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4"
+    },
+    "HOI_pp_box/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4": {
+      "bytes": 204952934,
+      "sha256": "8cdd7fff011d4bbab03e3213366577a8ff55dc89ede42ee6ad2be47b2b526392",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HOI_pp_box/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4"
+    },
+    "HSI_boxing/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 208798631,
+      "sha256": "81769502e7df469ea02de1f4117e3b4995b3b26aca90bfc85d1029f047d01801",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_boxing/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HSI_boxing/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": {
+      "bytes": 131520875,
+      "sha256": "da551895e8691e04f12d1fbe808c853da862c53eb8614eadb24f8789c7022f57",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_boxing/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4"
+    },
+    "HSI_boxing/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 200744987,
+      "sha256": "d3851c061002c9da4e2d827bcd2104bd5fc19750d1aa0199c3e0f7f8b56b597c",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_boxing/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HSI_boxing/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 208239024,
+      "sha256": "bdf6b4623d333421fa88536b0593a878c46126d3778a66a8ae92ff4a7c252298",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_boxing/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HSI_boxing/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": {
+      "bytes": 187805061,
+      "sha256": "c44808cb5cc3088076667d85a159ce9489271a82f30d456c12435b90b821b5a7",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_boxing/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4"
+    },
+    "HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 196041260,
+      "sha256": "913f4d72305f28d47bdb09eb3a0d1d394e5045d4cd9f95a30a1e8bb5fdfe89e4",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": {
+      "bytes": 199263803,
+      "sha256": "70f2a4772c9f08d5b638d0bf3cd62916959491387bda51141b24a001cc5ebfa5",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4"
+    },
+    "HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4": {
+      "bytes": 209095523,
+      "sha256": "239c701494306ccb7405d5ef230b9c3a4b9d0d4f1c0687016c2d86b56ec10b43",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4"
+    },
+    "HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-003.mp4": {
+      "bytes": 197553087,
+      "sha256": "579c2bb3f2d2ed805483e7cdfcf02afa336b7a2a65c6620e372b214c5adf89cf",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/sonic_refpose_v3_1/videos/observation.images.front/chunk-000/file-003.mp4"
+    },
+    "HSI_vision_navi/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 204965569,
+      "sha256": "13c979c0b0d459382a8c09d851c8324cf0962545567754fc8f61af0e9e09f040",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HSI_vision_navi/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": {
+      "bytes": 208211082,
+      "sha256": "04aa0a67c3c97b93702a5587bd45c9d0e2cb1ff212b1e73652ef6278fc95e9e5",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4"
+    },
+    "HSI_vision_navi/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4": {
+      "bytes": 33711867,
+      "sha256": "a68fbc11ff7dd689378a8dc56b8897198efddcd9bdece80cbfdad07505e9860a",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/twist2_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4"
+    },
+    "HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4": {
+      "bytes": 208786718,
+      "sha256": "6fc07c12222171d2384b9ee664afcab331a8437db620ef35624ca1ff3376373a",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-000.mp4"
+    },
+    "HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4": {
+      "bytes": 207582798,
+      "sha256": "3d56380dfefda6b407af71de8d9d72358f2e59625f04cfccf27c56a3184e90a5",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-001.mp4"
+    },
+    "HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4": {
+      "bytes": 209110897,
+      "sha256": "4ca1e36714ddddf59ac0ab4a320cf03d8e390c041d4b2cb775c3b9a66d69b31c",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-002.mp4"
+    },
+    "HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-003.mp4": {
+      "bytes": 3852357,
+      "sha256": "c54a9e2aa8dbf0217db49862d7f48d50b9491578d91ad6722465e3fdf3a61563",
+      "url": "https://huggingface.co/datasets/WilliamWang16/HumanoidArena_dataset_v3_1/resolve/ca04c2d53598d640bb3580edb5c6af78d59ea6b1/HSI_vision_navi/mimic_lite_refpose_v3_1/videos/observation.images.front/chunk-000/file-003.mp4"
+    }
+  }
+}

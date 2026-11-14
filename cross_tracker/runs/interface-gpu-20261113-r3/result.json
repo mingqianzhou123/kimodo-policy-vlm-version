@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "checkpoint_sha256": "33362b45ecb8faee06f861963cd0401d5e33d12ddce78d8d8b35a746ed04f0d7",
+  "checks": [
+    {
+      "controller": "sonic",
+      "requests": 3,
+      "action_shape": [
+        25,
+        40
+      ],
+      "inference_seconds": [
+        0.9128336682915688,
+        0.2803436890244484,
+        0.2763380389660597
+      ],
+      "reset_max_difference": 0.0
+    },
+    {
+      "controller": "twist2",
+      "requests": 3,
+      "action_shape": [
+        25,
+        40
+      ],
+      "inference_seconds": [
+        0.28831689804792404,
+        0.27544518932700157,
+        0.2774609047919512
+      ],
+      "reset_max_difference": 0.0
+    }
+  ],
+  "source": "HOI_pp_box/sonic/000001",
+  "meaning": "real GPU HTTP inference, not simulator task success"
+}

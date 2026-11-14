@@ -1,0 +1,1 @@
+{"returncode": 7, "stats": "000 0 0 0.048529", "error": "curl: (7) Failed to connect to huggingface.co port 443 after 48 ms: Connection refused\n"}

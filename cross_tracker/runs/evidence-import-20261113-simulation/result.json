@@ -1,0 +1,8 @@
+{
+  "verified_files": 327,
+  "archive_sha256": "6a87ead2090c309c302d1021659183a33e512975166846c18cf6c4f15db3eb3d",
+  "preserved_local_versions": [
+    "runs/interface-gpu-20261113-r3/run.json",
+    "runs/sim-setup-20261113/check_remaining_tasks.py"
+  ]
+}

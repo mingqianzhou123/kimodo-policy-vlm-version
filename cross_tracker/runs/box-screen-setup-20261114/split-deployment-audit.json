@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "preflight": {
+    "passed": true,
+    "run_id": "box-sonic-s42-20261114"
+  },
+  "tests_passed": 3,
+  "notes": [
+    "First deployment helper used system Python without Path.is_relative_to and stopped before extraction.",
+    "Second extraction used parent directory; removed byte-matching misplaced split files, restored shared README from local codebase, then extracted into cross_tracker.",
+    "Final preflight passed including shared core hashes, inputs, deployment files and selected run snapshots."
+  ],
+  "original_job_stopped_before_training": true
+}

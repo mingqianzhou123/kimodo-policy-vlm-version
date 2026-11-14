@@ -1,0 +1,11 @@
+{
+  "loaded": true,
+  "forward_executed": false,
+  "training_started": false,
+  "parameters": 678373175,
+  "trainable_parameters": 91715990,
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "torch": "2.10.0+cu129",
+  "cuda_visible_devices": "0",
+  "peak_memory_bytes": 2778414592
+}

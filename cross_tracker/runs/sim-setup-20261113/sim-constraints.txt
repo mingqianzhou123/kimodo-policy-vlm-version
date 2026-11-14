@@ -1,0 +1,5 @@
+torch==2.7.0+cu128
+torchvision==0.22.0+cu128
+torchaudio==2.7.0+cu128
+numpy==1.26.0
+isaacsim==5.0.0

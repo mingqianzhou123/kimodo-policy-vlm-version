@@ -1,0 +1,189 @@
+{
+  "protocol": "naive-mix-v1",
+  "tasks": {
+    "HOI_pp_box": 54,
+    "HSI_boxing": 100,
+    "HSI_vision_navi": 94
+  },
+  "trackers": [
+    "sonic",
+    "twist2",
+    "mimic_lite"
+  ],
+  "subset_seed": 20261113,
+  "validation_fraction": 0.2,
+  "train_seeds": [
+    42,
+    43
+  ],
+  "action_chunk_frames": 50,
+  "observation_history_frames": 0,
+  "sampling": "uniform_task_then_source_then_episode_then_valid_window",
+  "source_groups": [
+    [
+      "sonic"
+    ],
+    [
+      "twist2"
+    ],
+    [
+      "mimic_lite"
+    ],
+    [
+      "sonic",
+      "twist2"
+    ],
+    [
+      "twist2",
+      "mimic_lite"
+    ],
+    [
+      "sonic",
+      "mimic_lite"
+    ]
+  ],
+  "dual_source_step_multiplier": 2,
+  "model": "Kimodo-VLA",
+  "initial_checkpoint": {
+    "manifest": "data/manifests/weights-v1.json",
+    "path": "Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000"
+  },
+  "single_source_steps": 30000,
+  "evaluation_scene_seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,
+    1024,
+    1025,
+    1026,
+    1027,
+    1028,
+    1029,
+    1030,
+    1031,
+    1032,
+    1033,
+    1034,
+    1035,
+    1036,
+    1037,
+    1038,
+    1039,
+    1040,
+    1041,
+    1042,
+    1043,
+    1044,
+    1045,
+    1046,
+    1047,
+    1048,
+    1049,
+    1050,
+    1051,
+    1052,
+    1053,
+    1054,
+    1055,
+    1056,
+    1057,
+    1058,
+    1059,
+    1060,
+    1061,
+    1062,
+    1063,
+    1064,
+    1065,
+    1066,
+    1067,
+    1068,
+    1069,
+    1070,
+    1071,
+    1072,
+    1073,
+    1074,
+    1075,
+    1076,
+    1077,
+    1078,
+    1079,
+    1080,
+    1081,
+    1082,
+    1083,
+    1084,
+    1085,
+    1086,
+    1087,
+    1088,
+    1089,
+    1090,
+    1091,
+    1092,
+    1093,
+    1094,
+    1095,
+    1096,
+    1097,
+    1098,
+    1099
+  ],
+  "training_ready": true,
+  "model_fps": 30,
+  "model_action_history": 100,
+  "model_action_chunk": 50,
+  "protocol_frozen_date": "2026-11-14",
+  "batch_size": 8,
+  "micro_batch_size": 2,
+  "score_checkpoints_single": [
+    26000,
+    28000,
+    30000
+  ],
+  "score_checkpoint_rule": "arithmetic_mean_of_success_rates_no_checkpoint_selection",
+  "evaluation_max_steps": {
+    "HOI_pp_box": 1450,
+    "HSI_boxing": 900,
+    "HSI_vision_navi": 1800
+  },
+  "evaluation_repeats_per_scene": 1,
+  "evaluation_episode_seed": "same_as_scene_seed",
+  "evaluation_ready_trackers": [
+    "sonic",
+    "twist2"
+  ],
+  "evaluation_pending_trackers": [
+    "mimic_lite"
+  ],
+  "evaluation_policy": {
+    "execution_frames_30hz": 15,
+    "diffusion_steps": 10,
+    "rtc_overlap_frames": 0,
+    "timing": "exact",
+    "dtype": "fp32"
+  },
+  "budget_note": "First mixed-data comparison; not a reproduction of published 200k-step batch64 fine-tunes. Dual source doubles updates, warmup and checkpoint positions to preserve expected per-source sample exposure."
+}

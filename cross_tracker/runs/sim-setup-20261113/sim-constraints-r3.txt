@@ -1,0 +1,9 @@
+torch==2.7.0+cu128
+torchvision==0.22.0+cu128
+torchaudio==2.7.0+cu128
+numpy==1.26.0
+isaacsim==5.0.0
+setuptools==80.9.0
+packaging==23.0
+click==8.1.7
+idna==3.10

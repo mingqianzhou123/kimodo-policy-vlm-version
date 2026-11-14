@@ -1,0 +1,8 @@
+{
+  "relative_path": "data/cache/sources/HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783/TWIST2/assets/ckpts/twist2_1017_20k.onnx",
+  "bytes": 3184908,
+  "sha256": "2d1fb3a31e4e967f70ecfefc3ad1e7b2ac491677068b89f60b565a94e7735061",
+  "source_revision": "HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783",
+  "selected_by": "official twist2/run_vla_eval.sh default",
+  "runtime_checked": false
+}

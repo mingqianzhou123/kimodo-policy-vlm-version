@@ -1,0 +1,22 @@
+[
+  {
+    "path": "objects/small_warehouse/SubUSDs/materials/M_TrafficCone.mdl",
+    "before_sha256": "703a4ee5efadce47c83d6af5c7e476e096e8395656f6fc4960554fc5662032a1",
+    "after_sha256": "e3a86c5cc82ad00b6ba1898cd5e33269ed7af287328e000da6a9e2e412185289"
+  },
+  {
+    "path": "objects/small_warehouse/small_warehouse_box/SubUSDs/materials/M_TrafficCone.mdl",
+    "before_sha256": "703a4ee5efadce47c83d6af5c7e476e096e8395656f6fc4960554fc5662032a1",
+    "after_sha256": "e3a86c5cc82ad00b6ba1898cd5e33269ed7af287328e000da6a9e2e412185289"
+  },
+  {
+    "path": "objects/small_warehouse/small_warehouse_boxing/SubUSDs/materials/M_TrafficCone.mdl",
+    "before_sha256": "703a4ee5efadce47c83d6af5c7e476e096e8395656f6fc4960554fc5662032a1",
+    "after_sha256": "e3a86c5cc82ad00b6ba1898cd5e33269ed7af287328e000da6a9e2e412185289"
+  },
+  {
+    "path": "objects/small_warehouse/small_warehouse_vision_navigation/SubUSDs/materials/M_TrafficCone.mdl",
+    "before_sha256": "703a4ee5efadce47c83d6af5c7e476e096e8395656f6fc4960554fc5662032a1",
+    "after_sha256": "e3a86c5cc82ad00b6ba1898cd5e33269ed7af287328e000da6a9e2e412185289"
+  }
+]

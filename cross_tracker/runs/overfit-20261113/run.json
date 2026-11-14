@@ -1,0 +1,52 @@
+{
+  "run_id": "overfit-20261113",
+  "created_utc": "2026-11-13T13:28:02.408044+00:00",
+  "stage": "diagnostic",
+  "purpose": "Two fixed real windows: pretrained GPU forward/backward and optimization check",
+  "platform": "baidu",
+  "seed": 42,
+  "sources": [
+    "sonic"
+  ],
+  "command": [
+    "python",
+    "cross_tracker/scripts/check_model.py",
+    "overfit-20261113",
+    "--data",
+    "cross_tracker/data/cache/prepared-v1/train/HOI_pp_box/sonic",
+    "--steps",
+    "200"
+  ],
+  "status": "completed",
+  "training_started": true,
+  "dependency": {
+    "path": "/root/workspace/humanoidVLA",
+    "head": "d61b5cf99ce865523ad9746f8d060881d279cc16",
+    "status": "?? cross_tracker/\n?? docs/experiments/\n?? scripts/diag/paired_cups_replay.py\n?? scripts/diag/summarize_cups_replay.py\n?? scripts/experiment_dashboard.py\n?? scripts/experiment_ledger.py\n?? tools/\n",
+    "untracked_files_not_archived": true
+  },
+  "sha256": {
+    "manifest.json": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+    "config.json": "cc33cbc315eca19cd51f77887de88220035a45dffb271b0c4b325bb32eed3738",
+    "provenance/dependency.tar": "d34b2887f2a551e294e1d1966d3bf0ef4be9f206228313aede6656b67de47bd5",
+    "provenance/dependency-status.txt": "107f4052a9fb0e70f443ceef3485f8e9e5496cda830919029b2778821d3603eb",
+    "provenance/dependency.patch": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/src/repaired_data.py": "dae85aad8b51164dece346528dc663f71a2973302dcfbbc8019655caab280ee8",
+    "provenance/src/sampling.py": "f4a4b4024bc8aa6d184e407dda689f238df448c2b7cba4ff36ea06d25ffc8167",
+    "provenance/tests/test_fetch_assets.py": "b04f6ea492d812fbe75f7c4b45be0c97f2ebc6237d45f0c826920ef7e4012b32",
+    "provenance/tests/test_repaired_data.py": "e12af54e0ab45389944ec287c7d592f5c3bd33736cc0af60e5504662fe1840a7",
+    "provenance/tests/test_preparation.py": "ecc2de1f467906f3ddef70bc433e0dbaee1cfc3c9652e46496b5c1d0e4def6e4",
+    "provenance/scripts/train_pilot.py": "508e08e1f1a108576677a839efb8b28a97013fdbfd2ced7e70bbec9784a4e02d",
+    "provenance/scripts/prepare_kimodo.py": "db82ba68294800d9c1e8462d45f18d8ea6b6cbae8e250a873949855e60bc4a4f",
+    "provenance/scripts/register_run.py": "7c371afc6ef54649b5e09195b5bf776f2b663057dff81e64fc36aca4992ff403",
+    "provenance/scripts/check_model.py": "4b856c9a076ded871c1db388f3d064b945474dcfd20f8c3ba3428780169f036a",
+    "provenance/scripts/freeze_data.py": "c5a0c2a26a2207a575d5ed3be410f38402e865f7410f605a7976cb96088fa6b8",
+    "provenance/scripts/check_data.py": "4315ca2b1d932aa5b0235177db00a8e17c907cbb00d9e42f2cc0059b9a35b4b8",
+    "provenance/scripts/fetch_assets.py": "31d12f6cdbc7ea9f9f3736da921323ca0a0ea2a689cf9b9d220308cd542c7ac1",
+    "provenance/scripts/package_data.py": "d50ddf757983e0f1afdfd0f0c3aed9ec84b03fb9e6005e5e724a1276525193a9",
+    "provenance/scripts/prepare_text.py": "7d28fb0083cd77e31785ab04cf031932c4ac772941cca563c04a5f87940f9237"
+  },
+  "runtime_environment": null,
+  "parent_run": null,
+  "formal_training_started": false
+}

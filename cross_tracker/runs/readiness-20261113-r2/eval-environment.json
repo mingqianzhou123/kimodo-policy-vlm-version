@@ -1,0 +1,34 @@
+{
+  "python": "/root/workspace/humanoidVLA/.venv/bin/python",
+  "modules": {
+    "isaacsim": null,
+    "isaaclab": null,
+    "omni": null,
+    "onnxruntime": "/root/workspace/humanoidVLA/.venv/lib/python3.11/site-packages/onnxruntime/__init__.py"
+  },
+  "assets": {
+    "mimic_lite": [],
+    "twist2": [
+      "third_party/HumanoidArena/TWIST2/assets/ckpts/twist2_1017_20k.onnx",
+      "third_party/HumanoidArena/TWIST2/assets/ckpts/twist2_1017_25k.onnx"
+    ],
+    "sonic_release": [],
+    "robot_assets": [],
+    "object_assets": []
+  },
+  "kimodo_controller_support": {
+    "sonic": "history",
+    "twist2": "first_prediction"
+  },
+  "simulation_executed": false,
+  "formal_training_started": false,
+  "blockers": [
+    "No Isaac Sim/Isaac Lab in the active environment",
+    "No files at expected asset path: mimic_lite",
+    "No files at expected asset path: sonic_release",
+    "No files at expected asset path: robot_assets",
+    "No files at expected asset path: object_assets",
+    "Kimodo serving entry has no MimicLite root-boundary mapping"
+  ],
+  "arena_revision": "68479287a784a69be9ce6ad739311d2f11f75ef9"
+}

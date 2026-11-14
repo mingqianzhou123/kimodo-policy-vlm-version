@@ -1,0 +1,15 @@
+{
+  "episode": "HOI_pp_box/sonic/000001",
+  "window_indices": [
+    100,
+    475
+  ],
+  "steps": 200,
+  "initial_fixed_seed_loss": 2.4294873575369516,
+  "final_fixed_seed_loss": 0.030282412267600495,
+  "ratio": 0.01246452761882294,
+  "passed": true,
+  "meaning": "fixed-window optimization diagnostic, not task success",
+  "gpu": "NVIDIA GeForce RTX 5090",
+  "peak_memory_bytes": 4739287552
+}

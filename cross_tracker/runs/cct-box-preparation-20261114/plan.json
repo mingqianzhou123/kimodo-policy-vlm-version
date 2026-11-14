@@ -1,0 +1,70 @@
+{
+  "stage": "preparation",
+  "requested_run_id": "box-cct-sonic-twist2-s42-20261114",
+  "status": "method_confirmed_implementation_pending",
+  "submitted": false,
+  "training_started": false,
+  "created_utc": "2026-11-14T07:36:07.693230+00:00",
+  "comparison_run": "box-sonic-twist2-s42-20261114",
+  "task": "HOI_pp_box",
+  "sources": [
+    "sonic",
+    "twist2"
+  ],
+  "seed": 42,
+  "training_episodes_per_source": 43,
+  "validation_episodes_per_source": 11,
+  "selected_data_reference": "../box-sonic-twist2-s42-20261114/selected-data.json",
+  "selected_data_sha256": "20c20da345f33f4e76c48fb9bd8d09b82812a7d153cdc209951983bd0b4d0435",
+  "parent_protocol_reference": "../box-sonic-twist2-s42-20261114/config.json",
+  "parent_protocol_sha256": "10b1fb09f22273138dd46fae3922acb50e275c430d0742bfabeba5ca4c40dbe7",
+  "max_steps": 20000,
+  "batch_size": 8,
+  "micro_batch_size": 1,
+  "world_size": 8,
+  "warmup_steps": 666,
+  "score_checkpoints": [
+    20000
+  ],
+  "platform": "sensecore",
+  "nodes": 1,
+  "gpus": 8,
+  "gpu_type": "A800-80GB",
+  "independent_job": true,
+  "scheduler_job_id": null,
+  "method_definition": "CCT with controller text metadata and visual interaction context, adapted to Kimodo",
+  "method_options": [
+    "Kimodo + CCT-inspired identity-free interaction context (v5)",
+    "Kimodo + CCT interaction context and controller metadata"
+  ],
+  "context_rules": [
+    "Target demonstration must not occur in its context set.",
+    "Validation/evaluation trajectories never enter the training context pool.",
+    "Freeze context episode and frame selections before evaluation.",
+    "Report additional context data and compute separately."
+  ],
+  "context_protocol_frozen": false,
+  "paper": "https://arxiv.org/html/2610.39280",
+  "official_code_url": "https://github.com/JonathanYang0127/icl_cross_controller",
+  "official_code_status": "404 observed through project Code link on 2026-11-14; not available in inspected local codebase",
+  "readiness": {
+    "method_definition": true,
+    "implementation": false,
+    "context_data_audit": false,
+    "gpu_forward_backward": false,
+    "small_batch_overfit": false,
+    "evaluation_interface": false
+  },
+  "note": "Preparation record only. No executable command or completed CCT implementation is claimed.",
+  "development_machine": {
+    "provider": "Baidu",
+    "name": "T2M-PLUS",
+    "instance_id": "dv-e21ddf3a87",
+    "last_observed_state": "排队中",
+    "observation_date": "2026-11-14",
+    "explicitly_excluded": [
+      "Rethink-humanoid",
+      "T2M"
+    ]
+  }
+}

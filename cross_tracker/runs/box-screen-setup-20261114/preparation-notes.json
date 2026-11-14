@@ -1,0 +1,7 @@
+{
+  "initial_attempt": "failed_before_conversion: checker assumed every weight entry had sha256; small configs have git_blob_sha1",
+  "fix": "use existing fetch_assets.matches; preserve prepare.log; rerun logged to prepare-r2.log",
+  "input_transfer": "redundant 84MB SCP transfer stopped; no partial archive used",
+  "overlay_reproduction": "SONIC and TWIST2 regenerated using historical non-Mimic rule; accepted only on byte-identical frozen overlay SHA256",
+  "snapshot_upload": "browser terminal upload hash verified; system Python tarfile filter unsupported, extracted owned archive with tar CLI"
+}

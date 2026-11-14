@@ -1,0 +1,17 @@
+{
+  "protocol": "box-screen-v1",
+  "platform": "sensecore",
+  "gpu_count": 8,
+  "gpu_type": "A800-80GB",
+  "execution": "three_independent_jobs",
+  "status": "submitted",
+  "evaluation": "separate_on_verified_Baidu_environment",
+  "run_ids": [
+    "box-sonic-s42-20261114",
+    "box-twist2-s42-20261114",
+    "box-sonic-twist2-s42-20261114"
+  ],
+  "gpus_per_job": 8,
+  "max_concurrent_gpus": 24,
+  "superseded_job": "kvla-cross-box-s42-20261114"
+}

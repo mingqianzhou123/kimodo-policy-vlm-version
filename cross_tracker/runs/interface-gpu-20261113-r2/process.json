@@ -1,0 +1,11 @@
+{
+  "pid": 1886127,
+  "command": [
+    ".venv/bin/python",
+    "-u",
+    "cross_tracker/runs/interface-gpu-20261113-r2/check_http.py"
+  ],
+  "script_sha256": "25de71c97f40765f7f5500d5192e8ababe11281be3c76e97ae72833c0b7617b7",
+  "started_unix": 1794576958.6825426,
+  "CUDA_VISIBLE_DEVICES": "0"
+}

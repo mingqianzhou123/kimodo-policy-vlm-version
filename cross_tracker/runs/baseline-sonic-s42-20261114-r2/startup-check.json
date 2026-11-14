@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "checked_utc": "2026-11-13T16:52:49.237270+00:00",
+  "stage": "baseline",
+  "training_complete": false,
+  "last_metric": {
+    "step": 150,
+    "loss": 0.46925558149814606,
+    "motion_loss": 0.4291178286075592,
+    "root_loss": 0.0690642623230815,
+    "body_loss": 0.15286077931523323,
+    "hand_loss": 0.04013774976192508,
+    "hand_state_loss": 0.03943462520692265,
+    "hand_transition_loss": 0.003515625088766683,
+    "grad_control": 3.711594343185425,
+    "grad_hand": 0.31728696823120117,
+    "lr_backbone": 4.5e-06,
+    "lr_adapter": 1.5e-05,
+    "s_per_step": 0.4341994571685791,
+    "data_s_per_step": 0.0015402030944824219
+  },
+  "first_metric": {
+    "step": 50,
+    "loss": 1.5017453879117966,
+    "motion_loss": 0.3324550446122885,
+    "root_loss": 0.06823803298175335,
+    "body_loss": 0.059502920135855675,
+    "hand_loss": 1.169290335776168,
+    "hand_state_loss": 1.1660305708646774,
+    "hand_transition_loss": 0.016298828268190846,
+    "grad_control": 1.7203749418258667,
+    "grad_hand": 20.293882369995117,
+    "lr_backbone": 1.5e-06,
+    "lr_adapter": 5e-06,
+    "s_per_step": 0.45895803928375245,
+    "data_s_per_step": 0.003247799873352051
+  },
+  "training_episodes": 198,
+  "gpu_process": "1933077, GPU-b7a6f87b-0903-15e8-2539-6aa1452f908c, 5404"
+}

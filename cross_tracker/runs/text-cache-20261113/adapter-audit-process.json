@@ -1,0 +1,11 @@
+{
+  "pid": 1884574,
+  "command": [
+    ".venv/bin/python",
+    "-u",
+    "cross_tracker/runs/text-cache-20261113/audit_adapters.py"
+  ],
+  "started_unix": 1794576579.7690017,
+  "script_sha256": "f5b1ba63e4e3e1d9b9a4ada94cafe0d05fb21852988761c16a116707340f9f88",
+  "CUDA_VISIBLE_DEVICES": "0"
+}

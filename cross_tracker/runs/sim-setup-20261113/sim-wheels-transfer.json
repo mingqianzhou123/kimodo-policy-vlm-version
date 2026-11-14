@@ -1,0 +1,53 @@
+{
+  "archive": "sim-wheels.zip",
+  "bytes": 4663577453,
+  "sha256": "41982442739e07404caa041ae418e1155a99c9627dc04c754b44ca742dd5cfcb",
+  "chunks": [
+    {
+      "name": "sim-wheels.part00",
+      "bytes": 536870912,
+      "sha256": "79635c11cbc6e0acfd28088d37a237b7c01d543304e691b2ceafb22e110eeb33"
+    },
+    {
+      "name": "sim-wheels.part01",
+      "bytes": 536870912,
+      "sha256": "f705bb25c435dc0a413393243e62248e578913815c3ff39e60de4dfb1026ae25"
+    },
+    {
+      "name": "sim-wheels.part02",
+      "bytes": 536870912,
+      "sha256": "b07ce475cfeda47ecf2da34302831bc56a07353ec8b148b63f52faa0bf52568a"
+    },
+    {
+      "name": "sim-wheels.part03",
+      "bytes": 536870912,
+      "sha256": "916ea62f9dfe8e0926c4a13a5e7228cb1ee8cf378a85b7caed33cb20901e67d8"
+    },
+    {
+      "name": "sim-wheels.part04",
+      "bytes": 536870912,
+      "sha256": "83128e53215889de732272c9a88744cae27acbbf71193a29ae499b9e8640f30d"
+    },
+    {
+      "name": "sim-wheels.part05",
+      "bytes": 536870912,
+      "sha256": "a9b1acd886aa5aeebd1d4606e2d27ceecfedec4e8cfcb6b6eefcb46e10c7af73"
+    },
+    {
+      "name": "sim-wheels.part06",
+      "bytes": 536870912,
+      "sha256": "bd8a683b9481ebd557b468c090a0c674ec0c8f638d6563ee12cafac2e64a438c"
+    },
+    {
+      "name": "sim-wheels.part07",
+      "bytes": 536870912,
+      "sha256": "6bc9a0fac3252746b5909be9d242e845fe1aac2fee92bbecff238ba650939b76"
+    },
+    {
+      "name": "sim-wheels.part08",
+      "bytes": 368610157,
+      "sha256": "891d6bee5256446fde2d58c9a15d58bbce6c13c135653db3d7b7eb9b4eedfc2a"
+    }
+  ],
+  "wheel_count": 26
+}

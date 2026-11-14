@@ -1,0 +1,18 @@
+{
+  "command": [
+    "uv",
+    "pip",
+    "install",
+    "--python",
+    "/root/workspace/humanoidVLA/cross_tracker/data/cache/envs/isaaclab-2.2/bin/python",
+    "--no-deps",
+    "--index-url",
+    "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "-r",
+    "/root/workspace/humanoidVLA/cross_tracker/runs/sim-setup-20261113/sim-explicit.txt"
+  ],
+  "exit_code": 1,
+  "requirements_sha256": "5ef5ab2017bc79f0649a7ae24c71d45cab643947cbf0471c04becb7c826da964",
+  "started_unix": 1794577816.2737198,
+  "finished_unix": 1794578184.4903452
+}
