@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "device": "cpu",
+  "diffusion_steps": 1,
+  "formal_training": false,
+  "checkpoint_sha256": "ddc83d9fd2a18afd2fe6e5c97448ea93d9fc9e056006a3deb9ad4e1ce1353ec0",
+  "trackers": {
+    "sonic": {
+      "validation_episode": 4,
+      "shape": [
+        25,
+        40
+      ],
+      "continuous_requests": 2,
+      "reset_max_difference": 0.0
+    },
+    "twist2": {
+      "validation_episode": 9,
+      "shape": [
+        25,
+        40
+      ],
+      "continuous_requests": 2,
+      "reset_max_difference": 0.0
+    }
+  },
+  "meaning": "Real HTTP/model interface only; no simulator rollout or task-success claim"
+}

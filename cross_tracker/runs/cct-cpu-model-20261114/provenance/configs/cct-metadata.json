@@ -1,0 +1,4 @@
+{
+  "sonic": "Controller: SONIC. A learned whole-body reference-motion tracker for Unitree G1. Control commands at 50 Hz use planar root displacement, root height, root orientation in 6D, 29 joint reference positions, and two hand commands. Internal learned-policy parameters and joint gains are unspecified in this metadata.",
+  "twist2": "Controller: TWIST2. A learned whole-body reference-motion tracker for Unitree G1. Control commands at 50 Hz use planar root displacement, root height, root orientation in 6D, 29 joint reference positions, and two hand commands. Internal learned-policy parameters and joint gains are unspecified in this metadata."
+}

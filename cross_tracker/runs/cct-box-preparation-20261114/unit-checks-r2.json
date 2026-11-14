@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "tests_run": 4,
+  "failures": 0,
+  "errors": 0,
+  "platform": "local macOS CPU",
+  "elapsed_seconds": 2.2744293329305947,
+  "coverage_note": "Includes the existing planner 2D text-cache API as well as batched training text",
+  "files": {
+    "src/cct_inputs.py": "8e596b83f16eecd695fe2843899facad2a3bd642c991d9b7746a3fb877353287",
+    "src/cct_eval.py": "2c9612524aa9ae55eeda4ebdb4246ec608c698562e2addc42dda297a12e2f8e4",
+    "src/cct_context.py": "678ebe02f88d59ca04ff5f2f0b8170509c94b036f74be6fbccb3bf0698aa2da4",
+    "src/cct_data.py": "6150646cd4dfb7c998dc1c7d542be3a0df5abb03f0877b91218ac04bff68dfdc",
+    "src/cct_policy.py": "0a69246fd2ec1e84c0e530b85b6006bbfaaea92debda6e8a4e46e65ba83f4a15",
+    "tests/test_cct.py": "3a337c6e350300a63f37db02cf9302e9adc77771d08d7a914c94be12dc56eeea"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "pid": 1402566,
+  "command": [
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo/bin/python",
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/cct-box-preparation-20261114/cpu_followup_r2.py"
+  ],
+  "reason": "Reproduce metadata with the same 8 CPU threads and seed42 used during feature preparation; retain numeric comparisons before failing",
+  "formal_training_started": false
+}

@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "threads": 8,
+  "seed": 42,
+  "adapters": [
+    {
+      "adapter": "LLM2Vec-Meta-Llama-3-8B-Instruct-mntp",
+      "matched_tensors": 448
+    },
+    {
+      "adapter": "LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised",
+      "matched_tensors": 448
+    }
+  ],
+  "box_cache_max_absolute_difference": 0.078125,
+  "box_cache_cosine_similarity": 0.9999586939811707,
+  "metadata_max_absolute_difference": {
+    "sonic": 0.0,
+    "twist2": 0.0
+  },
+  "note": "CPU BF16 task-cache comparison; no task embedding replaced"
+}

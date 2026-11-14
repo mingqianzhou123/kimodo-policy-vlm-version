@@ -1,0 +1,12 @@
+{
+  "source_sha256": {
+    "src/cct_context.py": "678ebe02f88d59ca04ff5f2f0b8170509c94b036f74be6fbccb3bf0698aa2da4",
+    "src/cct_data.py": "6150646cd4dfb7c998dc1c7d542be3a0df5abb03f0877b91218ac04bff68dfdc",
+    "src/cct_eval.py": "2c9612524aa9ae55eeda4ebdb4246ec608c698562e2addc42dda297a12e2f8e4",
+    "src/cct_inputs.py": "8e596b83f16eecd695fe2843899facad2a3bd642c991d9b7746a3fb877353287",
+    "src/cct_policy.py": "0a69246fd2ec1e84c0e530b85b6006bbfaaea92debda6e8a4e46e65ba83f4a15",
+    "configs/cct-eval-context.json": "ccf5febbbc44b0ecd3d59d66850ca88b6dc7792e637e0965759877e5460f190a",
+    "scripts/serve_cct.py": "05b96d48651b3d296c9ad541cf2156d7f84e89cb5c3f65ffe050cb6bbe2f845d"
+  },
+  "context_manifest_sha256": "272502ad924ffa2926a4be1a6cc24b1846ef790717a517b40d23de099cbea7e5"
+}

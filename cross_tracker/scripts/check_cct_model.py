@@ -17,6 +17,7 @@ from cct_policy import CCTPolicy
 from kimodo_vla.model.planner import load_text_embeddings
 from repaired_data import checksum
 from run_config import load_yaml
+from fetch_assets import matches
 
 
 def forward(model, batch):
@@ -46,11 +47,21 @@ def main():
     evidence = dict(device=args.device, optimization_steps=args.steps, passed=False,
                     source_sha256={str(p.relative_to(ROOT)): checksum(p) for p in paths},
                     context_cache_sha256=checksum(ROOT / "data/cache/cct-box-v1/manifest.json"))
-    (run / "run.json").write_text(json.dumps(dict(stage="diagnostic", formal_training=False, **evidence), indent=2))
+    (run / "run.json").write_text(json.dumps(dict(stage="diagnostic", status="running", formal_training=False, **evidence), indent=2))
     config = load_yaml(ROOT / "configs/cct_box.yaml")
     protocol = json.loads((ROOT / "runs/box-sonic-twist2-s42-20261114/config.json").read_text())
     config.initialization = {"checkpoint": str(ROOT / "data/cache/weights" / protocol["initial_checkpoint"]["path"])}
     train.check_initialization(config)
+    pinned = json.loads((ROOT / "data/manifests/weights-v1.json").read_text())["files"]
+    initial = protocol["initial_checkpoint"]["path"]
+    for name in ("training_state.pt", "config.json"):
+        relative = f"{initial}/{name}"
+        if not matches(ROOT / "data/cache/weights" / relative, pinned[relative]):
+            raise ValueError(f"Initial checkpoint changed: {name}")
+    shared = json.loads((ROOT / "data/manifests/shared-weights-v1.json").read_text())["files"]
+    for name, expected in shared.items():
+        if not matches(ROOT.parent / name, expected):
+            raise ValueError(f"Shared backbone changed: {name}")
     text = load_text_embeddings(ROOT / "data/cache/text")
     data = CCTDataset([ROOT / f"data/cache/prepared-v1/train/HOI_pp_box/{s}" for s in ["sonic", "twist2"]],
                       text_embeddings=text)
@@ -93,6 +104,7 @@ def main():
         if step % 20 == 0:
             print(f"diagnostic {step+1}/{max(1,args.steps)} loss={float(loss):.6f}", flush=True)
     final = loss_values()
+    assert torch.isfinite(torch.tensor([initial, final])).all(), "Non-finite diagnostic loss"
     checkpoint = run / "checkpoint"
     checkpoint.mkdir()
     state = {n: p.detach().cpu().clone() for n, p in model.named_parameters() if p.requires_grad}
@@ -112,7 +124,7 @@ def main():
                                       history_mask=batch["gt_mask"][:, :100],
                                       history_feature_mask=batch["condition_motion_mask"][:, :100],
                                       hand_history=batch["gt_hand"][:, :100],
-                                      text_feat=batch["text_embedding"], text_length=batch["text_length"])
+                                      text_feat=batch["text_embedding"][0], text_length=None)
     shapes = {k: list(v.shape) for k, v in result.items() if torch.is_tensor(v)}
     assert shapes and all(torch.isfinite(v).all() for v in result.values() if torch.is_tensor(v))
     evidence.update(passed=(final < initial * .5 if args.steps else True), initial_loss=initial, final_loss=final,
@@ -121,6 +133,9 @@ def main():
                     context_episode_ids=[s["context_episode_ids"] for s in samples],
                     elapsed_seconds=time.monotonic()-started, gpu_overfit_passed=bool(args.steps and final < initial*.5))
     (run / "result.json").write_text(json.dumps(evidence, indent=2)+"\n")
+    record = json.loads((run / "run.json").read_text())
+    record.update(status="completed" if evidence["passed"] else "failed", passed=evidence["passed"], result="result.json")
+    (run / "run.json").write_text(json.dumps(record, indent=2)+"\n")
     print(json.dumps({k:v for k,v in evidence.items() if k not in ("gradient_norms","source_sha256")}), flush=True)
     if not evidence["passed"]:
         raise SystemExit("Overfit diagnostic did not pass")

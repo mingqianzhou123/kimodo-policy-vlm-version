@@ -1,0 +1,9 @@
+{
+  "pid": 1402942,
+  "command": [
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo/bin/python",
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/cct-interface-cpu-20261114/probe.py"
+  ],
+  "device": "cpu",
+  "formal_training": false
+}

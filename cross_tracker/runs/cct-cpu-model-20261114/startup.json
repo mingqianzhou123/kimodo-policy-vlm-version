@@ -1,0 +1,19 @@
+{
+  "stage": "diagnostic",
+  "formal_training": false,
+  "device": "cpu",
+  "optimization_steps": 0,
+  "passed": false,
+  "source_sha256": {
+    "src/cct_context.py": "678ebe02f88d59ca04ff5f2f0b8170509c94b036f74be6fbccb3bf0698aa2da4",
+    "src/cct_data.py": "6150646cd4dfb7c998dc1c7d542be3a0df5abb03f0877b91218ac04bff68dfdc",
+    "src/cct_eval.py": "2c9612524aa9ae55eeda4ebdb4246ec608c698562e2addc42dda297a12e2f8e4",
+    "src/cct_inputs.py": "8e596b83f16eecd695fe2843899facad2a3bd642c991d9b7746a3fb877353287",
+    "src/cct_policy.py": "0a69246fd2ec1e84c0e530b85b6006bbfaaea92debda6e8a4e46e65ba83f4a15",
+    "scripts/check_cct_model.py": "8973d32a32212d23632f27f47228c43c60cc5995589c7eff1d30a0096237f9ff",
+    "scripts/train_cct_worker.py": "254ce574d80255e0aa6fdb924880b4fcc9cacb3136e38f47f83a4f98c06807bc",
+    "configs/cct_box.yaml": "fbea18cd88086066ba95a12abfda46c75f9b66eab7786031cb32967b4878bca9",
+    "configs/cct-metadata.json": "4a26e90bbbe06539249e3564525a1109a70ae34d5b7be1f82fa666c680cc4632"
+  },
+  "context_cache_sha256": "272502ad924ffa2926a4be1a6cc24b1846ef790717a517b40d23de099cbea7e5"
+}

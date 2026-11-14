@@ -1,0 +1,27 @@
+{
+  "started_utc": "2026-11-14T08:29:37.645953+00:00",
+  "formal_training_started": false,
+  "stages": [
+    {
+      "name": "text-audit-attempt3",
+      "command": [
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo/bin/python",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/scripts/audit_cct_text.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "cpu-model",
+      "command": [
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo/bin/python",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/scripts/check_cct_model.py",
+        "cct-cpu-model-20261114",
+        "--device",
+        "cpu"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "passed": true,
+  "ended_utc": "2026-11-14T08:33:09.064868+00:00"
+}

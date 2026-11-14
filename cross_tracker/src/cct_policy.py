@@ -32,9 +32,12 @@ class CCTPolicy(KimodoPolicy):
 
     @staticmethod
     def prepend(prefix, text, lengths):
+        # The existing planner passes [1, D]; training passes [B, 1, D].
+        if text is not None and text.ndim == 2:
+            text = text.unsqueeze(0)
         if text is None or text.ndim != 3 or text.shape[1] != 1:
             raise ValueError("Use the unchanged single-token Kimodo task embedding")
-        if lengths is not None and not (lengths == 1).all():
+        if lengths is not None and not (torch.as_tensor(lengths) == 1).all():
             raise ValueError("Unexpected task-text padding")
         text = text.to(device=prefix.device, dtype=prefix.dtype)
         joined = torch.cat((prefix, text), dim=1)

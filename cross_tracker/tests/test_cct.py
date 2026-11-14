@@ -68,6 +68,8 @@ class CCTTests(unittest.TestCase):
         prefix = policy.context_prefix(context)
         text = torch.randn(1, 1, 12)
         joined, lengths = policy.prepend(prefix, text, torch.ones(1, dtype=torch.long))
+        planner_joined, _ = policy.prepend(prefix, text[0], None)
+        self.assertTrue(torch.equal(joined, planner_joined))
         self.assertEqual(joined.shape, (1, 6, 12))
         self.assertEqual(lengths.tolist(), [6])
         self.assertTrue(torch.equal(joined[:, -2:-1], context["metadata"]))

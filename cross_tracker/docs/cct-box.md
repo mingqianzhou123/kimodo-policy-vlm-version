@@ -33,3 +33,7 @@ configs/cct-eval-context.json 在评测前固定每个tracker的三条上下文�
 4. 核验CCT专用评测入口、8卡短程和配置快照后，登记并提交独立8×A800正式run。检查未通过不启动20k训练。
 
 CPU通过不等于GPU或任务成功率通过。备份规则见 [备份与同步](backup-sync.md)。
+
+CCI容器内存上限为16GiB。全量图像特征准备、8B文本模型审计、真实模型检查必须串行运行；并行审计曾因连接退出未完成，已保留记录。新机器若需重建文字缓存，先按 weights-v1.json 取得两份官方 adapter_config.json，放入 data/cache/cct-original-text-configs/ 下的对应 checkpoints/LLM2Vec… 目录；脚本会验证原件，再生成本机路径配置。CCT上下文缓存也须作为独立大文件资产迁移并核验，不能只同步代码就认为百度评测可用。
+
+本轮CPU结果：86条上下文、896个文本适配器张量核对通过；同设置下两段控制器文字复算差异均为0。真实模型有有限损失和新增编码器梯度，checkpoint读回一致；两个tracker的HTTP连续请求均输出25×40有限动作，重置复现差异0。诊断不做优化更新，推理只用1步去噪，不替代正式10步去噪或GPU/仿真检查。证据见 runs/cct-cpu-model-20261114、runs/cct-interface-cpu-20261114。

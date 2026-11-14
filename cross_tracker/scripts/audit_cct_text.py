@@ -12,7 +12,8 @@ sys.path[:0] = [str(ROOT.parent), str(ROOT / "scripts")]
 from kimodo_vla.model.modules.llm2vec.llm2vec_wreapper import LLM2VecEncoder
 from prepare_cct import text_encoder_path
 
-torch.set_num_threads(4)
+torch.set_num_threads(8)
+torch.manual_seed(42)
 os.environ.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_HUB_DISABLE_PROGRESS_BARS="1")
 original = PeftModel.from_pretrained
 checks = []
@@ -45,8 +46,7 @@ for source, sentence in metadata.items():
         value = encoder(sentence)[0].cpu().to(saved[source].dtype)
     delta = float((value.float()-saved[source].float()).abs().max())
     reproduced[source] = delta
-    assert torch.equal(value, saved[source]), f"Metadata not reproducible: {source}"
-report = {"passed": cosine > .999, "adapters": checks, "box_cache_max_absolute_difference": difference,
+report = {"passed": cosine > .999 and all(v == 0 for v in reproduced.values()), "threads": 8, "seed": 42, "adapters": checks, "box_cache_max_absolute_difference": difference,
           "box_cache_cosine_similarity": cosine, "metadata_max_absolute_difference": reproduced,
           "note": "CPU BF16 task-cache comparison; no task embedding replaced"}
 (ROOT / "runs/cct-box-preparation-20261114/text-adapter-audit.json").write_text(json.dumps(report, indent=2)+"\n")

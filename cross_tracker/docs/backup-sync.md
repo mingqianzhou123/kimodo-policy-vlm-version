@@ -10,3 +10,5 @@
 - 百度只允许T2M-PLUS（`dv-e21ddf3a87`），项目为 `/root/workspace/humanoidVLA/cross_tracker`。不可达时保留待同步状态，禁止改连T2M、Rethink-humanoid或退役A800。
 - 每次同步先对照远端与上次清单，收回远端新增实验记录/源码，保留双方冲突副本，不能直接覆盖远端更新。同步代码与配置后逐文件校验，并记录Git提交和实际部署文件哈希；不同环境路径单独配置，不覆盖数据、权重、日志或正在运行作业快照。
 - GitHub是代码与小型记录的恢复点；运行目录的代码快照和记录保持不可覆盖。排队/运行中的三个朴素baseline入口不因CCT开发而改动。
+
+增量权重入口：scripts/backup_weights.py --destination <AFS独立备份目录>。只扫描 runs/*/training/checkpoint_* 中完整的权重和配置，比较源、目标SHA256；不自动复制持续变化的resume.pt。当前已核验的代码同步范围为58个cross_tracker活跃文件及72个共享依赖，报告在 runs/backup-sync-20261114/code-sync.json；百度仍待恢复连接。

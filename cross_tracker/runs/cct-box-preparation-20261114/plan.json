@@ -1,7 +1,7 @@
 {
   "stage": "preparation",
   "requested_run_id": "box-cct-sonic-twist2-s42-20261114",
-  "status": "implemented_cpu_unit_checks_passed_context_cache_building",
+  "status": "cpu_preflight_passed_gpu_checks_pending",
   "submitted": false,
   "training_started": false,
   "created_utc": "2026-11-14T07:36:07.693230+00:00",
@@ -46,19 +46,24 @@
   "readiness": {
     "method_definition": true,
     "implementation": true,
-    "context_data_audit": false,
+    "context_data_audit": true,
     "gpu_forward_backward": false,
     "small_batch_overfit": false,
-    "evaluation_interface": false,
-    "cpu_unit_checks": true
+    "evaluation_interface": true,
+    "cpu_unit_checks": true,
+    "cpu_model_check": true,
+    "text_adapter_reproduction": true,
+    "cpu_http_interface": true,
+    "multi_gpu_short_run": false,
+    "simulation_rollout": false
   },
-  "note": "Implementation written on SenseCore CPU CCI; four CPU unit checks passed. Real context features are being cached. GPU and formal run remain pending.",
+  "note": "CPU forward/backward, checkpoint round-trip, and real SONIC/TWIST2 HTTP interfaces passed. Zero optimizer updates; one-step diffusion diagnostic, not task success. GPU overfit, distributed short run and simulation checks remain required before formal CCT training.",
   "development_machine": {
     "provider": "SenseCore",
     "kind": "CPU CCI",
     "project": "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker"
   },
-  "updated_utc": "2026-11-14T08:10:23.082808+00:00",
+  "updated_utc": "2026-11-14T08:38:33.271279+00:00",
   "baidu_sync": {
     "name": "T2M-PLUS",
     "instance_id": "dv-e21ddf3a87",
@@ -85,5 +90,12 @@
     "visual_encoder": "frozen Kimodo DINOv3",
     "metadata_encoder": "frozen LLM2Vec",
     "eval_selection": "configs/cct-eval-context.json"
+  },
+  "evidence": {
+    "unit_tests": "unit-checks-r2.json",
+    "context": "context-manifest.json",
+    "text": "text-adapter-audit.json",
+    "model": "../cct-cpu-model-20261114/result.json",
+    "http": "../cct-interface-cpu-20261114/result.json"
   }
 }

@@ -1,0 +1,8 @@
+{
+  "kind": "text_adapter_audit_attempt1",
+  "completed": false,
+  "ssh_exit_code": 255,
+  "container_memory_limit_bytes": 17179869184,
+  "container_memory_peak_bytes": 17182441472,
+  "observation": "No result file or surviving audit process; memory limit reached while feature preparation also ran. Retry serially after preparation."
+}

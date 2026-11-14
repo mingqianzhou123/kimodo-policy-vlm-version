@@ -1,0 +1,20 @@
+{
+  "complete": true,
+  "device": "cpu",
+  "threads": 8,
+  "seed": 42,
+  "torch": "2.14.1+cu126",
+  "feature_dtype": "bfloat16, from frozen FP32 DINOv3",
+  "episodes": 86,
+  "frames_per_episode": 43,
+  "manifest_sha256": "272502ad924ffa2926a4be1a6cc24b1846ef790717a517b40d23de099cbea7e5",
+  "command": [
+    "scripts/prepare_cct.py",
+    "--paths",
+    "runs/box-screen-setup-20261114/paths.json",
+    "--device",
+    "cpu",
+    "--threads",
+    "8"
+  ]
+}

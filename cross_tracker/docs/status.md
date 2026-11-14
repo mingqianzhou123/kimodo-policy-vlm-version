@@ -1,6 +1,6 @@
 # 当前进度
 
-2026-11-14：cross_tracker首批备份已推送GitHub main（508c12c），初始1.10GB权重已在AFS独立目录复制并SHA256核对。已启用每2小时补备检查。CCT已按用户确认的“保留控制器文字元数据、适配Kimodo”在SenseCore CPU CCI实现；CPU单元检查通过，真实上下文缓存正在生成，GPU过拟合和正式CCT作业尚未启动。百度仅允许T2M-PLUS，当前不可访问，待恢复后同步与补备其独有checkpoint。详见 [CCT](cct-box.md) 和 [备份](backup-sync.md)。
+2026-11-14：cross_tracker代码、配置和小型实验记录已推送GitHub；初始1.10GB权重在AFS独立目录复制并核对SHA256，每2小时补备检查已启用。CCT已在SenseCore CPU CCI实现并通过4项单元检查、86条上下文缓存核验、896个文本适配器张量检查、真实模型前后向/保存读回以及SONIC/TWIST2 HTTP连续请求与重置复现。CPU诊断为0次优化更新、1步去噪，不代表任务成功率。CCT尚未提交GPU或正式训练；仍需GPU过拟合、8卡短程和仿真检查。百度仅允许T2M-PLUS，待恢复后同步代码与补备其独有checkpoint。详见 [CCT](cct-box.md) 和 [备份](backup-sync.md)。
 
 2026-11-14 15:32（UTC+8）：三个独立作业已提交。SONIC `kvla-cross-box-sonic-s42-1114`（启动中）、TWIST2 `kvla-cross-box-twist2-s42-1114`（排队中）、双源 `kvla-cross-box-mix-s42-1114`（排队中），每个单节点8×A800，可并发24卡。独立入口预检和3项回归测试通过。以上为提交快照，不代表已经开始训练；回执和截图位于 `runs/box-screen-setup-20261114/`。
 

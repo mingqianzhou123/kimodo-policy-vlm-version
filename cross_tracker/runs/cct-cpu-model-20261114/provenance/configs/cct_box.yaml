@@ -1,0 +1,9 @@
+# Same box data, pretrained backbone and optimization budget as naive dual-source.
+_base_: box_screen.yaml
+main:
+  max_steps: 20000
+  checkpoint_every: 10000
+  score_checkpoints: [20000]
+training:
+  scheduler:
+    warmup_steps: 666
