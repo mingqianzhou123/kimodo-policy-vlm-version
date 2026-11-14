@@ -1,0 +1,20 @@
+{
+  "formal_training": false,
+  "steps": 200,
+  "seed": 42,
+  "source_commit": "4efeacd7a28a2b90085bb49f2a68ee7557ce618e",
+  "context_manifest_sha256": "272502ad924ffa2926a4be1a6cc24b1846ef790717a517b40d23de099cbea7e5",
+  "overfit": "cct-overfit-gpu-20261114",
+  "ddp": "cct-ddp-pilot-20261114",
+  "interface": "cct-interface-gpu-20261114",
+  "stages": [
+    "200 fixed-window GPU updates",
+    "200 updates on eight A800 ranks",
+    "GPU HTTP with diffusion_steps=10"
+  ],
+  "formal_submission_requires": [
+    "all GPU gates passed",
+    "SONIC and TWIST2 CCT real simulator checks passed"
+  ],
+  "scheduler_job_name": "kvla-cct-check-s42-1114"
+}

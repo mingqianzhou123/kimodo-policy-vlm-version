@@ -1,0 +1,32 @@
+{
+  "submitted": true,
+  "formal_training": false,
+  "job_name": "kvla-cct-check-s42-1114",
+  "uid": "e09271970777413cb0b499470fd3a3e8",
+  "submitted_at": "2026-11-14T17:42:22+08:00",
+  "scheduler_state_observed": "排队中",
+  "observed_utc": "2026-11-14T09:44:33.853702+00:00",
+  "resources": {
+    "workspace": "sgresearch",
+    "cluster": "sgresearch",
+    "quota": "standard",
+    "priority": "normal",
+    "framework": "PyTorch DDP",
+    "nodes": 1,
+    "gpus_per_node": 8,
+    "gpu_type": "NVIDIA A800 80GB SXM4",
+    "vcpus": 80,
+    "memory_gib": 896,
+    "max_restarts": 0,
+    "afs": "afs-sgresearch",
+    "mount": "/data",
+    "image": "ubuntu22.04-pytorch2.3.0-py3.10-gpu-cuda12.4.1-deepspeed0.14.2-cudnn9.1.0.70-allreduce-llamafactory0.8.1",
+    "image_tag": "v0.1.6-20240705-bf16",
+    "python_environment": "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo",
+    "actual_torch": "2.14.1+cu126"
+  },
+  "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/cct-gpu-checks-20261114/launch.sh",
+  "proof": "submitted.png",
+  "formal_job_submitted": false,
+  "reason_formal_pending": "GPU checks and actual CCT simulator checks have not passed yet"
+}

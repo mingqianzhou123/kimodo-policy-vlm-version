@@ -1,6 +1,8 @@
 # 当前进度
 
-2026-11-14：cross_tracker代码、配置和小型实验记录已推送GitHub；初始1.10GB权重在AFS独立目录复制并核对SHA256，每2小时补备检查已启用。CCT已在SenseCore CPU CCI实现并通过4项单元检查、86条上下文缓存核验、896个文本适配器张量检查、真实模型前后向/保存读回以及SONIC/TWIST2 HTTP连续请求与重置复现。CPU诊断为0次优化更新、1步去噪，不代表任务成功率。CCT尚未提交GPU或正式训练；仍需GPU过拟合、8卡短程和仿真检查。百度仅允许T2M-PLUS，待恢复后同步代码与补备其独有checkpoint。详见 [CCT](cct-box.md) 和 [备份](backup-sync.md)。
+2026-11-14 17:43（UTC+8）：已单独提交 CCT **GPU检查作业** `kvla-cct-check-s42-1114`（1节点8×A800），控制台状态“排队中”。代码/数据/上下文预检及本地、CCI各4项CCT测试通过；GPU过拟合、8卡200步短程及10步去噪HTTP仍未执行，不是正式20k训练。回执与冻结清单见 `runs/cct-gpu-checks-20261114/`。A800不支持所需RTX仿真；当前sgresearch规格页只有A800，T2M-PLUS仍排队且无法登录。实际CCT双tracker仿真与正式作业均待完成。
+
+2026-11-14：cross_tracker代码、配置和小型实验记录已推送GitHub；初始1.10GB权重在AFS独立目录复制并核对SHA256，每2小时补备检查已启用。CCT已在SenseCore CPU CCI实现并通过4项单元检查、86条上下文缓存核验、896个文本适配器张量检查、真实模型前后向/保存读回以及SONIC/TWIST2 HTTP连续请求与重置复现。CPU诊断为0次优化更新、1步去噪，不代表任务成功率。此段为此前CPU阶段记录；GPU作业提交状态见上方最新记录，正式训练仍需GPU过拟合、8卡短程和仿真检查通过。百度仅允许T2M-PLUS，待恢复后同步代码与补备其独有checkpoint。详见 [CCT](cct-box.md) 和 [备份](backup-sync.md)。
 
 2026-11-14 15:32（UTC+8）：三个独立作业已提交。SONIC `kvla-cross-box-sonic-s42-1114`（启动中）、TWIST2 `kvla-cross-box-twist2-s42-1114`（排队中）、双源 `kvla-cross-box-mix-s42-1114`（排队中），每个单节点8×A800，可并发24卡。独立入口预检和3项回归测试通过。以上为提交快照，不代表已经开始训练；回执和截图位于 `runs/box-screen-setup-20261114/`。
 

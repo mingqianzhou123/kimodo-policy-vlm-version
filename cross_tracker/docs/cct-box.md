@@ -49,3 +49,12 @@ CCI容器内存上限为16GiB。全量图像特征准备、8B文本模型审计�
 每项独立run_id；入口先核验代码/配置/数据/上下文哈希。失败不自动重跑或覆盖。诊断权重在AFS独立目录备份并校验。正式训练须另行登记和提交，且仍需两个tracker实际物理/RGB闭环通过。
 
 A800不支持Omniverse RTX渲染；[NVIDIA GPU支持表](https://docs.omniverse.nvidia.com/simready/latest/common/technical-requirements.html)列出A100/A30/A800缺少RTX能力，[Isaac Sim要求](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/requirements.html)明确不支持无RT Core的GPU。当前SenseCore CCI仅有训练环境，仿真应使用已授权T2M-PLUS的5090或另一个已确认可用的RTX环境。T2M-PLUS当前仍排队，不能将旧普通baseline仿真结果算作CCT通过。
+
+检查作业已于17:42:22提交，名称 `kvla-cct-check-s42-1114`，当前排队。GPU检查通过后，在实际获准使用的空闲RTX主机同步代码、完整上下文银行、派生文本缓存和checkpoint，再运行：
+
+```sh
+python cross_tracker/scripts/check_cct_simulation.py sonic --run-id cct-sim-20261114 --checkpoint cross_tracker/runs/cct-ddp-pilot-20261114/training/checkpoint_200
+python cross_tracker/scripts/check_cct_simulation.py twist2 --run-id cct-sim-20261114 --checkpoint cross_tracker/runs/cct-ddp-pilot-20261114/training/checkpoint_200
+```
+
+默认仿真GPU0、策略GPU1，要求两卡空闲；可显式指定分配给本实验的编号。入口检查GPU诊断结果与checkpoint哈希；真实闭环采用seed1000、50步和正式10步去噪，校验连续成功HTTP、20ms状态间隔及51帧完整可解码视频。仅完成语法检查，尚未在RTX环境执行。当前未提交正式作业。

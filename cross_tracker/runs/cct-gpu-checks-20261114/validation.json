@@ -1,0 +1,10 @@
+{
+  "local_cct_tests_passed": 4,
+  "sensecore_cct_tests_passed": 4,
+  "source_and_data_preflight_passed": true,
+  "gpu_overfit_passed": null,
+  "ddp_pilot_passed": null,
+  "gpu_http_passed": null,
+  "simulation_passed": null,
+  "meaning": "Pending GPU tests are not passes; no formal CCT job submitted"
+}

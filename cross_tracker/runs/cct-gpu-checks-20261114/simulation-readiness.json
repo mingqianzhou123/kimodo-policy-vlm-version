@@ -1,0 +1,23 @@
+{
+  "observed_utc": "2026-11-14T09:44:33.853702+00:00",
+  "baidu": {
+    "instance": "T2M-PLUS",
+    "id": "dv-e21ddf3a87",
+    "status": "排队中",
+    "login_enabled": false,
+    "ssh_enabled": false
+  },
+  "sensecore": {
+    "cluster": "sgresearch",
+    "gpu_types_observed": [
+      "A800"
+    ],
+    "resource_pages_checked": 3,
+    "available_cards_at_form_observation": 6,
+    "cci_has_gpu": false,
+    "cci_has_isaac_environment": false
+  },
+  "simulation_status": "pending_RTX_host_access",
+  "nvidia_requirements": "https://docs.isaacsim.omniverse.nvidia.com/latest/installation/requirements.html",
+  "nvidia_gpu_table": "https://docs.omniverse.nvidia.com/simready/latest/common/technical-requirements.html"
+}

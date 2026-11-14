@@ -1,0 +1,13 @@
+{
+  "observed_utc": "2026-11-14T09:44:39.056267+00:00",
+  "code_files_checked": 124,
+  "different": [],
+  "code_matches": true,
+  "formal_cct_submitted": false,
+  "result.json": null,
+  "preflight.json": {
+    "passed": true,
+    "meaning": "CPU preflight only; GPU gates not run"
+  },
+  "scheduler_log_exists": false
+}
