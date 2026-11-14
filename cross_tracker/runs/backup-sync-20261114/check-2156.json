@@ -1,0 +1,23 @@
+{
+  "automation": "cross-tracker",
+  "observed_utc": "2026-11-14T15:19:03.233941+00:00",
+  "github_verified_commit": "533399fdb29e70d4bb77398afbf50f2805573ed2",
+  "local_cross_tracker_changes": false,
+  "sensecore": {
+    "status": "unreachable",
+    "ssh_attempts": 3,
+    "error": "TCP connection to port 1028 timed out",
+    "inventory_completed": false,
+    "weights_scan_completed": false,
+    "sync_completed": false
+  },
+  "baidu": {
+    "instance_name": "T2M-PLUS",
+    "instance_id": "dv-e21ddf3a87",
+    "status": "queued",
+    "sync": "pending_access",
+    "login_enabled": false,
+    "ssh_enabled": false
+  },
+  "training_actions": []
+}
