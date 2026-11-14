@@ -1,0 +1,49 @@
+{
+  "observed_utc": "2026-11-14T11:52:12.719218+00:00",
+  "observed_local": "2026-11-14T19:52:12.719218+08:00",
+  "source": "read-only SSH inspection of shared AFS; scheduler UI not refreshed in this check",
+  "formal_cct_submitted": false,
+  "runs": {
+    "cct-gpu-checks-20261114": {
+      "exists": true,
+      "scheduler_log_exists": false,
+      "metrics_observed": false
+    },
+    "cct-overfit-gpu-20261114": {
+      "exists": false,
+      "scheduler_log_exists": false,
+      "metrics_observed": false
+    },
+    "cct-ddp-pilot-20261114": {
+      "exists": false,
+      "scheduler_log_exists": false,
+      "metrics_observed": false
+    },
+    "cct-interface-gpu-20261114": {
+      "exists": false,
+      "scheduler_log_exists": false,
+      "metrics_observed": false
+    },
+    "box-sonic-s42-20261114": {
+      "exists": true,
+      "scheduler_log_exists": false,
+      "metrics_observed": false,
+      "run_record_status": "planned",
+      "training_started": false
+    },
+    "box-twist2-s42-20261114": {
+      "exists": true,
+      "scheduler_log_exists": false,
+      "metrics_observed": false,
+      "run_record_status": "planned",
+      "training_started": false
+    },
+    "box-sonic-twist2-s42-20261114": {
+      "exists": true,
+      "scheduler_log_exists": false,
+      "metrics_observed": false,
+      "run_record_status": "planned",
+      "training_started": false
+    }
+  }
+}
