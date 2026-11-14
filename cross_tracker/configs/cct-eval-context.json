@@ -1,0 +1,17 @@
+{
+  "seed": 42,
+  "selection": "Python Random(42), sorted training episodes, dataset order",
+  "manifest_sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+  "episodes": {
+    "sonic": [
+      "HOI_pp_box/sonic/000096",
+      "HOI_pp_box/sonic/000017",
+      "HOI_pp_box/sonic/000002"
+    ],
+    "twist2": [
+      "HOI_pp_box/twist2/000042",
+      "HOI_pp_box/twist2/000040",
+      "HOI_pp_box/twist2/000039"
+    ]
+  }
+}

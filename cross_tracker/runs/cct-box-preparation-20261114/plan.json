@@ -1,7 +1,7 @@
 {
   "stage": "preparation",
   "requested_run_id": "box-cct-sonic-twist2-s42-20261114",
-  "status": "method_confirmed_implementation_pending",
+  "status": "implemented_cpu_unit_checks_passed_context_cache_building",
   "submitted": false,
   "training_started": false,
   "created_utc": "2026-11-14T07:36:07.693230+00:00",
@@ -33,38 +33,57 @@
   "independent_job": true,
   "scheduler_job_id": null,
   "method_definition": "CCT with controller text metadata and visual interaction context, adapted to Kimodo",
-  "method_options": [
-    "Kimodo + CCT-inspired identity-free interaction context (v5)",
-    "Kimodo + CCT interaction context and controller metadata"
-  ],
   "context_rules": [
     "Target demonstration must not occur in its context set.",
     "Validation/evaluation trajectories never enter the training context pool.",
     "Freeze context episode and frame selections before evaluation.",
     "Report additional context data and compute separately."
   ],
-  "context_protocol_frozen": false,
+  "context_protocol_frozen": true,
   "paper": "https://arxiv.org/html/2610.39280",
   "official_code_url": "https://github.com/JonathanYang0127/icl_cross_controller",
   "official_code_status": "404 observed through project Code link on 2026-11-14; not available in inspected local codebase",
   "readiness": {
     "method_definition": true,
-    "implementation": false,
+    "implementation": true,
     "context_data_audit": false,
     "gpu_forward_backward": false,
     "small_batch_overfit": false,
-    "evaluation_interface": false
+    "evaluation_interface": false,
+    "cpu_unit_checks": true
   },
-  "note": "Preparation record only. No executable command or completed CCT implementation is claimed.",
+  "note": "Implementation written on SenseCore CPU CCI; four CPU unit checks passed. Real context features are being cached. GPU and formal run remain pending.",
   "development_machine": {
-    "provider": "Baidu",
+    "provider": "SenseCore",
+    "kind": "CPU CCI",
+    "project": "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker"
+  },
+  "updated_utc": "2026-11-14T08:10:23.082808+00:00",
+  "baidu_sync": {
     "name": "T2M-PLUS",
     "instance_id": "dv-e21ddf3a87",
-    "last_observed_state": "排队中",
-    "observation_date": "2026-11-14",
-    "explicitly_excluded": [
-      "Rethink-humanoid",
-      "T2M"
+    "status": "pending_access",
+    "excluded": [
+      "T2M",
+      "Rethink-humanoid"
     ]
+  },
+  "context": {
+    "source": "three_other_same_task_same_tracker_training_episodes",
+    "trajectories": 3,
+    "total_samples": 128,
+    "physical_dim": 110,
+    "sample_counts": [
+      43,
+      43,
+      42
+    ],
+    "encoder_width": 512,
+    "latent_queries": 256,
+    "latent_blocks": 6,
+    "heads": 8,
+    "visual_encoder": "frozen Kimodo DINOv3",
+    "metadata_encoder": "frozen LLM2Vec",
+    "eval_selection": "configs/cct-eval-context.json"
   }
 }

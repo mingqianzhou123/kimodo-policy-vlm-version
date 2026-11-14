@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "tests_run": 4,
+  "failures": 0,
+  "errors": 0,
+  "device": "cpu",
+  "elapsed_seconds": 30.46895830333233,
+  "files": {
+    "src/cct_context.py": "678ebe02f88d59ca04ff5f2f0b8170509c94b036f74be6fbccb3bf0698aa2da4",
+    "src/cct_data.py": "6150646cd4dfb7c998dc1c7d542be3a0df5abb03f0877b91218ac04bff68dfdc",
+    "src/cct_eval.py": "2c9612524aa9ae55eeda4ebdb4246ec608c698562e2addc42dda297a12e2f8e4",
+    "src/cct_inputs.py": "8e596b83f16eecd695fe2843899facad2a3bd642c991d9b7746a3fb877353287",
+    "src/cct_policy.py": "18acd62774488c43f6405e311c591cbcc8da84eae1516d3424e3556a84cbbfe5",
+    "tests/test_cct.py": "e891e16ed20909b45d87915abafdd03756cb9e79c9884b19a5a83c0297688311"
+  }
+}

@@ -1,6 +1,6 @@
 # 当前进度
 
-2026-11-14 新增用户要求：第四组 SONIC+TWIST2 的 CCT 对照。已核对与朴素双源一致的86条训练示教、seed42、20k步、batch8与独立8×A800预算；方法定义尚待明确，现有代码未实现CCT，未提交第四个作业。准备记录见 `runs/cct-box-preparation-20261114/plan.json`，接入说明见 [CCT对照准备](cct-box.md)。原三个作业的配置未改。
+2026-11-14：cross_tracker首批备份已推送GitHub main（508c12c），初始1.10GB权重已在AFS独立目录复制并SHA256核对。已启用每2小时补备检查。CCT已按用户确认的“保留控制器文字元数据、适配Kimodo”在SenseCore CPU CCI实现；CPU单元检查通过，真实上下文缓存正在生成，GPU过拟合和正式CCT作业尚未启动。百度仅允许T2M-PLUS，当前不可访问，待恢复后同步与补备其独有checkpoint。详见 [CCT](cct-box.md) 和 [备份](backup-sync.md)。
 
 2026-11-14 15:32（UTC+8）：三个独立作业已提交。SONIC `kvla-cross-box-sonic-s42-1114`（启动中）、TWIST2 `kvla-cross-box-twist2-s42-1114`（排队中）、双源 `kvla-cross-box-mix-s42-1114`（排队中），每个单节点8×A800，可并发24卡。独立入口预检和3项回归测试通过。以上为提交快照，不代表已经开始训练；回执和截图位于 `runs/box-screen-setup-20261114/`。
 

@@ -1,0 +1,17 @@
+{
+  "verified_utc": "2026-11-14T07:50:42.862805+00:00",
+  "initial_checkpoint_backup": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/initial-pt419h-checkpoint1000000",
+  "files": {
+    "training_state.pt": {
+      "sha256": "97a92c5932aff96b78b5ead0195e6d77795c7cb530b1ee8ab5f2a451f728fa06",
+      "bytes": 1100901863
+    },
+    "config.json": {
+      "sha256": "c09f105a1934a0d5ae75eea3cf59e213dedb96374211ea9af64aa50fce158985",
+      "bytes": 3257
+    }
+  },
+  "trained_checkpoints_on_sensecore": 0,
+  "baidu_only_checkpoints": "pending_access_to_T2M-PLUS",
+  "scope": "Independent AFS directory copy; not a separate-storage disaster recovery copy"
+}

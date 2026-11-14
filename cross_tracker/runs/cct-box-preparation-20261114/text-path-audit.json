@@ -1,0 +1,14 @@
+{
+  "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp/adapter_config.json": {
+    "changed_keys": [
+      "base_model_name_or_path"
+    ],
+    "interpretation": "path relocation only; pinned original copied separately"
+  },
+  "checkpoints/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised/adapter_config.json": {
+    "changed_keys": [
+      "base_model_name_or_path"
+    ],
+    "interpretation": "path relocation only; pinned original copied separately"
+  }
+}
