@@ -1,0 +1,11 @@
+{
+  "observed_utc": "2026-11-14T08:41:07.678517+00:00",
+  "instance_name": "T2M-PLUS",
+  "instance_id": "dv-e21ddf3a87",
+  "state": "排队中",
+  "login_enabled": false,
+  "ssh_enabled": false,
+  "code_sync": "pending_access",
+  "baidu_only_weights_backup": "pending_access",
+  "observation": "Read the development-machine list; no other instance opened or modified."
+}
