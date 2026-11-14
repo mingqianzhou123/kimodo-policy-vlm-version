@@ -1,0 +1,21 @@
+{
+  "verified_utc": "2026-11-14T09:45:55.618195+00:00",
+  "github_records_commit": "f080fcb",
+  "source_commit": "4efeacd7a28a2b90085bb49f2a68ee7557ce618e",
+  "files": {
+    "cross_tracker/docs/cct-box.md": "b0347888edfdfffc26a95d6bd05f1bfabb7da9b8b45bcfcb4289ff9e69f342a2",
+    "cross_tracker/docs/status.md": "db158b6793d8643a332b72122fa1298b025ca892e39369dc95aa9177a2573187",
+    "cross_tracker/runs/cct-gpu-checks-20261114/plan.json": "15ce4ce222dacd6259cd6cf658e213df27338cc42d912b4d3dc3e7765b8da3ea",
+    "cross_tracker/runs/cct-gpu-checks-20261114/preflight.json": "c93724188f360730e7d13e4ff53f763df53cf56c661b137cd97c645dbbdf35a1",
+    "cross_tracker/runs/cct-gpu-checks-20261114/runtime-status.json": "b3691b045f8dba2691ad495f3ecbadd5d753d2b5a02ecfd59edf6c518049c014",
+    "cross_tracker/runs/cct-gpu-checks-20261114/simulation-readiness.json": "a583b70d349a3a35523833883857dfd2008fa64eeef68f5d4fcf76b32ff5c3c2",
+    "cross_tracker/runs/cct-gpu-checks-20261114/source-files.json": "9e2624d940419f7b85a3cd8f4f983949d1a27e0b62747ecdc6f414560bf07983",
+    "cross_tracker/runs/cct-gpu-checks-20261114/submission.json": "73f1ef9a7c4720ba51b0412d95a650a45bdd9fda82902f04f604d689a68d6700",
+    "cross_tracker/runs/cct-gpu-checks-20261114/validation.json": "d96063eed59f22547fe146bd034d374a11e84631caecdc7da070963583a82e1e",
+    "cross_tracker/scripts/check_cct_simulation.py": "1fd2f2e79c0c50086627bd64552d9b64c3a1bba2095d93a7930ec4cbbcec9796"
+  },
+  "all_match": true,
+  "different": [],
+  "baidu_sync": "pending T2M-PLUS access",
+  "scheduler_log_exists": false
+}
