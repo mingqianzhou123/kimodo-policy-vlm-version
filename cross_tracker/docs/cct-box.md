@@ -37,3 +37,15 @@ CPU通过不等于GPU或任务成功率通过。备份规则见 [备份与同步
 CCI容器内存上限为16GiB。全量图像特征准备、8B文本模型审计、真实模型检查必须串行运行；并行审计曾因连接退出未完成，已保留记录。新机器若需重建文字缓存，先按 weights-v1.json 取得两份官方 adapter_config.json，放入 data/cache/cct-original-text-configs/ 下的对应 checkpoints/LLM2Vec… 目录；脚本会验证原件，再生成本机路径配置。CCT上下文缓存也须作为独立大文件资产迁移并核验，不能只同步代码就认为百度评测可用。
 
 本轮CPU结果：86条上下文、896个文本适配器张量核对通过；同设置下两段控制器文字复算差异均为0。真实模型有有限损失和新增编码器梯度，checkpoint读回一致；两个tracker的HTTP连续请求均输出25×40有限动作，重置复现差异0。诊断不做优化更新，推理只用1步去噪，不替代正式10步去噪或GPU/仿真检查。证据见 runs/cct-cpu-model-20261114、runs/cct-interface-cpu-20261114。
+
+## GPU检查作业（2026-11-14）
+
+独立检查入口为 `scripts/run_cct_checks.py cct-gpu-checks-20261114`，仅运行诊断，不会启动正式训练：
+
+1. 单卡固定两个真实窗口优化200步，固定噪声的最终损失须小于初始的一半，全部编码器参数必须有有限非零梯度，保存读回与预测通过。
+2. 从同一官方初始权重重新开始8卡DDP，执行200步；保留正式20k学习率日程与warmup666，仅设置stop_after=200。核对八个实际rank、有限梯度、编码器更新、跨rank参数一致性及checkpoint_200。
+3. 在GPU加载短程checkpoint，按正式10步去噪分别跑SONIC/TWIST2真实HTTP连续请求，检查25×40有限动作及reset seed1000复现。接口检查仍不是仿真。
+
+每项独立run_id；入口先核验代码/配置/数据/上下文哈希。失败不自动重跑或覆盖。诊断权重在AFS独立目录备份并校验。正式训练须另行登记和提交，且仍需两个tracker实际物理/RGB闭环通过。
+
+A800不支持Omniverse RTX渲染；[NVIDIA GPU支持表](https://docs.omniverse.nvidia.com/simready/latest/common/technical-requirements.html)列出A100/A30/A800缺少RTX能力，[Isaac Sim要求](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/requirements.html)明确不支持无RT Core的GPU。当前SenseCore CCI仅有训练环境，仿真应使用已授权T2M-PLUS的5090或另一个已确认可用的RTX环境。T2M-PLUS当前仍排队，不能将旧普通baseline仿真结果算作CCT通过。

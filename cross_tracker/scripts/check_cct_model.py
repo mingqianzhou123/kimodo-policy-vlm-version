@@ -96,7 +96,8 @@ def main():
         if step == 0:
             gradients = {name: float(p.grad.float().norm()) for name, p in model.cct_encoder.named_parameters()
                          if p.grad is not None}
-            if not gradients or not all(torch.isfinite(torch.tensor(v)) and v > 0 for v in gradients.values()):
+            expected = {n for n, p in model.cct_encoder.named_parameters() if p.requires_grad}
+            if set(gradients) != expected or not all(torch.isfinite(torch.tensor(v)) and v > 0 for v in gradients.values()):
                 raise ValueError("Missing, zero or non-finite CCT gradients")
         torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], 1, error_if_nonfinite=True)
         if args.steps:
@@ -131,7 +132,8 @@ def main():
                     gradient_norms=gradients, prediction_shapes=shapes, checkpoint_roundtrip=True,
                     target_episode_ids=[data.episodes[data.index[i][0]]["episode_id"] for i in indices],
                     context_episode_ids=[s["context_episode_ids"] for s in samples],
-                    elapsed_seconds=time.monotonic()-started, gpu_overfit_passed=bool(args.steps and final < initial*.5))
+                    elapsed_seconds=time.monotonic()-started, gpu_overfit_passed=bool(args.steps and final < initial*.5),
+                    peak_allocated_bytes=torch.cuda.max_memory_allocated() if args.device == "cuda" else None)
     (run / "result.json").write_text(json.dumps(evidence, indent=2)+"\n")
     record = json.loads((run / "run.json").read_text())
     record.update(status="completed" if evidence["passed"] else "failed", passed=evidence["passed"], result="result.json")
