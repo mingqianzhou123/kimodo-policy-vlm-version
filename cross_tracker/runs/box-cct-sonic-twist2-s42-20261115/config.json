@@ -1,0 +1,97 @@
+{
+  "protocol": "box-screen-v1",
+  "tasks": {
+    "HOI_pp_box": 54,
+    "HSI_boxing": 100,
+    "HSI_vision_navi": 94
+  },
+  "trackers": [
+    "sonic",
+    "twist2",
+    "mimic_lite"
+  ],
+  "subset_seed": 20261113,
+  "validation_fraction": 0.2,
+  "train_seeds": [
+    42
+  ],
+  "action_chunk_frames": 50,
+  "observation_history_frames": 0,
+  "sampling": "uniform_task_then_source_then_episode_then_valid_window",
+  "source_groups": [
+    [
+      "sonic"
+    ],
+    [
+      "twist2"
+    ],
+    [
+      "sonic",
+      "twist2"
+    ]
+  ],
+  "dual_source_step_multiplier": 2,
+  "model": "Kimodo-VLA",
+  "initial_checkpoint": {
+    "manifest": "data/manifests/weights-v1.json",
+    "path": "Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000"
+  },
+  "single_source_steps": 10000,
+  "evaluation_scene_seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
+    1016,
+    1017,
+    1018,
+    1019
+  ],
+  "training_ready": true,
+  "model_fps": 30,
+  "model_action_history": 100,
+  "model_action_chunk": 50,
+  "protocol_frozen_date": "2026-11-14",
+  "batch_size": 8,
+  "micro_batch_size": 1,
+  "score_checkpoints_single": [
+    10000
+  ],
+  "score_checkpoint_rule": "final_checkpoint_only",
+  "evaluation_max_steps": {
+    "HOI_pp_box": 1450,
+    "HSI_boxing": 900,
+    "HSI_vision_navi": 1800
+  },
+  "evaluation_repeats_per_scene": 1,
+  "evaluation_episode_seed": "same_as_scene_seed",
+  "evaluation_ready_trackers": [
+    "sonic",
+    "twist2"
+  ],
+  "evaluation_pending_trackers": [],
+  "evaluation_policy": {
+    "execution_frames_30hz": 15,
+    "diffusion_steps": 10,
+    "rtc_overlap_frames": 0,
+    "timing": "exact",
+    "dtype": "fp32"
+  },
+  "budget_note": "Single-task screen, one seed. Frozen parent manifest remains unchanged; only active_tasks are used. 8 GPUs x 1 sample = global batch 8. Dual source doubles updates, preserving expected exposure per source; not a fixed-compute comparison. No claim of convergence or strict unseen-tracker pretraining.",
+  "active_tasks": [
+    "HOI_pp_box"
+  ],
+  "world_size": 8
+}

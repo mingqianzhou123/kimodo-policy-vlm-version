@@ -1,0 +1,41 @@
+{
+  "status": "draft_pending_initialization_definition",
+  "task": "HOI_pp_box",
+  "seed": 42,
+  "pretrained_runs": [
+    "box-sonic-s42-20261114",
+    "box-twist2-s42-20261114",
+    "box-sonic-twist2-s42-20261114"
+  ],
+  "proposed_scratch_groups": [
+    [
+      "sonic"
+    ],
+    [
+      "twist2"
+    ],
+    [
+      "sonic",
+      "twist2"
+    ]
+  ],
+  "global_batch": 8,
+  "steps": [
+    10000,
+    10000,
+    20000
+  ],
+  "matched_budget_is_not_convergence": true,
+  "default_kimodo_scratch_semantics": {
+    "pt_419h_policy_checkpoint_loaded": false,
+    "kimodo_motion_prior": "pretrained and frozen",
+    "controlnet_layers": "copied from Kimodo motion prior",
+    "new_conditioning_adapters": "fresh initialization",
+    "hand_head": "fresh initialization",
+    "DINOv3": "pretrained and frozen",
+    "text_encoder": "pretrained and frozen/cached"
+  },
+  "full_random_motion_policy_requires": "new architecture initialization, training and checkpoint loading path; current trainer freezes denoiser",
+  "cct_pretrained_formal_run": "box-cct-sonic-twist2-s42-20261115",
+  "submitted": false
+}

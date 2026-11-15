@@ -1,0 +1,29 @@
+{
+  "observed_date": "2026-11-15",
+  "timezone": "Asia/Singapore",
+  "baidu": {
+    "instance": "T2M-PLUS",
+    "id": "dv-e21ddf3a87",
+    "status": "queued",
+    "login_enabled": false,
+    "ssh_enabled": false,
+    "evidence": "Native Chrome AX console row"
+  },
+  "sensecore": {
+    "workspace": "sgresearch",
+    "gpu_spec_pages_checked": 3,
+    "gpu_types": [
+      "NVIDIA A800 80GB SXM4"
+    ],
+    "rtx_gpu_found": false,
+    "CCI_envs": [
+      "egl_loader",
+      "gl",
+      "kimodo"
+    ],
+    "isaac_environment_found": false
+  },
+  "cct_gpu_checks": "passed",
+  "cct_simulation": "blocked_on_RTX_access",
+  "cct_formal_submitted": false
+}
