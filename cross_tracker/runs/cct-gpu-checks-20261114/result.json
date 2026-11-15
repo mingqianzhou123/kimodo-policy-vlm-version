@@ -1,0 +1,87 @@
+{
+  "formal_training": false,
+  "passed": true,
+  "status": "completed",
+  "gpus": [
+    "NVIDIA A800-SXM4-80GB",
+    "NVIDIA A800-SXM4-80GB",
+    "NVIDIA A800-SXM4-80GB",
+    "NVIDIA A800-SXM4-80GB",
+    "NVIDIA A800-SXM4-80GB",
+    "NVIDIA A800-SXM4-80GB",
+    "NVIDIA A800-SXM4-80GB",
+    "NVIDIA A800-SXM4-80GB"
+  ],
+  "started_utc": "2026-11-15T01:25:13.446114+00:00",
+  "source_commit": "4efeacd7a28a2b90085bb49f2a68ee7557ce618e",
+  "source_manifest_sha256": "9e2624d940419f7b85a3cd8f4f983949d1a27e0b62747ecdc6f414560bf07983",
+  "python": "3.11.18 (main, Oct 26 2026, 11:35:17) [GCC 15.3.0]",
+  "torch": "2.14.1+cu126",
+  "cuda": "12.6",
+  "stages": {
+    "overfit": {
+      "status": "exited",
+      "argv": [
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo/bin/python",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/scripts/check_cct_model.py",
+        "cct-overfit-gpu-20261114",
+        "--device",
+        "cuda",
+        "--steps",
+        "200"
+      ],
+      "exit_code": 0,
+      "passed": true
+    },
+    "ddp": {
+      "status": "exited",
+      "argv": [
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo/bin/python",
+        "-m",
+        "torch.distributed.run",
+        "--standalone",
+        "--nproc_per_node=8",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/scripts/train_cct_worker.py",
+        "--config",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/configs/cct_box.yaml",
+        "--run-dir",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/cct-ddp-pilot-20261114/training",
+        "--init-checkpoint",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/data/cache/weights/Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000",
+        "--task",
+        "HOI_pp_box/sonic",
+        "HOI_pp_box/twist2",
+        "--device",
+        "cuda",
+        "main.stop_after=200",
+        "main.checkpoint_every=200",
+        "main.score_checkpoints=[200]",
+        "main.log_every=10"
+      ],
+      "exit_code": 0,
+      "passed": true
+    },
+    "interface": {
+      "status": "exited",
+      "argv": [
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo/bin/python",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/scripts/check_cct_interface.py",
+        "cct-interface-gpu-20261114",
+        "--checkpoint",
+        "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/cct-ddp-pilot-20261114/training/checkpoint_200"
+      ],
+      "exit_code": 0,
+      "passed": true
+    }
+  },
+  "overfit_backup": {
+    "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/cct-overfit-gpu-20261114/checkpoint",
+    "status": "copied_and_verified"
+  },
+  "ddp_backup": {
+    "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/cct-ddp-pilot-20261114/checkpoint_200",
+    "status": "copied_and_verified"
+  },
+  "simulation": "pending; not part of this A800 job",
+  "ended_utc": "2026-11-15T01:29:48.575826+00:00"
+}

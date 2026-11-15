@@ -1,0 +1,158 @@
+{
+  "observed_utc": "2026-11-15T06:36:15.326749+00:00",
+  "files": {
+    "runs/box-sonic-s42-20261114/run.json": {
+      "sha256": "0ce4abab6349e838789f80bc44da186386e65f8d8f6cb32ed82865820aba7f09",
+      "bytes": 6469
+    },
+    "runs/box-sonic-s42-20261114/training/config.json": {
+      "sha256": "13b59c1984bf544ddebdf3d4bd84f7943832e88cf3e9e616855a5d8a73f940d6",
+      "bytes": 2387
+    },
+    "runs/box-sonic-s42-20261114/training/metrics.jsonl": {
+      "sha256": "64f3f875d338d96ca3302339f5436de5438c7556b0074c76676fdd939491a785",
+      "bytes": 99328
+    },
+    "runs/box-sonic-s42-20261114/training/checkpoint_10000/config.json": {
+      "sha256": "13b59c1984bf544ddebdf3d4bd84f7943832e88cf3e9e616855a5d8a73f940d6",
+      "bytes": 2387
+    },
+    "runs/box-sonic-s42-20261114/training/checkpoint_5000/config.json": {
+      "sha256": "13b59c1984bf544ddebdf3d4bd84f7943832e88cf3e9e616855a5d8a73f940d6",
+      "bytes": 2387
+    },
+    "runs/box-sonic-twist2-s42-20261114/run.json": {
+      "sha256": "159334bd35d03d5b636cb2f189c45f08ce764b20f879effa5a501c73e6b3be6e",
+      "bytes": 6530
+    },
+    "runs/box-sonic-twist2-s42-20261114/training/config.json": {
+      "sha256": "5e62425dd9aee7ed6368eeae33643cb4921ad175a50b0ac11a4b28c1c2345df6",
+      "bytes": 2429
+    },
+    "runs/box-sonic-twist2-s42-20261114/training/metrics.jsonl": {
+      "sha256": "69d771a1d4f55aec1f53c5051ff0580c4ed5cf43555717ac20f248050670ec00",
+      "bytes": 198710
+    },
+    "runs/box-sonic-twist2-s42-20261114/training/checkpoint_10000/config.json": {
+      "sha256": "5e62425dd9aee7ed6368eeae33643cb4921ad175a50b0ac11a4b28c1c2345df6",
+      "bytes": 2429
+    },
+    "runs/box-sonic-twist2-s42-20261114/training/checkpoint_20000/config.json": {
+      "sha256": "5e62425dd9aee7ed6368eeae33643cb4921ad175a50b0ac11a4b28c1c2345df6",
+      "bytes": 2429
+    },
+    "runs/box-twist2-s42-20261114/run.json": {
+      "sha256": "a7f928244da7e8b27f7489029be286acf928a2e0418378615a499dd090ff5d34",
+      "bytes": 6474
+    },
+    "runs/box-twist2-s42-20261114/training/config.json": {
+      "sha256": "9b9c1e9d17d3727baa76a1dfe51d73c027a3e0446d8f6c073218e9840ead320c",
+      "bytes": 2388
+    },
+    "runs/box-twist2-s42-20261114/training/metrics.jsonl": {
+      "sha256": "d1c641ed33af043656ba5614f2292ebf99a7cf09a99c070f1237e6c9826c7e01",
+      "bytes": 99483
+    },
+    "runs/box-twist2-s42-20261114/training/checkpoint_10000/config.json": {
+      "sha256": "9b9c1e9d17d3727baa76a1dfe51d73c027a3e0446d8f6c073218e9840ead320c",
+      "bytes": 2388
+    },
+    "runs/box-twist2-s42-20261114/training/checkpoint_5000/config.json": {
+      "sha256": "9b9c1e9d17d3727baa76a1dfe51d73c027a3e0446d8f6c073218e9840ead320c",
+      "bytes": 2388
+    },
+    "runs/cct-ddp-pilot-20261114/rank-0.json": {
+      "sha256": "fada5cf952c7bb5de1d26a3860d5d7c47a0c5552f21c86e8b63f42f0f672895b",
+      "bytes": 297
+    },
+    "runs/cct-ddp-pilot-20261114/rank-1.json": {
+      "sha256": "7dc957cea3603b68117c47b9b354d7fce08de7ba5daa09fc9150f0c531fc83c5",
+      "bytes": 297
+    },
+    "runs/cct-ddp-pilot-20261114/rank-2.json": {
+      "sha256": "790bf67495aa01d70cf30ee674cd81f3e55bb81692d80ace5dbf0bc94874186e",
+      "bytes": 297
+    },
+    "runs/cct-ddp-pilot-20261114/rank-3.json": {
+      "sha256": "f7e3e93bea6358c3e1eaa844dda8a6401533847805c32b715b792f29efda1325",
+      "bytes": 297
+    },
+    "runs/cct-ddp-pilot-20261114/rank-4.json": {
+      "sha256": "6e4def203b03dbf805aab249ccf893b52e0f5e627011e8fbe1affbb4a48caf71",
+      "bytes": 297
+    },
+    "runs/cct-ddp-pilot-20261114/rank-5.json": {
+      "sha256": "89b5f279190088ec513aaabac92086b8a9a476bf3c4fc57833f82d8a20e22ddb",
+      "bytes": 297
+    },
+    "runs/cct-ddp-pilot-20261114/rank-6.json": {
+      "sha256": "743f5627916ecd99c00e4306d4cca4e79a51df58047e323e75faa9b4d8639844",
+      "bytes": 297
+    },
+    "runs/cct-ddp-pilot-20261114/rank-7.json": {
+      "sha256": "35fa2806ff1d30f2822ccf6eba8f5e20eee9915207b466f7b82136ea7892b811",
+      "bytes": 297
+    },
+    "runs/cct-ddp-pilot-20261114/result.json": {
+      "sha256": "a281ec1c760b90769b552ab8d1abf674b1e1c52a05cfafe346733898fcb892e2",
+      "bytes": 2900
+    },
+    "runs/cct-ddp-pilot-20261114/run.json": {
+      "sha256": "cd0627f788ef35d11a3ddafe270988f7b1487d0cf3b7f21a0ebeb19ed2f16b8d",
+      "bytes": 90
+    },
+    "runs/cct-ddp-pilot-20261114/training/config.json": {
+      "sha256": "fce62a6633c10a4b5f1576ec4eea6bfc9b4dea932552b4aff137a805968a91a0",
+      "bytes": 2424
+    },
+    "runs/cct-ddp-pilot-20261114/training/metrics.jsonl": {
+      "sha256": "a6c1c50d68af911c3a75f0b12b617f1d8d50f12d9d0f9b8caec20c773a8130b0",
+      "bytes": 9748
+    },
+    "runs/cct-ddp-pilot-20261114/training/checkpoint_200/config.json": {
+      "sha256": "fce62a6633c10a4b5f1576ec4eea6bfc9b4dea932552b4aff137a805968a91a0",
+      "bytes": 2424
+    },
+    "runs/cct-gpu-checks-20261114/result.json": {
+      "sha256": "30cd14a3289513199c89c80ac29294e8ce889ef0eac823d2d6ba1bcae6f00b79",
+      "bytes": 3254
+    },
+    "runs/cct-interface-gpu-20261114/result.json": {
+      "sha256": "d97e67dcb78fbb1c0c212b0378a1362e3f694a5a68e5b22e8036c3c86d36eaa8",
+      "bytes": 633
+    },
+    "runs/cct-interface-gpu-20261114/run.json": {
+      "sha256": "1a995c7ee97b0310fdea827532b31a4ae9e2ceed1d111f1d855fecab4778fb52",
+      "bytes": 658
+    },
+    "runs/cct-overfit-gpu-20261114/result.json": {
+      "sha256": "692f3e8e52aa7fa281906d6d53ca74261885a88e5b02ca201f4176b7cab7ff70",
+      "bytes": 7244
+    },
+    "runs/cct-overfit-gpu-20261114/run.json": {
+      "sha256": "66a3a8f4bd71e12e57401485cd2d1c499b8be53439562c9166f3c621ea1b2362",
+      "bytes": 1158
+    },
+    "runs/cct-overfit-gpu-20261114/checkpoint/config.json": {
+      "sha256": "673c1e672a90cd5322ef479b931a2959f62be941bc4baac50fd870b9cf175879",
+      "bytes": 2210
+    }
+  },
+  "preserved_conflicts": [
+    {
+      "path": "runs/box-sonic-s42-20261114/run.json",
+      "local_sha256": "42338c6e55c8cbe52f1eeb7ff332de106f8c2dabed4298041344e8c5fc0fc11e",
+      "remote_sha256": "0ce4abab6349e838789f80bc44da186386e65f8d8f6cb32ed82865820aba7f09"
+    },
+    {
+      "path": "runs/box-sonic-twist2-s42-20261114/run.json",
+      "local_sha256": "4f48cc44b34f47ad9551bb83282cfa084dfc4490665640b23ec9fa5eabb2e90d",
+      "remote_sha256": "159334bd35d03d5b636cb2f189c45f08ce764b20f879effa5a501c73e6b3be6e"
+    },
+    {
+      "path": "runs/box-twist2-s42-20261114/run.json",
+      "local_sha256": "2d30afc6efaf4d30198a6e0c26b7aa7b9bd48572f2b6c4eff9d5f35cd3c3c657",
+      "remote_sha256": "a7f928244da7e8b27f7489029be286acf928a2e0418378615a499dd090ff5d34"
+    }
+  ]
+}

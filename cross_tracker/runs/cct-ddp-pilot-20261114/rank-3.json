@@ -1,0 +1,11 @@
+{
+  "rank": 3,
+  "world_size": 8,
+  "local_rank": 3,
+  "gpu": "NVIDIA A800-SXM4-80GB",
+  "all_encoder_gradients_finite": true,
+  "encoder_updated": true,
+  "query_sha256": "4bc3355ffbe9c0f96fb3404e6a9518edd63b8764b7111f14a3c19601c0a4b60c",
+  "peak_allocated_bytes": 5780170752,
+  "passed": true
+}

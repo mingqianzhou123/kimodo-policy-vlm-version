@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "device": "cuda",
+  "diffusion_steps": 10,
+  "formal_training": false,
+  "checkpoint_sha256": "dd900b1dd7967e073afe8e9778caa2287347e2d44b8f3107f8f308ed310f5c59",
+  "trackers": {
+    "sonic": {
+      "validation_episode": 4,
+      "shape": [
+        25,
+        40
+      ],
+      "continuous_requests": 2,
+      "reset_max_difference": 0.0
+    },
+    "twist2": {
+      "validation_episode": 9,
+      "shape": [
+        25,
+        40
+      ],
+      "continuous_requests": 2,
+      "reset_max_difference": 0.0
+    }
+  },
+  "meaning": "Real HTTP/model interface only; no simulator rollout or task-success claim"
+}

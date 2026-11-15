@@ -1,0 +1,57 @@
+{
+  "checkpoints": [
+    {
+      "path": "runs/box-sonic-s42-20261114/training/checkpoint_10000/training_state.pt",
+      "global_step": 10000,
+      "saved_model_tensors": 253
+    },
+    {
+      "path": "runs/box-sonic-s42-20261114/training/checkpoint_5000/training_state.pt",
+      "global_step": 5000,
+      "saved_model_tensors": 253
+    },
+    {
+      "path": "runs/box-twist2-s42-20261114/training/checkpoint_10000/training_state.pt",
+      "global_step": 10000,
+      "saved_model_tensors": 253
+    },
+    {
+      "path": "runs/box-twist2-s42-20261114/training/checkpoint_5000/training_state.pt",
+      "global_step": 5000,
+      "saved_model_tensors": 253
+    },
+    {
+      "path": "runs/box-sonic-twist2-s42-20261114/training/checkpoint_10000/training_state.pt",
+      "global_step": 10000,
+      "saved_model_tensors": 253
+    },
+    {
+      "path": "runs/box-sonic-twist2-s42-20261114/training/checkpoint_20000/training_state.pt",
+      "global_step": 20000,
+      "saved_model_tensors": 253
+    },
+    {
+      "path": "runs/cct-ddp-pilot-20261114/training/checkpoint_200/training_state.pt",
+      "global_step": 200,
+      "saved_model_tensors": 348
+    }
+  ],
+  "train_settings": {
+    "box-sonic-s42-20261114": [
+      "2026-11-15 00:07:54 trainable parameters: ControlNet 87.9M, hand head 3.8M"
+    ],
+    "box-twist2-s42-20261114": [
+      "2026-11-15 00:27:59 trainable parameters: ControlNet 87.9M, hand head 3.8M"
+    ],
+    "box-sonic-twist2-s42-20261114": [
+      "2026-11-15 00:48:17 trainable parameters: ControlNet 87.9M, hand head 3.8M"
+    ],
+    "cct-ddp-pilot-20261114": [
+      "2026-11-15 01:28:14 trainable parameters: ControlNet 111.1M, hand head 3.8M"
+    ]
+  },
+  "overfit_backup": {
+    "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/cct-overfit-gpu-20261114/checkpoint",
+    "status": "already_verified"
+  }
+}

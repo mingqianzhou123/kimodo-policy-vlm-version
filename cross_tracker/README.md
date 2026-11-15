@@ -4,7 +4,7 @@
 
 **当前轮次**：箱子搬放单任务，SONIC / TWIST2 / SONIC+TWIST2，各seed42，SenseCore 三个独立作业，各8×A800，可并行执行；见 [本轮协议](docs/box-screen.md)。下文30k/60k与12次多任务矩阵是已被替代的历史方案，不继续提交。
 
-CCT第四组已按“控制器文字元数据＋交互上下文”适配Kimodo，在SenseCore CPU CCI开发；入口、差异和检查顺序见 [CCT说明](docs/cct-box.md)。备份与双端同步规则见 [备份说明](docs/backup-sync.md)。GPU检查和正式CCT作业仍待完成。
+CCT第四组已按“控制器文字元数据＋交互上下文”适配Kimodo，在SenseCore CPU CCI开发；入口、差异和检查顺序见 [CCT说明](docs/cct-box.md)。备份与双端同步规则见 [备份说明](docs/backup-sync.md)。GPU过拟合、八卡200步和HTTP检查已通过；正式CCT仍待仿真核验后提交。三个朴素baseline已完成10k/10k/20k，成功率待评测，见 [完成核验](runs/backup-sync-20261115/README.md)。
 
 服务器位置：`humanoidVLA/cross_tracker/`（百度为 `/root/workspace/humanoidVLA/cross_tracker/`）。本地位于同一代码库的 `kimodo-vla version/cross_tracker/`；服务器同步状态见 [当前进度](docs/status.md)。现有 BiGym 调参、Kimodo 复现和其他实验不迁入本目录。
 

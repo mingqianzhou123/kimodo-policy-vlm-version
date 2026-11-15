@@ -13,8 +13,8 @@
     "cross_tracker/runs/box-screen-setup-20261114/launch_single.sh",
     "box-sonic-s42-20261114"
   ],
-  "status": "planned",
-  "training_started": false,
+  "status": "completed",
+  "training_started": true,
   "dependency": {
     "path": "/Users/zmqsfiles/Research/人形 vla/kimodo-vla version",
     "head": "d61b5cf99ce865523ad9746f8d060881d279cc16",
@@ -58,7 +58,20 @@
     "provenance/scheduler-split/run_box_screen.py": "e6bd5248600c6942f3d287b0b39f7a708f774644053c294b0db0973a7cb27e6f",
     "provenance/scheduler-split/launch_single.sh": "5568ec0bc389c8f1ff5543e6fcd9cef0787d1210776c122413514ccfda73d663"
   },
-  "runtime_environment": null,
+  "runtime_environment": {
+    "python": "3.11.18 (main, Oct 26 2026, 11:35:17) [GCC 15.3.0]",
+    "torch": "2.14.1+cu126",
+    "gpus": [
+      "NVIDIA A800-SXM4-80GB",
+      "NVIDIA A800-SXM4-80GB",
+      "NVIDIA A800-SXM4-80GB",
+      "NVIDIA A800-SXM4-80GB",
+      "NVIDIA A800-SXM4-80GB",
+      "NVIDIA A800-SXM4-80GB",
+      "NVIDIA A800-SXM4-80GB",
+      "NVIDIA A800-SXM4-80GB"
+    ]
+  },
   "parent_run": null,
   "scheduler_change": {
     "reason": "User correction: one eight-GPU ACP job per experiment",
@@ -67,5 +80,29 @@
       "cross_tracker/scripts/run_box_screen.py"
     ],
     "old_job_stopped_before_training": true
-  }
+  },
+  "actual_command": [
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/envs/kimodo/bin/python",
+    "-m",
+    "torch.distributed.run",
+    "--standalone",
+    "--nproc_per_node=8",
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/scripts/train_worker.py",
+    "--config",
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/configs/box_screen.yaml",
+    "--run-dir",
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-sonic-s42-20261114/training",
+    "--init-checkpoint",
+    "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/data/cache/weights/Pre_Train/pt_419h_gbs1024_100w_controlnet4_detach_true_mse/2026-08-26_17-06-35/checkpoint_1000000",
+    "--task",
+    "HOI_pp_box/sonic",
+    "--device",
+    "cuda",
+    "main.max_steps=10000",
+    "main.checkpoint_every=5000",
+    "main.score_checkpoints=[10000]",
+    "training.scheduler.warmup_steps=333"
+  ],
+  "started_utc": "2026-11-15T00:07:01.373458+00:00",
+  "ended_utc": "2026-11-15T00:26:11.498984+00:00"
 }
