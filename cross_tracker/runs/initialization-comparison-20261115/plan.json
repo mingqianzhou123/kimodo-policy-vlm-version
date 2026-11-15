@@ -1,5 +1,5 @@
 {
-  "status": "configured",
+  "status": "submitted",
   "task": "HOI_pp_box",
   "seed": 42,
   "pretrained_runs": [
@@ -37,11 +37,12 @@
   },
   "full_random_motion_policy_requires": "new architecture initialization, training and checkpoint loading path; current trainer freezes denoiser",
   "cct_pretrained_formal_run": "box-cct-sonic-twist2-s42-20261115",
-  "submitted": false,
+  "submitted": true,
   "user_choice": "Kimodo default; do not load pt_419h demonstration-policy weights",
   "scratch_runs": [
     "box-scratch-sonic-s42-20261115",
     "box-scratch-twist2-s42-20261115",
     "box-scratch-sonic-twist2-s42-20261115"
-  ]
+  ],
+  "submission_receipt": "scratch-submission.json"
 }

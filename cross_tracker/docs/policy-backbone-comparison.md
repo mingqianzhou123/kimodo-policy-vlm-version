@@ -17,4 +17,4 @@
 - openpi官方README（π0.5 flow matching实现与finetuning）：https://github.com/Physical-Intelligence/openpi
 - 默认动作维度与动作窗口：https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/models/pi0_config.py
 
-当前执行状态：Kimodo scratch初始化定义已确认，三组正式训练尚未提交。CCT预训练正式入口已部署并通过除真实仿真以外的预检；T2M-PLUS排队、SenseCore当前项目只有A800，真实仿真仍待可用RTX资源。没有额外启动π0.5或其他骨干训练。
+当前执行状态：Kimodo scratch初始化定义已确认，三组独立8×A800作业已于15:11–15:13提交；分配GPU后先过拟合与八卡短程，通过后才进入正式10k/10k/20k；尚未核实GPU执行。CCT预训练正式入口已部署并通过除真实仿真以外的预检；T2M-PLUS排队、SenseCore当前项目只有A800，真实仿真仍待可用RTX资源。没有额外启动π0.5或其他骨干训练。

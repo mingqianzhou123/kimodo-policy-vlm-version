@@ -1,5 +1,7 @@
 # 当前进度
 
+2026-11-15 15:14（UTC+8）：已提交三个独立Kimodo scratch作业（SONIC、TWIST2、双源，各8×A800，seed42）。不加载pt_419h，保留Kimodo运动先验与编码器；每组先200步过拟合、8卡200步，再进入10k/10k/20k正式训练。CPU预检已通过，GPU执行尚未核实。代码提交6331601，回执见 [scratch提交](../runs/initialization-comparison-20261115/scratch-submission.json)。CCT正式作业仍待真实双tracker仿真，π0.5仅为研究建议、未启动。
+
 2026-11-15 14:36（UTC+8）核验：SONIC/TWIST2各10k、混训20k均已完成，耗时19分10秒/19分12秒/36分45秒。CCT GPU检查耗时4分35秒，过拟合、八卡200步及HTTP全部通过；正式CCT20k未提交，仿真和成功率评测待完成。6份朴素baseline checkpoint新备份、2份CCT备份复核通过。详见 [完成核验](../runs/backup-sync-20261115/README.md)。以下按历史时间保留，不代表当前状态。
 
 2026-11-14 17:43（UTC+8）：已单独提交 CCT **GPU检查作业** `kvla-cct-check-s42-1114`（1节点8×A800），控制台状态“排队中”。代码/数据/上下文预检及本地、CCI各4项CCT测试通过；GPU过拟合、8卡200步短程及10步去噪HTTP仍未执行，不是正式20k训练。回执与冻结清单见 `runs/cct-gpu-checks-20261114/`。A800不支持所需RTX仿真；当前sgresearch规格页只有A800，T2M-PLUS仍排队且无法登录。实际CCT双tracker仿真与正式作业均待完成。

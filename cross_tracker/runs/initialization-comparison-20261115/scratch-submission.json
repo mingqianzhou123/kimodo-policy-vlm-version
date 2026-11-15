@@ -1,0 +1,59 @@
+{
+  "code_commit": "6331601d95fcf709dbdd8cd4f734e00a27e05540",
+  "platform": "SenseCore",
+  "workspace": "sgresearch",
+  "resources_per_job": {
+    "nodes": 1,
+    "gpu": "A800-80GB",
+    "gpu_count": 8,
+    "vcpus": 80,
+    "memory_gib": 896,
+    "max_restarts": 0
+  },
+  "jobs": [
+    {
+      "run_id": "box-scratch-sonic-s42-20261115",
+      "job_name": "kvla-scratch-sonic-s42-1115",
+      "submitted_at": "2026-11-15T15:11:53+08:00",
+      "submitted": true,
+      "formal_steps": 10000,
+      "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-scratch-sonic-s42-20261115/launch.sh",
+      "launch_sha256": "a97e494b981fa8785e5aec4e127d88b57461ea0968fd62680fc5443042b28a52",
+      "status": "submitted; GPU execution not yet verified"
+    },
+    {
+      "run_id": "box-scratch-twist2-s42-20261115",
+      "job_name": "kvla-scratch-twist2-s42-1115",
+      "submitted_at": "2026-11-15T15:12:43+08:00",
+      "submitted": true,
+      "formal_steps": 10000,
+      "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-scratch-twist2-s42-20261115/launch.sh",
+      "launch_sha256": "a97e494b981fa8785e5aec4e127d88b57461ea0968fd62680fc5443042b28a52",
+      "status": "submitted; GPU execution not yet verified"
+    },
+    {
+      "run_id": "box-scratch-sonic-twist2-s42-20261115",
+      "job_name": "kvla-scratch-mix-s42-1115",
+      "submitted_at": "2026-11-15T15:13:53+08:00",
+      "submitted": true,
+      "formal_steps": 20000,
+      "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-scratch-sonic-twist2-s42-20261115/launch.sh",
+      "launch_sha256": "a97e494b981fa8785e5aec4e127d88b57461ea0968fd62680fc5443042b28a52",
+      "status": "submitted; GPU execution not yet verified"
+    }
+  ],
+  "gates": [
+    "200-step fixed-window scratch overfit",
+    "200-step 8-GPU scratch pilot",
+    "fresh formal training only if both pass"
+  ],
+  "initialization": "Kimodo default, no pt_419h; motion prior and encoders remain pretrained",
+  "cpu_preflight": "passed for all three",
+  "gpu_gates_verified": false,
+  "formal_training_started_verified": false,
+  "cct_formal_submitted": false,
+  "cct_blocker": "Real SONIC/TWIST2 simulation pending RTX environment; T2M-PLUS last observed queued",
+  "baidu_sync": "pending T2M-PLUS availability",
+  "screenshot": "scratch-submitted.png",
+  "screenshot_sha256": "2e950612610cc478a18ed81fe7599cb4cc5171fe99b39e6e02403ee2d8364b90"
+}
