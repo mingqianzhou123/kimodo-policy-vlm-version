@@ -1,4 +1,4 @@
-"""Launch one registered CCT baseline after GPU and real-simulator checks."""
+"""Launch a registered CCT baseline; explicitly record deferred simulation."""
 import argparse
 from datetime import datetime, timezone
 import json
@@ -23,6 +23,21 @@ def validate_simulation(report, controller, checkpoint_sha, context_sha):
     assert report["successful_inference_requests"] >= 2
     assert report["history_packet_sizes"][:2] == [1, 25]
     assert report["exit_code"] == 0
+
+
+def check_simulations(plan, checkpoint_sha):
+    missing = []
+    for controller, rel in plan["simulation_reports"].items():
+        if not (ROOT / rel).is_file():
+            missing.append(controller)
+            continue
+        validate_simulation(read(ROOT / rel), controller, checkpoint_sha,
+                            plan["context_manifest_sha256"])
+    if missing:
+        approval = plan.get("simulation_deferral", {})
+        if approval.get("user_authorized") is not True or not approval.get("request"):
+            raise RuntimeError("Real CCT simulation checks still required: " + ", ".join(missing))
+    return missing
 
 
 def preflight(run):
@@ -52,12 +67,7 @@ def preflight(run):
     assert bank["complete"] and len(bank["episodes"]) == 86
     for rel, sha in bank["files"].items():
         assert digest(bank_path.parent / rel) == sha, rel
-    missing = [rel for rel in plan["simulation_reports"].values() if not (ROOT / rel).is_file()]
-    if missing:
-        raise RuntimeError("Real CCT simulation checks still required: " + ", ".join(missing))
-    for controller, rel in plan["simulation_reports"].items():
-        validate_simulation(read(ROOT / rel), controller, ddp["checkpoint_sha256"],
-                            plan["context_manifest_sha256"])
+    check_simulations(plan, ddp["checkpoint_sha256"])
     return plan
 
 
@@ -78,7 +88,8 @@ def main():
     run = (ROOT / "runs" / args.run_id).resolve()
     plan = preflight(run)
     if args.check_only:
-        print(json.dumps({"passed": True, "run_id": args.run_id, "training_started": False}))
+        print(json.dumps({"passed": True, "run_id": args.run_id, "training_started": False,
+                          "simulation_deferral": plan.get("simulation_deferral")}))
         return
     import torch
     gpus = [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
@@ -89,7 +100,8 @@ def main():
     env = dict(os.environ, HF_HUB_OFFLINE="1", OMP_NUM_THREADS="1", TOKENIZERS_PARALLELISM="false")
     env.pop("CCT_DIAGNOSTIC_DIR", None)
     record.update(status="running", started_utc=datetime.now(timezone.utc).isoformat(),
-                  actual_command=argv, gpus=gpus)
+                  actual_command=argv, gpus=gpus,
+                  simulation_pending=check_simulations(plan, read(ROOT / "runs/cct-ddp-pilot-20261114/result.json")["checkpoint_sha256"]))
     write(run / "run.json", record)
     try:
         with (run / "launcher.log").open("x") as log:

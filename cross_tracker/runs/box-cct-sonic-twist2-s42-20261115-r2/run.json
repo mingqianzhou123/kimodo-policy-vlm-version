@@ -1,0 +1,20 @@
+{
+  "run_id": "box-cct-sonic-twist2-s42-20261115-r2",
+  "stage": "cct",
+  "status": "planned",
+  "training_started": false,
+  "submitted": false,
+  "purpose": "Formal pretrained CCT; user authorized simulation deferral",
+  "seed": 42,
+  "sources": [
+    "sonic",
+    "twist2"
+  ],
+  "platform": "sensecore",
+  "created_utc": "2026-11-15T12:30:53.816059+00:00",
+  "base_commit": "73233792b6f5cd0b26a05f924e4ea4286f9f0628",
+  "simulation_pending": [
+    "sonic",
+    "twist2"
+  ]
+}

@@ -2,13 +2,27 @@
 from pathlib import Path
 import sys
 import unittest
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from run_cct_baseline import command, validate_simulation
+from run_cct_baseline import command, validate_simulation, check_simulations
 
 
 class FormalCCTTests(unittest.TestCase):
+    def test_only_explicit_deferral_allows_missing_not_failed_simulation(self):
+        plan = dict(simulation_reports={"sonic": "sonic.json"}, context_manifest_sha256="bank")
+        with TemporaryDirectory() as folder, patch("run_cct_baseline.ROOT", Path(folder)):
+            with self.assertRaises(RuntimeError):
+                check_simulations(plan, "checkpoint")
+            plan["simulation_deferral"] = dict(user_authorized=True, request="Queue formal training now")
+            self.assertEqual(check_simulations(plan, "checkpoint"), ["sonic"])
+            (Path(folder) / "sonic.json").write_text(json.dumps(dict(controller="sonic", task="box", status="failed")))
+            with self.assertRaises(AssertionError):
+                check_simulations(plan, "checkpoint")
+
     def test_simulation_gate_rejects_wrong_evidence(self):
         receipt = dict(controller="sonic", task="box", status="completed", passed=True,
                        checkpoint_sha256="checkpoint", context_manifest_sha256="bank",
