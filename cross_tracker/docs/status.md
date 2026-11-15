@@ -1,5 +1,7 @@
 # 当前进度
 
+2026-11-15 20:33（UTC+8）：按用户最新指示，CCT正式预训练微调作业 `kvla-cct-box-ft-s42-1115` 已提交并显示排队中；箱子、SONIC+TWIST2、seed42、20k、单节点8×A800。明确延期真实双tracker仿真，未声称评测已通过；GPU过拟合/DDP/HTTP以及本轮资产预检通过。独立新快照与回执见 `runs/box-cct-sonic-twist2-s42-20261115-r2/`，代码db8df0a。三个scratch控制台显示启动中，尚未验证优化步。以下为历史记录。
+
 2026-11-15 15:14（UTC+8）：已提交三个独立Kimodo scratch作业（SONIC、TWIST2、双源，各8×A800，seed42）。不加载pt_419h，保留Kimodo运动先验与编码器；每组先200步过拟合、8卡200步，再进入10k/10k/20k正式训练。CPU预检已通过，GPU执行尚未核实。代码提交6331601，回执见 [scratch提交](../runs/initialization-comparison-20261115/scratch-submission.json)。CCT正式作业仍待真实双tracker仿真，π0.5仅为研究建议、未启动。
 
 2026-11-15 14:36（UTC+8）核验：SONIC/TWIST2各10k、混训20k均已完成，耗时19分10秒/19分12秒/36分45秒。CCT GPU检查耗时4分35秒，过拟合、八卡200步及HTTP全部通过；正式CCT20k未提交，仿真和成功率评测待完成。6份朴素baseline checkpoint新备份、2份CCT备份复核通过。详见 [完成核验](../runs/backup-sync-20261115/README.md)。以下按历史时间保留，不代表当前状态。

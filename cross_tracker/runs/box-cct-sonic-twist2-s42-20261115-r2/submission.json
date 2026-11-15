@@ -1,0 +1,33 @@
+{
+  "job_name": "kvla-cct-box-ft-s42-1115",
+  "run_id": "box-cct-sonic-twist2-s42-20261115-r2",
+  "submitted": true,
+  "submitted_at": "2026-11-15T20:33:14+08:00",
+  "observed_status": "queued",
+  "code_commit": "db8df0a68b8ed1cc10219ceb58d713c3d5c78475",
+  "resources": {
+    "nodes": 1,
+    "gpu_count": 8,
+    "gpu": "A800-80GB",
+    "vcpus": 80,
+    "memory_gib": 896,
+    "max_restarts": 0
+  },
+  "sources": [
+    "sonic",
+    "twist2"
+  ],
+  "task": "HOI_pp_box",
+  "seed": 42,
+  "steps": 20000,
+  "initialization": "pt_419h",
+  "command": "bash /data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-cct-sonic-twist2-s42-20261115-r2/launch.sh",
+  "simulation_pending": [
+    "sonic",
+    "twist2"
+  ],
+  "user_request": "cct 正式训练也先排上队吧",
+  "gpu_checks": "previous overfit, 8-GPU pilot and HTTP checks passed",
+  "formal_training_started_verified": false,
+  "screenshot_sha256": "9e92e5d68441e7a91678c163999cf1977278c07f995e0d947c5e86a1931cd48b"
+}
