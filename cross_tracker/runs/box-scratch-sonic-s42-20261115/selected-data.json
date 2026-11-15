@@ -1,0 +1,730 @@
+{
+  "parent_manifest_sha256": "831d19d9ae1b8ae215ac08e31b8678a17877af431fb9468c9392bc0a167e401b",
+  "task": "HOI_pp_box",
+  "datasets": [
+    {
+      "dataset": "HOI_pp_box/sonic_refpose_v3_1",
+      "candidate_episodes": 100,
+      "train": [
+        1,
+        2,
+        6,
+        11,
+        14,
+        15,
+        16,
+        17,
+        23,
+        26,
+        30,
+        31,
+        34,
+        42,
+        46,
+        47,
+        49,
+        50,
+        51,
+        54,
+        57,
+        58,
+        59,
+        60,
+        61,
+        67,
+        69,
+        71,
+        72,
+        74,
+        76,
+        79,
+        80,
+        81,
+        82,
+        83,
+        85,
+        91,
+        92,
+        95,
+        96,
+        97,
+        98
+      ],
+      "validation": [
+        4,
+        7,
+        21,
+        22,
+        37,
+        38,
+        43,
+        73,
+        75,
+        89,
+        99
+      ],
+      "source": {
+        "root": "audit",
+        "path": "dataset/HOI_pp_box/sonic_refpose_v3_1/data/chunk-000/file-000.parquet",
+        "sha256": "809432a7ec38e483daa05aff0c5ac1b693d477c26607b4798abe7c43e98cd95e"
+      },
+      "overlay": {
+        "root": "repair",
+        "path": "overlays/HOI_pp_box/sonic_refpose_v3_1/labels.parquet",
+        "sha256": "92689c5b48862276f6aa969640f68fcb0a03ab6dc0fcf901a5407afac03d329d"
+      },
+      "episodes": [
+        {
+          "episode": 1,
+          "eligible_rows": [
+            1917,
+            2792
+          ],
+          "window_start_range": [
+            1917,
+            2743
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 2,
+          "eligible_rows": [
+            2792,
+            3970
+          ],
+          "window_start_range": [
+            2792,
+            3921
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 4,
+          "eligible_rows": [
+            5199,
+            6106
+          ],
+          "window_start_range": [
+            5199,
+            6057
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 6,
+          "eligible_rows": [
+            6799,
+            7589
+          ],
+          "window_start_range": [
+            6799,
+            7540
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 7,
+          "eligible_rows": [
+            7589,
+            8324
+          ],
+          "window_start_range": [
+            7589,
+            8275
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 11,
+          "eligible_rows": [
+            10835,
+            11512
+          ],
+          "window_start_range": [
+            10835,
+            11463
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 14,
+          "eligible_rows": [
+            13240,
+            14045
+          ],
+          "window_start_range": [
+            13240,
+            13996
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 15,
+          "eligible_rows": [
+            14045,
+            15114
+          ],
+          "window_start_range": [
+            14045,
+            15065
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 16,
+          "eligible_rows": [
+            15114,
+            16212
+          ],
+          "window_start_range": [
+            15114,
+            16163
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 17,
+          "eligible_rows": [
+            16212,
+            17209
+          ],
+          "window_start_range": [
+            16212,
+            17160
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 21,
+          "eligible_rows": [
+            19374,
+            19949
+          ],
+          "window_start_range": [
+            19374,
+            19900
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 22,
+          "eligible_rows": [
+            19949,
+            20523
+          ],
+          "window_start_range": [
+            19949,
+            20474
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 23,
+          "eligible_rows": [
+            20523,
+            21157
+          ],
+          "window_start_range": [
+            20523,
+            21108
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 26,
+          "eligible_rows": [
+            22355,
+            23082
+          ],
+          "window_start_range": [
+            22355,
+            23033
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 30,
+          "eligible_rows": [
+            25400,
+            26206
+          ],
+          "window_start_range": [
+            25400,
+            26157
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 31,
+          "eligible_rows": [
+            26206,
+            27289
+          ],
+          "window_start_range": [
+            26206,
+            27240
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 34,
+          "eligible_rows": [
+            28450,
+            29282
+          ],
+          "window_start_range": [
+            28450,
+            29233
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 37,
+          "eligible_rows": [
+            30416,
+            31041
+          ],
+          "window_start_range": [
+            30416,
+            30992
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 38,
+          "eligible_rows": [
+            31041,
+            31703
+          ],
+          "window_start_range": [
+            31041,
+            31654
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 42,
+          "eligible_rows": [
+            33352,
+            33880
+          ],
+          "window_start_range": [
+            33352,
+            33831
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 43,
+          "eligible_rows": [
+            33880,
+            34358
+          ],
+          "window_start_range": [
+            33880,
+            34309
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 46,
+          "eligible_rows": [
+            35634,
+            36235
+          ],
+          "window_start_range": [
+            35634,
+            36186
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 47,
+          "eligible_rows": [
+            36235,
+            37102
+          ],
+          "window_start_range": [
+            36235,
+            37053
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 49,
+          "eligible_rows": [
+            37657,
+            38446
+          ],
+          "window_start_range": [
+            37657,
+            38397
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 50,
+          "eligible_rows": [
+            38446,
+            39248
+          ],
+          "window_start_range": [
+            38446,
+            39199
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 51,
+          "eligible_rows": [
+            39248,
+            39909
+          ],
+          "window_start_range": [
+            39248,
+            39860
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 54,
+          "eligible_rows": [
+            41148,
+            41590
+          ],
+          "window_start_range": [
+            41148,
+            41541
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 57,
+          "eligible_rows": [
+            42843,
+            43399
+          ],
+          "window_start_range": [
+            42843,
+            43350
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 58,
+          "eligible_rows": [
+            43399,
+            44051
+          ],
+          "window_start_range": [
+            43399,
+            44002
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 59,
+          "eligible_rows": [
+            44051,
+            44752
+          ],
+          "window_start_range": [
+            44051,
+            44703
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 60,
+          "eligible_rows": [
+            44752,
+            45507
+          ],
+          "window_start_range": [
+            44752,
+            45458
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 61,
+          "eligible_rows": [
+            45507,
+            46146
+          ],
+          "window_start_range": [
+            45507,
+            46097
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 67,
+          "eligible_rows": [
+            49409,
+            49959
+          ],
+          "window_start_range": [
+            49409,
+            49910
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 69,
+          "eligible_rows": [
+            50527,
+            51127
+          ],
+          "window_start_range": [
+            50527,
+            51078
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 71,
+          "eligible_rows": [
+            51950,
+            52857
+          ],
+          "window_start_range": [
+            51950,
+            52808
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 72,
+          "eligible_rows": [
+            52857,
+            53541
+          ],
+          "window_start_range": [
+            52857,
+            53492
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 73,
+          "eligible_rows": [
+            53541,
+            54300
+          ],
+          "window_start_range": [
+            53541,
+            54251
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 74,
+          "eligible_rows": [
+            54300,
+            54906
+          ],
+          "window_start_range": [
+            54300,
+            54857
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 75,
+          "eligible_rows": [
+            54906,
+            55401
+          ],
+          "window_start_range": [
+            54906,
+            55352
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 76,
+          "eligible_rows": [
+            55401,
+            55964
+          ],
+          "window_start_range": [
+            55401,
+            55915
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 79,
+          "eligible_rows": [
+            57339,
+            57954
+          ],
+          "window_start_range": [
+            57339,
+            57905
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 80,
+          "eligible_rows": [
+            57954,
+            58684
+          ],
+          "window_start_range": [
+            57954,
+            58635
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 81,
+          "eligible_rows": [
+            58684,
+            59239
+          ],
+          "window_start_range": [
+            58684,
+            59190
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 82,
+          "eligible_rows": [
+            59239,
+            59821
+          ],
+          "window_start_range": [
+            59239,
+            59772
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 83,
+          "eligible_rows": [
+            59821,
+            60318
+          ],
+          "window_start_range": [
+            59821,
+            60269
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 85,
+          "eligible_rows": [
+            60915,
+            61439
+          ],
+          "window_start_range": [
+            60915,
+            61390
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 89,
+          "eligible_rows": [
+            63007,
+            63587
+          ],
+          "window_start_range": [
+            63007,
+            63538
+          ],
+          "split": "validation"
+        },
+        {
+          "episode": 91,
+          "eligible_rows": [
+            64111,
+            64680
+          ],
+          "window_start_range": [
+            64111,
+            64631
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 92,
+          "eligible_rows": [
+            64680,
+            65281
+          ],
+          "window_start_range": [
+            64680,
+            65232
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 95,
+          "eligible_rows": [
+            66492,
+            66872
+          ],
+          "window_start_range": [
+            66492,
+            66823
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 96,
+          "eligible_rows": [
+            66872,
+            67542
+          ],
+          "window_start_range": [
+            66872,
+            67493
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 97,
+          "eligible_rows": [
+            67542,
+            68105
+          ],
+          "window_start_range": [
+            67542,
+            68056
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 98,
+          "eligible_rows": [
+            68105,
+            68680
+          ],
+          "window_start_range": [
+            68105,
+            68631
+          ],
+          "split": "train"
+        },
+        {
+          "episode": 99,
+          "eligible_rows": [
+            68680,
+            69176
+          ],
+          "window_start_range": [
+            68680,
+            69127
+          ],
+          "split": "validation"
+        }
+      ]
+    }
+  ],
+  "train_episodes": 43,
+  "validation_episodes": 11
+}

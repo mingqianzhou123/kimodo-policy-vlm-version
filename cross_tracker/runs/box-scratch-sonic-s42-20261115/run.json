@@ -1,0 +1,15 @@
+{
+  "run_id": "box-scratch-sonic-s42-20261115",
+  "stage": "baseline",
+  "status": "planned",
+  "training_started": false,
+  "submitted": false,
+  "sources": [
+    "sonic"
+  ],
+  "seed": 42,
+  "platform": "sensecore",
+  "initialization": "kimodo_default_without_pt419h",
+  "created_utc": "2026-11-15T07:07:19.933620+00:00",
+  "base_commit": "2d33d0bfabe219bc9ccadec3b44dc90b5baea2ca"
+}

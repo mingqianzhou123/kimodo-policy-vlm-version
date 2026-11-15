@@ -91,5 +91,6 @@
     "HOI_pp_box"
   ],
   "world_size": 8,
-  "initialization_mode": "awaiting_user_definition"
+  "initialization_mode": "kimodo_default_without_pt419h",
+  "initialization_confirmed": true
 }

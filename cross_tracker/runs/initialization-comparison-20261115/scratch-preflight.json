@@ -1,0 +1,50 @@
+{
+  "tests_exit_code": 0,
+  "checks": [
+    {
+      "run_id": "box-scratch-sonic-s42-20261115",
+      "passed": true,
+      "steps": 10000
+    },
+    {
+      "run_id": "box-scratch-twist2-s42-20261115",
+      "passed": true,
+      "steps": 10000
+    },
+    {
+      "run_id": "box-scratch-sonic-twist2-s42-20261115",
+      "passed": true,
+      "steps": 20000
+    }
+  ],
+  "gpu_gates": "run in each allocated job before formal training",
+  "training_started": false,
+  "files": {
+    "configs/box-scratch.draft.json": "7fa8f7f941f3693c3b33f3641d4e9e92b888e961fd146aecde71473c17f9e023",
+    "configs/box-scratch.json": "e503e3c21da28d08bcfe365e6c16c26c4cc4243e6e514e8ba586a6aa335240fe",
+    "docs/initialization-comparison.md": "e51deb6efd0a5961c0dc677e5568c47b1969cd13f35b1f60394fa56a240e4bf6",
+    "docs/policy-backbone-comparison.md": "2e1ff8e06973b4f38fdc33ac87a9a34606a6f0d2c895d5a177d610cc531d5e97",
+    "runs/box-scratch-sonic-s42-20261115/config.json": "e503e3c21da28d08bcfe365e6c16c26c4cc4243e6e514e8ba586a6aa335240fe",
+    "runs/box-scratch-sonic-s42-20261115/launch.sh": "a97e494b981fa8785e5aec4e127d88b57461ea0968fd62680fc5443042b28a52",
+    "runs/box-scratch-sonic-s42-20261115/plan.json": "9e7589f531fe75114ff7b763e36aaadaad95c69915a0590538024f770750fa29",
+    "runs/box-scratch-sonic-s42-20261115/run.json": "1e672b9ed7d22401ef159542280050105de6709b7ace91483e8db5305cf578be",
+    "runs/box-scratch-sonic-s42-20261115/selected-data.json": "abd46103121bd31dc29e1c7e182f7edc32df0f47ab0853252022958d025ab604",
+    "runs/box-scratch-sonic-s42-20261115/source-files.json": "72cc9e776d645a90f9b53056ae61532cd4c0705cc0a2535f487db1b2e93cf236",
+    "runs/box-scratch-sonic-twist2-s42-20261115/config.json": "e503e3c21da28d08bcfe365e6c16c26c4cc4243e6e514e8ba586a6aa335240fe",
+    "runs/box-scratch-sonic-twist2-s42-20261115/launch.sh": "a97e494b981fa8785e5aec4e127d88b57461ea0968fd62680fc5443042b28a52",
+    "runs/box-scratch-sonic-twist2-s42-20261115/plan.json": "866153d329670b0c1f5cb2229781114c75629c9067e06f73f0882284d11bfcda",
+    "runs/box-scratch-sonic-twist2-s42-20261115/run.json": "294167ade7627125c6f1c72e606784de5129fe4ce5aef6287deb59f0ffc369ec",
+    "runs/box-scratch-sonic-twist2-s42-20261115/selected-data.json": "20c20da345f33f4e76c48fb9bd8d09b82812a7d153cdc209951983bd0b4d0435",
+    "runs/box-scratch-sonic-twist2-s42-20261115/source-files.json": "af7298c85f27d7ccd33da794a37452bb088a9c10f05e7237d8e463bcf85e99d0",
+    "runs/box-scratch-twist2-s42-20261115/config.json": "e503e3c21da28d08bcfe365e6c16c26c4cc4243e6e514e8ba586a6aa335240fe",
+    "runs/box-scratch-twist2-s42-20261115/launch.sh": "a97e494b981fa8785e5aec4e127d88b57461ea0968fd62680fc5443042b28a52",
+    "runs/box-scratch-twist2-s42-20261115/plan.json": "c801a701c0d5596a303338ba085dfada9e9d281ec363567ebb0e5d721b951e12",
+    "runs/box-scratch-twist2-s42-20261115/run.json": "7f1bfe35b334449b633eac7dae441bc796afc827fa13ed70089fb839313fecd2",
+    "runs/box-scratch-twist2-s42-20261115/selected-data.json": "35819dc5d6919bf0b753466dc977feec569fdcac11fd34fa2c34cfe17cfb02cb",
+    "runs/box-scratch-twist2-s42-20261115/source-files.json": "901af8f475d81db6d033a24f0ad6358d27100de98bc982b383a00d4dd2efa427",
+    "runs/initialization-comparison-20261115/plan.json": "45ff4e2a39905ebe2db59665940ddf851efa3319fb0d9448119d32573229d183",
+    "scripts/check_scratch_model.py": "4dde83517c04949f79a05e5ab195f02434e9c945add10cafefcabdc6e3bbdb4f",
+    "scripts/run_box_scratch.py": "dddfdbf44584705b38901ade3837d2d2bd9fac43cdf8fafc3f703da47e36df5c",
+    "tests/test_box_scratch.py": "df4fcc4b4cd40fdef9de97317fd311a0d498fd3248e681ab79bc53d25bb452ad"
+  }
+}
