@@ -1,0 +1,37 @@
+{
+  "sensecore_small_text_files": 308,
+  "sensitive_candidates_skipped": [],
+  "sensecore_preimages_preserved": [
+    {
+      "path": "backups/sync-3348631-preimages/AGENTS.md",
+      "sha256": "fda5ff841665b8167706b0b7559d020cddbfb7563431dbb1ba05fb7b383e99a4"
+    },
+    {
+      "path": "backups/sync-3348631-preimages/docs/status.md",
+      "sha256": "57b76a3522dcc5d2b51f13952b6e5beb7932c6344eca1c50b1c02c9c1603666b"
+    },
+    {
+      "path": "src/arena_history.py",
+      "sha256": "a1d49b31cf830cbec9c9722e884f361bd26275b3494862b56183359f0186aadd"
+    },
+    {
+      "path": "tests/test_arena_history.py",
+      "sha256": "4e35626e08e6daed31bb8af5e8817bcb8b0b852bdadf5e8f3dc20d3060ee9af7"
+    }
+  ],
+  "t2m_records_received": 26,
+  "t2m_record_archive_sha256": "71d29f869c67b52363657bc0096fce477ab680b8030b7066d6be9382b375a19f",
+  "t2m_new_training_checkpoints": [],
+  "historical_t2m_unique_checkpoints": "not found in earlier bounded search; recovery remains unverified",
+  "training_actions": [],
+  "weights": {
+    "complete_checkpoints_verified": 7,
+    "new_copies": 0,
+    "independent_inodes_verified": true,
+    "report": "heartbeat-0817-weights.json"
+  },
+  "pending": [
+    "Evaluation environment restoration: no scored episode has run",
+    "Historical T2M-PLUS unique checkpoint recovery remains unverified"
+  ]
+}

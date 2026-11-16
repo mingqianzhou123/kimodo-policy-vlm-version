@@ -1,0 +1,26 @@
+[
+  {
+    "model": "box-sonic-s42-20261114",
+    "global_step": 10000,
+    "keys": [
+      "global_step",
+      "model"
+    ]
+  },
+  {
+    "model": "box-twist2-s42-20261114",
+    "global_step": 10000,
+    "keys": [
+      "global_step",
+      "model"
+    ]
+  },
+  {
+    "model": "box-sonic-twist2-s42-20261114",
+    "global_step": 20000,
+    "keys": [
+      "global_step",
+      "model"
+    ]
+  }
+]

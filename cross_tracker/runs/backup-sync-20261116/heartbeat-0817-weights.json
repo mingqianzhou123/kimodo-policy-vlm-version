@@ -1,0 +1,36 @@
+{
+  "verified_utc": "2026-11-16T08:21:15.590463+00:00",
+  "completed": [
+    {
+      "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/box-sonic-s42-20261114/checkpoint_10000",
+      "status": "already_verified"
+    },
+    {
+      "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/box-sonic-s42-20261114/checkpoint_5000",
+      "status": "already_verified"
+    },
+    {
+      "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/box-sonic-twist2-s42-20261114/checkpoint_10000",
+      "status": "already_verified"
+    },
+    {
+      "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/box-sonic-twist2-s42-20261114/checkpoint_20000",
+      "status": "already_verified"
+    },
+    {
+      "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/box-twist2-s42-20261114/checkpoint_10000",
+      "status": "already_verified"
+    },
+    {
+      "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/box-twist2-s42-20261114/checkpoint_5000",
+      "status": "already_verified"
+    },
+    {
+      "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/cct-ddp-pilot-20261114/checkpoint_200",
+      "status": "already_verified"
+    }
+  ],
+  "incomplete_skipped": [],
+  "resume_snapshots": "not copied; mutable files require a separate stable snapshot",
+  "independent_inodes_verified": true
+}

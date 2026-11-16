@@ -1,0 +1,8 @@
+{
+  "checked_at_local": "2026-11-16T16:12:00+08:00",
+  "method": "SSH find scoped scratch and CCT formal runs for training_state.pt",
+  "exit_code": 0,
+  "matching_files": [],
+  "approval_service_transient_error": "First request not executed; same approval path retry succeeded",
+  "training_changed": false
+}

@@ -33,3 +33,7 @@
 16:04 UTC+8：三个 checkpoint 解包后六个文件在 T2M-PLUS 逐文件哈希核验通过，回执已收回 `t2m-checkpoints.json`。策略导入通过（Torch 2.10.0+cu129 / transformers 5.1.0 / peft 0.18.1）。新增 `evaluate_box.py` 固定最终 checkpoint、20个共同种子及同一推理参数；`--diagnostic` 单独运行50步，不计入成功率。历史桥接补充 HTTP 故障传播，防止上游吞异常后把基础设施错误计成模型失败；3个相关测试通过。真正 GPU 推理和闭环仍未运行。
 
 运动/视觉权重通过本机官方 HF 固定 revision 下载、12个文件完整核验，传输包 SHA256见 `policy-transfer.json`；冗余慢速 SCP 已停止，其半成品不作为已验证副本。官方 PyTorch wheel 也已在本地完成校验，见 `torch-wheel-source.json`，均在上传中。
+
+16:13 UTC+8：T2M-PLUS 已实际读取三个 checkpoint，global_step 分别为10k/10k/20k；共享代码已同步到 `9c02c47c4cb5488d49534bcd5323c60b8530d7d1`，相关3项测试在开发机再次通过。官方场景、SONIC、表面材质已导入；共享策略依赖包仍在上传。SenseCore 只读复查没有新增 scratch/CCT training_state.pt；一次审批服务 Bad Request 后，同路径重试成功，未修改任何训练。
+
+16:17–16:23 UTC+8 定期备份检查：本次仅备份与同步，未启动评测或训练。T2M-PLUS 新增26份文本回执已回收；AFS 7个完整checkpoint重新逐文件校验，独立inode通过，没有新权重需要复制。原慢速基础安装PID110180和仅等待它的适配安装PID141702在心跳前已停止；本地包安装R2为PID173648，完成状态仍待检查。共享权重上传/导入任务仍在进行。接下来须先核验R2退出状态和153项基础包，再手动接续 `install_sim_adapters.py`（新的启动日志名），完成GPU短闭环后才跑 `evaluate_box.py` 正式120回合。
