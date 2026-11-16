@@ -16,6 +16,7 @@ def attach_history(provider):
     pending = []
     times = []
     last_time = None
+    request_error = None
 
     def sample_then_act(env):
         nonlocal last_time
@@ -28,16 +29,25 @@ def attach_history(provider):
         pending.append(state.copy())
         times.append(now)
         last_time = now
-        return get_action(env)
+        action = get_action(env)
+        # Arena may catch HTTP failures and keep stepping with a stale action.
+        # Such an episode is an infrastructure error, never a policy failure.
+        if request_error is not None:
+            raise RuntimeError('Policy HTTP request failed during evaluation') from request_error
+        return action
 
     def post_with_history(path, payload):
-        nonlocal last_time
+        nonlocal last_time, request_error
         if path == '/infer':
             if not pending:
                 raise ValueError('No measured state history for inference')
             np.testing.assert_allclose(pending[-1], payload['observation']['state'], atol=1e-6)
             payload['observation']['state_history'] = np.stack(pending).tolist()
-        response = post_json(path, payload)
+        try:
+            response = post_json(path, payload)
+        except Exception as error:
+            request_error = error
+            raise
         if path == '/infer':
             trace = os.environ.get('CROSS_TRACKER_HISTORY_TRACE')
             if trace:
@@ -49,6 +59,7 @@ def attach_history(provider):
             pending.clear()
             times.clear()
             last_time = None
+            request_error = None
         return response
 
     provider.get_action = sample_then_act

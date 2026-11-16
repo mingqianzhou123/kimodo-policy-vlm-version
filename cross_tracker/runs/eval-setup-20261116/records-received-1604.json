@@ -1,0 +1,45 @@
+{
+  "archive_sha256": "855f13bc3113c3370ccb0492b7a6d65089d62704cd656f36bdd0f51b3d3f4587",
+  "files": [
+    {
+      "file": "restore_sim_inputs.py",
+      "sha256": "ac4580dd8eea6c22ae61b200fd7d2a15e401bf784c3ede1771121a132f68a39e"
+    },
+    {
+      "file": "restore_policy_assets.py",
+      "sha256": "516985bc50fc8c9ef46ee1047ddcfa4619fa86e1cb86c208538937e7210f53d3"
+    },
+    {
+      "file": "sim-install-start.json",
+      "sha256": "aac684e57d11160cb929c98359239f4e1d7e3f8513f0ffdfc98acf93ab1f29e6"
+    },
+    {
+      "file": "sim-restore-requirements.txt",
+      "sha256": "f1e75937f2d9bbe035a027d040222dc2f4a8ef91f04e02d07e5f24157320f1c8"
+    },
+    {
+      "file": "install_sim_adapters.py",
+      "sha256": "e65c79b7f3bae1af078eabc8fd2dbde00d432d935a0c6e1cf042fadae12634d4"
+    },
+    {
+      "file": "transfer-manifest.json",
+      "sha256": "f687732f6c753e3090f1b43b3c3b4de7b1b53dda8a68e73432ae1227447d4390"
+    },
+    {
+      "file": "policy-install-r2-start.json",
+      "sha256": "5c77b076f14aff94c07e7bc830711d367306b21c5c56b5ea746cab53acfa1d31"
+    },
+    {
+      "file": "t2m-transfer-check.json",
+      "sha256": "917692f7be2bd67e1f1148baaff1bbee1d0733aa243f4d1b760fe13187e9c0d2"
+    },
+    {
+      "file": "policy-install-start.json",
+      "sha256": "a8d2a262d50a1cdc40dc36655250d9488d9744c129b3aa0590cc678e0613b582"
+    },
+    {
+      "file": "t2m-checkpoints.json",
+      "sha256": "8d770110782a746b039ecaf4580e7f7b3b8348d037f6f269d579677dcf35b06e"
+    }
+  ]
+}

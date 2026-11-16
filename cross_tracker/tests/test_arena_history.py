@@ -11,6 +11,23 @@ from src.arena_history import attach_history, fix_twist2_render_step
 
 
 class HistoryTest(unittest.TestCase):
+    def test_swallowed_http_failure_invalidates_episode(self):
+        env = SimpleNamespace(sim=SimpleNamespace(current_time=0.0))
+        def unavailable(path, body):
+            raise TimeoutError('policy timeout')
+        client = SimpleNamespace(_post_json=unavailable)
+        provider = SimpleNamespace(_lerobot_http_client=client,
+                                   _build_lerobot_vla_observation_state=lambda: np.zeros(64))
+        def swallowed_failure(env):
+            try:
+                client._post_json('/infer', {'observation': {'state': [0.] * 64}})
+            except TimeoutError:
+                return 'stale action'
+        provider.get_action = swallowed_failure
+        attach_history(provider)
+        with self.assertRaisesRegex(RuntimeError, 'Policy HTTP request failed'):
+            provider.get_action(env)
+
     def test_render_does_not_add_physics_steps(self):
         sim = SimpleNamespace(current_time=0.0, renders=0)
         def original_step(render=True):

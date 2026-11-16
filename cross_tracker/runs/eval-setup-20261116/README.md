@@ -29,3 +29,7 @@
 用户要求重试后，SenseCore SSH 已恢复，未查询公网出口或修改白名单。三个最终 checkpoint 的六个文件已下载并逐文件 SHA256 验证；见 `local-checkpoints.json`。三个传输包已上传 T2M-PLUS，SONIC 包哈希已核验，另两包正在核验。固定 Arena 源码包已核验并解压，失败的 git fetch 目录独立保留；Isaac Lab 从现有干净仓库的固定提交归档至独立缓存。场景资产上传仍在进行。
 
 开发机直连 Hugging Face 超时，恢复脚本退出；共享运动/视觉权重改从 SenseCore 已有副本下载中。仿真依赖安装仍未完成，后续 Lab/DDS 安装脚本只等待该安装退出并核对版本，不会启动仿真或训练。策略环境复用系统 Torch 2.10.0+cu129；首个 uv 解析尝试要另装新 Torch，已仅终止该安装进程，改为在隔离环境安装指定 transformer/peft 版本。GPU 0 有其他工作，GPU 1–7 当时空闲。正式评测仍为 0 回合。
+
+16:04 UTC+8：三个 checkpoint 解包后六个文件在 T2M-PLUS 逐文件哈希核验通过，回执已收回 `t2m-checkpoints.json`。策略导入通过（Torch 2.10.0+cu129 / transformers 5.1.0 / peft 0.18.1）。新增 `evaluate_box.py` 固定最终 checkpoint、20个共同种子及同一推理参数；`--diagnostic` 单独运行50步，不计入成功率。历史桥接补充 HTTP 故障传播，防止上游吞异常后把基础设施错误计成模型失败；3个相关测试通过。真正 GPU 推理和闭环仍未运行。
+
+运动/视觉权重通过本机官方 HF 固定 revision 下载、12个文件完整核验，传输包 SHA256见 `policy-transfer.json`；冗余慢速 SCP 已停止，其半成品不作为已验证副本。官方 PyTorch wheel 也已在本地完成校验，见 `torch-wheel-source.json`，均在上传中。

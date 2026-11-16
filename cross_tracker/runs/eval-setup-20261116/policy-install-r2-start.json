@@ -1,0 +1,1 @@
+{"pid": 143117, "command": ["uv", "pip", "install", "--python", "cross_tracker/data/cache/envs/policy/bin/python", "--no-deps", "--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "transformers==5.1.0", "peft==0.18.1", "huggingface-hub==1.33.0", "safetensors==0.8.0"]}

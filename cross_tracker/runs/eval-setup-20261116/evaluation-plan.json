@@ -52,7 +52,7 @@
           "bytes": 2387
         }
       },
-      "transfer_status": "local_download_sha256_verified; t2m_upload_complete_pending_extracted_file_checks",
+      "transfer_status": "t2m_extracted_files_sha256_verified",
       "backup_hash_reverified": true
     },
     {
@@ -69,7 +69,7 @@
           "bytes": 2388
         }
       },
-      "transfer_status": "local_download_sha256_verified; t2m_upload_complete_pending_extracted_file_checks",
+      "transfer_status": "t2m_extracted_files_sha256_verified",
       "backup_hash_reverified": true
     },
     {
@@ -86,7 +86,7 @@
           "bytes": 2429
         }
       },
-      "transfer_status": "local_download_sha256_verified; t2m_upload_complete_pending_extracted_file_checks",
+      "transfer_status": "t2m_extracted_files_sha256_verified",
       "backup_hash_reverified": true
     }
   ],

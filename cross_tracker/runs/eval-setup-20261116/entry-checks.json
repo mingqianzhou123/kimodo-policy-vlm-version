@@ -1,0 +1,13 @@
+{
+  "history_tests": 3,
+  "passed": true,
+  "evaluation_entry": "cross_tracker/scripts/evaluate_box.py",
+  "entry_sha256": "33091ece36e4b8c43327485c6a5e585a7bb544d6028604ec9086ea6093b71223",
+  "runtime_executed": false,
+  "notes": [
+    "Fixed final checkpoints only",
+    "20 identical scene seeds per formal cell; 50-step diagnostic excluded",
+    "HTTP failures invalidate episodes; no success-rate claim before real simulator run",
+    "Arena object seed is episode seed XOR 0x9E3779B185EBCA87 at first reset"
+  ]
+}
