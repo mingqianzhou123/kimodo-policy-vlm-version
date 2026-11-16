@@ -1,0 +1,27 @@
+[
+  {
+    "archive": "box-twist2-final-20261116.zip",
+    "bytes": 366952517,
+    "sha256": "59fb3faf878dcd50a067332015ad2571e49e8b4d8dfff4bbd37e370211b52e26"
+  },
+  {
+    "archive": "box-mix-final-20261116.zip",
+    "bytes": 366952582,
+    "sha256": "03c2d776714be435e2ba3c4eac888f7818df5848ea35296d38d0f3e81c7e2878"
+  },
+  {
+    "archive": "box-text-20261116.pt",
+    "bytes": 10046,
+    "sha256": "b0b3f0c04e21566df5c7c81d68245ecd77300304f95fc5f2d1e4d43e7a03ece0"
+  },
+  {
+    "archive": "sim-dds-sources.zip",
+    "bytes": 7262549,
+    "sha256": "90b9172adb48c54679d135e638dc70b59944f1fd35b7b442e4d7b4e161fa2958"
+  },
+  {
+    "archive": "table-materials.zip",
+    "bytes": 45101306,
+    "sha256": "514af6314b7f5f581eb6da4dcaa95a30407fa4d786bff198250a356991ca3ab5"
+  }
+]

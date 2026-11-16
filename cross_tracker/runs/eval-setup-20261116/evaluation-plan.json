@@ -1,5 +1,5 @@
 {
-  "status": "blocked_on_ssh_transport_and_environment_restore",
+  "status": "restoring_t2m_environment_and_assets",
   "platform": "Baidu T2M-PLUS",
   "instance_id": "dv-e21ddf3a87",
   "task": "HOI_pp_box",
@@ -52,7 +52,7 @@
           "bytes": 2387
         }
       },
-      "transfer_status": "pending_ssh_transport",
+      "transfer_status": "local_download_sha256_verified; t2m_upload_complete_pending_extracted_file_checks",
       "backup_hash_reverified": true
     },
     {
@@ -69,7 +69,7 @@
           "bytes": 2388
         }
       },
-      "transfer_status": "pending_ssh_transport",
+      "transfer_status": "local_download_sha256_verified; t2m_upload_complete_pending_extracted_file_checks",
       "backup_hash_reverified": true
     },
     {
@@ -86,7 +86,7 @@
           "bytes": 2429
         }
       },
-      "transfer_status": "pending_ssh_transport",
+      "transfer_status": "local_download_sha256_verified; t2m_upload_complete_pending_extracted_file_checks",
       "backup_hash_reverified": true
     }
   ],
@@ -101,5 +101,6 @@
   "sensecore_console_observed_at": "2026-11-16T14:12:00+08:00",
   "additional_models_status": "console_starting; no box scratch or CCT checkpoint directories observed",
   "backup_hash_reverified_at": "2026-11-16T14:15:00+08:00",
-  "backup_hash_verification_method": "CCI Web Terminal; SHA256 of training_state.pt and config.json; all six matched previous backup receipts"
+  "backup_hash_verification_method": "CCI Web Terminal; SHA256 of training_state.pt and config.json; all six matched previous backup receipts",
+  "ssh_transport": "restored_after_user_retry; no whitelist changes or external IP lookup"
 }
