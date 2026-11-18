@@ -1,0 +1,11 @@
+{
+  "checked_unix": 1795012973.498666,
+  "real_receipts_validated": 9,
+  "successful_episodes": 3,
+  "rejected": [
+    "partial_as_final",
+    "duplicate_episode",
+    "wrong_scene_seed",
+    "invalid_receipt"
+  ]
+}
