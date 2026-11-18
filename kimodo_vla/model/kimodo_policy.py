@@ -103,6 +103,10 @@ class KimodoPolicyConfig:
     # Keep the historical cross-attention path selectable for paired
     # comparisons; AdaLN-Zero is an external adapter around frozen Kimodo.
     groot_injection_mode: str = "cross_attention"
+    groot_cross_attention_condition_dim: int = 2048
+    groot_cross_attention_num_heads: int = 8
+    groot_cross_attention_inner_dim: int = 512
+    groot_cross_attention_dropout: float = 0.0
     adaln_condition_dim: int = 512
     adaln_pool: str = "masked_mean"
     adaln_max_diffusion_steps: int = 1000
@@ -162,7 +166,20 @@ class KimodoPolicy(nn.Module):
         # 2. motion 转化器
         self.representation = KimodoMotionRep(skeleton=self.g1_skeleton_34, fps=self.fps, stats_path=os.path.join(model_dir, "stats/motion"))
         # 3. 去噪网络
-        self.denoiser = TwostageDenoiser(motion_rep=self.representation, motion_mask_mode=config.motion_mask_mode, ckpt_path=model_dir)
+        embedded_cross_attention = (
+            config.visual_conditioning == "groot_n1d7"
+            and str(config.groot_injection_mode).lower() == "embedded_cross_attention"
+        )
+        self.denoiser = TwostageDenoiser(
+            motion_rep=self.representation,
+            motion_mask_mode=config.motion_mask_mode,
+            ckpt_path=model_dir,
+            cross_attention=embedded_cross_attention,
+            cross_attention_condition_dim=config.groot_cross_attention_condition_dim,
+            cross_attention_num_heads=config.groot_cross_attention_num_heads,
+            cross_attention_inner_dim=config.groot_cross_attention_inner_dim,
+            cross_attention_dropout=config.groot_cross_attention_dropout,
+        )
         # 4. 去噪器
         self.diffusion = Diffusion(num_base_steps=OmegaConf.load(os.path.join(model_dir, "config.yaml")).num_base_steps)
         self.sampler = DDIMSampler(self.diffusion)
@@ -174,7 +191,8 @@ class KimodoPolicy(nn.Module):
             self.text_encoder = LLM2VecEncoder(checkpoint_path=checkpoint_path)
             for p in self.text_encoder.model.parameters():
                 p.requires_grad = False
-        # 6. 冻结 Kimodo 主体并训练 ControlNet
+        # 6. Freeze Kimodo initially; the embedded experiment can unfreeze its
+        # pretrained self-attention layers in a later training stage.
         for p in self.denoiser.parameters():
             p.requires_grad = False
         if config.visual_conditioning == "groot_n1d7":
@@ -249,7 +267,14 @@ class KimodoPolicy(nn.Module):
         else:
             with torch.no_grad():
                 features = self._encode_images(egoview)
-        return features.to(dtype=next(self.controlnet.parameters()).dtype)
+        # Embedded CrossAttention has no external ControlNet parameters. Use
+        # its query projection dtype in that mode; legacy paths keep the
+        # historical ControlNet dtype selection.
+        if str(getattr(self.config, "groot_injection_mode", "")).lower() == "embedded_cross_attention":
+            dtype = next(self.denoiser.parameters()).dtype
+        else:
+            dtype = next(self.controlnet.parameters()).dtype
+        return features.to(dtype=dtype)
 
     @staticmethod
     def _hand_visual_inputs(condition):
@@ -262,9 +287,21 @@ class KimodoPolicy(nn.Module):
     def set_training_stage(self, stage):
         if self.config.visual_conditioning != "groot_n1d7":
             raise ValueError("Staged VLM training requires groot_n1d7")
-        vlm_stage = stage if stage in {"injection", "adapter", "vision", "vision_lora"} else "adapter"
+        # Embedded CrossAttention experiments keep the complete GR00T N1.7
+        # encoder and its four-layer feature adapter frozen at every stage.
+        # Other modes retain the historical injection -> adapter -> vision
+        # schedule.
+        if getattr(self.config, "groot_injection_mode", "") == "embedded_cross_attention":
+            vlm_stage = "injection"
+        else:
+            vlm_stage = stage if stage in {"injection", "adapter", "vision", "vision_lora"} else "adapter"
         self.image_encoder.set_stage(vlm_stage)
         self.denoiser.requires_grad_(False)
+        if getattr(self.config, "groot_injection_mode", "") == "embedded_cross_attention":
+            # CrossAttention modules are the new trainable visual adapter;
+            # the official GR00T encoder remains frozen at every stage.
+            for block in (self.denoiser.root_model, self.denoiser.body_model):
+                block.cross_attention_blocks.requires_grad_(True)
         if stage == "kimodo":
             layers = int(getattr(self.config, "kimodo_unfreeze_layers", 0))
             if layers <= 0:
@@ -287,6 +324,9 @@ class KimodoPolicy(nn.Module):
     def checkpoint_parameters(self):
         """Save trained modules AND frozen adapter weights across stage boundaries."""
         prefixes = ("controlnet.", "hand_head.")
+        if getattr(self.config, "groot_injection_mode", "") == "embedded_cross_attention":
+            prefixes += ("denoiser.root_model.cross_attention_blocks.",
+                         "denoiser.body_model.cross_attention_blocks.")
         if self.config.visual_conditioning == "groot_n1d7":
             prefixes += ("image_encoder.adapter.",)
             if getattr(self, "training_stage", "") == "vision":
@@ -314,6 +354,9 @@ class KimodoPolicy(nn.Module):
     def train(self, mode: bool = True):
         super().train(mode)
         self.denoiser.eval()
+        if getattr(self.config, "groot_injection_mode", "") == "embedded_cross_attention":
+            for block in (self.denoiser.root_model, self.denoiser.body_model):
+                self.denoiser._set_cross_attention_mode(mode)
         if getattr(self, "training_stage", "") == "kimodo":
             layers = int(getattr(self.config, "kimodo_unfreeze_layers", 0))
             for block in (self.denoiser.root_model, self.denoiser.body_model):
@@ -799,8 +842,14 @@ class KimodoPolicy(nn.Module):
         text_pad_mask = self._length_mask(text_length, maxlen, device)
         # 7. 图像编码 (DINOv3 冻结)
         image_feat = self._encode_condition(egoview, instruction)
-        # 8. ControlNet 前向（可训练）
-        root_control_tokens, body_control_tokens = self.controlnet(t, image_feat, T, H)
+        # 8. Visual conditioning.  The embedded path passes the frozen GR00T
+        # token sequence directly into every Root/Body cross-attention block;
+        # legacy modes retain their external sparse injection contract.
+        embedded_cross_attention = str(getattr(self.config, "groot_injection_mode", "")).lower() == "embedded_cross_attention"
+        if embedded_cross_attention:
+            root_control_tokens = body_control_tokens = None
+        else:
+            root_control_tokens, body_control_tokens = self.controlnet(t, image_feat, T, H)
         # 9. 冻结的 denoiser 前向。每个注入层用当前 future motion hidden
         # 作为 Query 读取对应的 visual tokens，梯度回传到 ControlNet。
         heading_slice = self.representation.slice_dict["global_root_heading"]
@@ -830,6 +879,8 @@ class KimodoPolicy(nn.Module):
             control_future_start=H,
             detach_root_for_body=True,
             return_body_hidden=self.hand_head is not None,
+            cross_attention_condition=image_feat if embedded_cross_attention else None,
+            cross_attention_future_start=H if embedded_cross_attention else None,
         )
         if self.hand_head is not None:
             pred_clean, body_hidden = denoiser_output
@@ -902,9 +953,11 @@ class KimodoPolicy(nn.Module):
                 t,
                 torch.randn_like(clean_hand),
             )
-            final_visual_tokens = body_control_tokens[
-                max(self.controlnet.body_injection_layers)
-            ]
+            final_visual_tokens = (
+                image_feat if embedded_cross_attention else body_control_tokens[
+                    max(self.controlnet.body_injection_layers)
+                ]
+            )
             predicted_clean_hand = self.hand_head(
                 **self._hand_visual_inputs(final_visual_tokens),
                 body_future_tokens=body_hidden[:, H:],
@@ -1335,9 +1388,13 @@ class KimodoPolicy(nn.Module):
                     rtc_hand_at_t,
                     rtc_hand_weights,
                 )
-            root_control_tokens, body_control_tokens = self.controlnet(
-                model_timestep, image_features, total_length, history_length
-            )
+            embedded_cross_attention = str(getattr(self.config, "groot_injection_mode", "")).lower() == "embedded_cross_attention"
+            if embedded_cross_attention:
+                root_control_tokens = body_control_tokens = None
+            else:
+                root_control_tokens, body_control_tokens = self.controlnet(
+                    model_timestep, image_features, total_length, history_length
+                )
             denoiser_output = self.denoiser(
                 x=current_motion,
                 x_pad_mask=motion_pad_mask,
@@ -1354,12 +1411,16 @@ class KimodoPolicy(nn.Module):
                 control_future_start=history_length,
                 detach_root_for_body=self.config.visual_conditioning == "groot_n1d7",
                 return_body_hidden=self.hand_head is not None,
+                cross_attention_condition=image_features if embedded_cross_attention else None,
+                cross_attention_future_start=history_length if embedded_cross_attention else None,
             )
             if self.hand_head is not None:
                 predicted_clean, body_hidden = denoiser_output
-                body_visual_tokens = body_control_tokens[
-                    max(self.controlnet.body_injection_layers)
-                ]
+                body_visual_tokens = (
+                    image_features if embedded_cross_attention else body_control_tokens[
+                        max(self.controlnet.body_injection_layers)
+                    ]
+                )
                 predicted_clean_hand = self.hand_head(
                     **self._hand_visual_inputs(body_visual_tokens),
                     body_future_tokens=body_hidden[:, history_length:],

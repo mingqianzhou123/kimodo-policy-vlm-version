@@ -32,7 +32,8 @@ def grad_sum(module):
 
 def check_backbone(model, batch, condition, report):
     representation, denoiser, injection = model.representation, model.denoiser, model.controlnet
-    h = model.config.action_history
+    cfg_main = model.config.main if hasattr(model.config, "main") else model.config
+    h = cfg_main.action_history
     x = representation.normalize(batch["gt_motion"])
     observed = representation.normalize(batch["condition_motion"])
     mask = batch["condition_motion_mask"].to(x.dtype)
@@ -47,6 +48,27 @@ def check_backbone(model, batch, condition, report):
                   text_feat_pad_mask=torch.ones(text.shape[:2], dtype=torch.bool, device=x.device),
                   timesteps=t, first_heading_angle=heading, motion_mask=mask,
                   observed_motion=observed, detach_root_for_body=True)
+    embedded = str(getattr(model.config.model if hasattr(model.config, "model") else model.config,
+                           "groot_injection_mode", "")).lower() == "embedded_cross_attention"
+    if embedded:
+        # Integrated blocks are intentionally ordinary residual CrossAttention
+        # modules, so construction is not an identity test. Verify the full
+        # 32-block path executes and produces finite output while preserving
+        # the original text/time/heading prefix and future-only query shape.
+        with torch.no_grad():
+            injected = denoiser(
+                **kwargs,
+                cross_attention_condition=condition,
+                cross_attention_future_start=h,
+            )
+        assert injected.shape == x.shape
+        assert torch.isfinite(injected).all()
+        report["embedded_cross_attention"] = {
+            "root_blocks": len(denoiser.root_model.cross_attention_blocks),
+            "body_blocks": len(denoiser.body_model.cross_attention_blocks),
+            "future_query_tokens": x.shape[1] - h,
+        }
+        return
     roots, bodies = injection(t, condition, x.shape[1], h)
     with torch.no_grad():
         base = denoiser(**kwargs)
@@ -135,7 +157,15 @@ def run(args, config, report):
     if args.backbone_only:
         stats = REPO / "checkpoints/Kimodo-G1-RP-v1"
         representation = KimodoMotionRep(G1Skeleton34(), fps=30, stats_path=str(stats / "stats/motion"))
-        denoiser = TwostageDenoiser(representation, "concat", str(stats)).to(device).eval().requires_grad_(False)
+        embedded = str(config.model.get("groot_injection_mode", "")).lower() == "embedded_cross_attention"
+        denoiser = TwostageDenoiser(
+            representation, "concat", str(stats),
+            cross_attention=embedded,
+            cross_attention_condition_dim=config.model.get("groot_cross_attention_condition_dim", 2048),
+            cross_attention_num_heads=config.model.get("groot_cross_attention_num_heads", 8),
+            cross_attention_inner_dim=config.model.get("groot_cross_attention_inner_dim", 512),
+            cross_attention_dropout=config.model.get("groot_cross_attention_dropout", 0.0),
+        ).to(device).eval().requires_grad_(False)
         model = SimpleNamespace(
             representation=representation,
             denoiser=denoiser,
@@ -146,7 +176,7 @@ def run(args, config, report):
                 adaln_pool=config.model.get("adaln_pool", "masked_mean"),
                 max_diffusion_steps=config.model.get("adaln_max_diffusion_steps", 1000),
             ).to(device),
-            config=config.main,
+            config=config,
         )
         condition = VLCondition(torch.randn(1, 17, 2048, device=device),
                                 torch.ones(1, 17, dtype=torch.bool, device=device))
@@ -158,7 +188,15 @@ def run(args, config, report):
     report["checkpoint_load"] = model.image_encoder.load_report
     report["official_source_hashes"] = model.image_encoder.source_hashes
     report["vlm_select_layer"] = model.image_encoder.checkpoint_config["select_layer"]
-    assert not any(p.requires_grad for p in model.denoiser.parameters())
+    embedded = str(config.model.get("groot_injection_mode", "")).lower() == "embedded_cross_attention"
+    if embedded:
+        trainable_cross = [p for n, p in model.named_parameters()
+                           if "cross_attention_blocks" in n and p.requires_grad]
+        assert trainable_cross and all(p.requires_grad for p in trainable_cross)
+        assert not any(p.requires_grad for n, p in model.named_parameters()
+                       if n.startswith("denoiser.") and "cross_attention_blocks" not in n)
+    else:
+        assert not any(p.requires_grad for p in model.denoiser.parameters())
     assert not any(p.requires_grad for p in model.image_encoder.parameters())
     with torch.no_grad(), torch.autocast(device.type, dtype=torch.bfloat16, enabled=device.type == "cuda"):
         condition = model._encode_condition(batch["egoview"], batch["instruction"])
@@ -177,7 +215,11 @@ def run(args, config, report):
         losses = model(**inputs)
     losses["loss"].backward()
     assert torch.isfinite(losses["loss"])
-    assert grad_sum(model.controlnet) > 0 and grad_sum(model.hand_head) > 0
+    if embedded:
+        assert grad_sum(model.denoiser.root_model.cross_attention_blocks) + grad_sum(model.denoiser.body_model.cross_attention_blocks) > 0
+    else:
+        assert grad_sum(model.controlnet) > 0
+    assert grad_sum(model.hand_head) > 0
     assert all(p.grad is None for p in model.image_encoder.parameters())
     for p in model.parameters():
         if p.grad is not None:
@@ -189,9 +231,17 @@ def run(args, config, report):
     with torch.autocast(device.type, dtype=torch.bfloat16, enabled=device.type == "cuda"):
         losses = model(**inputs)
     losses["loss"].backward()
-    assert grad_sum(model.image_encoder.adapter) > 0
+    if embedded:
+        assert grad_sum(model.image_encoder.adapter) == 0
+    else:
+        assert grad_sum(model.image_encoder.adapter) > 0
     assert all(p.grad is None for p in model.image_encoder.backbone.parameters())
-    assert all(p.grad is None for p in model.denoiser.parameters())
+    if embedded:
+        assert any(p.grad is not None for p in model.denoiser.root_model.cross_attention_blocks.parameters())
+        assert all(p.grad is None for n, p in model.named_parameters()
+                   if n.startswith("denoiser.") and "cross_attention_blocks" not in n)
+    else:
+        assert all(p.grad is None for p in model.denoiser.parameters())
     for p in model.parameters():
         if p.grad is not None:
             assert torch.isfinite(p.grad).all()

@@ -1,0 +1,47 @@
+_base_: arena_sonicx7_groot_stable.yaml
+
+# GR00T N1.7 image-text tokens are read by a CrossAttention block embedded
+# after every Kimodo self-attention layer: 16 Root + 16 Body = 32 blocks.
+# The original sparse external CrossAttention and AdaLN recipes remain
+# available under their existing config files.
+main:
+  task: HumanoidArena_sonicx7
+  batch_size: 128
+  micro_batch_size: 32
+  max_steps: 300000
+  num_workers: 8
+  episode_cache_size: 700
+  video_cache_size: 32
+  save_root: log/arena_sonicx7_groot_embedded32
+  preflight_report: outputs/sonicx7_embedded32_preflight/groot_preflight.json
+  checkpoint_every: 5000
+  extra_checkpoints: [1000, 5000, 10000, 30000, 100000, 200000]
+  score_checkpoints: [250000, 275000, 300000]
+
+model:
+  groot_injection_mode: embedded_cross_attention
+  groot_cross_attention_condition_dim: 2048
+  groot_cross_attention_num_heads: 8
+  groot_cross_attention_inner_dim: 512
+  groot_cross_attention_dropout: 0.0
+  # 16 layers per stage means all pretrained Kimodo self-attention layers
+  # become trainable at the second stage while preserving their initialization.
+  kimodo_unfreeze_layers: 16
+  compile: false
+
+training:
+  # Warm up the new embedded adapters first, then jointly unfreeze all Root /
+  # Body Kimodo layers. GR00T backbone and its N1.7 adapter stay frozen.
+  stages:
+    initial_stage: injection
+    kimodo_start: 30000
+    vision_start: null
+  optimizer:
+    cross_attention_lr: 3.0e-5
+    kimodo_lr: 2.0e-6
+    hand_lr: 2.0e-5
+    vl_adapter_lr: 0.0
+  scheduler:
+    warmup_steps: 10000
+    adapter_warmup_steps: 10000
+

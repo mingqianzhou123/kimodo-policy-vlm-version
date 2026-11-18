@@ -447,9 +447,10 @@ class GrootInjection(nn.Module):
         if future_token_count != 50:
             raise ValueError("This experiment requires a 50-frame future horizon")
         mode = str(mode).strip().lower()
-        if mode not in {"cross_attention", "adaln_zero"}:
+        if mode not in {"cross_attention", "adaln_zero", "embedded_cross_attention"}:
             raise ValueError(
-                "groot_injection_mode must be 'cross_attention' or 'adaln_zero', "
+                "groot_injection_mode must be 'cross_attention', 'adaln_zero', or "
+                "'embedded_cross_attention', "
                 f"got {mode!r}"
             )
         self.mode = mode
@@ -457,7 +458,7 @@ class GrootInjection(nn.Module):
         if mode == "cross_attention":
             self.root_hint_fusion = InjectionStack()
             self.body_hint_fusion = InjectionStack()
-        else:
+        elif mode == "adaln_zero":
             self.root_hint_fusion = AdaLNZeroInjectionStack(
                 condition_dim=adaln_condition_dim,
                 pool=adaln_pool,
@@ -468,6 +469,13 @@ class GrootInjection(nn.Module):
                 pool=adaln_pool,
                 max_diffusion_steps=max_diffusion_steps,
             )
+        else:
+            # The actual CrossAttention modules live inside each Kimodo
+            # TransformerEncoderBlock.  Keep these attributes for callers
+            # that inspect the legacy injection object, but do not create an
+            # external residual path.
+            self.root_hint_fusion = None
+            self.body_hint_fusion = None
 
     def forward(self, timesteps, condition: VLCondition, motion_token_count, future_start):
         if motion_token_count - future_start != self.future_token_count:

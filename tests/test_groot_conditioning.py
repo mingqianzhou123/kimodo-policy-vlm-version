@@ -99,6 +99,29 @@ def test_cross_attention_ignores_padding_and_reads_action_query():
     assert not torch.allclose(block(query, clean), block(torch.randn_like(query), clean))
 
 
+def test_embedded_cross_attention_has_32_blocks_and_future_only_queries():
+    backbone = TransformerEncoderBlock(
+        input_dim=4, output_dim=4, skeleton=SimpleNamespace(nbjoints=1),
+        llm_shape=[1, 8], use_text_mask=True, latent_dim=8, ff_size=16,
+        num_layers=16, num_heads=2, activation="gelu", dropout=0.0, pe_dropout=0.0,
+        cross_attention=True, cross_attention_condition_dim=16,
+        cross_attention_num_heads=2, cross_attention_inner_dim=8,
+    ).eval()
+    condition = VLCondition(torch.randn(1, 5, 16), torch.ones(1, 5, dtype=torch.bool))
+    kwargs = dict(
+        x=torch.randn(1, 150, 4), x_pad_mask=torch.ones(1, 150, dtype=torch.bool),
+        text_feat=torch.randn(1, 1, 8), text_feat_pad_mask=torch.ones(1, 1, dtype=torch.bool),
+        timesteps=torch.tensor([4]), cross_attention_condition=condition,
+        cross_attention_future_start=100,
+    )
+    output = backbone(**kwargs)
+    assert output.shape == (1, 150, 4)
+    assert len(backbone.cross_attention_blocks) == 16
+    assert sum(p.numel() for p in backbone.cross_attention_blocks.parameters()) > 0
+    output.square().mean().backward()
+    assert any(p.grad is not None and p.grad.abs().sum() > 0 for p in backbone.cross_attention_blocks.parameters())
+
+
 def test_adaln_zero_is_identity_then_opens_with_timestep_condition():
     stack = AdaLNZeroInjectionStack(
         layers=(3,), motion_dim=8, condition_input_dim=16, condition_dim=8,

@@ -51,7 +51,10 @@ from run_config import DEFAULT_CONFIG, REPO, checkpoint_steps, load_yaml  # scri
 # Fields an --init-checkpoint must share with this run for its weights to mean the same thing.
 ARCHITECTURE_FIELDS = (
     "visual_conditioning",
-    "groot_injection_mode", "adaln_condition_dim", "adaln_pool", "adaln_max_diffusion_steps",
+    "groot_injection_mode", "groot_cross_attention_condition_dim",
+    "groot_cross_attention_num_heads", "groot_cross_attention_inner_dim",
+    "groot_cross_attention_dropout",
+    "adaln_condition_dim", "adaln_pool", "adaln_max_diffusion_steps",
     "fps", "motion_mask_mode", "dinov3_model_name", "controlnet_num_layers", "controlnet_scale",
     "detach_root_control_for_body", "control_fusion_mode",
     "hand_hidden_dim", "hand_num_layers", "hand_num_heads", "hand_ffn_dim",
@@ -143,6 +146,10 @@ def build_model(config) -> KimodoPolicy:
         groot_vision_lora_targets=tuple(m.get("vision_lora_targets", ["qkv", "proj"])),
         kimodo_unfreeze_layers=m.get("kimodo_unfreeze_layers", 0),
         groot_injection_mode=m.get("groot_injection_mode", "cross_attention"),
+        groot_cross_attention_condition_dim=m.get("groot_cross_attention_condition_dim", 2048),
+        groot_cross_attention_num_heads=m.get("groot_cross_attention_num_heads", 8),
+        groot_cross_attention_inner_dim=m.get("groot_cross_attention_inner_dim", 512),
+        groot_cross_attention_dropout=m.get("groot_cross_attention_dropout", 0.0),
         adaln_condition_dim=m.get("adaln_condition_dim", 512),
         adaln_pool=m.get("adaln_pool", "masked_mean"),
         adaln_max_diffusion_steps=m.get("adaln_max_diffusion_steps", 1000),
@@ -173,6 +180,7 @@ def param_groups(model: KimodoPolicy, config) -> list[dict]:
           "vl_adapter": opt.get("vl_adapter_lr", opt.control_backbone_lr),
           "vision": opt.get("vision_lr", 1e-6),
           "kimodo": opt.get("kimodo_lr", 1e-6),
+          "cross_attention": opt.get("cross_attention_lr", opt.get("control_adapter_lr", 1e-4)),
           # AdaLN starts with zero modulation heads.  A mildly larger
           # dedicated rate lets the gates open in a few updates while the
           # frozen Kimodo backbone remains untouched.
@@ -192,6 +200,9 @@ def param_groups(model: KimodoPolicy, config) -> list[dict]:
             family = "vl_adapter"
         elif name.startswith("image_encoder.backbone."):
             family = "vision"
+        elif name.startswith(("denoiser.root_model.cross_attention_blocks.",
+                              "denoiser.body_model.cross_attention_blocks.")):
+            family = "cross_attention"
         elif name.startswith(("denoiser.root_model.", "denoiser.body_model.")):
             family = "kimodo"
         elif name.startswith(("controlnet.root_layers.", "controlnet.body_layers.")):
@@ -216,7 +227,14 @@ def training_stage(config, step):
         valid = {"injection", "adapter", "vision", "vision_lora", "kimodo"}
         if initial_stage not in valid:
             raise ValueError(f"Unknown initial training stage {initial_stage!r}")
+        if initial_stage == "injection" and stages.get("kimodo_start") is not None:
+            return "kimodo" if step >= int(stages.kimodo_start) else "injection"
         return str(initial_stage)
+    kimodo_start = stages.get("kimodo_start")
+    if kimodo_start is not None:
+        if not 0 < int(kimodo_start) < config.main.max_steps:
+            raise ValueError("kimodo_start must lie inside the training run")
+        return "kimodo" if step >= int(kimodo_start) else "injection"
     if not 0 < int(stages.adapter_start) < config.main.max_steps:
         raise ValueError("adapter_start must lie inside the training run")
     vision_start = stages.get("vision_start")
@@ -570,9 +588,10 @@ def main() -> None:
             # Legacy runs call this injection rate ``adapter``.  AdaLN-Zero
             # has its own group so its larger gate-opening rate is visible in
             # the same metrics field without breaking old monitors.
-            injection_lr = lrs.get("adapter", lrs.get("adaln", 0.0))
+            injection_lr = lrs.get("cross_attention", lrs.get("adapter", lrs.get("adaln", 0.0)))
             record = {"step": step, **losses, "grad_control": control_norm, "grad_hand": hand_norm,
                       "lr_backbone": lrs.get("backbone", 0.0), "lr_adapter": injection_lr,
+                      "lr_cross_attention": lrs.get("cross_attention", 0.0),
                       "lr_adaln": lrs.get("adaln", 0.0), "stage": stage, "s_per_step": seconds,
                       "data_s_per_step": window_data / main_cfg.log_every,
                       "gpu_peak_memory_gb": torch.cuda.max_memory_allocated(device) / 1e9 if device.type == "cuda" else 0}

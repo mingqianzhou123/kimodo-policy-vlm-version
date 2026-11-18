@@ -99,7 +99,10 @@ def main():
     args.out.mkdir(parents=True, exist_ok=True)
     atomic_json(args.out / "evaluation_manifest.json", receipt)
     env = os.environ.copy()
-    env.pop("CUDA_VISIBLE_DEVICES", None)
+    # Keep an explicit caller-provided mask for isolated multi-GPU evaluation.
+    # The historical default remains unchanged when no mask is supplied.
+    if not env.get("KEEP_CUDA_VISIBLE_DEVICES"):
+        env.pop("CUDA_VISIBLE_DEVICES", None)
     env["OMNI_KIT_ACCEPT_EULA"] = "YES"
     sim_lib = str(Path(args.sim_python).resolve().parents[1] / "lib")
     env["LD_LIBRARY_PATH"] = sim_lib + os.pathsep + env.get("LD_LIBRARY_PATH", "")

@@ -94,6 +94,14 @@ class TransformerEncoderBlockConfig:
 
     # Input first heading angle
     input_first_heading_angle: bool = False
+    # Optional GR00T N1.7 conditioning embedded directly between Kimodo
+    # self-attention layers.  The default keeps every historical checkpoint
+    # byte-for-byte compatible with the old backbone.
+    cross_attention: bool = False
+    cross_attention_condition_dim: int = 2048
+    cross_attention_num_heads: int = 8
+    cross_attention_inner_dim: int = 512
+    cross_attention_dropout: float = 0.0
 
 
 class TransformerEncoderBlock(nn.Module):
@@ -140,6 +148,28 @@ class TransformerEncoderBlock(nn.Module):
             num_layers=self.num_layers,
             enable_nested_tensor=False,
         )
+        self.cross_attention = bool(self.cross_attention)
+        if self.cross_attention:
+            if self.cross_attention_condition_dim <= 0:
+                raise ValueError("cross_attention_condition_dim must be positive")
+            if self.latent_dim % self.cross_attention_num_heads:
+                raise ValueError("latent_dim must be divisible by cross_attention_num_heads")
+            # One independently parameterized cross-attention block follows
+            # every pretrained Kimodo self-attention layer.  This gives 16
+            # blocks per Root/Body stage (32 total) without replacing or
+            # copying the pretrained self-attention layers.
+            self.cross_attention_blocks = nn.ModuleList([
+                EmbeddedCrossAttentionBlock(
+                    motion_dim=self.latent_dim,
+                    condition_dim=self.cross_attention_condition_dim,
+                    num_heads=self.cross_attention_num_heads,
+                    attention_dim=self.cross_attention_inner_dim,
+                    dropout=self.cross_attention_dropout,
+                )
+                for _ in range(self.num_layers)
+            ])
+        else:
+            self.cross_attention_blocks = nn.ModuleList()
 
     def forward(
         self,
@@ -154,6 +184,8 @@ class TransformerEncoderBlock(nn.Module):
         hint_fuser: Optional[nn.Module] = None,
         future_start: Optional[int] = None,
         return_hidden: bool = False,
+        cross_attention_condition=None,
+        cross_attention_future_start: Optional[int] = None,
     ) -> Union[Tensor, tuple[Tensor, Tensor]]:
         """
         Args:
@@ -237,9 +269,39 @@ class TransformerEncoderBlock(nn.Module):
         if control_visual_tokens is not None and future_start is None:
             raise ValueError("future_start is required for dynamic control fusion")
 
-        if hints is not None or control_visual_tokens is not None:
+        if self.cross_attention:
+            if cross_attention_condition is None or cross_attention_future_start is None:
+                raise ValueError(
+                    "cross_attention_condition and cross_attention_future_start are required "
+                    "when embedded cross-attention is enabled"
+                )
+            if cross_attention_future_start < 0 or cross_attention_future_start > x.shape[1]:
+                raise ValueError(
+                    f"Invalid cross_attention_future_start={cross_attention_future_start} "
+                    f"for motion length {x.shape[1]}"
+                )
+            condition_tokens = getattr(cross_attention_condition, "tokens", None)
+            condition_mask = getattr(cross_attention_condition, "mask", None)
+            if condition_tokens is None or condition_mask is None:
+                raise TypeError("embedded cross-attention expects a VLCondition with tokens and mask")
+            if condition_tokens.ndim != 3 or condition_mask.shape != condition_tokens.shape[:2]:
+                raise ValueError("Invalid VLCondition shapes for embedded cross-attention")
+            if condition_tokens.shape[0] != batch_size:
+                raise ValueError("VLCondition batch must match motion batch")
+
+        if hints is not None or control_visual_tokens is not None or self.cross_attention:
             for i, layer in enumerate(self.seqTransEncoder.layers):
                 xseq = layer(xseq, src_key_padding_mask=src_key_padding_mask)
+                if self.cross_attention:
+                    motion_tokens = xseq[:, pose_start_ind:]
+                    future_motion_tokens = motion_tokens[:, cross_attention_future_start:]
+                    future_motion_tokens = self.cross_attention_blocks[i](
+                        future_motion_tokens, condition_tokens, ~condition_mask
+                    )
+                    motion_tokens = torch.cat(
+                        (motion_tokens[:, :cross_attention_future_start], future_motion_tokens), dim=1
+                    )
+                    xseq = torch.cat((xseq[:, :pose_start_ind], motion_tokens), dim=1)
                 if hints is not None and i in hints:
                     xseq = torch.cat(
                         (xseq[:, :pose_start_ind], xseq[:, pose_start_ind:] + hints[i]), dim=1
@@ -294,6 +356,63 @@ class TransformerEncoderBlock(nn.Module):
         if return_hidden:
             return output, hidden_output
         return output
+
+
+class EmbeddedCrossAttentionBlock(nn.Module):
+    """A standard residual cross-attention block used inside Kimodo.
+
+    The query is the future motion sequence and the keys/values are frozen
+    GR00T image-text tokens.  Parameters are normally trained in the first
+    stage while the pretrained Kimodo self-attention layers stay frozen, then
+    Kimodo can be unfrozen in a later stage.  No zero-initialized external
+    residual is used.
+    """
+
+    def __init__(
+        self,
+        motion_dim: int,
+        condition_dim: int,
+        num_heads: int,
+        attention_dim: int | None = None,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        attention_dim = min(motion_dim, 512) if attention_dim is None else int(attention_dim)
+        if attention_dim <= 0 or attention_dim % num_heads:
+            raise ValueError("attention_dim must be positive and divisible by num_heads")
+        self.query_norm = nn.LayerNorm(motion_dim)
+        self.condition_norm = nn.LayerNorm(condition_dim)
+        self.query_projection = nn.Linear(motion_dim, attention_dim)
+        self.attention = nn.MultiheadAttention(
+            attention_dim,
+            num_heads,
+            dropout=dropout,
+            batch_first=True,
+            kdim=condition_dim,
+            vdim=condition_dim,
+        )
+        self.output_projection = nn.Linear(attention_dim, motion_dim)
+        self.output_dropout = nn.Dropout(dropout)
+
+    def forward(
+        self,
+        query: Tensor,
+        condition_tokens: Tensor,
+        condition_key_padding_mask: Optional[Tensor] = None,
+    ) -> Tensor:
+        if query.ndim != 3 or condition_tokens.ndim != 3:
+            raise ValueError("Cross-attention query and condition must be [B,T,D]")
+        update, _ = self.attention(
+            self.query_projection(self.query_norm(query)),
+            self.condition_norm(condition_tokens),
+            self.condition_norm(condition_tokens),
+            key_padding_mask=condition_key_padding_mask,
+            need_weights=False,
+        )
+        # Keep this block lightweight enough for all 32 insertion points. The
+        # pretrained Kimodo self-attention layers already provide the token
+        # mixing/FFN capacity; this block's job is to read GR00T K/V tokens.
+        return query + self.output_dropout(self.output_projection(update))
 
 
 class PositionalEncoding(nn.Module):

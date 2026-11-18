@@ -21,8 +21,14 @@ class TwostageDenoiser(nn.Module):
         motion_rep,
         motion_mask_mode,
         ckpt_path: Optional[str] = None,
+        cross_attention: bool = False,
+        cross_attention_condition_dim: int = 2048,
+        cross_attention_num_heads: int = 8,
+        cross_attention_inner_dim: int = 512,
+        cross_attention_dropout: float = 0.0,
     ):
         super().__init__()
+        self.cross_attention_enabled = bool(cross_attention)
         # 1. 加载配置
         cfg = OmegaConf.load(os.path.join(ckpt_path, "config.yaml")).denoiser
         self.motion_rep = motion_rep
@@ -47,7 +53,12 @@ class TwostageDenoiser(nn.Module):
             pe_dropout=cfg.pe_dropout,
             norm_first=cfg.norm_first,
             num_text_tokens_override=cfg.num_text_tokens_override,
-            input_first_heading_angle=cfg.input_first_heading_angle
+            input_first_heading_angle=cfg.input_first_heading_angle,
+            cross_attention=cross_attention,
+            cross_attention_condition_dim=cross_attention_condition_dim,
+            cross_attention_num_heads=cross_attention_num_heads,
+            cross_attention_inner_dim=cross_attention_inner_dim,
+            cross_attention_dropout=cross_attention_dropout,
         )
         # 3. 加载身体节点去噪网络
         # global_root_dim: (全局x, 全局y, 全局z, cos θ, sin θ)
@@ -71,7 +82,12 @@ class TwostageDenoiser(nn.Module):
             pe_dropout=cfg.pe_dropout,
             norm_first=cfg.norm_first,
             num_text_tokens_override=cfg.num_text_tokens_override,
-            input_first_heading_angle=cfg.input_first_heading_angle
+            input_first_heading_angle=cfg.input_first_heading_angle,
+            cross_attention=cross_attention,
+            cross_attention_condition_dim=cross_attention_condition_dim,
+            cross_attention_num_heads=cross_attention_num_heads,
+            cross_attention_inner_dim=cross_attention_inner_dim,
+            cross_attention_dropout=cross_attention_dropout,
         )   
         # 4. 加载kimodo预训练权重
         if ckpt_path:
@@ -83,7 +99,24 @@ class TwostageDenoiser(nn.Module):
         prefix."""
         state_dict = load_checkpoint_state_dict(ckpt_path)
         state_dict = {key.replace("denoiser.backbone.", ""): val for key, val in state_dict.items()}
-        self.load_state_dict(state_dict)
+        incompatible = self.load_state_dict(state_dict, strict=not self.cross_attention_enabled)
+        if self.cross_attention_enabled:
+            missing = {key for key in incompatible.missing_keys if "cross_attention_blocks." not in key}
+            unexpected = set(incompatible.unexpected_keys)
+            if missing:
+                raise RuntimeError(f"Missing pretrained Kimodo checkpoint keys: {sorted(missing)[:8]}")
+            if unexpected:
+                raise RuntimeError(f"Unexpected Kimodo checkpoint keys: {sorted(unexpected)[:8]}")
+
+    def _set_cross_attention_mode(self, training: bool) -> None:
+        """Keep pretrained Kimodo eval behavior while training embedded adapters."""
+        for model in (self.root_model, self.body_model):
+            if getattr(model, "cross_attention", False):
+                model.cross_attention_blocks.train(training)
+            # Kimodo self-attention is explicitly controlled by
+            # ``KimodoPolicy.set_training_stage``; leave it in eval mode here
+            # so dropout behavior remains identical while frozen.
+            model.seqTransEncoder.eval()
 
 
     def forward(
@@ -105,6 +138,8 @@ class TwostageDenoiser(nn.Module):
         control_future_start: Optional[int] = None,
         detach_root_for_body: Optional[bool] = None,
         return_body_hidden: bool = False,
+        cross_attention_condition=None,
+        cross_attention_future_start: Optional[int] = None,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
@@ -144,6 +179,8 @@ class TwostageDenoiser(nn.Module):
             control_visual_tokens=root_control_tokens,
             hint_fuser=root_hint_fuser,
             future_start=control_future_start,
+            cross_attention_condition=cross_attention_condition,
+            cross_attention_future_start=cross_attention_future_start,
         )  # [B, T, 5]
 
         if detach_root_for_body is None:
@@ -181,6 +218,8 @@ class TwostageDenoiser(nn.Module):
             hint_fuser=body_hint_fuser,
             future_start=control_future_start,
             return_hidden=return_body_hidden,
+            cross_attention_condition=cross_attention_condition,
+            cross_attention_future_start=cross_attention_future_start,
         )
         if return_body_hidden:
             predicted_body, body_hidden = body_output
