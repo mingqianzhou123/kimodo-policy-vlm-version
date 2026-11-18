@@ -1,0 +1,26 @@
+{
+  "checked_unix": 1795016732.3455281,
+  "timezone": "UTC+8",
+  "evaluation": {
+    "observed_time": "2026-11-18 23:45:17",
+    "valid": 24,
+    "target": 480,
+    "infrastructure_errors": 0,
+    "status": "running",
+    "heartbeat_age_seconds": 5.6,
+    "recovery": "Jupyter page reloaded; server queue continued across browser disconnect"
+  },
+  "cct": {
+    "observed_time": "2026-11-18 23:44:19",
+    "step": 149250,
+    "target": 200000,
+    "metric_age_seconds": 27,
+    "final_exists": false,
+    "source": "Authenticated CCI Web Terminal",
+    "ssh_status": "Public endpoint unchanged; SSH connection timed out. Existing relay watcher retains retries."
+  },
+  "screenshots": [
+    "eval-reconnected-2345.png",
+    "cct-web-monitor-2345.png"
+  ]
+}
