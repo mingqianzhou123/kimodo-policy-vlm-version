@@ -1,0 +1,41 @@
+{
+  "checked_unix": 1795043751.5345385,
+  "latest_metric": {
+    "step": 200000,
+    "loss": 0.02860514260828495,
+    "motion_loss": 0.028459718450903893,
+    "root_loss": 0.0003735614591278136,
+    "body_loss": 0.026965472847223282,
+    "hand_loss": 0.00014542436110787094,
+    "hand_state_loss": 3.836870382656343e-05,
+    "hand_transition_loss": 0.0005352783482521772,
+    "grad_control": 0.3480592370033264,
+    "grad_hand": 0.08545862883329391,
+    "lr_backbone": 3e-06,
+    "lr_adapter": 1e-05,
+    "s_per_step": 0.5190891265869141,
+    "data_s_per_step": 0.0006749105453491211
+  },
+  "run_id": "box-aligned-cct-scratch-s42-20261118-r1",
+  "checkpoint": "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-aligned-cct-scratch-s42-20261118-r1/training/checkpoint_200000",
+  "status": "verified_final",
+  "global_step": 200000,
+  "all_tensors_finite": true,
+  "tensor_count": 348,
+  "tensor_elements": 114929046,
+  "cct_encoder_keys": 95,
+  "files": {
+    "config.json": {
+      "sha256": "85e54afa8d72e8556b2abf393d738795e68d28317380630dc11a06931da3eaa2",
+      "bytes": 2312
+    },
+    "training_state.pt": {
+      "sha256": "8630832b6c2fab0905451334ab5e0a3a2d04bca85c62d582c385926a24da35b6",
+      "bytes": 459832475
+    }
+  },
+  "backup": {
+    "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/box-aligned-cct-scratch-s42-20261118-r1/checkpoint_200000",
+    "status": "copied_and_verified"
+  }
+}

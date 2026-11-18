@@ -1,0 +1,37 @@
+{
+  "observed_at": "2026-11-19T05:51:13+08:00",
+  "platform": "Baidu T2M-PLUS dv-e21ddf3a87",
+  "queue": "scratch-eval-20261118-r4",
+  "valid_completed": 90,
+  "infrastructure_errors": 0,
+  "current_run_id": "scratch200k-sonic-to-sonic-g0-e15-20261118-r4-a0",
+  "cause": "The existing xiancun idle-GPU utility rotated its compute worker onto GPU 6 between evaluation episodes. Its process group was independent of the evaluator.",
+  "evidence": {
+    "gpu6_worker_pid": 1553281,
+    "gpu6_worker_parent": 3049,
+    "entry": "/root/bin/xiancun",
+    "gpu6_memory_mib": 1644,
+    "gpu6_utilization_percent": 97,
+    "gpu2_idle": true,
+    "gpu7_idle": true
+  },
+  "action": {
+    "command": "/root/bin/xiancun pause 5",
+    "result": "GPU released; utility scheduled to resume monitoring automatically after five minutes.",
+    "scope": "Existing idle-GPU utility only; no training process killed, no evaluator restart, no protocol or GPU assignment changed."
+  },
+  "post_action": {
+    "observed_at": "2026-11-19T05:57:49+08:00",
+    "queue_alive": true,
+    "gpu_wait": false,
+    "log_age_seconds": 22.2,
+    "current_run_unchanged": true,
+    "alerts": [],
+    "completed_episode_pending": false,
+    "valid_completed": 91,
+    "infrastructure_errors": 0,
+    "recovered_episode_success": false,
+    "next_run_id": "scratch200k-twist2-to-twist2-g0-e15-20261118-r4-a0",
+    "next_run_gpu_wait": false
+  }
+}
