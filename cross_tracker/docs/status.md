@@ -1,3 +1,5 @@
+2026-11-18 16:20（UTC+8）：SenseCore SONIC/TWIST2/朴素双源 scratch 三组 200k 最终权重已 CPU 读取核验、跨机器哈希复验及 AFS 独立备份；开发机 GPU6/7 已启动 3模型×2tracker×60场景共360回合评测。首个 SONIC→SONIC 完成1450步，任务timeout、1461帧视频及有效性检查通过；第二模型已加载并接续。首轮资产遗漏错误保留，修复后使用独立r2快照。CCT 最新97100步尚未完成，四组微调继续运行。TWIST2 仍按记录兼容协议评测，不代表论文 baseline 已复现。见 [本批评测及原始回执](../runs/scratch-eval-20261118/README.md)。以下为历史快照。
+
 # 当前进度
 
 2026-11-15 20:33（UTC+8）：按用户最新指示，CCT正式预训练微调作业 `kvla-cct-box-ft-s42-1115` 已提交并显示排队中；箱子、SONIC+TWIST2、seed42、20k、单节点8×A800。明确延期真实双tracker仿真，未声称评测已通过；GPU过拟合/DDP/HTTP以及本轮资产预检通过。独立新快照与回执见 `runs/box-cct-sonic-twist2-s42-20261115-r2/`，代码db8df0a。三个scratch控制台显示启动中，尚未验证优化步。以下为历史记录。

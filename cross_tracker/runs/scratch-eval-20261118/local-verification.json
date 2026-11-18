@@ -1,0 +1,50 @@
+{
+  "status": "all_six_files_sha256_verified",
+  "models": [
+    {
+      "method": "sonic",
+      "run_id": "box-aligned-sonic-scratch-s42-20261118-r1",
+      "global_step": 200000,
+      "files": {
+        "config.json": {
+          "bytes": 2273,
+          "sha256": "fb01a7e762f2794deefff9d478e21b35bfcd95ff7940ee6aba8bdf77519bb7d8"
+        },
+        "training_state.pt": {
+          "bytes": 366949667,
+          "sha256": "f4d4c31c473d39ca822ad523ce1162433b5dfa3947a29025212b7744be96f31d"
+        }
+      }
+    },
+    {
+      "method": "twist2",
+      "run_id": "box-aligned-twist2-scratch-s42-20261118-r1",
+      "global_step": 200000,
+      "files": {
+        "config.json": {
+          "bytes": 2275,
+          "sha256": "aec249d026e4c81b1f9478d37c51f11a9c590866a01837fcdbbe5b2c3ee3fca5"
+        },
+        "training_state.pt": {
+          "bytes": 366949667,
+          "sha256": "c191b0c31757b4a0498b5ac9df46478e25aafdbf66e60a38934277789d0b0ab8"
+        }
+      }
+    },
+    {
+      "method": "mix",
+      "run_id": "box-aligned-mix-scratch-s42-20261118-r1",
+      "global_step": 200000,
+      "files": {
+        "config.json": {
+          "bytes": 2312,
+          "sha256": "43028976a4e1324f8b50357c4751395f742fb1b64681ad634685fbf8e0d216b7"
+        },
+        "training_state.pt": {
+          "bytes": 366949667,
+          "sha256": "17e73eb2de378151f99018a1fa6bfc364b8e5708118c53ef55e6629cc85e9ac0"
+        }
+      }
+    }
+  ]
+}

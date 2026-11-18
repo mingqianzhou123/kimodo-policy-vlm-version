@@ -1,0 +1,25 @@
+{
+  "observed_local_time": "2026-11-18 16:08 UTC+8",
+  "platform": "Baidu T2M-PLUS dv-e21ddf3a87",
+  "files_verified_against_local_sha256": {
+    "prepare_baidu.py": "87d843c2d33187ce2c3183c852be883063522c8cc29bfd3ccc6a941fcda8edf5",
+    "run_batch.py": "411b8cfa790db89ce44b0c6df6996d8c0d8714faa186973af24a69085e15c4b1",
+    "local-verification.json": "1aa9cdac5fcc6608b9137efe707b213b36ee2214658cc00dc4582fc82a061697"
+  },
+  "upload_ui": "Upload complete (3 files)",
+  "gpu6": {
+    "used_mib": 1,
+    "utilization": 0
+  },
+  "gpu7": {
+    "used_mib": 1,
+    "utilization": 0
+  },
+  "finetune_steps_observed_1606": {
+    "sonic": 16000,
+    "twist2": 16300,
+    "mix": 15650,
+    "cct": 10900
+  },
+  "evidence_type": "native UI read; not a downloaded remote receipt"
+}

@@ -1,0 +1,20 @@
+{
+  "observed_time": "2026-11-18T16:21:19+08:00",
+  "evidence_type": "native UI screenshot, not downloaded batch receipt",
+  "screenshot": "evaluation-running.png",
+  "batch": "scratch-eval-20261118-r2",
+  "status": "running",
+  "total_episodes": 360,
+  "completed_episodes": 1,
+  "execution_errors": 0,
+  "current": "scratch200k-twist2-to-twist2-g0-e0-20261118-r2",
+  "twist2_latest_infer_http_200": "2026-11-18T16:21:17+08:00",
+  "finetune_steps": {
+    "sonic": 17850,
+    "twist2": 18200,
+    "mix": 17450,
+    "cct": 12250
+  },
+  "sim_gpu": 6,
+  "policy_gpu": 7
+}
