@@ -1,5 +1,7 @@
 # Full-budget scratch final-checkpoint evaluation
 
+最新：21:54发现r2已因GPU资源忙在16:42退出；5个有效结果已核验，独立r3已续跑。六组样本与CCT136750步状态见[最新核查](progress-2154.md)。以下为16:21启动时历史记录。
+
 2026-11-18：用户要求评测 SenseCore 已完成的三组 scratch。SONIC 单源、TWIST2 单源、朴素双源各训练 200,000 步，内部 global_step 与最终权重张量均实际校验；CCT 尚在训练，不混入此批。
 
 `verify_sensecore.py` 通过已授权 CCI 在 CPU 上读取三组 checkpoint，检查全部张量有限值和每个文件 SHA256。`sensecore-checkpoints.json` 保存原始训练启动、scratch 初始化、配置、代码和提交记录；`local-verification.json` 记录本机六文件哈希复验。三个权重各 366,949,667 字节，模型不上传 Git。

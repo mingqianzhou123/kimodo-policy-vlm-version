@@ -1,0 +1,52 @@
+{
+  "evidence": "progress-audit-2154.json",
+  "completed": 5,
+  "total": 360,
+  "rows": [
+    {
+      "model": "sonic",
+      "tracker": "sonic",
+      "success": 0,
+      "n": 1,
+      "rate": 0.0
+    },
+    {
+      "model": "sonic",
+      "tracker": "twist2",
+      "success": 0,
+      "n": 1,
+      "rate": 0.0
+    },
+    {
+      "model": "twist2",
+      "tracker": "sonic",
+      "success": 0,
+      "n": 0,
+      "rate": null
+    },
+    {
+      "model": "twist2",
+      "tracker": "twist2",
+      "success": 1,
+      "n": 1,
+      "rate": 1.0
+    },
+    {
+      "model": "mix",
+      "tracker": "sonic",
+      "success": 0,
+      "n": 1,
+      "rate": 0.0
+    },
+    {
+      "model": "mix",
+      "tracker": "twist2",
+      "success": 0,
+      "n": 1,
+      "rate": 0.0
+    }
+  ],
+  "resource_errors": 6,
+  "resumed_run": "scratch-eval-20261118-r3",
+  "resume_pid": 1410037
+}

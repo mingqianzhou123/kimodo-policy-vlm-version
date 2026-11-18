@@ -1,0 +1,28 @@
+{
+  "checked_at": "2026-11-18T13:54:23.954911+00:00",
+  "latest_metric": {
+    "step": 136750,
+    "loss": 0.028869550675153732,
+    "motion_loss": 0.0269719660282135,
+    "root_loss": 0.0003431009245105088,
+    "body_loss": 0.025599563494324684,
+    "hand_loss": 0.0018975830171257257,
+    "hand_state_loss": 0.0015877175610512495,
+    "hand_transition_loss": 0.0015493282116949558,
+    "grad_control": 0.3837616741657257,
+    "grad_hand": 0.0636049136519432,
+    "lr_backbone": 9.246455287317878e-06,
+    "lr_adapter": 3.082151762439293e-05,
+    "s_per_step": 0.5220774221420288,
+    "data_s_per_step": 0.0006677961349487305
+  },
+  "final_exists": false,
+  "complete_checkpoints": [
+    "checkpoint_100000",
+    "checkpoint_120000",
+    "checkpoint_20000",
+    "checkpoint_40000",
+    "checkpoint_60000",
+    "checkpoint_80000"
+  ]
+}
