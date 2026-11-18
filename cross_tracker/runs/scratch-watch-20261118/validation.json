@@ -1,0 +1,67 @@
+{
+  "checked_at": "2026-11-18T22:14:48.978830+08:00",
+  "unique_tasks": 480,
+  "paired_seeds": 60,
+  "command_variants": 8,
+  "valid_task_failure_counted": true,
+  "infrastructure_failure_excluded": true,
+  "remote_context_validation": {
+    "checked_unix": 1795011203.3828657,
+    "context_shapes": {
+      "sonic": {
+        "visual": [
+          1,
+          128,
+          196,
+          1024
+        ],
+        "transitions": [
+          1,
+          128,
+          110
+        ],
+        "trajectory_ids": [
+          1,
+          128
+        ],
+        "metadata": [
+          1,
+          1,
+          4096
+        ]
+      },
+      "twist2": {
+        "visual": [
+          1,
+          128,
+          196,
+          1024
+        ],
+        "transitions": [
+          1,
+          128,
+          110
+        ],
+        "trajectory_ids": [
+          1,
+          128
+        ],
+        "metadata": [
+          1,
+          1,
+          4096
+        ]
+      }
+    },
+    "all_finite": true,
+    "device": "cpu",
+    "checkpoint_validation": "pending final 200000"
+  },
+  "handoff": {
+    "old_pid": 1410037,
+    "new_pid": 1417347,
+    "carried": 9,
+    "time_unix": 1795011254.351618,
+    "boundary": "No active child; parent suspended and rechecked"
+  }
+}
