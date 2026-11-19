@@ -1,0 +1,46 @@
+{
+  "observed_at": "2026-11-19T14:12:31+08:00",
+  "platform": "Baidu T2M-PLUS dv-e21ddf3a87",
+  "target_step": 200000,
+  "initialization": "pt_419h",
+  "methods": {
+    "sonic": {
+      "step": 174600,
+      "seconds_per_step": 0.5307158517837525,
+      "gpus": [
+        0
+      ]
+    },
+    "twist2": {
+      "step": 175850,
+      "seconds_per_step": 0.5129594373703003,
+      "gpus": [
+        1
+      ]
+    },
+    "mix": {
+      "step": 173800,
+      "seconds_per_step": 0.5005826139450074,
+      "gpus": [
+        3
+      ]
+    },
+    "cct": {
+      "step": 122450,
+      "seconds_per_step": 0.7079069423675537,
+      "gpus": [
+        4,
+        5
+      ]
+    }
+  },
+  "final_checkpoints_present": false,
+  "all_metrics_age_under_seconds": 30,
+  "eval_gpus": [
+    6,
+    7
+  ],
+  "gpu2": "Existing xiancun idle occupancy worker",
+  "parallel_queue": "Prepared; additional pairs still disabled until finetunes complete",
+  "evidence": "Jupyter terminal screenshot finetune-progress-20261119-1412.png"
+}

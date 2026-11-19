@@ -1,0 +1,333 @@
+{
+  "checked_at": "2026-11-19T15:12:21.233274+08:00",
+  "summary": {
+    "complete": false,
+    "valid_episodes": 195,
+    "target_episodes": 480,
+    "cells": [
+      {
+        "method": "sonic",
+        "controller": "sonic",
+        "scope": "same_source",
+        "successes": 21,
+        "completed": 33,
+        "target": 60,
+        "success_rate": 0.6363636363636364,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 11
+          },
+          {
+            "group": 1,
+            "completed": 13,
+            "successes": 10
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "sonic",
+        "controller": "twist2",
+        "scope": "cross_source",
+        "successes": 1,
+        "completed": 32,
+        "target": 60,
+        "success_rate": 0.03125,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 12,
+            "successes": 1
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "twist2",
+        "controller": "sonic",
+        "scope": "cross_source",
+        "successes": 0,
+        "completed": 32,
+        "target": 60,
+        "success_rate": 0.0,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 12,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "twist2",
+        "controller": "twist2",
+        "scope": "same_source",
+        "successes": 26,
+        "completed": 33,
+        "target": 60,
+        "success_rate": 0.7878787878787878,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 17
+          },
+          {
+            "group": 1,
+            "completed": 13,
+            "successes": 9
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "mix",
+        "controller": "sonic",
+        "scope": "seen_source",
+        "successes": 24,
+        "completed": 33,
+        "target": 60,
+        "success_rate": 0.7272727272727273,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 13
+          },
+          {
+            "group": 1,
+            "completed": 13,
+            "successes": 11
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "mix",
+        "controller": "twist2",
+        "scope": "seen_source",
+        "successes": 20,
+        "completed": 32,
+        "target": 60,
+        "success_rate": 0.625,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 10
+          },
+          {
+            "group": 1,
+            "completed": 12,
+            "successes": 10
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "cct",
+        "controller": "sonic",
+        "scope": "seen_source",
+        "successes": 0,
+        "completed": 0,
+        "target": 60,
+        "success_rate": null,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "cct",
+        "controller": "twist2",
+        "scope": "seen_source",
+        "successes": 0,
+        "completed": 0,
+        "target": 60,
+        "success_rate": null,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      }
+    ],
+    "protocol": {
+      "groups": [
+        0,
+        1,
+        2
+      ],
+      "repeats": 20,
+      "task_seed_name": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby",
+      "fresh_sim": true,
+      "deterministic": true,
+      "timing": "original",
+      "env_preset": "official",
+      "max_steps": 1450,
+      "checkpoint_step": 200000,
+      "twist2_physics_timing": "recorded",
+      "twist2_sim_device": "cpu",
+      "twist2_scope": "adapted tracker evaluation; not a claimed published TWIST2 baseline"
+    },
+    "infrastructure_failed_attempts": 0,
+    "interpretation": "Both dual-source targets are seen-source. TWIST2 uses the frozen adapted recording-compatible protocol."
+  },
+  "audit_sha256": "73b74ad13227935215e92c1e3eacb11009afab94258c0d556cb5ec5592ff915f",
+  "cct_scratch": {
+    "checked_unix": 1795043751.5345385,
+    "latest_metric": {
+      "step": 200000,
+      "loss": 0.02860514260828495,
+      "motion_loss": 0.028459718450903893,
+      "root_loss": 0.0003735614591278136,
+      "body_loss": 0.026965472847223282,
+      "hand_loss": 0.00014542436110787094,
+      "hand_state_loss": 3.836870382656343e-05,
+      "hand_transition_loss": 0.0005352783482521772,
+      "grad_control": 0.3480592370033264,
+      "grad_hand": 0.08545862883329391,
+      "lr_backbone": 3e-06,
+      "lr_adapter": 1e-05,
+      "s_per_step": 0.5190891265869141,
+      "data_s_per_step": 0.0006749105453491211
+    },
+    "run_id": "box-aligned-cct-scratch-s42-20261118-r1",
+    "checkpoint": "/data/NTU_slab/mingqianzhou/humanoid_vla/kimodo-policy-vlm-version/cross_tracker/runs/box-aligned-cct-scratch-s42-20261118-r1/training/checkpoint_200000",
+    "status": "verified_final",
+    "global_step": 200000,
+    "all_tensors_finite": true,
+    "tensor_count": 348,
+    "tensor_elements": 114929046,
+    "cct_encoder_keys": 95,
+    "files": {
+      "config.json": {
+        "sha256": "85e54afa8d72e8556b2abf393d738795e68d28317380630dc11a06931da3eaa2",
+        "bytes": 2312
+      },
+      "training_state.pt": {
+        "sha256": "8630832b6c2fab0905451334ab5e0a3a2d04bca85c62d582c385926a24da35b6",
+        "bytes": 459832475
+      }
+    },
+    "backup": {
+      "path": "/data/NTU_slab/mingqianzhou/humanoid_vla/cross_tracker_backups/weights/box-aligned-cct-scratch-s42-20261118-r1/checkpoint_200000",
+      "status": "copied_and_verified"
+    }
+  },
+  "cct_transfer": "SSH network unavailable; SenseCore web login expired at latest inspection, user login requested",
+  "finetunes": {
+    "observed_at": "2026-11-19T14:12:31+08:00",
+    "platform": "Baidu T2M-PLUS dv-e21ddf3a87",
+    "target_step": 200000,
+    "initialization": "pt_419h",
+    "methods": {
+      "sonic": {
+        "step": 174600,
+        "seconds_per_step": 0.5307158517837525,
+        "gpus": [
+          0
+        ]
+      },
+      "twist2": {
+        "step": 175850,
+        "seconds_per_step": 0.5129594373703003,
+        "gpus": [
+          1
+        ]
+      },
+      "mix": {
+        "step": 173800,
+        "seconds_per_step": 0.5005826139450074,
+        "gpus": [
+          3
+        ]
+      },
+      "cct": {
+        "step": 122450,
+        "seconds_per_step": 0.7079069423675537,
+        "gpus": [
+          4,
+          5
+        ]
+      }
+    },
+    "final_checkpoints_present": false,
+    "all_metrics_age_under_seconds": 30,
+    "eval_gpus": [
+      6,
+      7
+    ],
+    "gpu2": "Existing xiancun idle occupancy worker",
+    "parallel_queue": "Prepared; additional pairs still disabled until finetunes complete",
+    "evidence": "Jupyter terminal screenshot finetune-progress-20261119-1412.png"
+  },
+  "parallel_evaluation": {
+    "status": "prepared_not_activated",
+    "preflight": "parallel-preflight-20261119.json",
+    "tests_passed": 9,
+    "extra_gpus": "Awaiting current finetune completion"
+  }
+}
