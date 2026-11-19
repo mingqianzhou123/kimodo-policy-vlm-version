@@ -1,0 +1,268 @@
+{
+  "observed_at": "2026-11-19T17:57:09+08:00",
+  "platform": "Baidu T2M-PLUS dv-e21ddf3a87",
+  "queue": "/root/workspace/humanoidVLA/cross_tracker/runs/scratch-eval-20261118-r4",
+  "audit": {
+    "file": "takeover-audit-20261119-175709.json",
+    "bytes": 2028418,
+    "sha256": "d1f2e843936678febbb186e548eeb0e4603f6e0f07ab9d40a6531896c536b072",
+    "locally_recomputed": true
+  },
+  "summary": {
+    "complete": false,
+    "valid_episodes": 226,
+    "target_episodes": 480,
+    "cells": [
+      {
+        "method": "sonic",
+        "controller": "sonic",
+        "scope": "same_source",
+        "successes": 24,
+        "completed": 38,
+        "target": 60,
+        "success_rate": 0.631578947368421,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 11
+          },
+          {
+            "group": 1,
+            "completed": 18,
+            "successes": 13
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "sonic",
+        "controller": "twist2",
+        "scope": "cross_source",
+        "successes": 1,
+        "completed": 37,
+        "target": 60,
+        "success_rate": 0.02702702702702703,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 17,
+            "successes": 1
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "twist2",
+        "controller": "sonic",
+        "scope": "cross_source",
+        "successes": 0,
+        "completed": 37,
+        "target": 60,
+        "success_rate": 0.0,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 17,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "twist2",
+        "controller": "twist2",
+        "scope": "same_source",
+        "successes": 31,
+        "completed": 38,
+        "target": 60,
+        "success_rate": 0.8157894736842105,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 17
+          },
+          {
+            "group": 1,
+            "completed": 18,
+            "successes": 14
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "mix",
+        "controller": "sonic",
+        "scope": "seen_source",
+        "successes": 29,
+        "completed": 38,
+        "target": 60,
+        "success_rate": 0.7631578947368421,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 13
+          },
+          {
+            "group": 1,
+            "completed": 18,
+            "successes": 16
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "mix",
+        "controller": "twist2",
+        "scope": "seen_source",
+        "successes": 22,
+        "completed": 38,
+        "target": 60,
+        "success_rate": 0.5789473684210527,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 10
+          },
+          {
+            "group": 1,
+            "completed": 18,
+            "successes": 12
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "cct",
+        "controller": "sonic",
+        "scope": "seen_source",
+        "successes": 0,
+        "completed": 0,
+        "target": 60,
+        "success_rate": null,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "cct",
+        "controller": "twist2",
+        "scope": "seen_source",
+        "successes": 0,
+        "completed": 0,
+        "target": 60,
+        "success_rate": null,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      }
+    ],
+    "protocol": {
+      "groups": [
+        0,
+        1,
+        2
+      ],
+      "repeats": 20,
+      "task_seed_name": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby",
+      "fresh_sim": true,
+      "deterministic": true,
+      "timing": "original",
+      "env_preset": "official",
+      "max_steps": 1450,
+      "checkpoint_step": 200000,
+      "twist2_physics_timing": "recorded",
+      "twist2_sim_device": "cpu",
+      "twist2_scope": "adapted tracker evaluation; not a claimed published TWIST2 baseline"
+    },
+    "infrastructure_failed_attempts": 0,
+    "interpretation": "Both dual-source targets are seen-source. TWIST2 uses the frozen adapted recording-compatible protocol."
+  },
+  "activation": {
+    "pid": 1780149,
+    "source_sha256": "b9e1b96737779a70b145f3b69e6c3ff999b9f09ece93d98f46d1a3a4848b62d5",
+    "status": "handoff_at_idle_boundary",
+    "enabled_pairs": [
+      [
+        6,
+        7
+      ],
+      [
+        0,
+        1
+      ]
+    ]
+  },
+  "cct": {
+    "backup_sha256_rechecked": true,
+    "web_terminal_restored": true,
+    "dev_ssh": "timeout",
+    "local_relay": "waiting",
+    "importer_source_sha256": "04c763261328eee9f8b8f23fb8582c805a0eb7e7e3c866847e496cc0c8032c6d"
+  }
+}
