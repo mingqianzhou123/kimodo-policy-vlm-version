@@ -1,0 +1,222 @@
+{
+  "observed_at": "2026-11-19T18:13:45+08:00",
+  "queue": "/root/workspace/humanoidVLA/cross_tracker/runs/scratch-eval-20261119-r5",
+  "audit": {
+    "bytes": 2081093,
+    "sha256": "b8e0a6349b6af4718a83bd1309127e31ffddbae37e7899c9b377a86eddbd621d",
+    "file": "r5-audit-20261119-181345.json",
+    "locally_recomputed": true
+  },
+  "valid_episodes": 232,
+  "infrastructure_failed_attempts": 0,
+  "cells": [
+    {
+      "method": "sonic",
+      "controller": "sonic",
+      "scope": "same_source",
+      "successes": 25,
+      "completed": 39,
+      "target": 60,
+      "success_rate": 0.6410256410256411,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 11
+        },
+        {
+          "group": 1,
+          "completed": 19,
+          "successes": 14
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "sonic",
+      "controller": "twist2",
+      "scope": "cross_source",
+      "successes": 1,
+      "completed": 38,
+      "target": 60,
+      "success_rate": 0.02631578947368421,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 18,
+          "successes": 1
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "twist2",
+      "controller": "sonic",
+      "scope": "cross_source",
+      "successes": 0,
+      "completed": 38,
+      "target": 60,
+      "success_rate": 0.0,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 18,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "twist2",
+      "controller": "twist2",
+      "scope": "same_source",
+      "successes": 31,
+      "completed": 39,
+      "target": 60,
+      "success_rate": 0.7948717948717948,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 17
+        },
+        {
+          "group": 1,
+          "completed": 19,
+          "successes": 14
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "mix",
+      "controller": "sonic",
+      "scope": "seen_source",
+      "successes": 29,
+      "completed": 39,
+      "target": 60,
+      "success_rate": 0.7435897435897436,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 13
+        },
+        {
+          "group": 1,
+          "completed": 19,
+          "successes": 16
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "mix",
+      "controller": "twist2",
+      "scope": "seen_source",
+      "successes": 23,
+      "completed": 39,
+      "target": 60,
+      "success_rate": 0.5897435897435898,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 10
+        },
+        {
+          "group": 1,
+          "completed": 19,
+          "successes": 13
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "cct",
+      "controller": "sonic",
+      "scope": "seen_source",
+      "successes": 0,
+      "completed": 0,
+      "target": 60,
+      "success_rate": null,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "cct",
+      "controller": "twist2",
+      "scope": "seen_source",
+      "successes": 0,
+      "completed": 0,
+      "target": 60,
+      "success_rate": null,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    }
+  ]
+}

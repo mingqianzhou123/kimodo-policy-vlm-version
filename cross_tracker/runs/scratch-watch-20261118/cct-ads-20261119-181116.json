@@ -1,0 +1,28 @@
+{
+  "observed_at": "2026-11-19T18:11:16+08:00",
+  "source": {
+    "product": "SenseCore AFS",
+    "run_id": "box-aligned-cct-scratch-s42-20261118-r1",
+    "step": 200000,
+    "receipt": "cct-server-final-20261119.json",
+    "source_and_backup_hashes_rechecked": true
+  },
+  "relay": {
+    "product": "SenseCore AOSS",
+    "bucket": "sgresearch-kvla-cct-relay-20261119",
+    "region": "cn-sh-01",
+    "availability_zone": "A",
+    "acl": "private",
+    "bucket_created": true,
+    "objects_uploaded": false,
+    "sync_activation_attempts": 2,
+    "sync_activation_feedback": "【数据同步工具】服务开通失败，请重试",
+    "create_sync_task_enabled": false
+  },
+  "destination": {
+    "platform": "Baidu T2M-PLUS dv-e21ddf3a87",
+    "importer_deployed": true,
+    "manifest_published": false
+  },
+  "status": "blocked_on_file_transfer"
+}
