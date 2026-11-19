@@ -1,0 +1,284 @@
+{
+  "observed_at": "2026-11-19T11:11:00+08:00",
+  "evaluation": {
+    "complete": false,
+    "valid_episodes": 150,
+    "target_episodes": 480,
+    "cells": [
+      {
+        "method": "sonic",
+        "controller": "sonic",
+        "scope": "same_source",
+        "successes": 15,
+        "completed": 25,
+        "target": 60,
+        "success_rate": 0.6,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 11
+          },
+          {
+            "group": 1,
+            "completed": 5,
+            "successes": 4
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "sonic",
+        "controller": "twist2",
+        "scope": "cross_source",
+        "successes": 0,
+        "completed": 25,
+        "target": 60,
+        "success_rate": 0.0,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 5,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "twist2",
+        "controller": "sonic",
+        "scope": "cross_source",
+        "successes": 0,
+        "completed": 25,
+        "target": 60,
+        "success_rate": 0.0,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 5,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "twist2",
+        "controller": "twist2",
+        "scope": "same_source",
+        "successes": 21,
+        "completed": 25,
+        "target": 60,
+        "success_rate": 0.84,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 17
+          },
+          {
+            "group": 1,
+            "completed": 5,
+            "successes": 4
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "mix",
+        "controller": "sonic",
+        "scope": "seen_source",
+        "successes": 17,
+        "completed": 25,
+        "target": 60,
+        "success_rate": 0.68,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 13
+          },
+          {
+            "group": 1,
+            "completed": 5,
+            "successes": 4
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "mix",
+        "controller": "twist2",
+        "scope": "seen_source",
+        "successes": 14,
+        "completed": 25,
+        "target": 60,
+        "success_rate": 0.56,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 20,
+            "successes": 10
+          },
+          {
+            "group": 1,
+            "completed": 5,
+            "successes": 4
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "cct",
+        "controller": "sonic",
+        "scope": "seen_source",
+        "successes": 0,
+        "completed": 0,
+        "target": 60,
+        "success_rate": null,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      },
+      {
+        "method": "cct",
+        "controller": "twist2",
+        "scope": "seen_source",
+        "successes": 0,
+        "completed": 0,
+        "target": 60,
+        "success_rate": null,
+        "groups": [
+          {
+            "group": 0,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 1,
+            "completed": 0,
+            "successes": 0
+          },
+          {
+            "group": 2,
+            "completed": 0,
+            "successes": 0
+          }
+        ]
+      }
+    ],
+    "protocol": {
+      "groups": [
+        0,
+        1,
+        2
+      ],
+      "repeats": 20,
+      "task_seed_name": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby",
+      "fresh_sim": true,
+      "deterministic": true,
+      "timing": "original",
+      "env_preset": "official",
+      "max_steps": 1450,
+      "checkpoint_step": 200000,
+      "twist2_physics_timing": "recorded",
+      "twist2_sim_device": "cpu",
+      "twist2_scope": "adapted tracker evaluation; not a claimed published TWIST2 baseline"
+    },
+    "infrastructure_failed_attempts": 0,
+    "interpretation": "Both dual-source targets are seen-source. TWIST2 uses the frozen adapted recording-compatible protocol."
+  },
+  "audit_file": "progress-audit-20261119-1111.json",
+  "audit_sha256": "ac9ddd4824185685e48cac85e8e29d35bf017e1ac422b661b4318945cb1ffaed",
+  "cct_scratch": {
+    "step": 200000,
+    "target": 200000,
+    "final_exists": true,
+    "status": "verified_final",
+    "receipt_file": "cct-server-final-20261119.json",
+    "receipt_sha256": "1aa3e88fa4fb02e6d761ae20faeb94a41f7c616df8c7bef67dd536e99b21a061",
+    "all_tensors_finite": true,
+    "cct_encoder_keys": 95,
+    "backup_status": "copied_and_verified",
+    "baidu_final_imported": false,
+    "gpu_evaluation_validated": false,
+    "launch_completion_record": "cct-launch-completion-20261119.json"
+  },
+  "cct_server_watch": {
+    "pid": 2475886,
+    "alive": false,
+    "checked_at": "2026-11-19T07:16:11+08:00",
+    "latest_step": 200000,
+    "status": "verified_final",
+    "exit_reason": "Completed final checkpoint CPU verification and independent AFS backup."
+  },
+  "finetunes": {
+    "checked_at": "2026-11-19T10:12:41+08:00",
+    "steps": {
+      "sonic": 146050,
+      "twist2": 147900,
+      "mix": 145550,
+      "cct": 102400
+    },
+    "all_final_missing": true
+  },
+  "network": {
+    "user_confirmed": "SSH unavailable at home, available at workplace",
+    "console_monitoring": "active",
+    "ssh_final_relay": "waiting for existing authorized network",
+    "alternate_transfer": "No existing configured object-storage transfer route verified; data-sync activation dialog canceled. No network, credential, bucket or service changes.",
+    "relay_last_observed_timeout_at": "2026-11-19T10:59:33+08:00"
+  },
+  "complete": false,
+  "recovered_gpu_wait": {
+    "record": "gpu-wait-recovery-20261119-0551.json",
+    "action": "Temporarily paused existing idle-GPU utility for five minutes; evaluation resumed without restarting or changing protocol."
+  }
+}
