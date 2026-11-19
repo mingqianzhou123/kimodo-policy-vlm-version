@@ -1,0 +1,7 @@
+{
+  "pid": 4940,
+  "started_unix": 1795076424.8441541,
+  "log": "/Users/zmqsfiles/Research/\u4eba\u5f62 vla/kimodo-vla version/cross_tracker/runs/scratch-watch-20261118/cct-relay-resume-20261119-162024.log",
+  "purpose": "Resume the existing verified-final CCT relay; no new credentials or network settings",
+  "detached": true
+}
