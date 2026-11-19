@@ -1,0 +1,286 @@
+{
+  "checked_at": "2026-11-19T19:55:42.570258+08:00",
+  "valid": 284,
+  "target": 480,
+  "infra_failed": 0,
+  "available_evaluation_target": 360,
+  "cells": [
+    {
+      "method": "sonic",
+      "controller": "sonic",
+      "scope": "same_source",
+      "successes": 31,
+      "completed": 48,
+      "target": 60,
+      "success_rate": 0.6458333333333334,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 11
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 14
+        },
+        {
+          "group": 2,
+          "completed": 8,
+          "successes": 6
+        }
+      ]
+    },
+    {
+      "method": "sonic",
+      "controller": "twist2",
+      "scope": "cross_source",
+      "successes": 1,
+      "completed": 47,
+      "target": 60,
+      "success_rate": 0.02127659574468085,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 1
+        },
+        {
+          "group": 2,
+          "completed": 7,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "twist2",
+      "controller": "sonic",
+      "scope": "cross_source",
+      "successes": 0,
+      "completed": 47,
+      "target": 60,
+      "success_rate": 0.0,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 7,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "twist2",
+      "controller": "twist2",
+      "scope": "same_source",
+      "successes": 35,
+      "completed": 48,
+      "target": 60,
+      "success_rate": 0.7291666666666666,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 17
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 15
+        },
+        {
+          "group": 2,
+          "completed": 8,
+          "successes": 3
+        }
+      ]
+    },
+    {
+      "method": "mix",
+      "controller": "sonic",
+      "scope": "seen_source",
+      "successes": 36,
+      "completed": 47,
+      "target": 60,
+      "success_rate": 0.7659574468085106,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 13
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 17
+        },
+        {
+          "group": 2,
+          "completed": 7,
+          "successes": 6
+        }
+      ]
+    },
+    {
+      "method": "mix",
+      "controller": "twist2",
+      "scope": "seen_source",
+      "successes": 29,
+      "completed": 47,
+      "target": 60,
+      "success_rate": 0.6170212765957447,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 10
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 14
+        },
+        {
+          "group": 2,
+          "completed": 7,
+          "successes": 5
+        }
+      ]
+    },
+    {
+      "method": "cct",
+      "controller": "sonic",
+      "scope": "seen_source",
+      "successes": 0,
+      "completed": 0,
+      "target": 60,
+      "success_rate": null,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "cct",
+      "controller": "twist2",
+      "scope": "seen_source",
+      "successes": 0,
+      "completed": 0,
+      "target": 60,
+      "success_rate": null,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    }
+  ],
+  "paired_scenes": 47,
+  "paired": [
+    {
+      "method": "sonic",
+      "sonic": {
+        "successes": 31,
+        "completed": 48,
+        "rate": 0.6458333333333334,
+        "paired_successes": 30,
+        "paired_rate": 0.6382978723404256
+      },
+      "twist2": {
+        "successes": 1,
+        "completed": 47,
+        "rate": 0.02127659574468085,
+        "paired_successes": 1,
+        "paired_rate": 0.02127659574468085
+      },
+      "combined_successes": 32,
+      "combined_completed": 95,
+      "paired_combined_rate": 0.3297872340425532
+    },
+    {
+      "method": "twist2",
+      "sonic": {
+        "successes": 0,
+        "completed": 47,
+        "rate": 0.0,
+        "paired_successes": 0,
+        "paired_rate": 0.0
+      },
+      "twist2": {
+        "successes": 35,
+        "completed": 48,
+        "rate": 0.7291666666666666,
+        "paired_successes": 35,
+        "paired_rate": 0.7446808510638298
+      },
+      "combined_successes": 35,
+      "combined_completed": 95,
+      "paired_combined_rate": 0.3723404255319149
+    },
+    {
+      "method": "mix",
+      "sonic": {
+        "successes": 36,
+        "completed": 47,
+        "rate": 0.7659574468085106,
+        "paired_successes": 36,
+        "paired_rate": 0.7659574468085106
+      },
+      "twist2": {
+        "successes": 29,
+        "completed": 47,
+        "rate": 0.6170212765957447,
+        "paired_successes": 29,
+        "paired_rate": 0.6170212765957447
+      },
+      "combined_successes": 65,
+      "combined_completed": 94,
+      "paired_combined_rate": 0.6914893617021276
+    }
+  ],
+  "audit": {
+    "path": "r5-meeting-20261119-1955.json",
+    "sha256": "eb61c69acb5ced46515bfe0954b8ae089477bb2ee6bee59bd53512216f7fddc0",
+    "bytes": 2499398,
+    "locally_recomputed": true
+  }
+}
