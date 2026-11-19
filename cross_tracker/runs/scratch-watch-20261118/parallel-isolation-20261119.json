@@ -1,0 +1,37 @@
+{
+  "checked_unix": 1795064301.473552,
+  "source_files": {
+    "script/eval_scripts/sonic/sim_eval_vla.py": "64eec330ce74970de3edb33359e1ac93cf30bab5019722f7957af4983a23a29a",
+    "script/eval_scripts/twist2/sim_eval_vla.py": "e90dd00696a291018af98bf2293e5f15469ca0e7630d7f535d97a17ef3ba40d8",
+    "action_provider/action_provider_sonic.py": "ac2be6fe595406131c19da7a5a9f4d1fd5fdba64533580eafc033b470bb27996",
+    "action_provider/action_provider_wh_twist2.py": "87dff7f941e2883b7ddc154bf6ef8cd05bf39e6365e92e8bb17f8d0adb9386a3",
+    "action_provider/create_action_provider.py": "9d3a07bda2d2c8bb6319f64ae3d9585686be6e28487aa39bb2b8bb2132b04f17",
+    "dds/dds_master.py": "e70ad7e4c72d132621d6ae380c53c23547080bb91738be99f302d683f30972ef",
+    "dds/sharedmemorymanager.py": "153cb95fc2b906c7bf45edc0bf072c00e9e438a9f6545b9dce195d065cb6c276",
+    "layeredcontrol/robot_control_system.py": "cc5e61476f3a5d653174ee6cfce774fcaf87f8fafd1388f41af37052041c84e7"
+  },
+  "logical_cpus": 112,
+  "affinity_cpus": 112,
+  "shared_memory_free_bytes": 479189766144,
+  "controllers": {
+    "sonic": {
+      "run_id": "scratch200k-sonic-to-sonic-g1-e8-20261118-r4-a0",
+      "server_port": "43097",
+      "dds_log_lines": [
+        "[DDSManager] DDS system initialized",
+        "[DDSManager] DDSManager initialized"
+      ],
+      "redis_connected_lines": []
+    },
+    "twist2": {
+      "run_id": "scratch200k-sonic-to-twist2-g1-e7-20261118-r4-a0",
+      "server_port": "47927",
+      "dds_log_lines": [
+        "[DDSManager] DDS system initialized",
+        "[DDSManager] DDSManager initialized",
+        "[TWIST2ActionProvider] DDS communication initialized"
+      ],
+      "redis_connected_lines": []
+    }
+  }
+}
