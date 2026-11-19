@@ -1,0 +1,222 @@
+{
+  "checked_unix": 1795085355.1246188,
+  "valid_episodes": 250,
+  "target_episodes": 480,
+  "infrastructure_failed_attempts": 0,
+  "cells": [
+    {
+      "method": "sonic",
+      "controller": "sonic",
+      "scope": "same_source",
+      "successes": 27,
+      "completed": 42,
+      "target": 60,
+      "success_rate": 0.6428571428571429,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 11
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 14
+        },
+        {
+          "group": 2,
+          "completed": 2,
+          "successes": 2
+        }
+      ]
+    },
+    {
+      "method": "sonic",
+      "controller": "twist2",
+      "scope": "cross_source",
+      "successes": 1,
+      "completed": 41,
+      "target": 60,
+      "success_rate": 0.024390243902439025,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 1
+        },
+        {
+          "group": 2,
+          "completed": 1,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "twist2",
+      "controller": "sonic",
+      "scope": "cross_source",
+      "successes": 0,
+      "completed": 41,
+      "target": 60,
+      "success_rate": 0.0,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 1,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "twist2",
+      "controller": "twist2",
+      "scope": "same_source",
+      "successes": 33,
+      "completed": 42,
+      "target": 60,
+      "success_rate": 0.7857142857142857,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 17
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 15
+        },
+        {
+          "group": 2,
+          "completed": 2,
+          "successes": 1
+        }
+      ]
+    },
+    {
+      "method": "mix",
+      "controller": "sonic",
+      "scope": "seen_source",
+      "successes": 32,
+      "completed": 42,
+      "target": 60,
+      "success_rate": 0.7619047619047619,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 13
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 17
+        },
+        {
+          "group": 2,
+          "completed": 2,
+          "successes": 2
+        }
+      ]
+    },
+    {
+      "method": "mix",
+      "controller": "twist2",
+      "scope": "seen_source",
+      "successes": 26,
+      "completed": 42,
+      "target": 60,
+      "success_rate": 0.6190476190476191,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 10
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 14
+        },
+        {
+          "group": 2,
+          "completed": 2,
+          "successes": 2
+        }
+      ]
+    },
+    {
+      "method": "cct",
+      "controller": "sonic",
+      "scope": "seen_source",
+      "successes": 0,
+      "completed": 0,
+      "target": 60,
+      "success_rate": null,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "cct",
+      "controller": "twist2",
+      "scope": "seen_source",
+      "successes": 0,
+      "completed": 0,
+      "target": 60,
+      "success_rate": null,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 0,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 0,
+          "successes": 0
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "source": "r5-audit-250-20261119.json",
+    "sha256": "15a4834aff69c1c176d63bc3ea2fe36127604738863a258d37de4e05d33c4e9b",
+    "bytes": 2225960,
+    "locally_recomputed": true
+  }
+}
