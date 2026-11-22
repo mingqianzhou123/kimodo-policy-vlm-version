@@ -1,0 +1,271 @@
+{
+  "complete": true,
+  "valid_episodes": 480,
+  "target_episodes": 480,
+  "cells": [
+    {
+      "method": "sonic",
+      "controller": "sonic",
+      "scope": "same_source",
+      "successes": 41,
+      "completed": 60,
+      "target": 60,
+      "success_rate": 0.6833333333333333,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 11
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 14
+        },
+        {
+          "group": 2,
+          "completed": 20,
+          "successes": 16
+        }
+      ]
+    },
+    {
+      "method": "sonic",
+      "controller": "twist2",
+      "scope": "cross_source",
+      "successes": 2,
+      "completed": 60,
+      "target": 60,
+      "success_rate": 0.03333333333333333,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 1
+        },
+        {
+          "group": 2,
+          "completed": 20,
+          "successes": 1
+        }
+      ]
+    },
+    {
+      "method": "twist2",
+      "controller": "sonic",
+      "scope": "cross_source",
+      "successes": 0,
+      "completed": 60,
+      "target": 60,
+      "success_rate": 0.0,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 0
+        },
+        {
+          "group": 2,
+          "completed": 20,
+          "successes": 0
+        }
+      ]
+    },
+    {
+      "method": "twist2",
+      "controller": "twist2",
+      "scope": "same_source",
+      "successes": 44,
+      "completed": 60,
+      "target": 60,
+      "success_rate": 0.7333333333333333,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 17
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 15
+        },
+        {
+          "group": 2,
+          "completed": 20,
+          "successes": 12
+        }
+      ]
+    },
+    {
+      "method": "mix",
+      "controller": "sonic",
+      "scope": "seen_source",
+      "successes": 43,
+      "completed": 60,
+      "target": 60,
+      "success_rate": 0.7166666666666667,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 13
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 17
+        },
+        {
+          "group": 2,
+          "completed": 20,
+          "successes": 13
+        }
+      ]
+    },
+    {
+      "method": "mix",
+      "controller": "twist2",
+      "scope": "seen_source",
+      "successes": 34,
+      "completed": 60,
+      "target": 60,
+      "success_rate": 0.5666666666666667,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 10
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 14
+        },
+        {
+          "group": 2,
+          "completed": 20,
+          "successes": 10
+        }
+      ]
+    },
+    {
+      "method": "cct",
+      "controller": "sonic",
+      "scope": "seen_source",
+      "successes": 47,
+      "completed": 60,
+      "target": 60,
+      "success_rate": 0.7833333333333333,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 17
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 15
+        },
+        {
+          "group": 2,
+          "completed": 20,
+          "successes": 15
+        }
+      ]
+    },
+    {
+      "method": "cct",
+      "controller": "twist2",
+      "scope": "seen_source",
+      "successes": 46,
+      "completed": 60,
+      "target": 60,
+      "success_rate": 0.7666666666666667,
+      "groups": [
+        {
+          "group": 0,
+          "completed": 20,
+          "successes": 16
+        },
+        {
+          "group": 1,
+          "completed": 20,
+          "successes": 15
+        },
+        {
+          "group": 2,
+          "completed": 20,
+          "successes": 15
+        }
+      ]
+    }
+  ],
+  "protocol": {
+    "groups": [
+      0,
+      1,
+      2
+    ],
+    "repeats": 20,
+    "task_seed_name": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholedoby",
+    "fresh_sim": true,
+    "deterministic": true,
+    "timing": "original",
+    "env_preset": "official",
+    "max_steps": 1450,
+    "checkpoint_step": 200000,
+    "twist2_physics_timing": "recorded",
+    "twist2_sim_device": "cpu",
+    "twist2_scope": "adapted tracker evaluation; not a claimed published TWIST2 baseline"
+  },
+  "infrastructure_failed_attempts": 0,
+  "interpretation": "Both dual-source targets are seen-source. TWIST2 uses the frozen adapted recording-compatible protocol.",
+  "verified_at": "2026-11-22T19:49:17+08:00",
+  "final_episode_at": "2026-11-22T19:48:56+08:00",
+  "audit_file": "r5-final-audit-20261122.json",
+  "audit_sha256": "ac2ff4e2f32b81916d437fb5e47ef6a4d5c53d30f2955fff1ae29a17b8abf37a",
+  "checkpoint_sha256": {
+    "sonic": {
+      "config.json": "fb01a7e762f2794deefff9d478e21b35bfcd95ff7940ee6aba8bdf77519bb7d8",
+      "training_state.pt": "f4d4c31c473d39ca822ad523ce1162433b5dfa3947a29025212b7744be96f31d"
+    },
+    "twist2": {
+      "config.json": "aec249d026e4c81b1f9478d37c51f11a9c590866a01837fcdbbe5b2c3ee3fca5",
+      "training_state.pt": "c191b0c31757b4a0498b5ac9df46478e25aafdbf66e60a38934277789d0b0ab8"
+    },
+    "mix": {
+      "config.json": "43028976a4e1324f8b50357c4751395f742fb1b64681ad634685fbf8e0d216b7",
+      "training_state.pt": "17e73eb2de378151f99018a1fa6bfc364b8e5708118c53ef55e6629cc85e9ac0"
+    },
+    "cct": {
+      "config.json": "85e54afa8d72e8556b2abf393d738795e68d28317380630dc11a06931da3eaa2",
+      "training_state.pt": "8630832b6c2fab0905451334ab5e0a3a2d04bca85c62d582c385926a24da35b6"
+    }
+  },
+  "cct_vs_mix_paired": {
+    "sonic": {
+      "cct_only": 8,
+      "mix_only": 4,
+      "both_succeed": 39,
+      "both_fail": 9
+    },
+    "twist2": {
+      "cct_only": 18,
+      "mix_only": 6,
+      "both_succeed": 28,
+      "both_fail": 8
+    }
+  }
+}
