@@ -77,6 +77,7 @@ class FollowPath:
 def make_policy(tmp_path, goal, source='reference', yaw=.4):
     policy = LocomotionPolicy.__new__(LocomotionPolicy)
     policy.goal, policy.history_source, policy.noise_seed = load_goal(goal), source, 1003
+    policy.sent, policy.root_condition = 25, 'path'
     policy.features = KimodoFeatures(50.)
     policy.fk = XmlFK(G1_XML_PATH, G1_JOINT_NAMES)
     names = policy.features.representation.skeleton.bone_order_names
@@ -187,3 +188,33 @@ def test_one_hand_is_constrained_on_a_world_path_from_where_it_was(tmp_path):
                                rotation @ np.array([1, 0, -.3])/np.linalg.norm([1, 0, -.3]), atol=1e-9)
     np.testing.assert_allclose(target['hand_start']['wrist_world'], sample(0)['wrist_pos'][1], atol=1e-9)
     assert target['active_sides'] == ['right'] and BASIS.shape == (3, 3)
+
+
+def test_gait_tells_stepping_from_sliding():
+    from analyze_motion import gait
+    t = np.arange(200)/50
+    slide = np.zeros((200, 2, 3))
+    slide[:, :, 0] = (.25*t)[:, None]
+    slide[:, :, 2] = .035
+    assert gait(slide)['slide_share'] == pytest.approx(1.) and gait(slide)['swings'] == 0
+    step = np.zeros((200, 2, 3))
+    step[:, :, 2] = .035
+    for foot, begin in ((0, 0), (1, 50), (0, 100), (1, 150)):  # each foot moves only while lifted
+        phase = np.linspace(0, 1, 50)
+        step[begin:begin+50, foot, 2] += .08*np.sin(np.pi*phase)
+        step[begin:, foot, 0] += .25
+        step[begin:begin+50, foot, 0] += .25*(phase-1)
+    result = gait(step)
+    assert result['swings'] == 4 and result['slide_share'] < .1 and result['max_lift_cm'] == pytest.approx(8., abs=.1)
+
+
+def test_kimodo_only_rollout_feeds_each_reference_back(tmp_path):
+    from rollout_kimodo import follow
+    policy, sample, rotation, root = make_policy(tmp_path, WALK)
+    policy.foot_names = [f'{s}_ankle_roll_link' for s in SIDES]
+    rows = follow(policy, sample(0), 5.)
+    assert len(rows) >= 5*50-5 and policy.history_source == 'reference'
+    np.testing.assert_allclose(rows[-1]['sent_root_world'][:2], (root+rotation @ [.5, 0, 0])[:2], atol=2e-3)
+    # The stand-in slides the body along the path without stepping, and the gait measure says so.
+    from analyze_motion import gait
+    assert gait([r['sent_feet'] for r in rows])['slide_share'] > .9

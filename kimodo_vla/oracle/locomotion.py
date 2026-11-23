@@ -37,7 +37,7 @@ from .policy import OraclePolicy
 
 HISTORY_SOURCES = ('reference', 'measured', 'measured-last')
 CANVAS = 50  # future frames Kimodo generates per plan, at 30 Hz
-SENT = 25    # 50 Hz actions sent per plan
+ROOT_CONDITIONS = ('path', 'waypoints')
 
 
 def ease(u):
@@ -111,9 +111,18 @@ def end_time(goal):
 
 
 class LocomotionPolicy(OraclePolicy):
-    def __init__(self, *args, motion_goal, history_source='reference', noise_seed=None, **kwargs):
+    def __init__(self, *args, motion_goal, history_source='reference', noise_seed=None, sent_steps=25,
+                 root_condition='path', **kwargs):
         if history_source not in HISTORY_SOURCES:
             raise ValueError('Unknown history source')
+        if root_condition not in ROOT_CONDITIONS:
+            raise ValueError('Unknown root condition')
+        if not 5 <= sent_steps <= 80:
+            raise ValueError('A plan covers 1.63 s; send between 5 and 80 control steps of it')
+        self.sent = int(sent_steps)  # 50 Hz actions executed before the next plan
+        # 'path' conditions the root's ground point on every future frame; 'waypoints' only on
+        # frames 15/30/49, leaving the timing of steps between them to Kimodo.
+        self.root_condition = root_condition
         self.goal = load_goal(motion_goal)
         self.history_source = history_source
         self.noise_seed = noise_seed  # repeats of one goal differ only in Kimodo's sampling noise
@@ -199,6 +208,8 @@ class LocomotionPolicy(OraclePolicy):
         root = representation.slice_dict['smooth_root_pos'].start
         heading = representation.slice_dict['global_root_heading']
         for k, xz in zip(frames, path):
+            if self.root_condition == 'waypoints' and k not in (15, 30, 49):
+                continue
             values[k, root], values[k, root+2] = float(xz[0]), float(xz[1])
             mask[k, root] = mask[k, root+2] = True
             values[k, heading], mask[k, heading] = self.heading_feature, True
@@ -213,7 +224,7 @@ class LocomotionPolicy(OraclePolicy):
                 (self.run/'target.json').write_text(json.dumps(self.target_info, indent=2))
             arrival = round((hand['start_s']+hand['duration_s'])*30)-cut
             keyframes = [arrival] if 0 < arrival < CANVAS else [] if arrival > 0 else [15, 30, 49]
-            dense = execution_frames(step, cut)
+            dense = execution_frames(step, cut, self.sent)
             for k in sorted(set(keyframes) | set(dense)):
                 position, rotation = self.hand_pose(np.array([(cut+k)/30]))
                 wrist = self.frame.points(np.stack([position[0], position[0] + rotation[0] @ self.hand_tip]))
@@ -261,13 +272,13 @@ class LocomotionPolicy(OraclePolicy):
         elapsed = time.perf_counter()-begin
         output = {k: v.cpu() if torch.is_tensor(v) else v for k, v in output.items()}
 
-        # Kimodo's 30 Hz frames on the 50 Hz control grid: the next SENT steps.
-        times = step*.6-cut+torch.arange(SENT+1)*.6
+        # Kimodo's 30 Hz frames on the 50 Hz control grid: the steps sent from this plan.
+        times = step*.6-cut+torch.arange(self.sent+1)*.6
         before = output['history_last_root_position'].reshape(1, 3)
         local, root = _interpolate_motion(torch.cat((output['local_rot_mats'][:1], output['local_rot_mats'])),
                                           torch.cat((before, output['root_positions'])), times+1)
         raw_local, raw_root = local[1:], root[1:]
-        zero_hands = torch.zeros(SENT, 2)
+        zero_hands = torch.zeros(self.sent, 2)
         boundary = self.features.codec.decode_joint_configuration_pose(np.array([obs['reference_joints']]),
             np.array([self.frame.points(obs['reference_root_pos']) @ BASIS]),
             root_rotation_matrices=np.array([self.frame.heading.T @ rotation_wxyz(obs['reference_root_quat'])]),
@@ -276,7 +287,7 @@ class LocomotionPolicy(OraclePolicy):
         raw_actions = self.features.codec.encode(raw_local, raw_root, previous_root_position=boundary_root,
                                                  hand_binary=zero_hands).numpy()
         sent_local, sent_root = blend_reference(raw_local, raw_root, boundary['local_rot_mats'][0], boundary_root,
-                                                np.arange(1, SENT+1)/50, self.handoff_seconds)
+                                                np.arange(1, self.sent+1)/50, self.handoff_seconds)
         actions = self.features.codec.encode(sent_local, sent_root, previous_root_position=boundary_root,
                                              hand_binary=zero_hands).numpy()
         actions[:, 9:38] = bounded_hinge_trajectory(sent_local, self.features.codec, self.fk.joint_limits,
@@ -289,13 +300,18 @@ class LocomotionPolicy(OraclePolicy):
             return rotation, np.array([w[0] for w in wrists]), np.array([w[1] for w in wrists])
         raw_rotation, raw_wrist, _ = world_pose(raw_actions, raw_root)
         sent_rotation, sent_wrist, _ = world_pose(actions, sent_root)
+        sent_feet = np.array([self.fk(a[9:38], self.frame.world(p), r, body_names=self.foot_names)[0]
+                              for a, p, r in zip(actions, sent_root.numpy(), sent_rotation)])
+        raw_feet = np.array([self.fk(a[9:38], self.frame.world(p), r, body_names=self.foot_names)[0]
+                             for a, p, r in zip(raw_actions, raw_root.numpy(), raw_rotation)])
         rows = [{'plan': self.plan_index, 'action_index': i, 'time': obs['time']+(i+1)/50,
                  'raw_projected_wrist': raw_wrist[i].tolist(), 'sent_wrist': sent_wrist[i].tolist(),
                  'raw_joints': raw_actions[i, 9:38].tolist(), 'sent_joints': actions[i, 9:38].tolist(),
                  'raw_root_world': self.frame.world(raw_root[i].numpy()).tolist(),
                  'sent_root_world': self.frame.world(sent_root[i].numpy()).tolist(),
                  'raw_root_rotation_world': raw_rotation[i].tolist(),
-                 'sent_root_rotation_world': sent_rotation[i].tolist()} for i in range(SENT)]
+                 'sent_root_rotation_world': sent_rotation[i].tolist(),
+                 'raw_feet': raw_feet[i].tolist(), 'sent_feet': sent_feet[i].tolist()} for i in range(self.sent)]
         with (self.run/'commands.jsonl').open('a') as f:
             f.write(''.join(json.dumps(x)+'\n' for x in rows))
 
@@ -304,11 +320,11 @@ class LocomotionPolicy(OraclePolicy):
             previous_root_position=before[0], hand_binary=torch.zeros(CANVAS, 2)).numpy()
         _, future_wrist, future_wrist_rotation = world_pose(all_actions, output['root_positions'])
         future_root = self.frame.world(output['root_positions'].numpy())
-        root_frames = list(range(1, CANVAS))
+        root_frames = list(range(1, CANVAS)) if self.root_condition == 'path' else [15, 30, 49]
         path_world = self.frame.world(np.insert(self.root_xz((cut+np.arange(CANVAS))/30), 1, 0., axis=1))[:, :2]
         record = {'plan': self.plan_index, 'time': obs['time'], 'cut': cut, 'keyframes': keyframes,
                   'dense_hand_frames': dense, 'root_frames': root_frames, 'hand_constraints': 'continuous',
-                  'history_source': self.history_source, 'history_condition_frames': int(hist_mask.any(-1).sum()),
+                  'history_source': self.history_source, 'sent_steps': self.sent, 'root_condition': self.root_condition, 'history_condition_frames': int(hist_mask.any(-1).sum()),
                   'inference_s': elapsed, 'constraint_cfg': self.constraint_cfg, 'diffusion_steps': self.steps,
                   'variant': self.variant, 'handoff_seconds': self.handoff_seconds,
                   'joint_speed_rad_s': self.joint_speed, 'support_constraints': 'none', 'trajectory_projection': 'none',

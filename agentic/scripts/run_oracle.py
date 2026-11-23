@@ -46,6 +46,9 @@ def parse_args(argv=None):
     p.add_argument('--start-xy',type=float,nargs=2,metavar=('X','Y'),help='With --motion-goal: world position to start from instead of the task reset position')
     p.add_argument('--history-source',choices=['reference','measured','measured-last'],default='reference',
         help='With --motion-goal: what Kimodo sees as the past, the reference it sent or the measured body')
+    p.add_argument('--sent-steps',type=int,default=25,help='With --motion-goal: control steps executed from each 1.63 s plan before planning again')
+    p.add_argument('--root-condition',choices=['path','waypoints'],default='path',
+        help='With --motion-goal: condition the root ground point on every future frame, or only on three')
     p.add_argument('--noise-seed',type=int,help='With --motion-goal: seed of Kimodo\'s sampling noise, to repeat one goal with different motions')
     p.add_argument('--actuator-audit',action='store_true')
     p.add_argument('--dynamics-profile',choices=['sensor-load','actuator','actuator-load'])
@@ -167,7 +170,8 @@ def main():
         '--support-constraints',a.support_constraints,'--hand-constraints',a.hand_constraints,'--trajectory-projection',a.trajectory_projection]
     if a.settled_goal:policycmd+=['--archived-goal',str(a.settled_goal.resolve())]
     if a.motion_goal:
-        policycmd+=['--motion-goal',str(a.motion_goal.resolve()),'--history-source',a.history_source]
+        policycmd+=['--motion-goal',str(a.motion_goal.resolve()),'--history-source',a.history_source,
+                    '--sent-steps',str(a.sent_steps),'--root-condition',a.root_condition]
         if a.noise_seed is not None:policycmd+=['--noise-seed',str(a.noise_seed)]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
@@ -223,7 +227,8 @@ def main():
     if a.vlm_model:record.update(experiment='VLM-A',oracle=False)
     if a.motion_goal:record.update(experiment='MOTION-GOAL',oracle=False,target_source='motion_goal',
         motion_goal=json.loads(a.motion_goal.read_text()),motion_goal_sha256=sha(a.motion_goal),
-        start_xy=a.start_xy,history_source=a.history_source,noise_seed=a.noise_seed)
+        start_xy=a.start_xy,history_source=a.history_source,noise_seed=a.noise_seed,
+        sent_steps=a.sent_steps,root_condition=a.root_condition)
     record['arena_sha256']={f:sha(arena/f) for f in (
         'action_provider/action_provider_sonic.py','action_provider/vla_robot_current_local_runtime_v3.py',
         'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')}

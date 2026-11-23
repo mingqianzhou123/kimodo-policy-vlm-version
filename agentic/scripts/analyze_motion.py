@@ -37,6 +37,24 @@ def pitch_deg(rotation, heading):
     return float(np.degrees(np.arctan2(up[0], up[2])))
 
 
+def gait(feet, lift=.03, low=.015):
+    """Does a 50 Hz foot trajectory [T, 2, 3] step or slide?
+
+    A foot is down while its ankle is within ``low`` of the lowest height it ever has, and swinging
+    while more than ``lift`` above it. ``slide_m`` is the horizontal distance the feet cover while
+    down, which a walk without skating keeps near zero; ``travel_m`` is what they cover in total.
+    """
+    feet = np.asarray(feet, dtype=float)
+    height = feet[..., 2]-feet[..., 2].min(axis=0)
+    move = np.linalg.norm(np.diff(feet[..., :2], axis=0), axis=-1)
+    down = (height[1:] < low) & (height[:-1] < low)
+    swing = height > lift
+    swings = int((swing[1:] & ~swing[:-1]).sum())
+    return {'slide_m': float(move[down].sum()), 'travel_m': float(move.sum()), 'swings': swings,
+            'max_lift_cm': 100*float(height.max()),
+            'slide_share': float(move[down].sum()/max(move.sum(), 1e-9))}
+
+
 def analyze(run, fk=None):
     run = Path(run)
     target = json.loads((run/'target.json').read_text())
@@ -61,6 +79,8 @@ def analyze(run, fk=None):
            'root_tracking_cm': {'mean': 100*float(np.linalg.norm(root-reference_root, axis=1).mean()),
                                 'max': 100*float(np.linalg.norm(root-reference_root, axis=1).max())},
            'kimodo_root_path_cm_max': 100*float(max(p['root_path_error_m'] for p in plans))}
+    out['gait'] = {'reference': gait([s['reference_foot_world'] for s in steps]),
+                   'actual': gait([a['foot_pos'] for a in after])}
     if fk is not None:
         torso = [fk(a['joints'], a['root_pos'], r, body_names=['torso_link'])[1][0] for a, r in zip(after, rotation)]
         lean = np.array([pitch_deg(r, heading) for r in torso])
@@ -121,6 +141,8 @@ def main():
         if 'root' in result:
             r = result['root']
             line += f" done={100*r['completion']:.0f}% ref={100*r['reference_completion']:.0f}% end={r['final_error_cm']:.1f}cm yaw={r['final_yaw_deg']:.1f}"
+        g = result['gait']
+        line += f" slide ref/act={100*g['reference']['slide_share']:.0f}/{100*g['actual']['slide_share']:.0f}% swings={g['reference']['swings']}/{g['actual']['swings']}"
         if 'torso_pitch_deg' in result:
             line += f" lean={result['torso_pitch_deg']['max']:.1f}"
         if 'hand' in result and 'position_cm' in result['hand']:
