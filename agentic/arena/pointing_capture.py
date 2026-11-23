@@ -190,6 +190,7 @@ def run(env, spec, scene_name, out):
     from pxr import UsdGeom
     from arena.vlm_capture import capture
     scene, stage = spec['scenes'][scene_name], env.sim.get_initial_stage()
+    (out/f'started-{scene_name}').write_text('')  # tells the launcher that start-up got through
     for folder in ('inputs', 'truth/meshes'):
         (out/folder).mkdir(parents=True, exist_ok=True)
     if os.environ.get('POINTING_PROBE') == '1':

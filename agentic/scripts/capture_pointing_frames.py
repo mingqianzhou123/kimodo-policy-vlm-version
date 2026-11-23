@@ -9,12 +9,14 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import time
 
 from paths import AGENTIC as ROOT, REPO, sim_cache
 
 ARENA = 'sources/HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783/isaaclab_twist2_g1'
+START_TIMEOUT_S, ATTEMPTS = 300, 6
 
 
 def sha(path):
@@ -50,17 +52,32 @@ def capture_scene(name, scene, spec_path, out, gpu, probe, cache):
         '--lerobot_server_url', 'http://127.0.0.1:9', '--step_log_every_n', '50',
         '--sonic_encoder_path', str(cache/'sim-assets/sonic/model_encoder.onnx'),
         '--sonic_decoder_path', str(cache/'sim-assets/sonic/model_decoder.onnx')]
-    done = out/f'captured-{name}'
+    done, started = out/f'captured-{name}', out/f'started-{name}'
     try:
-        with (out/f'simulation-{name}.log').open('w') as log:
-            subprocess.run(command, env=env, cwd=arena, stdout=log, stderr=subprocess.STDOUT, timeout=1800)
-        if not done.is_file():
-            raise RuntimeError(f'Capture of {name} did not finish; inspect simulation-{name}.log')
+        # Simulator start-up sometimes deadlocks while loading materials (seen on DoubleDesk), before
+        # any capture code runs. Nothing has been written at that point, so a restart is clean.
+        for attempt in range(1, ATTEMPTS+1):
+            with (out/f'simulation-{name}.log').open('w') as log:
+                sim = subprocess.Popen(command, env=env, cwd=arena, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                begun = time.monotonic()
+                while sim.poll() is None:
+                    waited = time.monotonic()-begun
+                    if (waited > START_TIMEOUT_S and not started.exists()) or waited > 1800:
+                        os.killpg(sim.pid, signal.SIGKILL)
+                    time.sleep(2)
+            shutil.rmtree(runtime, ignore_errors=True)
+            if done.is_file():
+                break
+            if started.exists():
+                raise RuntimeError(f'Capture of {name} failed after it began; inspect simulation-{name}.log')
+            print(f'{name}: simulator did not start within {START_TIMEOUT_S} s (attempt {attempt})', flush=True)
+        else:
+            raise RuntimeError(f'Simulator for {name} did not start in {ATTEMPTS} attempts')
     finally:
         shutil.rmtree(runtime, ignore_errors=True)
-        for path in (done, episodes):
+        for path in (done, started, episodes):
             path.unlink(missing_ok=True)
-    return {'arena_env_config_sha256': sha(arena/scene['env_config'])}
+    return {'arena_env_config_sha256': sha(arena/scene['env_config']), 'simulator_starts': attempt}
 
 
 def main():

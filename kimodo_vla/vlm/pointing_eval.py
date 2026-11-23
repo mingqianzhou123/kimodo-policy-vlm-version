@@ -16,8 +16,10 @@ ON_OBJECT_M = .008  # a depth pixel belongs to an object when its 3D point is th
 NEAR_PX = 10        # "only slightly off": this close to the target in the image
 MAX_SAMPLES = 1_500_000
 MIN_GRASPABLE_PX = 12
-RULES = {'occlusion': 'visible_fraction in [0.2, 0.85]', 'distractor': 'at least 2 other objects in view',
-         'small': 'target covers at most 2000 px', 'distance': 'unoccluded target; near/mid/far recorded'}
+RULES = {'all': 'at least 12 px of graspable surface visible', 'occlusion': 'visible_fraction in [0.2, 0.85]',
+         'distractor': 'at least 2 other objects in view; visible_fraction >= 0.8',
+         'small': 'target covers at most 2000 px; visible_fraction >= 0.8',
+         'distance': 'visible_fraction >= 0.8; near (<0.8 m), mid, far (>=1.6 m) recorded per frame'}
 
 
 def rotation(q):
@@ -224,7 +226,7 @@ def check_frame(category, entry):
         problems.append('fewer than 2 other objects in view')
     if category == 'small' and entry['visible_px'] > 2000:
         problems.append('target is not small in the image')
-    if category == 'distance' and entry['visible_fraction'] < .9:
+    if category in ('distance', 'small', 'distractor') and entry['visible_fraction'] < .8:
         problems.append('target is hidden')
     return problems
 
