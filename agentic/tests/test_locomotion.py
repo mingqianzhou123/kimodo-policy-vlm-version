@@ -326,3 +326,22 @@ def test_chain_prediction_compares_the_rollout_with_the_measured_run_by_horizon(
     assert errors['3.0']['kimodo']['root_pos_cm'] == pytest.approx(36.) and errors['3.0']['persistence']['root_pos_cm'] == pytest.approx(30.)
     assert errors['5.0']['kimodo']['wrist_pos_cm'] == pytest.approx([56., 56.]) and errors['1.0']['kimodo']['root_rot_deg'] == pytest.approx(0., abs=1e-4)
     assert list(chain_errors(rows[:200], measured, 10.6)) == ['0.5', '1.0', '1.5', '3.0']
+
+
+def test_record_tables_have_one_row_per_run():
+    from analyze_motion import markdown
+    walk = {'goal': 'left-050', 'seed': 1000, 'fell': False, 'walk_timed_out': True, 'arrived': True,
+            'phase_times_s': {'walk': .6, 'stop': 15.6},
+            'root': {'completion': .07, 'final_error_cm': 68.3, 'sideways_cm': 3., 'final_yaw_deg': 3.8}}
+    lean = {'goal': 'lean-30-waist', 'seed': 1001, 'fell': False, 'lean': {'commanded_deg': 30, 'reference_deg': 27.9,
+            'actual_deg': 7., 'actual_max_deg': 14.4}, 'lean_parts_deg': {'waist_joint_reference': 26.4,
+            'waist_joint_actual': .4, 'pelvis_pitch_change_actual': 6.9}}
+    reach = {'goal': 'd035-h095-level', 'seed': 1000, 'fell': False, 'arrived': True, 'walk_timed_out': False, 'phase_times_s': {},
+             'hand': {'reached': False, 'closest_cm': 4., 'position_cm': {'mean': 7.6, 'max': 11.9}, 'orientation_deg': {'mean': 53.},
+                      'target_to_reference_cm': 3.9, 'reference_to_actual_cm': 9.4, 'kimodo_keyframe_cm': 8.6, 'kimodo_keyframe_deg': 40.}}
+    stuck = {**reach, 'goal': 'd180-h095-level', 'arrived': False, 'walk_timed_out': True, 'root': {}, 'phase_times_s': {'walk': .6, 'stop': 34.}}
+    text = markdown([walk, lean, reach, stuck])
+    assert '| left-050-s1000 | 否 | 7% | 68.3 | 3.0 | 3.8 | 15.0 | 是 |' in text
+    assert '| lean-30-waist-s1001 | 否 | 30 | 27.9 | 7.0 | 14.4 | 26.4 / 0.4 | 6.9 |' in text
+    assert '| d035-h095-level | 不用走 | 否 | 否 | 7.6 / 11.9 | 53 | 3.9 | 9.4 | 8.6 / 40 |' in text
+    assert '| d180-h095-level | 否 | 否 | 否 | 没有伸手（最近 4 cm）| — | — | — | — |' in text

@@ -144,9 +144,45 @@ def analyze(run, fk=None):
     return out
 
 
+def markdown(results):
+    """The record's tables for a set of results: one row per run, grouped by kind of goal."""
+    def number(value, digits=1):
+        return '—' if value is None else f'{value:.{digits}f}'
+    lines = []
+    walks = [r for r in results if 'root' in r and 'hand' not in r]
+    if walks:
+        lines += ['| 运行 | 跌倒 | 完成比例 | 终点误差 cm | 横向偏移 cm | 最终偏航 ° | 走了多久 s | 超时 |', '|---|---|---:|---:|---:|---:|---:|---|']
+        for r in walks:
+            t, w = r['phase_times_s'], r['root']
+            walked = t['stop']-t['walk'] if 'stop' in t else None
+            lines.append(f"| {r['goal']}-s{r['seed']} | {'是' if r['fell'] else '否'} | {100*w['completion']:.0f}% | {w['final_error_cm']:.1f} | "
+                         f"{w['sideways_cm']:.1f} | {w['final_yaw_deg']:.1f} | {number(walked)} | {'是' if r['walk_timed_out'] or walked is None else '否'} |")
+    leans = [r for r in results if 'lean' in r]
+    if leans:
+        lines += ['', '| 运行 | 跌倒 | 要求 ° | 参考 ° | 实际（保持段均值）° | 实际峰值 ° | 腰关节 参考 / 实际 ° | 骨盆俯仰变化 ° |', '|---|---|---:|---:|---:|---:|---:|---:|']
+        for r in leans:
+            a, b = r['lean'], r['lean_parts_deg']
+            lines.append(f"| {r['goal']}-s{r['seed']} | {'是' if r['fell'] else '否'} | {a['commanded_deg']:.0f} | {a['reference_deg']:.1f} | {a['actual_deg']:.1f} | "
+                         f"{a['actual_max_deg']:.1f} | {b['waist_joint_reference']:.1f} / {b['waist_joint_actual']:.1f} | {b['pelvis_pitch_change_actual']:.1f} |")
+    hands = [r for r in results if 'hand' in r]
+    if hands:
+        lines += ['', '| 目标点 | 走到位 | 跌倒 | 到达 | 位置误差 均值 / 最大 cm | 朝向误差 均值 ° | 目标→参考 cm | 参考→实际 cm | Kimodo 原始输出 cm / ° |', '|---|---|---|---|---:|---:|---:|---:|---:|']
+        for r in hands:
+            h = r['hand']
+            walked = '不用走' if 'root' not in r else '否' if r['walk_timed_out'] or 'stop' not in r['phase_times_s'] else f"是，{r['phase_times_s']['stop']-r['phase_times_s']['walk']:.0f} s"
+            if 'position_cm' in h and r['arrived']:
+                cells = (f"{h['position_cm']['mean']:.1f} / {h['position_cm']['max']:.1f} | {h['orientation_deg']['mean']:.0f} | "
+                         f"{h['target_to_reference_cm']:.1f} | {h['reference_to_actual_cm']:.1f} | {h['kimodo_keyframe_cm']:.1f} / {h['kimodo_keyframe_deg']:.0f}")
+            else:
+                cells = f"没有伸手（最近 {h['closest_cm']:.0f} cm）| — | — | — | —"
+            lines.append(f"| {r['goal']} | {walked} | {'是' if r['fell'] else '否'} | {'是' if h['reached'] else '否'} | {cells} |")
+    return '\n'.join(lines)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('pattern', help='run name pattern, e.g. "exp2-sidestep-*"')
+    p.add_argument('--markdown', action='store_true', help='also write the tables of the record to motion.md')
     args = p.parse_args()
     runs = sorted(r for r in RUNS.glob(args.pattern) if (r/'execution.jsonl').exists() and (r/'target.json').exists()
                   and 'motion_goal' in json.loads((r/'target.json').read_text()))
@@ -177,6 +213,9 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(results, indent=1))
     print(out)
+    if args.markdown:
+        out.with_suffix('.md').write_text(markdown(results)+'\n')
+        print(out.with_suffix('.md'))
 
 
 if __name__ == '__main__':
