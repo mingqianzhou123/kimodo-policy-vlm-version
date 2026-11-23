@@ -1,7 +1,7 @@
 """Compose static scenes in the simulator and capture first-person RGB-D frames for the pointing test.
 
-Objects are visual copies outside physics, placed by writing their pose, so every pose is exactly
-the one recorded. Truth (poses, meshes, target identity) goes to ``truth/`` and never
+Objects are visual copies outside physics and physics is never stepped, so every pose is exactly
+the one written here. Truth (poses, meshes, target identity) goes to ``truth/`` and never
 enters the files a model reads in ``inputs/``.
 """
 import importlib
@@ -126,31 +126,28 @@ def place_robot(env, x, y, yaw_deg):
 
 
 def camera_mount(env, stage, camera_name='front_camera'):
-    """Fixed pose of the camera in the robot body that carries it.
+    """Fixed pose of the head camera in the robot root frame, for the default joint posture.
 
     The simulator's own camera pose is read from the scene description, which physics does not
-    update: it stays at the spawn pose however the robot moves. Both poses below come from that
-    same description, so their ratio is the true mount; the live body pose comes from physics.
+    update: it stays at the spawn pose however the robot moves. The root pose below comes from that
+    same description, so the ratio of the two is the true mount.
     """
     from pxr import Usd, UsdGeom
     from kimodo_vla.oracle.geometry import rotation_wxyz
     robot, camera = env.scene['robot'], env.scene[camera_name]
     camera.cfg.update_latest_camera_pose = True
     camera.update(0., force_recompute=True)
-    names = list(robot.body_names)
-    body = 'd435_link' if 'd435_link' in names else 'torso_link'
-    M = np.array(UsdGeom.XformCache(Usd.TimeCode.Default()).GetLocalToWorldTransform(stage.GetPrimAtPath(f'/World/envs/env_0/Robot/{body}')))
-    body_rotation = (M[:3, :3]/np.linalg.norm(M[:3, :3], axis=1, keepdims=True)).T
+    root = stage.GetPrimAtPath(f'/World/envs/env_0/Robot/{robot.body_names[0]}')
+    M = np.array(UsdGeom.XformCache(Usd.TimeCode.Default()).GetLocalToWorldTransform(root))
+    root_rotation = (M[:3, :3]/np.linalg.norm(M[:3, :3], axis=1, keepdims=True)).T
     rotation = rotation_wxyz(camera.data.quat_w_ros[0].detach().cpu().numpy())
     position = camera.data.pos_w[0].detach().cpu().numpy()
-    return {'body': body, 'index': names.index(body), 'rotation': body_rotation.T @ rotation,
-            'position': body_rotation.T @ (position-M[3, :3])}
+    return {'rotation': root_rotation.T @ rotation, 'position': root_rotation.T @ (position-M[3, :3])}
 
 
-def camera_pose(env, mount):
-    data = env.scene['robot'].data
-    rotation = quat_matrix(data.body_quat_w[0, mount['index']].detach().cpu().numpy())
-    return rotation @ mount['position']+data.body_pos_w[0, mount['index']].detach().cpu().numpy(), rotation @ mount['rotation']
+def camera_pose(root_pose, mount):
+    rotation = quat_matrix(root_pose[3:7])
+    return rotation @ mount['position']+root_pose[:3], rotation @ mount['rotation']
 
 
 def probe(env, stage, spec, out):
@@ -222,7 +219,7 @@ def run(env, spec, scene_name, out):
     for frame in spec['frames']:
         if frame['scene'] != scene_name:
             continue
-        place_robot(env, *frame['robot'])
+        robot_pose = place_robot(env, *frame['robot'])
         objects = {}
         for i, name in enumerate(scene['instances']):
             if name in frame['objects']:
@@ -235,20 +232,17 @@ def run(env, spec, scene_name, out):
                 set_pose(prims[name], (PARK[0]+3*i, PARK[1], PARK[2]), [1, 0, 0, 0])
         if frame['target'] not in objects:
             raise ValueError(f"{frame['id']}: target is not placed")
-        # One 5 ms physics step publishes the new robot pose to the camera; nothing else moves in that time.
-        env.sim.step(render=False)
-        env.scene.update(env.physics_dt)
-        robot_pose = env.scene['robot'].data.root_state_w[0, :7].detach().cpu().numpy()
+        env.sim.forward()
         capture(env, out/'inputs')
         with np.load(out/'inputs/vlm-capture.npz', allow_pickle=False) as f:
             data = {k: f[k].copy() for k in f.files}
         (out/'inputs/vlm-capture.npz').unlink()
-        data['camera_position'], data['camera_rotation'] = camera_pose(env, mount)
+        data['camera_position'], data['camera_rotation'] = camera_pose(robot_pose, mount)
         Image.fromarray(data['rgb']).save(out/'inputs'/f"{frame['id']}.png")
         # Geometry for back-projection. The model sees only the PNG and the instruction.
         np.savez_compressed(out/'inputs'/f"{frame['id']}.npz", **{k: v for k, v in data.items() if k != 'rgb'})
         records.append({'id': frame['id'], 'scene': scene_name, 'category': frame['category'], 'target': frame['target'],
-                        'instruction': frame['instruction'], 'objects': objects, 'robot_root_pose': robot_pose.tolist(), 'camera_body': mount['body'],
+                        'instruction': frame['instruction'], 'objects': objects, 'robot_root_pose': robot_pose.tolist(),
                         'robot_stance': frame['robot']})
     (out/f'truth/frames-{scene_name}.json').write_text(json.dumps(records, indent=1))
 
