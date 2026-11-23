@@ -192,9 +192,9 @@ def test_hosted_backends_refuse_to_guess_model_or_run_without_key(monkeypatch):
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
     released = json.loads((Path(__file__).resolve().parents[1]/'configs/pointing-backends.json').read_text())
     for name in ('openai', 'gemini'):
-        assert released[name]['model'] is None  # the exact version is the user's to give
+        assert released[name]['request'] == {}  # provider defaults unless the user asks otherwise
         with pytest.raises(SystemExit, match='exact model version'):
-            backends.API_BACKENDS[name](released[name])
+            backends.API_BACKENDS[name]({**released[name], 'model': None})
     with pytest.raises(SystemExit, match='OPENAI_API_KEY is not set'):
         backends.OpenAIBackend({'model': 'm', 'base_url': 'https://example.invalid'})
 

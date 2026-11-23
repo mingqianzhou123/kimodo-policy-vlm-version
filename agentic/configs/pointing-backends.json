@@ -1,16 +1,22 @@
 {
  "openai": {
-  "model": null,
+  "model": "gpt-6.2-astra",
   "base_url": "https://api.openai.com/v1",
   "request": {},
-  "price_per_million_tokens_usd": {"input": null, "output": null},
+  "price_per_million_tokens_usd": {
+   "input": 8.0,
+   "output": 40.0
+  },
   "timeout_s": 120
  },
  "gemini": {
-  "model": null,
+  "model": "gemini-4-argon",
   "base_url": "https://generativelanguage.googleapis.com/v1beta",
   "request": {},
-  "price_per_million_tokens_usd": {"input": null, "output": null},
+  "price_per_million_tokens_usd": {
+   "input": 2.0,
+   "output": 10.0
+  },
   "timeout_s": 120
  }
 }

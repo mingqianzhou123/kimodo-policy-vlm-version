@@ -41,6 +41,12 @@ def run(a):
                 continue
             image = Image.open(a.dataset/'inputs'/frame['image']).convert('RGB')
             result = LOCALIZERS[a.localizer](backend, image, frame['instruction'])
+            if any(g.get('http_status', 200) != 200 for g in result['generations']):
+                # A paid interface that fails once is not asked again: keep the failed call apart and stop.
+                # The frame stays undone, so the next run resumes with it.
+                with (a.out/'errors.jsonl').open('a') as errors:
+                    errors.write(json.dumps({'frame_id': frame['id'], 'called_at': datetime.now(timezone.utc).isoformat(), **result})+'\n')
+                raise SystemExit(f"{frame['id']}: the interface returned an error; see {a.out/'errors.jsonl'}")
             log.write(json.dumps({'frame_id': frame['id'], 'instruction': frame['instruction'], 'backend': a.backend,
                 'model': backend.info['model'], 'localizer': a.localizer, 'origin': a.origin,
                 'called_at': datetime.now(timezone.utc).isoformat(), **result})+'\n')
