@@ -105,6 +105,34 @@ def place_robot(env, x, y, yaw_deg):
     return root[0, :7].detach().cpu().numpy()
 
 
+def camera_mount(env, stage, camera_name='front_camera'):
+    """Fixed pose of the camera in the robot body that carries it.
+
+    The simulator's own camera pose is read from the scene description, which physics does not
+    update: it stays at the spawn pose however the robot moves. Both poses below come from that
+    same description, so their ratio is the true mount; the live body pose comes from physics.
+    """
+    from pxr import Usd, UsdGeom
+    from kimodo_vla.oracle.geometry import rotation_wxyz
+    robot, camera = env.scene['robot'], env.scene[camera_name]
+    camera.cfg.update_latest_camera_pose = True
+    camera.update(0., force_recompute=True)
+    names = list(robot.body_names)
+    body = 'd435_link' if 'd435_link' in names else 'torso_link'
+    M = np.array(UsdGeom.XformCache(Usd.TimeCode.Default()).GetLocalToWorldTransform(stage.GetPrimAtPath(f'/World/envs/env_0/Robot/{body}')))
+    body_rotation = (M[:3, :3]/np.linalg.norm(M[:3, :3], axis=1, keepdims=True)).T
+    rotation = rotation_wxyz(camera.data.quat_w_ros[0].detach().cpu().numpy())
+    position = camera.data.pos_w[0].detach().cpu().numpy()
+    return {'body': body, 'index': names.index(body), 'rotation': body_rotation.T @ rotation,
+            'position': body_rotation.T @ (position-M[3, :3])}
+
+
+def camera_pose(env, mount):
+    data = env.scene['robot'].data
+    rotation = quat_matrix(data.body_quat_w[0, mount['index']].detach().cpu().numpy())
+    return rotation @ mount['position']+data.body_pos_w[0, mount['index']].detach().cpu().numpy(), rotation @ mount['rotation']
+
+
 def probe(env, stage, spec, out):
     """Layout facts needed to write frame specifications: furniture extents and asset sizes."""
     from PIL import Image
@@ -170,7 +198,7 @@ def run(env, spec, scene_name, out):
         if not target.exists():
             np.savez_compressed(target, vertices=vertices, faces=faces, graspable=graspable)
         lowest[asset_name] = float(vertices[:, 2].min())
-    records = []
+    records, mount = [], camera_mount(env, stage)
     for frame in spec['frames']:
         if frame['scene'] != scene_name:
             continue
@@ -195,11 +223,12 @@ def run(env, spec, scene_name, out):
         with np.load(out/'inputs/vlm-capture.npz', allow_pickle=False) as f:
             data = {k: f[k].copy() for k in f.files}
         (out/'inputs/vlm-capture.npz').unlink()
+        data['camera_position'], data['camera_rotation'] = camera_pose(env, mount)
         Image.fromarray(data['rgb']).save(out/'inputs'/f"{frame['id']}.png")
         # Geometry for back-projection. The model sees only the PNG and the instruction.
         np.savez_compressed(out/'inputs'/f"{frame['id']}.npz", **{k: v for k, v in data.items() if k != 'rgb'})
         records.append({'id': frame['id'], 'scene': scene_name, 'category': frame['category'], 'target': frame['target'],
-                        'instruction': frame['instruction'], 'objects': objects, 'robot_root_pose': robot_pose.tolist(),
+                        'instruction': frame['instruction'], 'objects': objects, 'robot_root_pose': robot_pose.tolist(), 'camera_body': mount['body'],
                         'robot_stance': frame['robot']})
     (out/f'truth/frames-{scene_name}.json').write_text(json.dumps(records, indent=1))
 
