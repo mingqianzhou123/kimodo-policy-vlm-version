@@ -6,6 +6,11 @@ is never told the root position, covers less). This shows in half a minute what 
 under the goal's conditions (does it step or slide) and whether replanning from the measured
 position still converges on the goal. The start pose is the first measured sample of an
 existing run.
+
+``--against RUN`` repeats a simulator run's goal, seed and plan length from that run's own first
+sample with a perfect tracker, and compares the result with what the run measured 0.5 to 5 s
+after its walk began. That is Kimodo's prediction over several chained plans (ten 0.5 s plans
+for 5 s), next to "the body stays where it was".
 """
 import argparse
 import json
@@ -16,6 +21,7 @@ from scipy.spatial.transform import Rotation
 
 from paths import CHECKPOINTS, RUNS, sim_cache
 from analyze_motion import gait
+from kimodo_vla.oracle.geometry import angle_deg, rotation_wxyz
 from kimodo_vla.oracle.locomotion import LocomotionPolicy, episode_seconds
 
 
@@ -49,11 +55,40 @@ def follow(policy, start, seconds, carry=1.):
     return executed
 
 
+CHAIN_HORIZONS = (.5, 1., 1.5, 3., 5.)
+
+
+def chain_errors(rows, measured, begin):
+    """Torso and wrist error of a perfect-tracker rollout against a run's measured samples, by horizon.
+
+    ``rows`` are the rollout's executed rows, ``measured`` the run's ``after`` samples, ``begin`` the
+    time the walk began in both. Persistence compares the sample at ``begin`` with the later one.
+    """
+    def nearest(items, when):
+        best = min(items, key=lambda x: abs(x['time']-when))
+        return best if abs(best['time']-when) < .011 else None
+    now, out = nearest(measured, begin), {}
+    for horizon in CHAIN_HORIZONS:
+        predicted, actual = nearest(rows, begin+horizon), nearest(measured, begin+horizon)
+        if predicted is None or actual is None or now is None:
+            continue
+        actual_rot, now_rot = rotation_wxyz(actual['root_quat']), rotation_wxyz(now['root_quat'])
+        out[str(horizon)] = {
+            'kimodo': {'root_pos_cm': 100*float(np.linalg.norm(np.array(predicted['sent_root_world'])-actual['root_pos'])),
+                       'root_rot_deg': angle_deg(np.array(predicted['sent_root_rotation_world']), actual_rot),
+                       'wrist_pos_cm': (100*np.linalg.norm(np.array(predicted['sent_wrist'])-actual['wrist_pos'], axis=1)).tolist()},
+            'persistence': {'root_pos_cm': 100*float(np.linalg.norm(np.array(now['root_pos'])-actual['root_pos'])),
+                            'root_rot_deg': angle_deg(now_rot, actual_rot),
+                            'wrist_pos_cm': (100*np.linalg.norm(np.array(now['wrist_pos'])-actual['wrist_pos'], axis=1)).tolist()}}
+    return out
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--run-id', required=True)
-    p.add_argument('--motion-goal', required=True, type=Path)
-    p.add_argument('--start-from', required=True, help='finished run whose first measured sample is the start pose')
+    p.add_argument('--motion-goal', type=Path)
+    p.add_argument('--start-from', help='finished run whose first measured sample is the start pose')
+    p.add_argument('--against', help='finished simulator run to repeat with a perfect tracker and compare with')
     p.add_argument('--carry', type=float, default=1., help='share of each commanded ground displacement the body covers')
     p.add_argument('--walk-steps', type=int, default=75)
     p.add_argument('--noise-seed', type=int, default=1000)
@@ -61,8 +96,19 @@ def main():
     p.add_argument('--joint-speed', type=float, default=4.)
     p.add_argument('--seconds', type=float, help='default: the goal\'s longest possible episode')
     args = p.parse_args()
+    if args.against:
+        theirs = json.loads((RUNS/args.against/'target.json').read_text())
+        manifest = json.loads((RUNS/args.against/'run.json').read_text())
+        goal_file = RUNS/args.run_id/'goal.json'
+        args.start_from, args.noise_seed, args.walk_steps = args.against, theirs['noise_seed'], theirs['walk_steps']
+        args.constraint_cfg, args.joint_speed, args.carry = 2., manifest['joint_speed_rad_s'], 1.
+    elif not (args.motion_goal and args.start_from):
+        raise SystemExit('Give --motion-goal and --start-from, or --against')
     run = RUNS/args.run_id
     run.mkdir(exist_ok=False)
+    if args.against:
+        goal_file.write_text(json.dumps(theirs['motion_goal']))
+        args.motion_goal = goal_file
     start = json.loads((RUNS/args.start_from/'execution.jsonl').open().readline())['before']
     policy = LocomotionPolicy(CHECKPOINTS/'Kimodo-G1-RP-v1', sim_cache()/'text-eval', run, 'hold',
         constraint_cfg=args.constraint_cfg, variant='bounded', joint_speed=args.joint_speed,
@@ -87,6 +133,16 @@ def main():
         final = np.linalg.norm(np.array(rows[-1]['sent_wrist'][i])-policy.hand_goal)
         result['reference_wrist_goal_cm_final'] = 100*float(final)
         line += f", reference wrist ends {100*final:.1f} cm from target"
+    if args.against:
+        steps = [json.loads(x) for x in (RUNS/args.against/'execution.jsonl').read_text().splitlines()]
+        walk = next((x for x in policy.phases if x['phase'] == 'walk'), None)
+        theirs_walk = next((x for x in theirs['phases'] if x['phase'] == 'walk'), None)
+        if walk is None or theirs_walk is None or abs(walk['time']-theirs_walk['time']) > 1e-6:
+            raise SystemExit('The rollout and the run did not begin a walk at the same time')
+        result['chain_prediction'] = chain_errors(rows, [x['after'] for x in steps], walk['time'])
+        line += ' | chain root cm kimodo/persistence: ' + ' '.join(
+            f"{h}s {e['kimodo']['root_pos_cm']:.0f}/{e['persistence']['root_pos_cm']:.0f}"
+            for h, e in result['chain_prediction'].items())
     (run/'rollout.json').write_text(json.dumps(result, indent=1, default=str))
     print(line)
 

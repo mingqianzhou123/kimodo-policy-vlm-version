@@ -295,3 +295,19 @@ def test_arm_ik_moves_only_the_reaching_arm_and_only_near_the_target(tmp_path):
     # The stand-in never moves the arm, so everything the wrist gains comes from the arm solve.
     assert np.linalg.norm(np.array(rows[-1]['sent_wrist'][1])-policy.hand_goal) < .01
     assert plans[-1]['arm_ik_left_cm_max'] < 1.
+
+
+def test_chain_prediction_compares_the_rollout_with_the_measured_run_by_horizon():
+    from rollout_kimodo import chain_errors
+    eye, quat = np.eye(3).tolist(), [1., 0., 0., 0.]
+    times = 10+np.arange(0, 300)/50
+    rows = [{'time': t, 'sent_root_world': [.2*(t-10), 0., .78], 'sent_root_rotation_world': eye,
+             'sent_wrist': [[.2*(t-10), .2, .9], [.2*(t-10), -.2, .9]]} for t in times]
+    measured = [{'time': t, 'root_pos': [.1*(t-10), 0., .78], 'root_quat': quat,
+                 'wrist_pos': [[.1*(t-10), .2, .9], [.1*(t-10), -.2, .9]]} for t in times]
+    errors = chain_errors(rows, measured, 10.6)
+    assert list(errors) == ['0.5', '1.0', '1.5', '3.0', '5.0']
+    # Predicted 0.2 m/s, walked 0.1 m/s: the prediction is off by the lag, staying put by the distance walked.
+    assert errors['3.0']['kimodo']['root_pos_cm'] == pytest.approx(36.) and errors['3.0']['persistence']['root_pos_cm'] == pytest.approx(30.)
+    assert errors['5.0']['kimodo']['wrist_pos_cm'] == pytest.approx([56., 56.]) and errors['1.0']['kimodo']['root_rot_deg'] == pytest.approx(0., abs=1e-4)
+    assert list(chain_errors(rows[:200], measured, 10.6)) == ['0.5', '1.0', '1.5', '3.0']
