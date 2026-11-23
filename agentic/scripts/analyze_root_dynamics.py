@@ -3,11 +3,11 @@ import json
 from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
+from paths import G1_XML
 from kimodo_vla.core.types import G1_JOINT_NAMES
 from kimodo_vla.oracle.geometry import XmlFK,rotation_wxyz
 from kimodo_vla.oracle.recorded_reference import read_rows
 from analyze_sonic_replay import vector_stats
-from paths import G1_XML
 FEET=['left_ankle_roll_link','right_ankle_roll_link']
 
 def decompose(root,refroot,feet,reffoot,localfeet,reflocal,rotation,refrotation):

@@ -3,11 +3,11 @@ import argparse
 import json
 from pathlib import Path
 import numpy as np
+from paths import G1_XML
 from kimodo_vla.core.types import G1_JOINT_NAMES
 from kimodo_vla.oracle.geometry import XmlFK, rotation_wxyz, angle_deg
 from kimodo_vla.oracle.recorded_reference import read_rows, sha
 
-from paths import G1_XML
 ARMS=[i for i,n in enumerate(G1_JOINT_NAMES) if any(k in n for k in ('shoulder','elbow','wrist'))]
 RIGHT=[i for i in ARMS if G1_JOINT_NAMES[i].startswith('right_')]
 

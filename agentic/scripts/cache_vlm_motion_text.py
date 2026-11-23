@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import torch
+import paths  # noqa: F401  (puts this checkout on sys.path)
 from kimodo_vla.vlm.geometry import MOTION_TEXT
 from kimodo_vla.model.modules.llm2vec.llm2vec_wreapper import LLM2VecEncoder
 
