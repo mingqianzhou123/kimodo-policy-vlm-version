@@ -23,9 +23,9 @@ NEAR = {'name': 'near', 'hand': {'side': 'right', 'position': [.3, -.25, .9], 'a
 def test_goal_file_is_validated_and_bounded_in_time():
     assert load_goal(WALK)['root'] == {'xy': [.5, 0.], 'speed_m_s': .35, 'tolerance_m': .05}
     assert walk_allowance(load_goal(WALK)) == pytest.approx(.5/.05+5)
-    assert episode_seconds(load_goal(NEAR)) == pytest.approx(.5+1.5+2)
-    assert episode_seconds(load_goal(WALK)) == pytest.approx(.5+15+3.2+2)
-    assert episode_seconds(load_goal(REACH)) == pytest.approx(.5+np.hypot(.4, .1)/.05+5+3.2+1.5+2)
+    assert episode_seconds(load_goal(NEAR)) == pytest.approx(.7+1.5+2)
+    assert episode_seconds(load_goal(WALK)) == pytest.approx(.7+15+3.2+2)
+    assert episode_seconds(load_goal(REACH)) == pytest.approx(.7+np.hypot(.4, .1)/.05+5+3.2+1.5+2)
     for bad in ({'name': 'x'}, {'root': {'xy': [1, 0]}}, {'name': 'x', 'root': {'xy': [1, 0], 'speed_m_s': 3}},
                 {'name': 'x', 'root': {'xy': [1, 0], 'duration_s': 1}},
                 {'name': 'x', 'hand': {'side': 'both', 'position': [0, 0, 1], 'approach': [1, 0, 0], 'duration_s': 1}},
@@ -240,21 +240,35 @@ def test_gait_tells_stepping_from_sliding():
     assert stepping['max_lift_cm'] == pytest.approx(8., abs=.1) and stepping['foot_travel_m'] == pytest.approx(1., abs=.01)
 
 
-def test_leaned_pose_pitches_the_trunk_and_keeps_the_feet(tmp_path):
-    from kimodo_vla.oracle.locomotion import LEAN_FROM, leaned_pose
+@pytest.mark.parametrize('by', ['waist', 'hips'])
+def test_leaned_pose_pitches_the_trunk_and_keeps_the_feet(by):
+    from kimodo_vla.oracle.locomotion import leaned_pose
     from analyze_motion import pitch_deg
     fk = XmlFK(G1_XML_PATH, G1_JOINT_NAMES)
     feet = [f'{s}_ankle_roll_link' for s in SIDES]
-    rotation = Rotation.from_euler('z', .4).as_matrix()
+    rotation = Rotation.from_euler('z', .4).as_matrix() @ Rotation.from_euler('y', .03).as_matrix()
+    heading = Rotation.from_euler('z', .4).as_matrix()
     root, joints = np.array([-4., -4., .78]), np.zeros(29)
-    leaned, moved_root, pitched = leaned_pose(fk, joints, root, rotation, 30., feet)
+    joints[[G1_JOINT_NAMES.index(f'{s}_knee_joint') for s in SIDES]] = .3
+    joints[[G1_JOINT_NAMES.index(f'{s}_hip_pitch_joint') for s in SIDES]] = -.15
+    joints[[G1_JOINT_NAMES.index(f'{s}_ankle_pitch_joint') for s in SIDES]] = -.15
+    leaned, moved_root, pitched = leaned_pose(fk, joints, root, rotation, 30., feet, by)
     before = fk(joints, root, rotation, body_names=feet+['torso_link'])
     after = fk(leaned, moved_root, pitched, body_names=feet+['torso_link'])
     np.testing.assert_allclose(after[0][:2], before[0][:2], atol=1e-9)                 # ankles did not move
     np.testing.assert_allclose(after[1][:2], before[1][:2], atol=1e-9)                 # nor turn
-    assert pitch_deg(after[1][2], rotation)-pitch_deg(before[1][2], rotation) == pytest.approx(30., abs=1e-6)
-    assert leaned[G1_JOINT_NAMES.index('waist_pitch_joint')] <= fk.joint_limits[G1_JOINT_NAMES.index('waist_pitch_joint'), 1]
-    policy, start, _, _ = make_policy(tmp_path, {'name': 'lean-30', 'lean': {'pitch_deg': 30}})
+    assert pitch_deg(after[1][2], heading)-pitch_deg(before[1][2], heading) == pytest.approx(30., abs=1e-6)
+    waist = G1_JOINT_NAMES.index('waist_pitch_joint')
+    back = (moved_root-root) @ heading[:, 0]
+    if by == 'waist':
+        assert np.degrees(leaned[waist]) > 28 and leaned[waist] <= fk.joint_limits[waist, 1] and abs(back) < .01
+    else:
+        assert leaned[waist] == 0 and -.15 < back < -.02                               # hips behind where they stood
+
+
+def test_lean_goal_is_one_plan_into_the_leaned_pose_then_a_hold(tmp_path):
+    from kimodo_vla.oracle.locomotion import LEAN_FROM
+    policy, start, _, _ = make_policy(tmp_path, {'name': 'lean-30', 'lean': {'pitch_deg': 30, 'by': 'hips'}})
     rows = follow(policy, start, 4.)
     assert [p['phase'] for p in policy.phases] == ['lean', 'hold']
     call = policy.model.calls[0]
@@ -264,6 +278,7 @@ def test_leaned_pose_pitches_the_trunk_and_keeps_the_feet(tmp_path):
     assert plans[0]['sent_steps'] == 80 and plans[0]['pose_frames'][0] == LEAN_FROM and len(rows) == 80
     target = json.loads((tmp_path/'target.json').read_text())
     assert target['arrival_time'] == pytest.approx(policy.phases[1]['time']) and 'lean_pose' in target
+    assert load_goal({'name': 'x', 'lean': {'pitch_deg': 30}})['lean']['by'] == 'waist'
     with pytest.raises(ValueError):
         load_goal({'name': 'x', 'lean': {'pitch_deg': 30}, 'root': {'xy': [1, 0]}})
 

@@ -34,10 +34,10 @@ so a sideways or backward ``xy`` asks for a side step or a backward walk, not a 
 moves one wrist to a point; ``approach`` is the direction the forearm points on arrival. Either
 part may be left out. A third kind of goal stands still and leans the trunk forward:
 
-    {"name": "lean-30", "lean": {"pitch_deg": 30}}
+    {"name": "lean-30", "lean": {"pitch_deg": 30, "by": "waist"}}
 
-Its end pose is the start pose with the waist pitched as far as its joint allows and the pelvis
-pitched about the hips for the rest, feet where they were; Kimodo generates the way there.
+Its end pose is the start pose with the trunk pitched forward and the feet where they were, led by
+the waist joint or, with "by": "hips", by the pelvis; Kimodo generates the way there.
 """
 import json
 import time
@@ -122,9 +122,10 @@ def load_goal(source):
     if 'lean' in goal:
         lean = dict(goal['lean'])
         pitch = float(lean.pop('pitch_deg'))
-        if lean or len(out) > 1 or not 0 < pitch <= 45:
-            raise ValueError('lean needs pitch_deg in (0, 45] and cannot be combined with root or hand')
-        out['lean'] = {'pitch_deg': pitch}
+        by = lean.pop('by', 'waist')
+        if lean or len(out) > 1 or not 0 < pitch <= 45 or by not in ('waist', 'hips'):
+            raise ValueError('lean needs pitch_deg in (0, 45], by "waist" or "hips", and cannot be combined with root or hand')
+        out['lean'] = {'pitch_deg': pitch, 'by': by}
     if len(out) == 1:
         raise ValueError('A goal needs a root target, a hand target, both, or a lean')
     return out
@@ -141,7 +142,7 @@ def walk_allowance(goal):
 
 def episode_seconds(goal, hold=2.):
     """Longest an episode of this goal can need: every phase at its allowance, then ``hold`` seconds."""
-    total = READY_S
+    total = READY_S+.2  # the first plan is made at 0.6 s; keep the full hold after the last phase
     if 'root' in goal:
         total += walk_allowance(goal)+2*1.6  # the walk can overrun by one plan, then the stop plan
     if 'hand' in goal:
@@ -171,30 +172,52 @@ def ground_path(start, goal, speed0, cruise, accel=1., frames=CANVAS, dt=1/30):
     return np.array(out)
 
 
-def leaned_pose(fk, joints, root, rotation, pitch_deg, foot_names):
+def leaned_pose(fk, joints, root, rotation, pitch_deg, foot_names, by='waist', legs_back_deg=8.):
     """Joints, root position and rotation of a standing pose with the trunk pitched forward, feet unmoved.
 
-    The waist joint takes what its limit allows; the pelvis pitches about the hips for the rest,
-    with the hip joints turned back so the legs keep their orientation.
+    ``by='waist'``: the waist joint takes what its limit allows and the pelvis pitches about the
+    hips for the rest. ``by='hips'``: the waist stays, the pelvis pitches by the whole angle, and
+    the legs lean back ``legs_back_deg`` about the ankles so the hips move behind the feet as the
+    trunk goes ahead of them. In both the hip joints turn so the feet keep their place and
+    orientation; the root pose is solved from the left foot.
     """
+    if by not in ('waist', 'hips'):
+        raise ValueError('Unknown lean style')
     names = list(fk.joint_names)
     waist = names.index('waist_pitch_joint')
     hips = [names.index(f'{side}_hip_pitch_joint') for side in SIDES]
+    ankles = [names.index(f'{side}_ankle_pitch_joint') for side in SIDES]
     joints, root, rotation = np.array(joints, dtype=float), np.asarray(root, dtype=float), np.asarray(rotation)
+    foot, foot_rotation = (x[0] for x in fk(joints, root, rotation, body_names=foot_names[:1]))
+    yaw = np.arctan2(rotation[1, 0], rotation[0, 0])
+    heading = Rotation.from_euler('z', yaw).as_matrix()
+
+    def pose(q):
+        """Root pose that puts the left foot of joints ``q`` back where it stood, and the pelvis pitch gained."""
+        at, turned = (x[0] for x in fk(q, np.zeros(3), np.eye(3), body_names=foot_names[:1]))
+        new_rotation = foot_rotation @ turned.T
+        gained = heading.T @ new_rotation @ rotation.T @ heading
+        return foot-new_rotation @ at, new_rotation, np.arctan2(gained[0, 2], gained[2, 2])
     total = np.radians(pitch_deg)
-    by_waist = min(total, fk.joint_limits[waist, 1]-.02-joints[waist])
-    by_pelvis = total-by_waist
     leaned = joints.copy()
-    leaned[waist] += by_waist
-    leaned[hips] -= by_pelvis
+    if by == 'waist':
+        leaned[waist] += min(total, fk.joint_limits[waist, 1]-.02-joints[waist])
+    else:
+        # Which way the ankle joint leans the shank back is read off the kinematics, not assumed.
+        probe = joints.copy()
+        probe[ankles] += .01
+        sign = 1. if pose(probe)[0] @ heading[:, 0] < root @ heading[:, 0] else -1.
+        leaned[ankles] += sign*np.radians(legs_back_deg)
+    # The hip joints make up whatever pelvis pitch is still missing; the pitch is linear in them.
+    want = total-(leaned[waist]-joints[waist])
+    zero = pose(leaned)[2]
+    probe = leaned.copy()
+    probe[hips] += .01
+    leaned[hips] += (want-zero)/((pose(probe)[2]-zero)/.01)
     if np.any(leaned < fk.joint_limits[:, 0]) or np.any(leaned > fk.joint_limits[:, 1]):
         raise ValueError('Leaned pose exceeds joint limits')
-    yaw = np.arctan2(rotation[1, 0], rotation[0, 0])
-    left = np.array([-np.sin(yaw), np.cos(yaw), 0.])
-    pitched = Rotation.from_rotvec(left*by_pelvis).as_matrix() @ rotation
-    feet = fk(joints, root, rotation, body_names=foot_names)[0]
-    moved = fk(leaned, root, pitched, body_names=foot_names)[0]
-    return leaned, root+(feet-moved).mean(axis=0), pitched
+    new_root, new_rotation, _ = pose(leaned)
+    return leaned, new_root, new_rotation
 
 
 def refine_arm(fk, side, joints, previous, roots, rotations, wrists, wrist_rotations, active, speed, rate=50.):
@@ -289,7 +312,7 @@ class LocomotionPolicy(OraclePolicy):
                                   'begins; the other hand is unconstrained')
         if 'lean' in self.goal:
             joints, root, rotation = leaned_pose(self.fk, self.initial_joints, self.initial_root, self.initial_rotation,
-                                                 self.goal['lean']['pitch_deg'], self.foot_names)
+                                                 self.goal['lean']['pitch_deg'], self.foot_names, self.goal['lean']['by'])
             pose = self.features.codec.decode_joint_configuration_pose(joints[None],
                 self.frame.points([root]) @ BASIS, root_rotation_matrices=np.array([heading.T @ rotation]),
                 joint_names=G1_JOINT_NAMES)
