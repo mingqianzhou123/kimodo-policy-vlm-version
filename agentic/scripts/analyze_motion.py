@@ -77,7 +77,7 @@ def analyze(run, fk=None):
                        'completion': float(local[-1] @ along)/distance,
                        'reference_completion': float(reference_local[-1] @ along)/distance,
                        'final_error_cm': 100*float(np.linalg.norm(local[-1]-command)),
-                       'sideways_cm': 100*float(abs(np.cross(along, local[-1]))),
+                       'sideways_cm': 100*float(abs(along[0]*local[-1, 1]-along[1]*local[-1, 0])),
                        'final_yaw_deg': float(yaw[-1]), 'max_abs_yaw_deg': float(abs(yaw).max())}
     if target.get('active_sides'):
         i = ('left', 'right').index(target['active_sides'][0])
