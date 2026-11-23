@@ -38,8 +38,31 @@ def resting_pose(mesh_min_z, x, y, support_z, yaw_deg):
     return np.array([x, y, support_z - mesh_min_z]), yaw_quat(yaw_deg)
 
 
-def add_instances(scene_cfg, scene, assets):
+def spawn_visual(prim_path, cfg, *args, **kwargs):
+    """Spawn a USD file as pure geometry.
+
+    Copies that keep a rigid-body schema stay under the physics-to-renderer sync even when disabled,
+    and a pose written to them shows up in some renders and not in others. Without any physics
+    schema the written pose is the only source, like the scene's own static furniture.
+    """
     import isaaclab.sim as sim_utils
+    from isaaclab.sim.spawners.from_files import spawn_from_usd
+    from pxr import Usd, UsdPhysics
+    prim = spawn_from_usd(prim_path, cfg, *args, **kwargs)
+    for root in sim_utils.find_matching_prims(prim_path):
+        for child in Usd.PrimRange(root, Usd.TraverseInstanceProxies()):
+            if child.IsInstanceProxy():
+                continue
+            if child.IsA(UsdPhysics.Joint):
+                child.SetActive(False)
+                continue
+            for schema in child.GetAppliedSchemas():
+                if schema.startswith(('Physics', 'Physx')):
+                    child.RemoveAppliedSchema(schema)
+    return prim
+
+
+def add_instances(scene_cfg, scene, assets):
     from isaaclab.assets import AssetBaseCfg
     from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
     root = os.environ['PROJECT_ROOT']
@@ -48,10 +71,7 @@ def add_instances(scene_cfg, scene, assets):
         setattr(scene_cfg, f'pointing_{name}', AssetBaseCfg(
             prim_path=f'/World/envs/env_.*/Pointing_{name}',
             init_state=AssetBaseCfg.InitialStateCfg(pos=(PARK[0]+3*i, PARK[1], PARK[2]), rot=(1., 0., 0., 0.)),
-            # Rendering only: these copies take no part in physics.
-            spawn=UsdFileCfg(usd_path=f"{root}/{asset['usd']}", scale=(asset['scale'],)*3,
-                             rigid_props=sim_utils.RigidBodyPropertiesCfg(rigid_body_enabled=False),
-                             collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=False))))
+            spawn=UsdFileCfg(func=spawn_visual, usd_path=f"{root}/{asset['usd']}", scale=(asset['scale'],)*3)))
 
 
 def extract_mesh(root):
