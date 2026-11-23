@@ -70,12 +70,13 @@ def main():
     moved = (root[-1]-np.array(start['root_pos'])) @ heading
     result = {'run': args.run_id, 'goal': policy.goal, 'options': vars(args) | {'motion_goal': str(args.motion_goal)},
               'root_moved_start_frame_m': moved[:2].tolist(), 'min_root_height_m': float(root[:, 2].min()),
-              'gait_sent': gait([r['sent_feet'] for r in rows]), 'gait_raw': gait([r['raw_feet'] for r in rows])}
+              'gait_sent': gait([r['sent_feet'] for r in rows], root),
+              'gait_raw': gait([r['raw_feet'] for r in rows], [r['raw_root_world'] for r in rows])}
     (run/'rollout.json').write_text(json.dumps(result, indent=1, default=str))
     g = result['gait_sent']
-    print(f"{args.run_id}: moved fwd/left {moved[0]:.2f}/{moved[1]:.2f} m, feet slide {100*g['slide_share']:.0f}% "
-          f"of {g['travel_m']:.2f} m, swings {g['swings']}, max lift {g['max_lift_cm']:.1f} cm, min root z {root[:, 2].min():.2f}")
-
+    print(f"{args.run_id}: moved fwd/left {moved[0]:.2f}/{moved[1]:.2f} m, both feet moving {100*g['both_moving_share']:.0f}%, "
+          f"feet {g['foot_travel_m']:.2f} m, root path {g['root_travel_m']:.2f} m, max lift {g['max_lift_cm']:.1f} cm, "
+          f"min root z {root[:, 2].min():.2f}")
 
 if __name__ == '__main__':
     main()

@@ -196,7 +196,11 @@ def test_gait_tells_stepping_from_sliding():
     slide = np.zeros((200, 2, 3))
     slide[:, :, 0] = (.25*t)[:, None]
     slide[:, :, 2] = .035
-    assert gait(slide)['slide_share'] == pytest.approx(1.) and gait(slide)['swings'] == 0
+    root = np.zeros((200, 3))
+    root[:, 0] = .25*t
+    sliding = gait(slide, root)
+    assert sliding['both_moving_share'] == pytest.approx(1.) and sliding['swings'] == 0
+    assert sliding['root_travel_m'] == pytest.approx(.995) and sliding['foot_travel_m'] == pytest.approx(1.99)
     step = np.zeros((200, 2, 3))
     step[:, :, 2] = .035
     for foot, begin in ((0, 0), (1, 50), (0, 100), (1, 150)):  # each foot moves only while lifted
@@ -204,17 +208,19 @@ def test_gait_tells_stepping_from_sliding():
         step[begin:begin+50, foot, 2] += .08*np.sin(np.pi*phase)
         step[begin:, foot, 0] += .25
         step[begin:begin+50, foot, 0] += .25*(phase-1)
-    result = gait(step)
-    assert result['swings'] == 4 and result['slide_share'] < .1 and result['max_lift_cm'] == pytest.approx(8., abs=.1)
+    stepping = gait(step, root)
+    assert stepping['swings'] == 4 and stepping['both_moving_share'] == 0
+    assert stepping['max_lift_cm'] == pytest.approx(8., abs=.1) and stepping['foot_travel_m'] == pytest.approx(1., abs=.01)
 
 
 def test_kimodo_only_rollout_feeds_each_reference_back(tmp_path):
     from rollout_kimodo import follow
+    from analyze_motion import gait
     policy, sample, rotation, root = make_policy(tmp_path, WALK)
     policy.foot_names = [f'{s}_ankle_roll_link' for s in SIDES]
     rows = follow(policy, sample(0), 5.)
     assert len(rows) >= 5*50-5 and policy.history_source == 'reference'
     np.testing.assert_allclose(rows[-1]['sent_root_world'][:2], (root+rotation @ [.5, 0, 0])[:2], atol=2e-3)
     # The stand-in slides the body along the path without stepping, and the gait measure says so.
-    from analyze_motion import gait
-    assert gait([r['sent_feet'] for r in rows])['slide_share'] > .9
+    walked = [r for r in rows if 10.6 < r['time'] < 12.9]
+    assert gait([r['sent_feet'] for r in walked], [r['sent_root_world'] for r in walked])['both_moving_share'] > .6
