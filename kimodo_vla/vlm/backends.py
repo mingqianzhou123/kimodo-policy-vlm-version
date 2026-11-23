@@ -129,7 +129,7 @@ class GeminiBackend(ApiBackend):
     name, key_variable = 'gemini', 'GEMINI_API_KEY'
 
     def request(self, prompt, image_b64):
-        parts = [{'inline_data': {'mime_type': 'image/png', 'data': image_b64}}, {'text': prompt}]
+        parts = [{'inlineData': {'mimeType': 'image/png', 'data': image_b64}}, {'text': prompt}]
         return (f"{self.config['base_url'].rstrip('/')}/models/{self.config['model']}:generateContent", {'x-goog-api-key': self.key},
                 {'contents': [{'role': 'user', 'parts': parts}], **self.config.get('request', {})})
 

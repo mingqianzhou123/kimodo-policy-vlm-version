@@ -1,7 +1,7 @@
 """Compose static scenes in the simulator and capture first-person RGB-D frames for the pointing test.
 
-Objects are visual copies placed by writing their pose; physics is never stepped, so every pose is
-exactly the one recorded. Truth (poses, meshes, target identity) goes to ``truth/`` and never
+Objects are visual copies outside physics, placed by writing their pose, so every pose is exactly
+the one recorded. Truth (poses, meshes, target identity) goes to ``truth/`` and never
 enters the files a model reads in ``inputs/``.
 """
 import importlib
@@ -174,7 +174,7 @@ def run(env, spec, scene_name, out):
     for frame in spec['frames']:
         if frame['scene'] != scene_name:
             continue
-        robot_pose = place_robot(env, *frame['robot'])
+        place_robot(env, *frame['robot'])
         objects = {}
         for i, name in enumerate(scene['instances']):
             if name in frame['objects']:
@@ -187,7 +187,10 @@ def run(env, spec, scene_name, out):
                 set_pose(prims[name], (PARK[0]+3*i, PARK[1], PARK[2]), [1, 0, 0, 0])
         if frame['target'] not in objects:
             raise ValueError(f"{frame['id']}: target is not placed")
-        env.sim.forward()
+        # One 5 ms physics step publishes the new robot pose to the camera; nothing else moves in that time.
+        env.sim.step(render=False)
+        env.scene.update(env.physics_dt)
+        robot_pose = env.scene['robot'].data.root_state_w[0, :7].detach().cpu().numpy()
         capture(env, out/'inputs')
         with np.load(out/'inputs/vlm-capture.npz', allow_pickle=False) as f:
             data = {k: f[k].copy() for k in f.files}
