@@ -92,7 +92,7 @@ class FollowPath:
 
 def make_policy(tmp_path, goal, yaw=.4):
     policy = LocomotionPolicy.__new__(LocomotionPolicy)
-    policy.goal, policy.noise_seed, policy.walk_steps = load_goal(goal), 1003, 75
+    policy.goal, policy.noise_seed, policy.walk_steps, policy.arm_ik = load_goal(goal), 1003, 75, False
     policy.features = KimodoFeatures(50.)
     policy.fk = XmlFK(G1_XML_PATH, G1_JOINT_NAMES)
     names = policy.features.representation.skeleton.bone_order_names
@@ -261,3 +261,32 @@ def test_leaned_pose_pitches_the_trunk_and_keeps_the_feet(tmp_path):
     assert target['arrival_time'] == pytest.approx(policy.phases[1]['time']) and 'lean_pose' in target
     with pytest.raises(ValueError):
         load_goal({'name': 'x', 'lean': {'pitch_deg': 30}, 'root': {'xy': [1, 0]}})
+
+
+def test_arm_ik_moves_only_the_reaching_arm_and_only_near_the_target(tmp_path):
+    from kimodo_vla.oracle.locomotion import ARM_JOINTS, refine_arm
+    fk = XmlFK(G1_XML_PATH, G1_JOINT_NAMES)
+    arm = [G1_JOINT_NAMES.index(f'right_{n}_joint') for n in ARM_JOINTS]
+    root, rotation = np.array([0., 0., .78]), np.eye(3)
+    start = np.zeros(29)
+    goal = start.copy()
+    goal[arm] = [-.5, -.1, .1, .3, .1, -.1, .1]
+    wrist, wrist_rot = fk(goal, root, rotation)
+    frames = 30
+    active = np.arange(frames) >= 10
+    refined, left = refine_arm(fk, 'right', np.tile(start, (frames, 1)), start, np.tile(root, (frames, 1)),
+                               np.tile(rotation, (frames, 1, 1)), np.tile(wrist[1], (frames, 1)),
+                               np.tile(wrist_rot[1], (frames, 1, 1)), active, speed=4.)
+    others = [i for i in range(29) if i not in arm]
+    assert np.all(refined[:, others] == 0) and np.all(refined[:10] == 0) and np.isnan(left[:10]).all()
+    assert np.abs(np.diff(refined, axis=0)).max() <= 4/50+1e-9                    # joint speed limit
+    assert left[10] > .05 and left[-1] < 1e-3                                    # converges once the slew allows
+    policy, start_sample, _, _ = make_policy(tmp_path, {'name': 'up', 'hand': {
+        'side': 'right', 'position': [.3, -.2, 1.05], 'approach': [1, 0, 0], 'duration_s': 1.5}})
+    policy.arm_ik = True
+    rows = follow(policy, start_sample, 4.)
+    plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
+    assert plans[0]['arm_ik_frames'] < 25 and plans[-1]['arm_ik_frames'] == 25      # only the last 25 cm of the path
+    # The stand-in never moves the arm, so everything the wrist gains comes from the arm solve.
+    assert np.linalg.norm(np.array(rows[-1]['sent_wrist'][1])-policy.hand_goal) < .01
+    assert plans[-1]['arm_ik_left_cm_max'] < 1.

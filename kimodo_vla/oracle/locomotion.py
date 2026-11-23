@@ -42,6 +42,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation, Slerp
 
 from kimodo_vla.core.types import G1_JOINT_NAMES
@@ -62,6 +63,8 @@ STOP_STEPS = 80    # control steps executed from the stop plan: all of it, so th
 LEAN_FROM = 40     # a lean plan is the leaned pose from this frame on
 LEAN_STEPS = 80    # control steps executed from the lean plan
 NOT_YET = 1e6      # arrival time, in seconds from the start, until the final phase begins
+ARM_IK_WITHIN_M = .25  # with arm_ik, the arm is solved for the wrist over the last 25 cm of its path
+ARM_JOINTS = ('shoulder_pitch', 'shoulder_roll', 'shoulder_yaw', 'elbow', 'wrist_roll', 'wrist_pitch', 'wrist_yaw')
 
 
 def ease(u):
@@ -191,8 +194,44 @@ def leaned_pose(fk, joints, root, rotation, pitch_deg, foot_names):
     return leaned, root+(feet-moved).mean(axis=0), pitched
 
 
+def refine_arm(fk, side, joints, previous, roots, rotations, wrists, wrist_rotations, active, speed, rate=50.):
+    """Solve one arm's seven joints so its wrist link meets a pose, frame by frame; everything else is kept.
+
+    ``joints`` [T, 29] is the reference to refine with root pose ``roots`` / ``rotations``; only frames
+    where ``active`` is set are changed. Each solution stays within the joint limits and within
+    ``speed`` rad/s of the frame before it (``previous`` before the first). Kinematics only: no
+    collision or balance check. Returns the refined joints and the wrist error left on each frame [T], metres
+    (NaN where not active).
+    """
+    ids = [list(fk.joint_names).index(f'{side}_{name}_joint') for name in ARM_JOINTS]
+    link = [f'{side}_wrist_yaw_link']
+    out, last, left = np.array(joints, dtype=float), np.asarray(previous, dtype=float)[ids], np.full(len(joints), np.nan)
+    for t in range(len(out)):
+        if not active[t]:
+            last = out[t, ids]
+            continue
+        low = np.maximum(fk.joint_limits[ids, 0], last-speed/rate)
+        high = np.minimum(fk.joint_limits[ids, 1], last+speed/rate)
+        prior = out[t, ids].copy()
+
+        def residual(arm):
+            q = out[t].copy()
+            q[ids] = arm
+            position, rotation = fk(q, roots[t], rotations[t], body_names=link)
+            turn = Rotation.from_matrix(wrist_rotations[t].T @ rotation[0]).as_rotvec()
+            return np.r_[100*(position[0]-wrists[t]), 20*turn, .1*(arm-prior)]
+        fit = least_squares(residual, np.clip(last, low+1e-9, high-1e-9), bounds=(low, high), max_nfev=60,
+                            ftol=1e-8, xtol=1e-8, gtol=1e-7)
+        out[t, ids] = last = fit.x
+        left[t] = np.linalg.norm(fk(out[t], roots[t], rotations[t], body_names=link)[0][0]-wrists[t])
+    return out, left
+
+
 class LocomotionPolicy(OraclePolicy):
-    def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, **kwargs):
+    def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, **kwargs):
+        # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
+        # are solved for the path pose; legs and trunk stay as Kimodo generated them.
+        self.arm_ik = bool(arm_ik)
         if not 25 <= walk_steps <= 80:
             raise ValueError('A plan covers 1.63 s; execute between 25 and 80 control steps of a walking plan')
         self.goal = load_goal(motion_goal)
@@ -225,7 +264,7 @@ class LocomotionPolicy(OraclePolicy):
         self.pose_end = representation.slice_dict['global_rot_data'].stop
         self.feet_channels = support_channels(representation, 'root-feet') & ~support_channels(representation, 'root')
         info = dict(mode='motion-goal', target_source='motion_goal', motion_goal=self.goal,
-                    noise_seed=self.seed, walk_steps=self.walk_steps, active_sides=[], phases=self.phases,
+                    noise_seed=self.seed, walk_steps=self.walk_steps, arm_ik=self.arm_ik, active_sides=[], phases=self.phases,
                     root_goal_world=self.frame.world([self.root_end[0], 0., self.root_end[1]])[:2].tolist(),
                     arrival_time=self.start_time+NOT_YET, witness_joint_pos=None, hand_path='none')
         if 'hand' in self.goal:
@@ -461,6 +500,13 @@ class LocomotionPolicy(OraclePolicy):
                                              hand_binary=zero_hands).numpy()
         actions[:, 9:38] = bounded_hinge_trajectory(sent_local, self.features.codec, self.fk.joint_limits,
                                                     obs['reference_joints'], self.joint_speed)
+        arm_ik_left = None
+        if self.arm_ik and phase == 'reach':
+            path_position, path_rotation = self.hand_pose(t+np.arange(1, sent+1)/50)
+            near = np.linalg.norm(path_position-self.hand_goal, axis=1) <= ARM_IK_WITHIN_M
+            rotation = self.frame.heading @ rot6d_row_to_matrix(torch.from_numpy(actions[:, 3:9])).numpy()
+            actions[:, 9:38], arm_ik_left = refine_arm(self.fk, self.hand_side, actions[:, 9:38], obs['reference_joints'],
+                self.frame.world(sent_root.numpy()), rotation, path_position, path_rotation, near, self.joint_speed)
 
         def world_pose(action, model_root, names=None):
             """World root rotation, and positions and rotations of the wrists (or ``names``), per action."""
@@ -497,6 +543,9 @@ class LocomotionPolicy(OraclePolicy):
                   'inference_s': elapsed, 'constraint_cfg': self.constraint_cfg, 'diffusion_steps': self.steps,
                   'variant': self.variant, 'handoff_seconds': self.handoff_seconds,
                   'joint_speed_rad_s': self.joint_speed, 'support_constraints': 'none', 'trajectory_projection': 'none',
+                  'arm_ik_frames': 0 if arm_ik_left is None else int(np.isfinite(arm_ik_left).sum()),
+                  'arm_ik_left_cm_max': None if arm_ik_left is None or not np.isfinite(arm_ik_left).any()
+                                        else 100*float(np.nanmax(arm_ik_left)),
                   'anchor_shift_m': float(np.linalg.norm(shift)), 'anchor_shift_world': shift[:2].tolist(),
                   'root_remaining_m': float(np.linalg.norm(self.root_end-self.measured_xz(obs))),
                   # How far Kimodo's own output is from the path it was given, before any execution.
