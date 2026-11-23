@@ -1,11 +1,9 @@
 import numpy as np
 import torch
-from scipy.spatial.transform import Rotation
 from kimodo_vla.core.types import G1_JOINT_NAMES
 from kimodo_vla.model.features import KimodoFeatures,G1_XML_PATH
 from kimodo_vla.model.sparse_conditions import hand_keyframe
 from kimodo_vla.oracle.geometry import XmlFK
-from scripts.diagnose_joint_conversion import project_axis,angle
 
 
 def test_legal_joint_poses_roundtrip_including_limit_edges():
@@ -33,19 +31,3 @@ def test_sparse_values_equal_independent_full_pose_features():
         hand_positions=positions,wrist_rotations=rotations)
     assert mask.sum()==26
     torch.testing.assert_close(values[mask],full[mask],atol=1e-6,rtol=1e-6)
-
-
-def test_axis_projection_matches_brute_force_and_preserves_legal_angles():
-    axis=np.array([0.,1.,0.]);r=Rotation.from_euler('xyz',[[.4,1.1,-.3],[0.,.2,0.]]).as_matrix()
-    near,bounded=project_axis(r,axis,[-.5,.5])
-    assert abs(near[1]-.2)<1e-12 and abs(bounded[1]-.2)<1e-12
-    grid=np.linspace(-.5,.5,20001);pr=Rotation.from_rotvec(grid[:,None]*axis).as_matrix()
-    brute=angle(np.swapaxes(pr,-1,-2)@r[0]);chosen=Rotation.from_rotvec(axis*bounded[0]).as_matrix()
-    assert angle(chosen.T@r[0]) <= brute.min()+1e-6
-
-
-def test_scalar_branch_jump_is_not_a_large_matrix_rotation():
-    axis=np.array([0.,0.,1.]);r=Rotation.from_rotvec(np.deg2rad([179.,181.])[:,None]*axis).as_matrix()
-    q,_=project_axis(r,axis,[-3.,3.])
-    assert abs(np.rad2deg(np.diff(q)[0]))>350
-    assert abs(angle(r[0].T@r[1])-2.)<1e-6

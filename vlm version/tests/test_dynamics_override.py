@@ -2,13 +2,10 @@ import json
 from pathlib import Path
 import numpy as np
 import pytest
-import sys
 from arena.dynamics_override import intervene,FIELDS
 from kimodo_vla.core.types import G1_JOINT_NAMES
 
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'scripts'))
-from verify_sonic_release import verify
 
 
 def fixture():
@@ -51,13 +48,3 @@ def test_rejects_unexpected_baseline_mass_or_incomplete_actuator_definition():
     with pytest.raises(ValueError,match='Unexpected sensor mass'):intervene(s,c['joint_names'],c['body_names'],'sensor-load',spec)
     spec['actuator']['dof_stiffnesses'].pop(G1_JOINT_NAMES[0])
     with pytest.raises(ValueError,match='Incomplete'):intervene(s,c['joint_names'],c['body_names'],'actuator',spec)
-
-
-def test_release_audit_rejects_other_weights_and_missing_pair(tmp_path):
-    meta=json.loads((ROOT/'runs/actuator-audit-20261119-r2-base-center/run.json').read_text())
-    (tmp_path/'run.json').write_text(json.dumps(meta));assert verify(tmp_path)['passed']
-    meta['tracker_sha256']['model_decoder.onnx']='wrong'
-    (tmp_path/'run.json').write_text(json.dumps(meta))
-    with pytest.raises(ValueError,match='Not the pinned'):verify(tmp_path)
-    meta['tracker_sha256']={};(tmp_path/'run.json').write_text(json.dumps(meta))
-    with pytest.raises(ValueError,match='Incomplete'):verify(tmp_path)

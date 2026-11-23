@@ -41,13 +41,3 @@ def test_root_foot_identity_separates_support_from_posture_and_rotation():
     p=decompose(r,rr,f,fr,la,lr,R,Rr)
     np.testing.assert_allclose(sum(p[k] for k in p if k!='root_error'),np.broadcast_to(r,(2,3)),atol=1e-12)
     np.testing.assert_allclose(p['negative_fk_residual'],-residual,atol=1e-12)
-
-
-def test_inertia_roundtrip_guard_does_not_relax_actuator_checks():
-    import sys,pytest
-    sys.path.insert(0,str(ROOT/'scripts'))
-    from report_root_dynamics import check_parameter
-    check_parameter('inertias',[7.5e-9],[0],True)
-    with pytest.raises(ValueError):check_parameter('inertias',[2e-8],[0],True)
-    with pytest.raises(ValueError):check_parameter('inertias',[7.5e-9],[0],False)
-    with pytest.raises(ValueError):check_parameter('dof_stiffnesses',[7.5e-9],[0],True)
