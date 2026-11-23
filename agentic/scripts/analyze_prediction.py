@@ -26,7 +26,9 @@ from kimodo_vla.motion.g1_reference import rot6d_row_to_matrix
 from kimodo_vla.oracle.geometry import Frame, XmlFK, rotation_wxyz, angle_deg
 
 HORIZONS = (0., .5, 1., 1.5)
-SOURCES = ('kimodo', 'persistence')
+# "aligned" is Kimodo's prediction moved rigidly so that its frame zero sits on the measured root:
+# the predicted displacement from where the body is, without the offset the raw output starts with.
+SOURCES = ('kimodo', 'aligned', 'persistence')
 
 
 def decode_plan(features, fk, frame, motion_features):
@@ -99,6 +101,8 @@ def analyze_run(run, features, fk):
                 continue
             pred = {'root_pos': root_pos[k], 'root_rot': root_rot[k],
                     'wrist_pos': wrist_pos[k], 'wrist_rot': wrist_rot[k]}
+            offset = now['root_pos']-root_pos[0]
+            aligned = dict(pred, root_pos=root_pos[k]+offset, wrist_pos=wrist_pos[k]+offset)
             hand_frames = sorted(set(plan['keyframes'])|set(plan['dense_hand_frames']))
             reaching = plan['time'] < target['arrival_time']-1e-9
             rows.append({'run': run.name, 'plan': plan['plan'], 'plan_time': plan['time'], 'horizon_s': horizon,
@@ -107,7 +111,8 @@ def analyze_run(run, features, fk):
                          # The standing runs condition the root on every future frame (support "root").
                          'root_covered': k in plan['root_frames'] if moving else k >= 1,
                          'wrist_covered': bool(hand_frames) and 1 <= k <= hand_frames[-1], 'wrist_sides': sides,
-                         'kimodo': errors(pred, actual), 'persistence': errors(now, actual)})
+                         'kimodo': errors(pred, actual), 'aligned': errors(aligned, actual),
+                         'persistence': errors(now, actual)})
     return rows
 
 
@@ -141,7 +146,7 @@ def summarize(rows):
                         'root_rot_deg': stats([r[source]['root_rot_deg'] for r in rooted]),
                         'wrist_pos_cm': stats([x for r in handed for x in wrists(r, source, 'wrist_pos_cm')]),
                         'wrist_rot_deg': stats([x for r in handed for x in wrists(r, source, 'wrist_rot_deg')])}}
-                    for source in SOURCES}
+                    for source in SOURCES if source in chosen[0]}
     return table
 
 
