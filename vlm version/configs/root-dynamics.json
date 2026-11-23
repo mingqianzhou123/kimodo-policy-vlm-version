@@ -1,0 +1,15 @@
+{
+  "sole_min_z_m": -0.035,
+  "support_height_m": 0.02082552800808029,
+  "platform_size_m": [
+    1.0,
+    1.0,
+    0.1
+  ],
+  "platform_xy_m": [
+    -1.600000023841858,
+    -5.0
+  ],
+  "height_source": "Initial frozen reference feet minus verified 0.035 m sole depth; fixed before new runs",
+  "scope": "Counterfactual support geometry only; not restored training dynamics or original-scene performance"
+}

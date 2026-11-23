@@ -1,0 +1,78 @@
+"""Produce a reviewable report only after all five recorded-reference audits pass."""
+import argparse,json
+from pathlib import Path
+from run_sonic_replay_suite import CASES,ROOT
+
+
+def report(suite):
+    suite=Path(suite);data=[]
+    for case in CASES:
+        old=json.loads((suite/f'{case}-original-analysis.json').read_text())
+        new=json.loads((suite/f'{case}-replay-analysis.json').read_text())
+        if not new['replay_audit']['passed']:raise ValueError('Unaudited replay')
+        data.append((case,old,new))
+    identical=all(max(n['replay_audit']['actual_wrist_replay_vs_original_cm']['max_norm'])==0 for _,_,n in data)
+    verdict='五组共 2000 帧的实际双腕轨迹与原实验逐帧完全相同。' if identical else '各组新旧实际轨迹差值见一致性检查表。'
+    text=['# 固定失败参考的 SONIC 独立回放','',
+        verdict+' 因此，VLM/Kimodo 在线推理不是这些残差存在的必要条件。当前证据将问题定位到固定参考之后的 SONIC/物理执行链路；主要表现为根部偏移与关节姿态静差叠加，不能简单称为右臂独有的随机失稳。','',
+        '五组均重放原始动作块，运行时不加载 VLM、Kimodo 或 IK。没有改变 SONIC 权重、共享 Arena 代码、物理参数或夹爪配置。',
+        '', '失败组按上一轮“到达后全程双腕距离真实标记目标不超过 3 cm”选出；far-left 仅 2/340 帧越界，也保留。本报告的跟踪误差则比较实际腕与固定执行参考，不能与视觉定位误差或实际到真实目标误差混用。',
+        '', '## 参考来源与核验','',
+        '- 来源：`vlm-refined-20261118-r1-{case}` 的 16 个 `plan-*.npz` 中的 `actions`。',
+        '- 启动 5 帧按原策略公式从原初始状态重建；其后的 16 × 25 帧使用原数组，生产 405 帧、消费前 400 帧。',
+        '- 每组 400 帧、50 Hz、8 秒；保留 `[5, 25, …, 25]` 的 HTTP 动作块和原请求时序。',
+        '- 初始姿态、请求时刻、命令数组、实际消费参考、时间轴、SONIC 权重和三份 Arena 文件均做校验。',
+        '- 目标 JSON 只用于评估，不参与回放动作计算；后续观测只用于核对时间，不用于重规划。',
+        '- 同 seed=1000、标记位置和相机设置；旧版本保存在 `snapshots/vlm-before-sonic-replay-20261118/`（140 个校验文件）。',
+        '', '## 到达后误差（cm）','',
+        '从目标到达时间之后统计，与旧实验使用同一时间区间。右腕的参考点为腕关节原点。',
+        '', '| 组别 | 原右腕跟踪 | 回放右腕跟踪 | 根部平移 | 根部转动对右腕影响 | 右腕相对根部 | 腰部贡献范数 | 右臂贡献范数 |',
+        '|---|---:|---:|---:|---:|---:|---:|---:|']
+    for case,old,new in data:
+        s=new['post_arrival'];vals=[old['post_arrival']['tracking']['mean_norm'][1]]+[s[k]['mean_norm'][1] for k in ('tracking','root_translation','root_rotation','root_relative','torso','arm')]
+        text.append('| '+case+' | '+' | '.join(f'{v:.3f}' for v in vals)+' |')
+    text += ['', '**这些范数不能直接相加。** 位置误差按向量精确拆分：', '',
+        '`实际腕 − 参考腕 = 根部平移 + 根部转动效应 + 腰部效应 + 臂关节效应 + FK/仿真残差`。',
+        '', '根部相对误差比较各自根坐标系下的腕位置，再转回实际世界朝向；不是只减去根部平移。腰部项通过保持实际腰部、把双臂关节替换成参考值的 FK 计算；臂项是实际 FK 与该混合姿态 FK 之差。这是运动学分解，不是把关节强制固定后的动力学因果实验。',
+        '', '## 持续偏差还是波动','',
+        '| 组别 | 右腕平均偏差向量长度 cm | 去均值波动 RMS cm | 跟踪 P95 cm | 跟踪最大 cm | 参考关节变化范围 deg |',
+        '|---|---:|---:|---:|---:|---:|']
+    for case,_,new in data:
+        s=new['post_arrival'];v=s['tracking'];vals=[v['bias_norm'][1],v['demeaned_rms'][1],v['p95_norm'][1],v['max_norm'][1],s['reference_joint_range_deg']]
+        text.append('| '+case+' | '+' | '.join(f'{v:.4f}' for v in vals)+' |')
+    text += ['', '## 右臂关节：稳定区间 4–8 秒','',
+        '以下为有符号均值（deg）。实际−参考 =（解码目标−参考）+（实际−解码目标）。解码目标会主动补偿重力/动力学，不能把它偏离参考本身认定为错误。',
+        '', '| 组别 | 关节 | 实际−参考 | 解码目标−参考 | 实际−解码目标 |', '|---|---|---:|---:|---:|']
+    for case,_,new in data:
+        joints=new['steady_4_8s']['right_joints']
+        for name in ('right_shoulder_pitch_joint','right_shoulder_roll_joint','right_elbow_joint'):
+            vals=[joints[k][name]['bias'] for k in ('actual_reference','decoder_reference','actual_decoder')]
+            text.append('| '+case+' | '+name+' | '+' | '.join(f'{v:+.3f}' for v in vals)+' |')
+    text += ['', '## 为什么世界坐标下右腕更差','',
+        '| 组别 | 左/右腕世界跟踪 cm | 左/右腕根部相对误差 cm | 根部平移沿左/右总误差方向的贡献 cm |',
+        '|---|---|---|---|']
+    for case,_,new in data:
+        s=new['post_arrival']
+        pairs=[s['tracking']['mean_norm'],s['root_relative']['mean_norm'],s['signed_contribution_cm']['root_translation']]
+        text.append('| '+case+' | '+' | '.join(' / '.join(f'{v:+.3f}' for v in pair) for pair in pairs)+' |')
+    text += ['', '有符号贡献是各项在当前总误差方向上的投影；负值表示抵消。左腕世界误差较小不等于左臂姿态更准确：某些组中根部偏移帮助抵消左腕误差，同时放大右腕误差。不能把右腕较大的世界误差直接称为右臂独有的失稳。']
+    text += ['', '每个右臂七关节的 bias、RMSE、P95、max、时间标准差，以及双腕、根部的完整统计见各组 `*-replay-analysis.json`。',
+        '', '## 一致性检查','', '| 组别 | 消费参考最大数值差 | 新旧实际腕最大差 cm |', '|---|---:|---:|']
+    for case,_,new in data:
+        audit=new['replay_audit'];delta=max(v for k,v in audit.items() if k.endswith('_max_abs_delta'))
+        text.append(f"| {case} | {delta:.3g} | {max(audit['actual_wrist_replay_vs_original_cm']['max_norm']):.6f} |")
+    text += ['', '## 执行链路含义','',
+        '已核对与实验哈希一致的 `action_provider_sonic.py`：joint29 分支使用最新关节位置/速度的 hold window 和根部朝向；`motion_root_z*` 在本路径中保持零值，世界根部 XYZ 位置误差没有进入 encoder/decoder。因此上游固定根部参考并不提供世界根部位置闭环。',
+        '', '根部位置偏移与臂关节偏差需要分别处理；仅修根部或继续调 VLM 点位，都不能解释或消除所有残差。',
+        '', '当前 position 模式会把 SONIC 解码后的关节目标交给物理执行器。实际−解码目标的持续差值支持继续检查该段的增益、重力/载荷、扭矩限制和模型匹配；本轮未调整这些参数，未记录完整力矩/接触证据，尚不能把具体原因判定为某个 PD 参数或饱和。',
+        '', '本实验能检验生成器在线运行是否为误差存在的必要条件；不能证明这条由 VLM/IK 形成的姿态对任何 tracker 都同样容易跟踪，也不能把 SONIC 的训练分布与执行器因素完全分离。',
+        '', '## 重跑命令','', '```bash',
+        'PYTHONPATH=. ../cross_tracker/data/cache/envs/policy/bin/python scripts/run_sonic_replay_suite.py \\',
+        '  --suite sonic-replay-NEW-ID --sim-gpu 7 --gpu-min-free-mib 16384', '```',
+        '', '资源检查阈值为 16 GiB 空闲显存；只运行本任务进程，不终止已有任务。已有结果不会覆盖；缺失任一参考/环境核验会立即停止批次。', '']
+    return '\n'.join(text)
+
+
+if __name__=='__main__':
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('suite',type=Path);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+    a.output.write_text(report(a.suite))
