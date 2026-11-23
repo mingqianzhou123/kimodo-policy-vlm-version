@@ -27,6 +27,8 @@ p.add_argument('--support-constraints',choices=['none','root','root-feet','root-
 p.add_argument('--hand-constraints',choices=['keyframes','continuous'],default='continuous')
 p.add_argument('--trajectory-projection',choices=['none','ik','ik-hold'],default='ik-hold')
 p.add_argument('--archived-goal')
+p.add_argument('--motion-goal')
+p.add_argument('--history-source',choices=['reference','measured','measured-last'],default='reference')
 p.add_argument('--vlm-model')
 p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
 p.add_argument('--vlm-python',default=sys.executable)
@@ -37,6 +39,10 @@ if a.archived_goal:
     from kimodo_vla.oracle.archived_goal import ArchivedGoalPolicy
     policy_class = ArchivedGoalPolicy
     extra = dict(archived_goal=a.archived_goal)
+elif a.motion_goal:
+    from kimodo_vla.oracle.locomotion import LocomotionPolicy
+    policy_class = LocomotionPolicy
+    extra = dict(motion_goal=a.motion_goal, history_source=a.history_source)
 elif a.vlm_model:
     from kimodo_vla.vlm.policy import VisualTargetPolicy
     if a.mode!='hold' or a.trajectory_projection!='ik-hold':raise ValueError('Visual mode requires the standing IK-hold backend')
