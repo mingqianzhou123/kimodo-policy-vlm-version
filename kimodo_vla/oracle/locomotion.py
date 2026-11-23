@@ -111,11 +111,12 @@ def end_time(goal):
 
 
 class LocomotionPolicy(OraclePolicy):
-    def __init__(self, *args, motion_goal, history_source='reference', **kwargs):
+    def __init__(self, *args, motion_goal, history_source='reference', noise_seed=None, **kwargs):
         if history_source not in HISTORY_SOURCES:
             raise ValueError('Unknown history source')
         self.goal = load_goal(motion_goal)
         self.history_source = history_source
+        self.noise_seed = noise_seed  # repeats of one goal differ only in Kimodo's sampling noise
         super().__init__(*args, **kwargs)
         if (self.mode != 'hold' or self.variant != 'bounded' or self.support_constraints != 'none'
                 or self.trajectory_projection != 'none'):
@@ -123,7 +124,10 @@ class LocomotionPolicy(OraclePolicy):
 
     def reset(self, seed=None):
         self.hand_start = None
-        return super().reset(seed)
+        status = super().reset(seed)
+        if self.noise_seed is not None:
+            self.seed = int(self.noise_seed)
+        return status
 
     def initialize(self, sample):
         super().initialize(sample)  # measured start frame, standing features, both wrists held
@@ -135,7 +139,7 @@ class LocomotionPolicy(OraclePolicy):
             self.root_end = self.frame.points(self.initial_root + heading @ np.array([forward, left, 0.]))[[0, 2]]
         self.heading_feature = self.standing_features[self.model.representation.slice_dict['global_root_heading']]
         info = dict(mode='motion-goal', target_source='motion_goal', motion_goal=self.goal,
-                    history_source=self.history_source, active_sides=[],
+                    history_source=self.history_source, noise_seed=self.seed, active_sides=[],
                     root_goal_world=self.frame.world([self.root_end[0], 0., self.root_end[1]])[:2].tolist(),
                     arrival_time=self.start_time+end_time(self.goal), witness_joint_pos=None,
                     hand_path='none')

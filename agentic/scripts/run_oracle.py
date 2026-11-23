@@ -46,6 +46,7 @@ def parse_args(argv=None):
     p.add_argument('--start-xy',type=float,nargs=2,metavar=('X','Y'),help='With --motion-goal: world position to start from instead of the task reset position')
     p.add_argument('--history-source',choices=['reference','measured','measured-last'],default='reference',
         help='With --motion-goal: what Kimodo sees as the past, the reference it sent or the measured body')
+    p.add_argument('--noise-seed',type=int,help='With --motion-goal: seed of Kimodo\'s sampling noise, to repeat one goal with different motions')
     p.add_argument('--actuator-audit',action='store_true')
     p.add_argument('--dynamics-profile',choices=['sensor-load','actuator','actuator-load'])
     p.add_argument('--root-support',choices=['none','raised'],help='Root diagnostic: keep ground or add a reference-height support platform')
@@ -95,7 +96,7 @@ def main():
                 or a.actuator_audit or a.mode!='hold' or a.variant!='bounded' or a.dynamics_profile!='actuator'):
             raise ValueError('Moving goals run live on the bounded handoff with aligned actuators and nothing else')
         if not a.motion_goal.is_file():raise FileNotFoundError(a.motion_goal)
-    elif a.start_xy:raise ValueError('--start-xy needs --motion-goal')
+    elif a.start_xy or a.noise_seed is not None:raise ValueError('--start-xy and --noise-seed need --motion-goal')
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
     if a.dynamics_profile and not a.motion_goal and not ((replay or a.settled_goal) and a.actuator_audit):
@@ -165,7 +166,9 @@ def main():
         '--handoff-seconds',str(a.handoff_seconds),'--joint-speed',str(a.joint_speed),
         '--support-constraints',a.support_constraints,'--hand-constraints',a.hand_constraints,'--trajectory-projection',a.trajectory_projection]
     if a.settled_goal:policycmd+=['--archived-goal',str(a.settled_goal.resolve())]
-    if a.motion_goal:policycmd+=['--motion-goal',str(a.motion_goal.resolve()),'--history-source',a.history_source]
+    if a.motion_goal:
+        policycmd+=['--motion-goal',str(a.motion_goal.resolve()),'--history-source',a.history_source]
+        if a.noise_seed is not None:policycmd+=['--noise-seed',str(a.noise_seed)]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -220,7 +223,7 @@ def main():
     if a.vlm_model:record.update(experiment='VLM-A',oracle=False)
     if a.motion_goal:record.update(experiment='MOTION-GOAL',oracle=False,target_source='motion_goal',
         motion_goal=json.loads(a.motion_goal.read_text()),motion_goal_sha256=sha(a.motion_goal),
-        start_xy=a.start_xy,history_source=a.history_source)
+        start_xy=a.start_xy,history_source=a.history_source,noise_seed=a.noise_seed)
     record['arena_sha256']={f:sha(arena/f) for f in (
         'action_provider/action_provider_sonic.py','action_provider/vla_robot_current_local_runtime_v3.py',
         'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')}

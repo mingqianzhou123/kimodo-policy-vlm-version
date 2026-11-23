@@ -76,7 +76,7 @@ class FollowPath:
 
 def make_policy(tmp_path, goal, source='reference', yaw=.4):
     policy = LocomotionPolicy.__new__(LocomotionPolicy)
-    policy.goal, policy.history_source = load_goal(goal), source
+    policy.goal, policy.history_source, policy.noise_seed = load_goal(goal), source, 1003
     policy.features = KimodoFeatures(50.)
     policy.fk = XmlFK(G1_XML_PATH, G1_JOINT_NAMES)
     names = policy.features.representation.skeleton.bone_order_names
@@ -121,6 +121,7 @@ def test_root_path_is_dense_in_the_start_frame_and_feet_are_free(tmp_path):
     assert len(first['action_chunk']) == 25 and first['oracle_target']['mode'] == 'motion-goal'
     target = json.loads((tmp_path/'target.json').read_text())
     assert target['active_sides'] == [] and target['arrival_time'] == pytest.approx(13.)
+    assert target['noise_seed'] == policy.seed == 1003
 
 
 def test_sent_reference_walks_the_path_and_plans_chain_on_the_reference(tmp_path):
