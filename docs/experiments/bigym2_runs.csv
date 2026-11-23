@@ -1,0 +1,15 @@
+﻿id,task,status,recipe,stage,target_steps,last_step,seed,gpus,batch,micro_batch,schedule_steps,motion_loss,max_motion_loss,skipped_steps,seconds_per_step,sampled_memory_mib,reason,next_action,run_dir,source,started_at
+BG5090-001,move_plate,已完成,STABLE-SMOKE,单卡流程检查,200,200,1000,1,32,32,101000,0.037789762020111084,0.2169601321220398,0,0.3394633412361145,,验证流程,已通过，8 卡检查已完成,log/bigym2/check_1gpu,docs/benchmarks/bigym2_5090_handoff.md；当前运行日志,
+BG5090-002,move_plate,已完成,STABLE,8 卡容量与速度检查,200,200,1000,8,256,32,101000,0.020531177520751953,0.0980750247836113,0,0.3681023120880127,18281,验证流程,已通过，正式稳定性实验已启动,log/bigym2/check_8gpu,docs/benchmarks/bigym2_5090_handoff.md；当前运行日志,
+BG5090-003,dishwasher_load_cups,运行中,STABLE,稳定性 30k,30000,100,1000,8,256,32,101000,0.11364784836769104,0.17720790207386017,0,0.39965626716613767,,解决早期发散，三项稳定设置合用,评 25k/30k；无发散则续训 101k,log/bigym2/stability/stable_combo/dishwasher_load_cups_3cam_s1000,docs/benchmarks/bigym2_5090_handoff.md；当前运行日志,2026-11-11T19:40:55+08:00
+BG5090-004,move_plate,计划中,STABLE,稳定性 30k,30000,,1000,8,256,32,101000,,,,,,解决早期发散，三项稳定设置合用,评 25k/30k；无发散则续训 101k,log/bigym2/stability/stable_combo/move_plate_3cam_s1000,docs/benchmarks/bigym2_5090_handoff.md；当前运行日志,
+H-ABL-BASE,dishwasher_load_cups,已完成,RECIPE,历史稳定性短实验,25000,25000,,,256,,101000,,0.088,,,,原设置重跑未复现发散,仅作历史证据；本轮不重跑,,docs/benchmarks/bigym2.md §8,
+H-ABL-LR03,dishwasher_load_cups,已完成,LR03,历史稳定性短实验,25000,25000,,,256,,101000,,0.113,,,,学习率乘 0.3，未观察到发散,仅作历史证据；本轮不重跑,,docs/benchmarks/bigym2.md §8,
+H-ABL-NOMASK,dishwasher_load_cups,已完成,NOMASK,历史稳定性短实验,25000,25000,,,256,,101000,,0.077,,,,去掉状态遮挡，未观察到发散,仅作历史证据；本轮不重跑,,docs/benchmarks/bigym2.md §8,
+H-ABL-FP32,dishwasher_load_cups,外部取消,FP32,历史稳定性短实验,25000,10800,,,256,,101000,,,,,,约慢 2.5 倍；被集群管理员取消，取消前未发散,仅作历史证据；本轮不重跑,,docs/benchmarks/bigym2.md §8,
+H-EMA-move_plate,move_plate,历史记录,EMA,历史 EMA 重训,101000,,,,,,101000,,,,,,运动损失约 5k 起升至 3–40，EMA 未解决,先解决训练稳定性,,docs/benchmarks/bigym2.md §7,
+H-EMA-reach_target_dual,reach_target_dual,历史记录,EMA,历史 EMA 重训,101000,,,,,,101000,,,,,,约 63k–67k 发散，EMA 未解决,先解决训练稳定性,,docs/benchmarks/bigym2.md §7,
+H-EMA-drawer_top_open,drawer_top_open,历史记录,EMA,历史 EMA 重训,101000,,,,,,101000,,,,,,后期验证掉分，EMA 未改善,先解决训练稳定性,,docs/benchmarks/bigym2.md §7,
+H-A800-200,move_plate,已完成,STABLE-SMOKE,历史 A800 流程检查,200,200,,1,32,,101000,,,,0.39,,训练及验证 2 回合通过；成功率 0 仅说明短检查无成功,,,docs/benchmarks/bigym2.md §10,
+H-ACP-FAIL,两个任务,启动失败,STABLE,历史 ACP 环境失败,30000,0,,,,,101000,,,,,,缺系统 EGL，训练未开始；不是训练发散,,,docs/benchmarks/bigym2.md §10,
+H-GRID-24,两个任务,已取消,4组×3种子,历史扫参计划,30000,0,,,,,101000,,,,,,24 个排队作业取消，一个未开始；已被单种子稳定组合替代,,,docs/benchmarks/bigym2.md §10,

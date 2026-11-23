@@ -1,0 +1,11 @@
+{
+ "vision":[{"task":"reach_target_multi_modal","rates":[52,0,4,3]},{"task":"reach_target_dual","rates":[25,0,0,0]},{"task":"drawer_top_close","rates":[100,0,0,0]},{"task":"drawer_top_open","rates":[90,0,0,0]},{"task":"move_plate","rates":[39,0,0,0]},{"task":"dishwasher_load_cups","rates":[24,0,0,0]}],
+ "ema":[{"step":80000,"raw":92,"ema999":90,"ema9999":84},{"step":90000,"raw":86,"ema999":84,"ema9999":84},{"step":100000,"raw":50,"ema999":42,"ema9999":0}],
+ "observations":[
+ {"id":"obs-1","curated":true,"kind":"观察事实","title":"延长训练的收益因任务而异","body":"历史第二套中，关闭洗碗机由 1% 到 84%，而装杯子由 17% 到 0%。训练步数、batch 和增强同时变化，不能把差异归因到单个参数。","source":"docs/benchmarks/bigym2.md §6、§6b"},
+ {"id":"obs-2","curated":true,"kind":"待验证假设","title":"损失稳定后，任务成功率是否同步恢复？","body":"本轮装杯子首轮记录到 29,850 步未触发持续发散判据，但通信故障中断了训练。需要补齐 30k 与验证评测，才能判断稳定组合是否改善任务表现。","run":"BG5090-003","source":"2026-11-12 首轮日志核查；原始失败日志与指标已归档"},
+ {"id":"obs-3","curated":true,"kind":"观察事实","title":"EMA 未解决历史训练不稳定","body":"开抽屉 100k 验证：原始权重 50%，EMA .999 为 42%，EMA .9999 为 0%。move_plate 和双手够取的重训出现发散，三种权重表现均很差。","source":"docs/benchmarks/bigym2.md §7"},
+ {"id":"obs-4","curated":true,"kind":"观察事实","title":"策略需要实时视觉输入","body":"历史视觉诊断中，多数任务把画面变黑、冻结首帧或替换场景后成功率降至 0；多模态够取冻结首帧为 4%、换场景为 3%。这说明策略使用图像，不能据此判断失败全由视觉造成。","source":"docs/benchmarks/bigym2.md §7"},
+ {"id":"obs-5","curated":true,"kind":"下一实验计划","title":"完成双任务稳定性检查，再看后期退化","body":"保持 STABLE、训练 seed 1000。装杯子补齐 30k 并评 25k/30k，随后 move_plate 30k。无发散再续训 101k。若稳定但成功率仍低，再设计独立消融；不在当前 run 中直接改参数。","source":"bigym2_5090_handoff.md；当前恢复队列"}
+ ]
+}

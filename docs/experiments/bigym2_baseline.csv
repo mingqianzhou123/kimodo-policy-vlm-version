@@ -1,0 +1,10 @@
+﻿task,first_3cam,first_head,first_head_pt419h,second_3cam,second_best_test_reference,pi05,act,dp
+pick_box,0.1,0.05,0.15,0.34,0.37,0.19,0.61,0.1
+reach_target_multi_modal,0.54,0.6,0.62,0.39,0.69,0.9,0.81,0.84
+reach_target_dual,0.22,0.2,0.16,0.0,0.23,0.58,0.3,0.27
+drawer_top_close,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+drawer_top_open,0.87,0.89,0.86,0.78,0.95,0.99,0.92,0.98
+move_plate,0.51,0.35,0.29,0.23,0.68,0.65,0.6,0.62
+move_two_plates,0.06,0.01,0.09,0.06,0.34,0.68,0.39,0.18
+dishwasher_close,0.01,0.0,0.0,0.84,0.9,0.79,0.93,0.51
+dishwasher_load_cups,0.17,0.1,0.25,0.0,0.0,0.92,0.56,0.51

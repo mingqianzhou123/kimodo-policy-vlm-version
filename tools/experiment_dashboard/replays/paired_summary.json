@@ -1,0 +1,1532 @@
+{
+  "counts": {
+    "both_fail": 21,
+    "both_success": 14,
+    "improved": 2,
+    "regressed": 13
+  },
+  "groups": {
+    "both_fail": [
+      700001,
+      700002,
+      700009,
+      700015,
+      700018,
+      700020,
+      700023,
+      700024,
+      700025,
+      700027,
+      700029,
+      700031,
+      700032,
+      700033,
+      700037,
+      700038,
+      700040,
+      700041,
+      700044,
+      700045,
+      700046
+    ],
+    "both_success": [
+      700003,
+      700005,
+      700008,
+      700013,
+      700014,
+      700016,
+      700022,
+      700026,
+      700028,
+      700035,
+      700042,
+      700043,
+      700048,
+      700049
+    ],
+    "improved": [
+      700011,
+      700017
+    ],
+    "regressed": [
+      700000,
+      700004,
+      700006,
+      700007,
+      700010,
+      700012,
+      700019,
+      700021,
+      700030,
+      700034,
+      700036,
+      700039,
+      700047
+    ]
+  },
+  "note": "Stage labels are contact/grasp proxies; review videos before causal interpretation.",
+  "pairs": [
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 5.34,
+            "released_s": 14.22,
+            "stage": "最终放置完成",
+            "tray_s": 13.74
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.58,
+            "released_s": 12.38,
+            "stage": "最终放置完成",
+            "tray_s": 12.16
+          }
+        ],
+        "first_close_s": [
+          3.4,
+          5.16
+        ],
+        "length": 761,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          }
+        ],
+        "first_close_s": [
+          3.02,
+          4.66
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 0,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700000,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 0,
+        "fell": 0,
+        "length": 761,
+        "seed": 700000,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700000
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 5.02,
+            "released_s": 14.88,
+            "stage": "最终放置完成",
+            "tray_s": 13.38
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.64,
+            "released_s": 12.08,
+            "stage": "最终放置完成",
+            "tray_s": 12.08
+          }
+        ],
+        "first_close_s": [
+          3.46,
+          4.92
+        ],
+        "length": 793,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": 3.62,
+            "released_s": null,
+            "stage": "夹持后未持续接触托盘",
+            "tray_s": null
+          }
+        ],
+        "first_close_s": [
+          3.62,
+          5.26
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 4,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700004,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 4,
+        "fell": 0,
+        "length": 793,
+        "seed": 700004,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700004
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.76,
+            "released_s": 14.18,
+            "stage": "最终放置完成",
+            "tray_s": 14.18
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.46,
+            "released_s": 11.98,
+            "stage": "最终放置完成",
+            "tray_s": 11.98
+          }
+        ],
+        "first_close_s": [
+          3.28,
+          4.76
+        ],
+        "length": 758,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          }
+        ],
+        "first_close_s": [
+          3.7,
+          5.5
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 6,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700006,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 6,
+        "fell": 0,
+        "length": 758,
+        "seed": 700006,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700006
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.42,
+            "released_s": 14.38,
+            "stage": "最终放置完成",
+            "tray_s": 14.16
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.36,
+            "released_s": 11.86,
+            "stage": "最终放置完成",
+            "tray_s": 11.24
+          }
+        ],
+        "first_close_s": [
+          3.22,
+          4.26
+        ],
+        "length": 768,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.32,
+            "released_s": 15.16,
+            "stage": "最终放置完成",
+            "tray_s": 13.74
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": 2.84,
+            "released_s": null,
+            "stage": "夹持后未持续接触托盘",
+            "tray_s": null
+          }
+        ],
+        "first_close_s": [
+          3.12,
+          4.86
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 7,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700007,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 7,
+        "fell": 0,
+        "length": 768,
+        "seed": 700007,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700007
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.88,
+            "released_s": 17.36,
+            "stage": "最终放置完成",
+            "tray_s": 16.14
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.5,
+            "released_s": 12.78,
+            "stage": "最终放置完成",
+            "tray_s": 12.78
+          }
+        ],
+        "first_close_s": [
+          3.16,
+          4.7
+        ],
+        "length": 917,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          }
+        ],
+        "first_close_s": [
+          3.16,
+          4.6
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 10,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700010,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 10,
+        "fell": 0,
+        "length": 917,
+        "seed": 700010,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700010
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.8,
+            "released_s": 16.34,
+            "stage": "最终放置完成",
+            "tray_s": 13.5
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.24,
+            "released_s": 12.02,
+            "stage": "最终放置完成",
+            "tray_s": 12.02
+          }
+        ],
+        "first_close_s": [
+          3.22,
+          4.62
+        ],
+        "length": 866,
+        "matches_original": false,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": 5.24,
+            "released_s": null,
+            "stage": "夹持后未持续接触托盘",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.78,
+            "released_s": 12.4,
+            "stage": "最终放置完成",
+            "tray_s": 12.4
+          }
+        ],
+        "first_close_s": [
+          3.62,
+          5.16
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 12,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700012,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 12,
+        "fell": 0,
+        "length": 829,
+        "seed": 700012,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700012
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.54,
+            "released_s": 14.6,
+            "stage": "最终放置完成",
+            "tray_s": 13.98
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.66,
+            "released_s": 12.46,
+            "stage": "最终放置完成",
+            "tray_s": 11.88
+          }
+        ],
+        "first_close_s": [
+          3.5,
+          5.36
+        ],
+        "length": 779,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": 4.3,
+            "released_s": null,
+            "stage": "夹持后未持续接触托盘",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.74,
+            "released_s": 12.36,
+            "stage": "最终放置完成",
+            "tray_s": 12.36
+          }
+        ],
+        "first_close_s": [
+          3.56,
+          4.86
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 19,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700019,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 19,
+        "fell": 0,
+        "length": 779,
+        "seed": 700019,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700019
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.7,
+            "released_s": 14.18,
+            "stage": "最终放置完成",
+            "tray_s": 14.18
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.32,
+            "released_s": 12.36,
+            "stage": "最终放置完成",
+            "tray_s": 12.36
+          }
+        ],
+        "first_close_s": [
+          3.28,
+          4.62
+        ],
+        "length": 758,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 5.02,
+            "released_s": 14.84,
+            "stage": "最终放置完成",
+            "tray_s": 13.46
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": 2.58,
+            "released_s": null,
+            "stage": "夹持后未持续接触托盘",
+            "tray_s": null
+          }
+        ],
+        "first_close_s": [
+          3.4,
+          4.86
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 21,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700021,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 21,
+        "fell": 0,
+        "length": 758,
+        "seed": 700021,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700021
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.74,
+            "released_s": 14.04,
+            "stage": "最终放置完成",
+            "tray_s": 13.5
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.38,
+            "released_s": 11.88,
+            "stage": "最终放置完成",
+            "tray_s": 11.88
+          }
+        ],
+        "first_close_s": [
+          3.2,
+          4.56
+        ],
+        "length": 751,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.38,
+            "released_s": 12.16,
+            "stage": "最终放置完成",
+            "tray_s": 12.16
+          }
+        ],
+        "first_close_s": [
+          3.16,
+          4.56
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 30,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700030,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 30,
+        "fell": 0,
+        "length": 751,
+        "seed": 700030,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700030
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.56,
+            "released_s": 13.96,
+            "stage": "最终放置完成",
+            "tray_s": 13.96
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.54,
+            "released_s": 11.88,
+            "stage": "最终放置完成",
+            "tray_s": 11.88
+          }
+        ],
+        "first_close_s": [
+          3.36,
+          4.7
+        ],
+        "length": 747,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.74,
+            "released_s": 13.6,
+            "stage": "最终放置完成",
+            "tray_s": 13.6
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          }
+        ],
+        "first_close_s": [
+          3.4,
+          4.56
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 34,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700034,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 34,
+        "fell": 0,
+        "length": 747,
+        "seed": 700034,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700034
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.78,
+            "released_s": 14.04,
+            "stage": "最终放置完成",
+            "tray_s": 14.04
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.58,
+            "released_s": 11.82,
+            "stage": "最终放置完成",
+            "tray_s": 11.82
+          }
+        ],
+        "first_close_s": [
+          3.4,
+          4.6
+        ],
+        "length": 751,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.7,
+            "released_s": 13.5,
+            "stage": "最终放置完成",
+            "tray_s": 13.5
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": 3.08,
+            "released_s": null,
+            "stage": "夹持后未持续接触托盘",
+            "tray_s": null
+          }
+        ],
+        "first_close_s": [
+          3.42,
+          4.7
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 36,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700036,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 36,
+        "fell": 0,
+        "length": 751,
+        "seed": 700036,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700036
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 5.04,
+            "released_s": 14.04,
+            "stage": "最终放置完成",
+            "tray_s": 14.04
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.68,
+            "released_s": 12.46,
+            "stage": "最终放置完成",
+            "tray_s": 11.88
+          }
+        ],
+        "first_close_s": [
+          3.22,
+          4.92
+        ],
+        "length": 751,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": 4.22,
+            "released_s": null,
+            "stage": "夹持后未持续接触托盘",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.56,
+            "released_s": 12.24,
+            "stage": "最终放置完成",
+            "tray_s": 11.62
+          }
+        ],
+        "first_close_s": [
+          3.22,
+          4.6
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 39,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700039,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 39,
+        "fell": 0,
+        "length": 751,
+        "seed": 700039,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700039
+    },
+    {
+      "30000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 4.82,
+            "released_s": 14.18,
+            "stage": "最终放置完成",
+            "tray_s": 13.4
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.12,
+            "released_s": 11.6,
+            "stage": "最终放置完成",
+            "tray_s": 11.22
+          }
+        ],
+        "first_close_s": [
+          3.1,
+          4.66
+        ],
+        "length": 758,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 1
+      },
+      "100000": {
+        "cups": [
+          {
+            "cup": 1,
+            "final": {
+              "cabinet": true,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": false
+            },
+            "floor_s": null,
+            "held_s": null,
+            "released_s": null,
+            "stage": "未形成持续夹持",
+            "tray_s": null
+          },
+          {
+            "cup": 2,
+            "final": {
+              "cabinet": false,
+              "floor": false,
+              "held": {
+                "HandSide.LEFT": false,
+                "HandSide.RIGHT": false
+              },
+              "tray": true
+            },
+            "floor_s": null,
+            "held_s": 3.48,
+            "released_s": 12.08,
+            "stage": "最终放置完成",
+            "tray_s": 12.08
+          }
+        ],
+        "first_close_s": [
+          3.22,
+          4.66
+        ],
+        "length": 2000,
+        "matches_original": true,
+        "renderer": "NVIDIA GeForce RTX 5090/PCIe/SSE2",
+        "success": 0
+      },
+      "original_100k": {
+        "episode": 47,
+        "fell": 0,
+        "length": 2000,
+        "seed": 700047,
+        "success": 0,
+        "termination": "timeout"
+      },
+      "original_30k": {
+        "episode": 47,
+        "fell": 0,
+        "length": 758,
+        "seed": 700047,
+        "success": 1,
+        "termination": "success"
+      },
+      "same_initial_qpos": true,
+      "seed": 700047
+    }
+  ],
+  "thresholds": {
+    "control_hz": 50,
+    "held_or_tray_min_frames": 10,
+    "released_min_frames": 25
+  }
+}
