@@ -1,0 +1,91 @@
+{
+  "plan": "诊断实验计划（2026-11-23）",
+  "experiments": [
+    {
+      "id": "prep",
+      "title": "开工前确认",
+      "when": "今天",
+      "owner": "全员",
+      "question": "开跑之前要定下来的六件事。",
+      "steps": [
+        {"name": "指定帧的腕位置和朝向能驱动 Kimodo，并由 SONIC 执行", "done": 1},
+        {"name": "核对 SONIC 评测入口的默认时限（pp_box 29 s，DoubleDesk 40 s）", "done": 1},
+        {"name": "实测桌面安全行程、各速度档轨迹、首次接触后的自由动力学、中途换目标事件", "done": 0},
+        {"name": "确认 v1 论文里的 RTC 指 Real-Time Chunking 还是 real-time correction", "done": 0},
+        {"name": "确认 HITCH 代码是否公开", "done": 0},
+        {"name": "定死所有判定数字", "done": 0}
+      ]
+    },
+    {
+      "id": "exp1",
+      "title": "实验一 · 阻塞式基线压力",
+      "when": "第 1–4 天",
+      "owner": "同学甲",
+      "question": "“命令跑完、停稳、再观察”的做法，在动态场景里是做不成，还是只是慢。",
+      "judgment": "各动态条件都达到静态成功率的 80%：主要损失的是速度。某档比静态低 25 个百分点以上：查锁存误差、首次接触和滑落。",
+      "steps": [
+        {"name": "静态抓取验收（预留 30 个种子，26 个成功才进动态）", "runs": "exp1-static-*", "planned": 30},
+        {"name": "桌面往复 0.03 m/s", "runs": "exp1-move003-*", "planned": 30},
+        {"name": "桌面往复 0.10 m/s", "runs": "exp1-move010-*", "planned": 30},
+        {"name": "桌面往复 0.30 m/s", "runs": "exp1-move030-*", "planned": 30},
+        {"name": "中途换目标", "runs": "exp1-switch-*", "planned": 30}
+      ]
+    },
+    {
+      "id": "exp2",
+      "title": "实验二 · 全身到达精度与动作覆盖",
+      "when": "第 1–3 天",
+      "owner": "同学乙",
+      "question": "冻结 Kimodo 加冻结 SONIC 这个底座够不够用；Kimodo 的预测和实际执行差多少。",
+      "judgment": "到达率低于 39%，或加 IK 精修后位置误差仍大于 3 cm、朝向误差大于 20°，或静态抓取低于 6/10：底座不可用。1.0 s 处躯干偏差大于 15 cm 或 20°：放弃对着预测推理。",
+      "basis": ["settled-20261123-r1-*"],
+      "steps": [
+        {"name": "到达测试 · 只用 Kimodo（18 个目标点）", "runs": "exp2-reach-kimodo-*", "planned": 18},
+        {"name": "到达测试 · 加最后 25 cm 手臂 IK 精修（上一项不过线才跑）", "runs": "exp2-reach-ik-*", "planned": 18, "optional": true},
+        {"name": "动作覆盖 · 侧步 0.5 m", "runs": "exp2-sidestep-*", "planned": 10},
+        {"name": "动作覆盖 · 后退 0.5 m", "runs": "exp2-backward-*", "planned": 10},
+        {"name": "动作覆盖 · 前倾 30°", "runs": "exp2-lean-*", "planned": 10},
+        {"name": "静态抓取", "runs": "exp2-grasp-*", "planned": 10}
+      ]
+    },
+    {
+      "id": "exp3",
+      "title": "实验三 · 开源 VLM 指点能力摸底",
+      "when": "第 1–2 天",
+      "owner": "项目负责人",
+      "question": "没微调的开源 VLM 能否在图上指准接触点和预抓取点。",
+      "judgment": "反投影后的 3D 正确率低于 50%：指点本身是瓶颈，后处理或微调要计入后续计划。",
+      "basis": ["vlm-refined-20261118-r1-*"],
+      "steps": [
+        {"name": "80 帧第一视角 RGB-D 指点测试（已评的帧数手填）", "done": 0, "planned": 80}
+      ]
+    },
+    {
+      "id": "exp4",
+      "title": "实验四 · 延迟鲁棒性（含中途改目标）",
+      "when": "第 5–8 天",
+      "owner": "同学甲、同学乙",
+      "question": "意图锚定在物体上之后，VLM 的延迟是否在几秒内基本不影响成功率。",
+      "judgment": "锚定更新比固定坐标高不到 25 个百分点，或它自己从 0.5 s 到 5 s 下降超过 25 个百分点：核心发现不成立。",
+      "steps": [
+        {"name": "阻塞式（3 档延迟 × 2 档速度，每格 30 次）", "runs": "exp4-blocking-*", "planned": 180},
+        {"name": "异步 · 固定坐标", "runs": "exp4-fixed-*", "planned": 180},
+        {"name": "异步 · 锚定更新", "runs": "exp4-anchored-*", "planned": 180}
+      ]
+    },
+    {
+      "id": "exp5",
+      "title": "实验五 · 运动先验打分选优",
+      "when": "第三阶段，未排期",
+      "owner": "项目负责人",
+      "question": "能否用冻结的 Kimodo 给 VLM 的几个候选做法打分并选出最好的。",
+      "judgment": "用 Kimodo 选必须同时明显好于另外两种选法，且耗时可接受，否则放弃。",
+      "steps": [
+        {"name": "定义打分指标", "done": 0},
+        {"name": "直接用第一个候选（50 个场景）", "runs": "exp5-first-*", "planned": 50},
+        {"name": "手臂 IK 可达性加碰撞检查来选", "runs": "exp5-ik-*", "planned": 50},
+        {"name": "Kimodo 生成结果的指标加碰撞检查来选", "runs": "exp5-kimodo-*", "planned": 50}
+      ]
+    }
+  ]
+}
