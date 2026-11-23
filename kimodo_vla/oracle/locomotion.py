@@ -473,14 +473,15 @@ class LocomotionPolicy(OraclePolicy):
             rot = self.frame.heading.T @ rotation_wxyz(obs['root_quat'])
             action = np.r_[0., 0., obs['root_pos'][2], rot[:, :2].ravel(), obs['joints'], 0., 0.]
             return {'action_chunk': np.tile(action, (5, 1)).tolist(), 'oracle_target': self.target_info}
-        before_phase = self.phase
         phase = self.advance(obs)
         if phase in ('ready', 'hold'):
             return self.hold_chunk(obs)
         sent = {'reach': REACH_STEPS, 'lean': LEAN_STEPS, 'stop': STOP_STEPS}.get(phase, self.walk_steps)
-        # Walking plans start from where the body is; a reach keeps the stance it began with.
+        # Every plan starts from where the body is. In a reach the conditions stay on the stance it
+        # began with; without this the reference's root wandered 0.3 m from the body over a reach,
+        # which the tracker never sees but which put the logged reference wrist 0.3 m off.
         reference_root = np.asarray(obs['reference_root_pos'], dtype=float)
-        shift = self.anchor(obs) if phase != 'reach' or before_phase != 'reach' else np.zeros(3)
+        shift = self.anchor(obs)
         cut = round(t*30)
         features = self.reference_features()
         hist = features[:-1][-100:]
