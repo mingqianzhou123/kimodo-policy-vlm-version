@@ -24,7 +24,8 @@ def test_goal_file_is_validated_and_bounded_in_time():
     assert load_goal(WALK)['root'] == {'xy': [.5, 0.], 'speed_m_s': .35, 'tolerance_m': .05}
     assert walk_allowance(load_goal(WALK)) == pytest.approx(.5/.05+5)
     assert episode_seconds(load_goal(NEAR)) == pytest.approx(.5+1.5+2)
-    assert episode_seconds(load_goal(REACH)) > episode_seconds(load_goal(WALK)) > 10
+    assert episode_seconds(load_goal(WALK)) == pytest.approx(.5+15+3.2+2)
+    assert episode_seconds(load_goal(REACH)) == pytest.approx(.5+np.hypot(.4, .1)/.05+5+3.2+1.5+2)
     for bad in ({'name': 'x'}, {'root': {'xy': [1, 0]}}, {'name': 'x', 'root': {'xy': [1, 0], 'speed_m_s': 3}},
                 {'name': 'x', 'root': {'xy': [1, 0], 'duration_s': 1}},
                 {'name': 'x', 'hand': {'side': 'both', 'position': [0, 0, 1], 'approach': [1, 0, 0], 'duration_s': 1}},
