@@ -64,6 +64,7 @@ python agentic/scripts/report_settled.py --suite settled-20261123-r1
 |---|---|
 | `run_settled_suite.py` | **主入口**：对五个案例各调用一次 `run_oracle.py` |
 | `report_settled.py` | 汇总一组结果并和旧基线对比 |
+| `overview.py` | 生成实验进度页：按 `configs/experiments.json` 里的计划给每个实验算进度和成功率，每个实验目录可点开看误差曲线和视频。写到 `<实验输出>/overview/index.html`；加 `--serve 8765` 后在浏览器打开 `http://localhost:8765/overview/index.html`。页面模板是同名的 `overview.html` |
 | `run_oracle.py` | 启动器：起策略服务和仿真，检查 GPU，记录提交号、权重与源码哈希 |
 | `serve_oracle.py`、`serve_fixed_reference.py`、`serve_recorded_reference.py` | 三种参考来源的策略服务，由 `run_oracle.py` 启动 |
 | `*_sim_bootstrap.py` | 仿真进程的启动钩子，由 `run_oracle.py` 按开关选择 |

@@ -21,11 +21,12 @@ import numpy as np
 from paths import AGENTIC, RUNS
 
 LIMIT_CM = 3
-LAYOUTS = ('a', 'b')
 STATUS = {'completed': '完成', 'failed': '失败'}
 SWITCHES = {'reference_source': '参考来源', 'variant': '衔接', 'support_constraints': '支撑约束',
             'hand_constraints': '手部约束', 'trajectory_projection': '轨迹投影', 'dynamics_profile': '动力学配置',
             'root_support': '根部支撑', 'target_source': '目标来源', 'vlm_localizer': '定位器'}
+# What an experiment's record holds: the first five are written before it runs, the last four after.
+RECORD = ('question', 'success', 'prediction', 'judgment', 'stop', 'conclusion', 'confidence', 'changed', 'next')
 
 
 def read(path):
@@ -62,6 +63,16 @@ def numbers(values):
     if values.ndim > 1:
         return [numbers(v) for v in values]
     return [round(float(v), 3) if math.isfinite(v) else None for v in values]
+
+
+def rate(wins, total):
+    """A success rate with its 95% Wilson interval; with few runs the interval is wide, and that is worth seeing."""
+    if wins is None or not total:
+        return None
+    z, p = 1.96, wins/total
+    scale = 1+z*z/total
+    middle, half = (p+z*z/(2*total))/scale, z*math.sqrt(p*(1-p)/total+z*z/(4*total*total))/scale
+    return {'wins': wins, 'total': total, 'low': round(max(middle-half, 0), 4), 'high': round(min(middle+half, 1), 4)}
 
 
 def measure(run):
@@ -159,19 +170,45 @@ def describe(run, out):
         switches['起步'] = '站稳后'
     episodes = (read(run/'episodes.json') or {}).get('episodes')
     episodes = episodes if isinstance(episodes, list) and episodes else None
-    success = (read(run/'episode.json') or {}).get('success')
-    if episodes and all(isinstance(e, dict) and isinstance(e.get('success'), bool) for e in episodes):
+    episode = read(run/'episode.json') or {}
+    success = episode.get('success')
+    if meta.get('success_rate_evaluation') is False:  # the run never tried the task, so its "failure" is not a result
+        wins = None
+    elif episodes and all(isinstance(e, dict) and isinstance(e.get('success'), bool) for e in episodes):
         wins = sum(e['success'] for e in episodes)
     else:
         wins = int(success) if isinstance(success, bool) and not (episodes and len(episodes) > 1) else None
     videos = sorted((run/'videos').glob('*.mp4')) if (run/'videos').is_dir() else []
     measured = measure(run) or {}
     return {'name': run.name, 'date': date, 'version': version, 'switches': switches,
-            'status': STATUS.get(meta.get('status'), '未收尾' if meta else '未知'), 'error': meta.get('error'),
+            'status': STATUS.get(meta.get('status'), '未收尾' if meta.get('status') else '未知'), 'error': meta.get('error'),
             'minutes': optional(lambda: round((ended-started)/60, 1)),
-            'episodes': len(episodes) if episodes else 1, 'wins': wins,
+            'episodes': len(episodes) if episodes else 1, 'wins': wins, 'seed': episode.get('seed'),
             'video': playable(videos[0], out) if videos else None,
             'm': measured.get('metrics'), 's': measured.get('series')}
+
+
+def summarize(runs):
+    """What a set of runs says together, and what in it needs a second look."""
+    measured = [r['m'] for r in runs if r['m']]
+    judged = [m['pass'] for m in measured if m.get('pass') is not None]
+    scored = [r for r in runs if r['wins'] is not None and r['status'] == STATUS['completed']]
+    def worst(key):
+        values = [max(m[key]) for m in measured if m.get(key)]
+        return max(values) if values else None
+    roots = [m['root_mean_cm'] for m in measured if m.get('root_mean_cm') is not None]
+    notes = [f"{r['name']} {r['status']}" + (f"：{r['error']}" if r['error'] else '')
+             for r in runs if r['status'] != STATUS['completed']]
+    versions = {json.dumps(r['version'], sort_keys=True) for r in runs if r['version']}
+    if len(versions) > 1:
+        notes.append(f'这些实验来自 {len(versions)} 个不同的代码版本，比较时先确认差别只在想比的那一项')
+    silent = sum(r['status'] == STATUS['completed'] and not r['m'] for r in runs)
+    if silent:
+        notes.append(f'{silent} 个实验跑完了但没有逐步日志，没有数字')
+    return {'runs': len(runs), 'passed': rate(sum(judged), len(judged)),
+            'success': rate(sum(r['wins'] for r in scored), sum(r['episodes'] for r in scored)),
+            'worst_wrist_cm': worst('wrist_max_cm'), 'worst_marker_cm': worst('marker_max_cm'),
+            'root_mean_cm': round(sum(roots)/len(roots), 3) if roots else None, 'notes': notes}
 
 
 def progress(plan, runs):
@@ -179,7 +216,8 @@ def progress(plan, runs):
 
     A step is done / planned, where done is either typed into the plan or the episodes of finished
     runs whose name matches the step's pattern. An experiment's progress is the mean over its steps;
-    an optional step only counts once it has been started.
+    an optional step only counts once it has been started. Progress says how much has been run,
+    not whether it passed: that is each step's success rate and the conclusion typed into the plan.
     """
     experiments = []
     for experiment in plan['experiments']:
@@ -189,15 +227,14 @@ def progress(plan, runs):
             finished = [r for r in matched if r['status'] == STATUS['completed']]
             planned = step.get('planned', 1)
             done = sum(r['episodes'] for r in finished) if 'runs' in step else step.get('done', 0)
-            wins = [r['wins'] for r in finished]
             steps.append({'name': step['name'], 'planned': planned, 'done': done, 'share': min(done/planned, 1),
                           'optional': bool(step.get('optional')), 'pattern': step.get('runs'),
-                          'wins': sum(wins) if wins and None not in wins else None,
+                          'predict': step.get('predict'), 'summary': summarize(matched),
                           'runs': [r['name'] for r in matched]})
         counted = [s for s in steps if not s['optional'] or s['done']]
-        basis = [r['name'] for r in runs if any(fnmatch.fnmatch(r['name'], p) for p in experiment.get('basis', []))]
-        experiments.append({**{k: experiment.get(k) for k in ('id', 'title', 'when', 'owner', 'question', 'judgment')},
-                            'steps': steps, 'basis': basis,
+        basis = [r for r in runs if any(fnmatch.fnmatch(r['name'], p) for p in experiment.get('basis', []))]
+        experiments.append({**{k: experiment.get(k) for k in ('id', 'title', 'when', 'owner', *RECORD)},
+                            'steps': steps, 'basis': [r['name'] for r in basis], 'basis_summary': summarize(basis),
                             'steps_done': sum(s['share'] == 1 for s in counted), 'steps_counted': len(counted),
                             'progress': sum(s['share'] for s in counted)/len(counted) if counted else 0})
     return experiments
@@ -219,23 +256,22 @@ def collect(runs_dir, out, plan):
     for run in runs:
         if run['name'] not in planned:
             groups.setdefault(stage(run['name']), []).append(run['name'])
-    groups = [{'id': key, 'date': next(r['date'] for r in runs if r['name'] == names[0]), 'runs': names}
-              for key, names in groups.items()]
+    by_name = {r['name']: r for r in runs}
+    groups = [{'id': key, 'date': by_name[names[0]]['date'], 'runs': names,
+               'summary': summarize([by_name[n] for n in names])} for key, names in groups.items()]
     groups.sort(key=lambda g: (g['date'] or '', g['id']), reverse=True)
     return {'generated': time.strftime('%Y-%m-%d %H:%M'), 'plan': plan.get('plan'), 'limit_cm': LIMIT_CM,
             'progress': sum(e['progress'] for e in experiments)/len(experiments) if experiments else 0,
-            'experiments': experiments, 'groups': groups, 'runs': {r['name']: r for r in runs},
+            'experiments': experiments, 'groups': groups, 'runs': by_name,
             'other_folders': len(folders)-len(runs)}
 
 
 def write(data, out):
     template = (Path(__file__).with_suffix('.html')).read_text()
     blob = json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(',', ':')).replace('</', '<\\/')
-    pages = []
-    for layout in LAYOUTS:
-        pages.append(out/f'index-{layout}.html')
-        pages[-1].write_text(template.replace('__LAYOUT__', layout).replace('__DATA__', blob))
-    return pages
+    page = out/'index.html'
+    page.write_text(template.replace('__DATA__', blob))
+    return page
 
 
 class Ranged(http.server.SimpleHTTPRequestHandler):
@@ -279,10 +315,8 @@ if __name__ == '__main__':
     p.add_argument('--serve', type=int, metavar='PORT', help='after building, serve the page on this local port')
     args = p.parse_args()
     out = RUNS/'overview'
-    pages = write(collect(RUNS, out, json.loads(args.plan.read_text())), out)
-    for page in pages:
-        print(page)
+    page = write(collect(RUNS, out, json.loads(args.plan.read_text())), out)
+    print(page)
     if args.serve:
-        for page in pages:
-            print(f'http://localhost:{args.serve}/{page.relative_to(RUNS).as_posix()}', flush=True)
+        print(f'http://localhost:{args.serve}/{page.relative_to(RUNS).as_posix()}', flush=True)
         http.server.ThreadingHTTPServer(('127.0.0.1', args.serve), functools.partial(Ranged, directory=str(RUNS))).serve_forever()
