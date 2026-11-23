@@ -25,7 +25,9 @@ def stable(row):
             and max(row['foot_speed_m_s']) < .01)
 
 
-def settle(env, provider, warm_action, run):
+def settle(env, provider, warm_action, run, markers=True, before=None):
+    if before is not None:
+        before(env)
     data = env.scene['robot'].data
     robot = env.scene['robot']
     feet = [list(robot.body_names).index(n) for n in FEET]
@@ -37,8 +39,9 @@ def settle(env, provider, warm_action, run):
     if not np.allclose(initial[3:7], [1, 0, 0, 0], atol=1e-6):
         raise ValueError('Unexpected reset orientation')
     hold = np.r_[0., 0., initial[2], np.eye(3)[:, :2].ravel(), array(data.joint_pos[0,joints]), 0., 0.]
-    create_markers(env, run, 'front_camera', float(os.environ['VLM_MARKER_REACH_RAD']),
-                   float(os.environ['VLM_CAMERA_LATERAL_M']))
+    if markers:
+        create_markers(env, run, 'front_camera', float(os.environ['VLM_MARKER_REACH_RAD']),
+                       float(os.environ['VLM_CAMERA_LATERAL_M']))
     consecutive = 0
     with (run/'settling.jsonl').open('x') as log:
         for i in range(LIMIT):
@@ -71,7 +74,8 @@ def settle(env, provider, warm_action, run):
     raise RuntimeError('Double support did not stabilize within 5 s')
 
 
-def install(install_bridge):
+def install(install_bridge, *, markers=True, audit=True, before=None):
+    """The defaults are the 2026-11-23 reach configuration; the grasp loop needs neither extra."""
     factory = importlib.import_module('action_provider.create_action_provider')
     install_dynamics_override()
     aligned = factory.create_action_provider
@@ -83,7 +87,8 @@ def install(install_bridge):
 
     factory.create_action_provider = remember_warm_action
     install_bridge()
-    install_actuator_audit()
+    if audit:
+        install_actuator_audit()
     audited = factory.create_action_provider
 
     def create(env, args):
@@ -94,7 +99,7 @@ def install(install_bridge):
         def act(current_env):
             nonlocal ready
             if not ready:
-                settle(current_env, provider, provider._settling_action, Path(os.environ['ORACLE_RUN']))
+                settle(current_env, provider, provider._settling_action, Path(os.environ['ORACLE_RUN']), markers, before)
                 ready = True
             return action(current_env)
 
