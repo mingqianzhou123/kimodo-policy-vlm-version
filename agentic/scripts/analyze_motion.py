@@ -5,10 +5,11 @@ and to ``<runs>/<pattern without *>/motion.json``. Definitions:
 
 fell        pelvis below 0.40 m, or tilted more than 60 degrees from upright, at any step
 completion  root displacement along the commanded direction / commanded distance, at the end
-arrived     the final phase began before the run ended: the walk got within tolerance and stopped,
-            and for a hand goal the reach had its full time
-reached     not fallen, arrived, and the wrist within 10 cm of the target on every step from the
-            commanded arrival to the end of the run
+arrived     the final phase began, and 2 s of it fit in the run: the walk got within tolerance and
+            stopped (or the lean ended), and for a hand goal the reach had its full time
+reached     not fallen, arrived, and the wrist within 10 cm of the target on every step of the 2 s
+            after the commanded arrival
+The 2 s after arrival are the "hold window" every hold number is taken over.
 Errors come in two legs: target -> reference (what Kimodo, after handoff and joint bounds, asked
 the tracker for) and reference -> actual (what SONIC did with it).
 """
@@ -22,7 +23,7 @@ from paths import RUNS, G1_XML
 from kimodo_vla.core.types import G1_JOINT_NAMES
 from kimodo_vla.oracle.geometry import XmlFK, rotation_wxyz, angle_deg
 
-FALL_HEIGHT_M, FALL_TILT_DEG, REACH_M = .40, 60., .10
+FALL_HEIGHT_M, FALL_TILT_DEG, REACH_M, HOLD_S = .40, 60., .10, 2.
 
 
 def rows(path):
@@ -74,11 +75,12 @@ def analyze(run, fk=None):
     tilt = np.array([tilt_deg(r) for r in rotation])
     fell = bool((root[:, 2] < FALL_HEIGHT_M).any() or (tilt > FALL_TILT_DEG).any())
     arrival = target['arrival_time']
-    hold = time > arrival+1e-6
+    hold = (time > arrival+1e-6) & (time <= arrival+HOLD_S+1e-6)
+    arrived = bool(time[-1] >= arrival+HOLD_S-1e-6)
     phases = {p['phase']: p for p in target.get('phases', [])}
     out = {'run': run.name, 'goal': goal['name'], 'seed': target.get('noise_seed'),
            'steps': len(steps), 'fell': fell, 'min_root_height_m': float(root[:, 2].min()), 'max_tilt_deg': float(tilt.max()),
-           'hold_steps': int(hold.sum()), 'arrived': bool(hold.any()), 'plans': len(plans),
+           'hold_steps': int(hold.sum()), 'arrived': arrived, 'plans': len(plans),
            'phase_times_s': {name: p['elapsed_s'] for name, p in phases.items()},
            'walk_timed_out': bool(phases.get('stop', {}).get('walk_timed_out', False)),
            'inference_s_mean': float(np.mean([p['inference_s'] for p in plans])),
@@ -92,6 +94,14 @@ def analyze(run, fk=None):
         lean = np.array([pitch_deg(r, heading) for r in torso])
         out['torso_pitch_deg'] = {'start': float(lean[0]), 'max': float(lean.max()),
                                   'hold_mean': float(lean[hold].mean()) if hold.any() else None}
+        if 'lean' in goal and hold.any():
+            asked = [pitch_deg(fk(s['reference_joints'], s['reference_root_world'], rotation_wxyz(s['reference_root_quat']),
+                                  body_names=['torso_link'])[1][0], heading) for s in steps]
+            first = pitch_deg(fk(start['joints'], start['root_pos'], rotation_wxyz(start['root_quat']),
+                                 body_names=['torso_link'])[1][0], heading)
+            out['lean'] = {'commanded_deg': goal['lean']['pitch_deg'],
+                           'reference_deg': float(np.mean(np.array(asked)[hold])-first),
+                           'actual_deg': float(lean[hold].mean()-first), 'actual_max_deg': float(lean.max()-first)}
     if 'root' in goal:
         command = np.array(goal['root']['xy'], dtype=float)
         distance = float(np.linalg.norm(command))
@@ -112,7 +122,7 @@ def analyze(run, fk=None):
         wrist_rotation = np.array([a['wrist_rot'] for a in after])[:, i]
         distance = np.linalg.norm(wrist-wrist_goal, axis=1)
         angle = np.array([angle_deg(r, wrist_goal_rotation) for r in wrist_rotation])
-        hand = {'side': target['active_sides'][0], 'reached': bool(not fell and hold.any() and (distance[hold] <= REACH_M).all()),
+        hand = {'side': target['active_sides'][0], 'reached': bool(not fell and arrived and (distance[hold] <= REACH_M).all()),
                 'closest_cm': 100*float(distance.min())}
         if hold.any():
             hand.update(position_cm={'mean': 100*float(distance[hold].mean()), 'max': 100*float(distance[hold].max()),
@@ -123,6 +133,8 @@ def analyze(run, fk=None):
                         kimodo_keyframe_cm=100*float(np.mean([p['kimodo_wrist_goal_m'] for p in plans if 'kimodo_wrist_goal_m' in p])),
                         kimodo_keyframe_deg=float(np.mean([p['kimodo_wrist_goal_deg'] for p in plans if 'kimodo_wrist_goal_deg' in p])))
         out['hand'] = hand
+    # One verdict per run for the progress page: a hand goal must be reached, any other goal arrived at without a fall.
+    out['pass'] = bool(out['hand']['reached'] if 'hand' in out else out['arrived'] and not fell)
     return out
 
 
@@ -148,8 +160,8 @@ def main():
             line += f" done={100*r['completion']:.0f}% end={r['final_error_cm']:.1f}cm yaw={r['final_yaw_deg']:.1f} walk={walked:.1f}s timeout={int(result['walk_timed_out'])}"
         g = result['gait']
         line += f" bothfeet ref/act={100*g['reference']['both_moving_share']:.0f}/{100*g['actual']['both_moving_share']:.0f}% feet ref/act={g['reference']['foot_travel_m']:.2f}/{g['actual']['foot_travel_m']:.2f}m"
-        if 'torso_pitch_deg' in result:
-            line += f" lean={result['torso_pitch_deg']['max']:.1f}"
+        if 'lean' in result:
+            line += f" lean asked/ref/actual={result['lean']['commanded_deg']:.0f}/{result['lean']['reference_deg']:.1f}/{result['lean']['actual_deg']:.1f}deg"
         if 'hand' in result and 'position_cm' in result['hand']:
             h = result['hand']
             line += f" reached={int(h['reached'])} wrist={h['position_cm']['mean']:.1f}/{h['position_cm']['max']:.1f}cm " \

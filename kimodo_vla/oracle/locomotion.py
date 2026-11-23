@@ -16,6 +16,7 @@ An episode runs through these phases:
   stop   one plan that ends in the starting standing pose where the body now is
   reach  0.5 s plans with the root's ground point and the feet held at that stance and one wrist
          on a path to its target; the target stays conditioned until the episode ends
+  lean   (lean goals) one plan from the start stance, feet held, that ends in the leaned pose
   hold   (goals without a hand) the last reference pose, repeated
 
 A goal is written in the start frame: x forward, y left, z up from the floor, origin on the floor
@@ -27,7 +28,12 @@ under the pelvis at the first measured sample.
 ``root`` moves the ground point under the pelvis while the facing direction stays as it started,
 so a sideways or backward ``xy`` asks for a side step or a backward walk, not a turn. ``hand``
 moves one wrist to a point; ``approach`` is the direction the forearm points on arrival. Either
-part may be left out.
+part may be left out. A third kind of goal stands still and leans the trunk forward:
+
+    {"name": "lean-30", "lean": {"pitch_deg": 30}}
+
+Its end pose is the start pose with the waist pitched as far as its joint allows and the pelvis
+pitched about the hips for the rest, feet where they were; Kimodo generates the way there.
 """
 import json
 import time
@@ -51,6 +57,8 @@ CANVAS = 50        # future frames Kimodo generates per plan, at 30 Hz
 READY_S = .5       # standing time before the first plan
 REACH_STEPS = 25   # control steps executed from each reach plan
 STAND_FROM = 30    # a stop plan is the standing pose from this frame on
+LEAN_FROM = 40     # a lean plan is the leaned pose from this frame on
+LEAN_STEPS = 80    # control steps executed from the lean plan
 NOT_YET = 1e6      # arrival time, in seconds from the start, until the final phase begins
 
 
@@ -80,7 +88,7 @@ def approach_rotation(approach):
 def load_goal(source):
     """Validate a goal file or dict and fill in defaults; returns a plain dict."""
     goal = json.loads(Path(source).read_text()) if not isinstance(source, dict) else dict(source)
-    unknown = set(goal) - {'name', 'root', 'hand', 'note'}
+    unknown = set(goal) - {'name', 'root', 'hand', 'lean', 'note'}
     if unknown:
         raise ValueError(f'Unknown goal fields: {sorted(unknown)}')
     if not goal.get('name'):
@@ -103,15 +111,24 @@ def load_goal(source):
             raise ValueError('hand needs side, position [forward, left, up], approach and duration_s')
         approach_rotation(approach)
         out['hand'] = {'side': side, 'position': position.tolist(), 'approach': approach.tolist(), 'duration_s': duration}
+    if 'lean' in goal:
+        lean = dict(goal['lean'])
+        pitch = float(lean.pop('pitch_deg'))
+        if lean or len(out) > 1 or not 0 < pitch <= 45:
+            raise ValueError('lean needs pitch_deg in (0, 45] and cannot be combined with root or hand')
+        out['lean'] = {'pitch_deg': pitch}
     if len(out) == 1:
-        raise ValueError('A goal needs a root target, a hand target, or both')
+        raise ValueError('A goal needs a root target, a hand target, both, or a lean')
     return out
 
 
 def walk_allowance(goal):
-    """Seconds a walk may take before it is stopped short: three times the cruise time plus 3 s."""
-    root = goal['root']
-    return 3*float(np.linalg.norm(root['xy']))/root['speed_m_s']+3.
+    """Seconds a walk may take before it is stopped short: the distance at 0.05 m/s, plus 5 s.
+
+    The path asks for ``speed_m_s``, but the tracker turns the generated steps into far less
+    ground than that (0.07 m/s measured on the first forward walk).
+    """
+    return float(np.linalg.norm(goal['root']['xy']))/.05+5.
 
 
 def episode_seconds(goal, hold=2.):
@@ -121,6 +138,8 @@ def episode_seconds(goal, hold=2.):
         total += walk_allowance(goal)+2*1.6  # the walk can overrun by one plan, then the stop plan
     if 'hand' in goal:
         total += goal['hand']['duration_s']
+    if 'lean' in goal:
+        total += LEAN_STEPS/50
     return total+hold
 
 
@@ -144,6 +163,32 @@ def ground_path(start, goal, speed0, cruise, accel=1., frames=CANVAS, dt=1/30):
     return np.array(out)
 
 
+def leaned_pose(fk, joints, root, rotation, pitch_deg, foot_names):
+    """Joints, root position and rotation of a standing pose with the trunk pitched forward, feet unmoved.
+
+    The waist joint takes what its limit allows; the pelvis pitches about the hips for the rest,
+    with the hip joints turned back so the legs keep their orientation.
+    """
+    names = list(fk.joint_names)
+    waist = names.index('waist_pitch_joint')
+    hips = [names.index(f'{side}_hip_pitch_joint') for side in SIDES]
+    joints, root, rotation = np.array(joints, dtype=float), np.asarray(root, dtype=float), np.asarray(rotation)
+    total = np.radians(pitch_deg)
+    by_waist = min(total, fk.joint_limits[waist, 1]-.02-joints[waist])
+    by_pelvis = total-by_waist
+    leaned = joints.copy()
+    leaned[waist] += by_waist
+    leaned[hips] -= by_pelvis
+    if np.any(leaned < fk.joint_limits[:, 0]) or np.any(leaned > fk.joint_limits[:, 1]):
+        raise ValueError('Leaned pose exceeds joint limits')
+    yaw = np.arctan2(rotation[1, 0], rotation[0, 0])
+    left = np.array([-np.sin(yaw), np.cos(yaw), 0.])
+    pitched = Rotation.from_rotvec(left*by_pelvis).as_matrix() @ rotation
+    feet = fk(joints, root, rotation, body_names=foot_names)[0]
+    moved = fk(leaned, root, pitched, body_names=foot_names)[0]
+    return leaned, root+(feet-moved).mean(axis=0), pitched
+
+
 class LocomotionPolicy(OraclePolicy):
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, **kwargs):
         if not 25 <= walk_steps <= 80:
@@ -159,7 +204,7 @@ class LocomotionPolicy(OraclePolicy):
     def reset(self, seed=None):
         self.phase, self.phases, self.jumps = 'ready', [], []
         self.hand_start = self.hand_begin = self.stance_xz = self.walk_begin = None
-        self.stop_sent = False
+        self.stop_sent = self.lean_sent = False
         status = super().reset(seed)
         if self.noise_seed is not None:
             self.seed = int(self.noise_seed)
@@ -199,6 +244,14 @@ class LocomotionPolicy(OraclePolicy):
                         goal_displacement_m=np.linalg.norm(self.targets[:, 0]-sample['wrist_pos'], axis=1).tolist(),
                         hand_path='minimum-jerk world line and rotation from the wrist measured when the reach '
                                   'begins; the other hand is unconstrained')
+        if 'lean' in self.goal:
+            joints, root, rotation = leaned_pose(self.fk, self.initial_joints, self.initial_root, self.initial_rotation,
+                                                 self.goal['lean']['pitch_deg'], self.foot_names)
+            pose = self.features.codec.decode_joint_configuration_pose(joints[None],
+                self.frame.points([root]) @ BASIS, root_rotation_matrices=np.array([heading.T @ rotation]),
+                joint_names=G1_JOINT_NAMES)
+            self.lean_features = self.features.features(pose['local_rot_mats'], pose['root_positions'])[0]
+            info['lean_pose'] = {'joints': joints.tolist(), 'root_world': root.tolist(), 'root_rotation_world': rotation.tolist()}
         self.arrival = info['arrival_time']
         self.target_info.update(info)
         self.save_target()
@@ -217,6 +270,8 @@ class LocomotionPolicy(OraclePolicy):
         self.phases.append(dict(phase=phase, time=obs['time'], elapsed_s=t, root_remaining_m=remaining, **details))
         if phase == 'walk':
             self.walk_begin = t
+        elif phase == 'lean':
+            self.stance_xz = self.measured_xz(obs)
         elif phase == 'reach':
             i = self.hand_index
             self.hand_begin = t
@@ -234,7 +289,7 @@ class LocomotionPolicy(OraclePolicy):
         """The phase of the plan about to be made."""
         t = obs['time']-self.start_time
         if self.phase == 'ready' and t >= READY_S-1e-9:
-            self.enter('walk' if 'root' in self.goal else 'reach', obs)
+            self.enter('walk' if 'root' in self.goal else 'lean' if 'lean' in self.goal else 'reach', obs)
         if self.phase == 'walk':
             remaining = float(np.linalg.norm(self.root_end-self.measured_xz(obs)))
             late = t-self.walk_begin >= walk_allowance(self.goal)
@@ -242,6 +297,8 @@ class LocomotionPolicy(OraclePolicy):
                 self.enter('stop', obs, walk_timed_out=bool(late and remaining > self.goal['root']['tolerance_m']))
         elif self.phase == 'stop' and self.stop_sent:
             self.enter('reach' if 'hand' in self.goal else 'hold', obs)
+        elif self.phase == 'lean' and self.lean_sent:
+            self.enter('hold', obs)
         return self.phase
 
     def anchor(self, obs):
@@ -288,7 +345,7 @@ class LocomotionPolicy(OraclePolicy):
         values = torch.zeros(CANVAS, representation.motion_rep_dim)
         mask = torch.zeros_like(values, dtype=torch.bool)
         here = self.measured_xz(obs)
-        if phase == 'reach':
+        if phase in ('reach', 'lean'):
             path = np.tile(self.stance_xz, (CANVAS, 1))
         else:
             target = self.root_end
@@ -304,9 +361,16 @@ class LocomotionPolicy(OraclePolicy):
             standing[self.root_slot], standing[self.root_slot+2] = float(path[-1, 0]), float(path[-1, 1])
             values[STAND_FROM:], mask[STAND_FROM:] = standing, True
         keyframes, dense = [], []
-        if phase == 'reach':
+        if phase in ('reach', 'lean'):
             values[1:, self.feet_channels] = self.standing_features[self.feet_channels]
             mask[1:, self.feet_channels] = True
+        if phase == 'lean':
+            leaned = self.lean_features.clone()
+            # The leaned pelvis sits behind the stance's ground point by what the feet-fixed pitch needs.
+            offset = leaned[[self.root_slot, self.root_slot+2]]-self.standing_features[[self.root_slot, self.root_slot+2]]
+            leaned[self.root_slot], leaned[self.root_slot+2] = (torch.as_tensor(self.stance_xz, dtype=leaned.dtype)+offset)
+            values[LEAN_FROM:], mask[LEAN_FROM:] = leaned, True
+        if phase == 'reach':
             arrival = round((self.hand_begin+self.goal['hand']['duration_s'])*30)-cut
             keyframes = [arrival] if 0 < arrival < CANVAS else [] if arrival > 0 else [15, 30, 49]
             dense = execution_frames(step, cut, REACH_STEPS)
@@ -347,7 +411,7 @@ class LocomotionPolicy(OraclePolicy):
         phase = self.advance(obs)
         if phase in ('ready', 'hold'):
             return self.hold_chunk(obs)
-        sent = REACH_STEPS if phase == 'reach' else self.walk_steps
+        sent = REACH_STEPS if phase == 'reach' else LEAN_STEPS if phase == 'lean' else self.walk_steps
         # Walking plans start from where the body is; a reach keeps the stance it began with.
         reference_root = np.asarray(obs['reference_root_pos'], dtype=float)
         shift = self.anchor(obs) if phase != 'reach' or before_phase != 'reach' else np.zeros(3)
@@ -368,6 +432,8 @@ class LocomotionPolicy(OraclePolicy):
         output = {k: v.cpu() if torch.is_tensor(v) else v for k, v in output.items()}
         if phase == 'stop':
             self.stop_sent = True
+        if phase == 'lean':
+            self.lean_sent = True
 
         # Kimodo's 30 Hz frames on the 50 Hz control grid: the steps executed from this plan.
         times = step*.6-cut+torch.arange(sent+1)*.6
@@ -423,7 +489,7 @@ class LocomotionPolicy(OraclePolicy):
         path_world = self.frame.world(np.insert(path, 1, 0., axis=1))[:, :2]
         record = {'plan': self.plan_index, 'time': obs['time'], 'cut': cut, 'phase': phase, 'sent_steps': sent,
                   'keyframes': keyframes, 'dense_hand_frames': dense, 'root_frames': list(range(1, CANVAS)),
-                  'pose_frames': list(range(STAND_FROM, CANVAS)) if phase == 'stop' else [],
+                  'pose_frames': list(range({'stop': STAND_FROM, 'lean': LEAN_FROM}.get(phase, CANVAS), CANVAS)),
                   'hand_constraints': 'continuous', 'history_source': 'reference',
                   'history_condition_frames': int(hist_mask.any(-1).sum()),
                   'inference_s': elapsed, 'constraint_cfg': self.constraint_cfg, 'diffusion_steps': self.steps,

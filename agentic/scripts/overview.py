@@ -180,6 +180,9 @@ def describe(run, out):
         wins = int(success) if isinstance(success, bool) and not (episodes and len(episodes) > 1) else None
     videos = sorted((run/'videos').glob('*.mp4')) if (run/'videos').is_dir() else []
     measured = measure(run) or {}
+    verdict = (read(run/'motion-result.json') or {}).get('pass')  # written by analyze_motion.py for moving goals
+    if isinstance(verdict, bool) and measured.get('metrics') is not None:
+        measured['metrics']['pass'] = verdict
     return {'name': run.name, 'date': date, 'version': version, 'switches': switches,
             'status': STATUS.get(meta.get('status'), '未收尾' if meta.get('status') else '未知'), 'error': meta.get('error'),
             'minutes': optional(lambda: round((ended-started)/60, 1)),

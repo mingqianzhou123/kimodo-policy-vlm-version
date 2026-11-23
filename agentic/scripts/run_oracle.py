@@ -250,7 +250,7 @@ def main():
                 except OSError:
                     time.sleep(1)
             record['status']='running'; manifest.write_text(json.dumps(record,indent=2))
-            sim=subprocess.run(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,timeout=1800)
+            sim=subprocess.run(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,timeout=max(1800,3*a.steps))
             record['sim_exit_code']=sim.returncode
             sim.check_returncode()
             if not (run/'execution.jsonl').is_file() or not (run/'plans.jsonl').is_file():

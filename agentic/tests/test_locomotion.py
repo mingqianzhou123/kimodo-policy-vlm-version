@@ -22,7 +22,7 @@ NEAR = {'name': 'near', 'hand': {'side': 'right', 'position': [.3, -.25, .9], 'a
 
 def test_goal_file_is_validated_and_bounded_in_time():
     assert load_goal(WALK)['root'] == {'xy': [.5, 0.], 'speed_m_s': .35, 'tolerance_m': .05}
-    assert walk_allowance(load_goal(WALK)) == pytest.approx(3*.5/.35+3)
+    assert walk_allowance(load_goal(WALK)) == pytest.approx(.5/.05+5)
     assert episode_seconds(load_goal(NEAR)) == pytest.approx(.5+1.5+2)
     assert episode_seconds(load_goal(REACH)) > episode_seconds(load_goal(WALK)) > 10
     for bad in ({'name': 'x'}, {'root': {'xy': [1, 0]}}, {'name': 'x', 'root': {'xy': [1, 0], 'speed_m_s': 3}},
@@ -146,7 +146,7 @@ def test_perfect_tracker_walks_to_the_goal_then_stands_and_holds(tmp_path):
 
 def test_a_tracker_that_covers_less_ground_still_arrives_because_plans_start_from_the_body(tmp_path):
     policy, start, rotation, root = make_policy(tmp_path, WALK)
-    rows = follow(policy, start, 12., carry=.6)
+    rows = follow(policy, start, 14., carry=.6)
     goal = (root+rotation @ [.5, 0, 0])[:2]
     assert np.linalg.norm(np.array(rows[-1]['body_xy'])-goal) <= policy.goal['root']['tolerance_m']+1e-6
     assert [p['phase'] for p in policy.phases] == ['walk', 'stop', 'hold'] and not policy.phases[1]['walk_timed_out']
@@ -160,7 +160,7 @@ def test_a_tracker_that_covers_less_ground_still_arrives_because_plans_start_fro
 
 def test_a_walk_that_cannot_get_there_is_stopped_at_its_allowance(tmp_path):
     policy, start, _, _ = make_policy(tmp_path, WALK)
-    follow(policy, start, 12., carry=0.)
+    follow(policy, start, 19., carry=0.)
     stop = next(p for p in policy.phases if p['phase'] == 'stop')
     assert stop['walk_timed_out'] and stop['root_remaining_m'] == pytest.approx(.5)
     assert stop['elapsed_s'] >= .6+walk_allowance(policy.goal)
@@ -232,3 +232,31 @@ def test_gait_tells_stepping_from_sliding():
     stepping = gait(step, root)
     assert stepping['swings'] == 4 and stepping['both_moving_share'] == 0
     assert stepping['max_lift_cm'] == pytest.approx(8., abs=.1) and stepping['foot_travel_m'] == pytest.approx(1., abs=.01)
+
+
+def test_leaned_pose_pitches_the_trunk_and_keeps_the_feet(tmp_path):
+    from kimodo_vla.oracle.locomotion import LEAN_FROM, leaned_pose
+    from analyze_motion import pitch_deg
+    fk = XmlFK(G1_XML_PATH, G1_JOINT_NAMES)
+    feet = [f'{s}_ankle_roll_link' for s in SIDES]
+    rotation = Rotation.from_euler('z', .4).as_matrix()
+    root, joints = np.array([-4., -4., .78]), np.zeros(29)
+    leaned, moved_root, pitched = leaned_pose(fk, joints, root, rotation, 30., feet)
+    before = fk(joints, root, rotation, body_names=feet+['torso_link'])
+    after = fk(leaned, moved_root, pitched, body_names=feet+['torso_link'])
+    np.testing.assert_allclose(after[0][:2], before[0][:2], atol=1e-9)                 # ankles did not move
+    np.testing.assert_allclose(after[1][:2], before[1][:2], atol=1e-9)                 # nor turn
+    assert pitch_deg(after[1][2], rotation)-pitch_deg(before[1][2], rotation) == pytest.approx(30., abs=1e-6)
+    assert leaned[G1_JOINT_NAMES.index('waist_pitch_joint')] <= fk.joint_limits[G1_JOINT_NAMES.index('waist_pitch_joint'), 1]
+    policy, start, _, _ = make_policy(tmp_path, {'name': 'lean-30', 'lean': {'pitch_deg': 30}})
+    rows = follow(policy, start, 4.)
+    assert [p['phase'] for p in policy.phases] == ['lean', 'hold']
+    call = policy.model.calls[0]
+    assert len(policy.model.calls) == 1 and call['mask'][LEAN_FROM:].all() and call['mask'][1:, policy.feet_channels].all()
+    assert not call['mask'][1:LEAN_FROM, ~(policy.feet_channels | call['mask'][1])].any()
+    plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
+    assert plans[0]['sent_steps'] == 80 and plans[0]['pose_frames'][0] == LEAN_FROM and len(rows) == 80
+    target = json.loads((tmp_path/'target.json').read_text())
+    assert target['arrival_time'] == pytest.approx(policy.phases[1]['time']) and 'lean_pose' in target
+    with pytest.raises(ValueError):
+        load_goal({'name': 'x', 'lean': {'pitch_deg': 30}, 'root': {'xy': [1, 0]}})
