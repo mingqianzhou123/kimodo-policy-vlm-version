@@ -1,9 +1,0 @@
-# Experiment outputs, archived history and model weights stay out of git.
-runs/
-archives/
-checkpoints/
-snapshots/
-/*.json
-/*.log
-/*.txt
-/*.zip
