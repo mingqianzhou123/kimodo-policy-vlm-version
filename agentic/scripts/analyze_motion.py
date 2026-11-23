@@ -5,8 +5,10 @@ and to ``<runs>/<pattern without *>/motion.json``. Definitions:
 
 fell        pelvis below 0.40 m, or tilted more than 60 degrees from upright, at any step
 completion  root displacement along the commanded direction / commanded distance, at the end
-reached     not fallen, and the wrist within 10 cm of the target on every step of the hold window
-            (from the commanded arrival to the end of the run)
+arrived     the final phase began before the run ended: the walk got within tolerance and stopped,
+            and for a hand goal the reach had its full time
+reached     not fallen, arrived, and the wrist within 10 cm of the target on every step from the
+            commanded arrival to the end of the run
 Errors come in two legs: target -> reference (what Kimodo, after handoff and joint bounds, asked
 the tracker for) and reference -> actual (what SONIC did with it).
 """
@@ -73,9 +75,12 @@ def analyze(run, fk=None):
     fell = bool((root[:, 2] < FALL_HEIGHT_M).any() or (tilt > FALL_TILT_DEG).any())
     arrival = target['arrival_time']
     hold = time > arrival+1e-6
+    phases = {p['phase']: p for p in target.get('phases', [])}
     out = {'run': run.name, 'goal': goal['name'], 'seed': target.get('noise_seed'),
            'steps': len(steps), 'fell': fell, 'min_root_height_m': float(root[:, 2].min()), 'max_tilt_deg': float(tilt.max()),
-           'hold_steps': int(hold.sum()), 'plans': len(plans),
+           'hold_steps': int(hold.sum()), 'arrived': bool(hold.any()), 'plans': len(plans),
+           'phase_times_s': {name: p['elapsed_s'] for name, p in phases.items()},
+           'walk_timed_out': bool(phases.get('stop', {}).get('walk_timed_out', False)),
            'inference_s_mean': float(np.mean([p['inference_s'] for p in plans])),
            'root_tracking_cm': {'mean': 100*float(np.linalg.norm(root-reference_root, axis=1).mean()),
                                 'max': 100*float(np.linalg.norm(root-reference_root, axis=1).max())},
@@ -91,12 +96,10 @@ def analyze(run, fk=None):
         command = np.array(goal['root']['xy'], dtype=float)
         distance = float(np.linalg.norm(command))
         local = (root[:, :2]-np.array(start['root_pos'])[:2]) @ heading[:2, :2]
-        reference_local = (reference_root[:, :2]-np.array(start['root_pos'])[:2]) @ heading[:2, :2]
         along = command/distance
         yaw = np.degrees([np.arctan2(*(heading.T @ r)[[1, 0], 0]) for r in rotation])
         out['root'] = {'commanded_m': distance, 'direction': along.tolist(),
                        'completion': float(local[-1] @ along)/distance,
-                       'reference_completion': float(reference_local[-1] @ along)/distance,
                        'final_error_cm': 100*float(np.linalg.norm(local[-1]-command)),
                        'sideways_cm': 100*float(abs(along[0]*local[-1, 1]-along[1]*local[-1, 0])),
                        'final_yaw_deg': float(yaw[-1]), 'max_abs_yaw_deg': float(abs(yaw).max())}
@@ -141,7 +144,8 @@ def main():
                f"track={result['root_tracking_cm']['mean']:.1f}cm"
         if 'root' in result:
             r = result['root']
-            line += f" done={100*r['completion']:.0f}% ref={100*r['reference_completion']:.0f}% end={r['final_error_cm']:.1f}cm yaw={r['final_yaw_deg']:.1f}"
+            walked = result['phase_times_s'].get('stop', float('nan'))-result['phase_times_s'].get('walk', float('nan'))
+            line += f" done={100*r['completion']:.0f}% end={r['final_error_cm']:.1f}cm yaw={r['final_yaw_deg']:.1f} walk={walked:.1f}s timeout={int(result['walk_timed_out'])}"
         g = result['gait']
         line += f" bothfeet ref/act={100*g['reference']['both_moving_share']:.0f}/{100*g['actual']['both_moving_share']:.0f}% feet ref/act={g['reference']['foot_travel_m']:.2f}/{g['actual']['foot_travel_m']:.2f}m"
         if 'torso_pitch_deg' in result:

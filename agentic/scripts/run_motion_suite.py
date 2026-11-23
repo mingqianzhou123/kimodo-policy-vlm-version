@@ -16,14 +16,9 @@ from pathlib import Path
 import numpy as np
 
 from paths import AGENTIC as ROOT, RUNS
+from kimodo_vla.oracle.locomotion import episode_seconds, load_goal
 
 CONFIG = ROOT/'configs/exp2-motions.json'
-HOLD_S = 2.  # every run keeps going this long after the last commanded motion ends
-
-
-def walk(xy, speed, start=.5, shortest=1.5):
-    distance = float(np.hypot(*xy))
-    return {'xy': [float(xy[0]), float(xy[1])], 'start_s': start, 'duration_s': max(shortest, distance/speed)}
 
 
 def reach_goals(grid):
@@ -39,13 +34,11 @@ def reach_goals(grid):
             for label, pitch in grid['approach_pitch_deg'][str(height)].items():
                 goal = {'name': f"d{round(100*distance):03d}-h{round(100*height):03d}-{label}"}
                 advance = distance-grid['standoff_m'][str(height)]
-                begin = .5
                 if advance > grid['walk_threshold_m']:
-                    goal['root'] = walk([advance, 0.], grid['speed_m_s'])
-                    begin = goal['root']['start_s']+goal['root']['duration_s']+grid['pause_s']
+                    goal['root'] = {'xy': [advance, 0.], 'speed_m_s': grid['speed_m_s']}
                 goal['hand'] = {'side': 'right', 'position': [distance, grid['lateral_m'], height],
                                 'approach': [float(np.cos(np.radians(pitch))), 0., float(np.sin(np.radians(pitch)))],
-                                'start_s': begin, 'duration_s': grid['reach_s']}
+                                'duration_s': grid['reach_s']}
                 goals.append(goal)
     return goals
 
@@ -57,16 +50,12 @@ def expand(group):
     pairs = []
     for goal in group['goals']:
         goal = dict(goal)
-        seeds = goal.pop('seeds', group.get('seeds'))
-        if 'walk' in goal:
-            goal['root'] = walk(goal.pop('walk'), group['speed_m_s'])
-        pairs.append((goal, seeds))
+        pairs.append((goal, goal.pop('seeds', group.get('seeds'))))
     return pairs
 
 
 def steps_for(goal):
-    end = max(part['start_s']+part['duration_s'] for key, part in goal.items() if key in ('root', 'hand'))
-    return int(round((end+HOLD_S)*50))
+    return int(round(episode_seconds(load_goal(goal))*50))
 
 
 def wait_idle(gpu, seconds=120):

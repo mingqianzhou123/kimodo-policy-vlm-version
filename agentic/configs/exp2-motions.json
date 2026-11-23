@@ -3,9 +3,8 @@
  "groups": {
   "forward": {
    "runs": "exp2probe-forward",
-   "speed_m_s": 0.2,
    "seeds": [1000],
-   "goals": [{"name": "forward-050", "walk": [0.5, 0.0]}]
+   "goals": [{"name": "forward-050", "root": {"xy": [0.5, 0.0]}}]
   }
  }
 }
