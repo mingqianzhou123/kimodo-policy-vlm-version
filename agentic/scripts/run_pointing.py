@@ -73,7 +73,8 @@ def evaluate(a):
     first = [r['latency_s'] for r in rows[:50]]
     summary.update(format_ok_rate=sum(r['format_ok'] for r in rows)/len(rows), http_errors=sum(r['http_errors'] for r in rows),
         latency_first_50_s={'calls': len(first), 'median': ev.percentile(first, 50), 'p90': ev.percentile(first, 90), 'max': max(first)},
-        run=json.loads((a.run/'run.json').read_text()) if (a.run/'run.json').exists() else None)
+        run=json.loads((a.run/'run.json').read_text()) if (a.run/'run.json').exists() else None,
+        evaluator_git_commit=subprocess.check_output(['git', '-C', str(REPO), 'rev-parse', 'HEAD'], text=True).strip())
     (a.run/'scores.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
     (a.run/'summary.json').write_text(json.dumps(summary, indent=1))
     brief = {k: summary[k] for k in ('frames', 'both_hit_3d_rate', 'latency_s', 'latency_first_50_s', 'format_ok_rate', 'http_errors')}

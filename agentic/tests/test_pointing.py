@@ -153,6 +153,9 @@ def test_manifest_and_summary(tmp_path):
     summary = ev.summarize(rows)
     assert summary['contact']['hit_3d_rate'] == 1 and summary['pregrasp']['outcomes']['background'] == 4
     assert summary['both_hit_3d_rate'] == 0 and summary['pregrasp']['edge_or_background'] == 4
+    edge = ev.score_point([(319.5-.1/.9*F-4)/(W-1)*1000, 500], frames[0], masks, loaded, meshes)
+    jumped = ev.summarize([dict(rows[0], contact=edge)])['contact']
+    assert jumped['outcomes']['near_miss'] == 1 and jumped['near_miss_depth_jump'] == 1  # landed on the wall a metre behind
     assert summary['latency_s'] == {'median': 2.5, 'p90': pytest.approx(7.9), 'max': 10.}
     assert summary['input_tokens'] == {'mean': 100., 'total': 400.} and summary['cost_usd'] is None
 

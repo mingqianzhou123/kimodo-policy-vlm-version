@@ -14,6 +14,7 @@ from scipy.spatial import cKDTree
 SURFACE_M = .03     # a point counts in 3D when it back-projects this close to the graspable surface
 ON_OBJECT_M = .008  # a depth pixel belongs to an object when its 3D point is this close to the mesh
 NEAR_PX = 10        # "only slightly off": this close to the target in the image
+DEPTH_JUMP_M = .10  # a near miss whose depth landed this far from the object hit the background, not the support beside it
 MAX_SAMPLES = 1_500_000
 MIN_GRASPABLE_PX = 12
 RULES = {'all': 'at least 12 px of graspable surface visible', 'occlusion': 'visible_fraction in [0.2, 0.85]',
@@ -260,7 +261,7 @@ def build_manifest(dataset, meta):
         coverage[frame['category']][frame['scene']] += 1
         violations += [f"{frame['id']}: {problem}" for problem in check_frame(frame['category'], entry)]
     manifest = {**meta, 'frames': entries, 'coverage': coverage, 'coverage_rules': RULES, 'violations': violations,
-                'thresholds': {'surface_m': SURFACE_M, 'on_object_m': ON_OBJECT_M, 'near_px': NEAR_PX},
+                'thresholds': {'surface_m': SURFACE_M, 'on_object_m': ON_OBJECT_M, 'near_px': NEAR_PX, 'depth_jump_m': DEPTH_JUMP_M},
                 'sha256': {str(p.relative_to(dataset)): sha(p) for p in [dataset/'truth/frames.json', dataset/'inputs/frames.jsonl',
                                                                          *sorted((dataset/'truth/meshes').glob('*.npz'))]}}
     (dataset/'manifest.json').write_text(json.dumps(manifest, indent=1))
@@ -281,6 +282,9 @@ def summarize(rows):
                         for name in ('correct', 'near_miss', 'background', 'wrong_part', 'wrong_object', 'invalid')}
             out[key] = {'on_target_rate': float(np.mean([s['on_target'] for s in scores])) if scores else None,
                         'hit_3d_rate': float(np.mean([s['hit_3d'] for s in scores])) if scores else None, 'outcomes': outcomes,
+                        # Near misses whose back-projection jumped to the background behind the object.
+                        'near_miss_depth_jump': sum(s['outcome'] == 'near_miss' and (s['object_m'] is None or s['object_m'] > DEPTH_JUMP_M)
+                                                    for s in scores),
                         # The two error groups of the plan.
                         'edge_or_background': outcomes['near_miss']+outcomes['background']+outcomes['wrong_part'],
                         'wrong_object_or_invalid': outcomes['wrong_object']+outcomes['invalid']}
