@@ -73,7 +73,7 @@ ARM_JOINTS = ('shoulder_pitch', 'shoulder_roll', 'shoulder_yaw', 'elbow', 'wrist
 def ease(u):
     """Minimum-jerk progress: 0 at u<=0, 1 at u>=1, zero velocity and acceleration at both ends."""
     u = np.clip(np.asarray(u, dtype=float), 0., 1.)
-    return u**3 * (10 + u*(-15 + 6*u))
+    return np.clip(u**3 * (10 + u*(-15 + 6*u)), 0., 1.)  # rounding can leave 1 + 2e-16
 
 
 def approach_rotation(approach):
