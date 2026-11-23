@@ -1,12 +1,37 @@
 # 自然物体指点与调用延迟摸底（实验三）
 
-2026-11-23 · 80 帧第一视角 RGB-D · Qwen3-VL-4B 已跑完，GPT 和 Gemini 已接好、尚未调用
+2026-11-23 采图与 Qwen，2026-11-24 补 GPT · 80 帧第一视角 RGB-D · Qwen3-VL-4B 和 GPT-6.2 Astra 已跑完，Gemini 4 Argon 接口繁忙、没有结果
 
 **没微调的 Qwen3-VL-4B 单次生成，接触点经深度反投影后落在可抓表面 3 cm 内的比例是 78.75%（63/80），高于计划里 50% 的瓶颈线。** 单次调用延迟中位数 1.37 s、90 分位 1.47 s、最大 1.75 s，计划里“短延迟 1.5 s”的假设与实测相符。沿用红蓝标记实验的两尺度做法后是 82.5%（66/80），延迟中位数 3.41 s。
 
 失败集中在两处：被遮挡的目标（单次生成 11/20），以及锤子（两种做法都是 3/12，模型指在锤头上而不是手柄上）。去掉锤子后单次生成是 60/68。
 
-闭源两个模型没有结果：机器上没有 `OPENAI_API_KEY` 和 `GEMINI_API_KEY`，配置里的模型版本号也还空着。代码、配置和测试已就位，见文末“闭源部分还差什么”。
+**GPT-6.2 Astra 在同样的 80 帧上两个点全部正确（80/80），延迟中位数 3.88 s、90 分位 4.76 s、最大 6.83 s，80 次调用共 0.54 美元。** 它比 Qwen 单次生成慢 2.8 倍，约 194 个控制步。Gemini 4 Argon 还没有结果：2026-11-23 晚 5 次请求全部失败（3 次 503 服务繁忙，2 次 120 s 超时），见文末。
+
+## 三个模型并排
+
+每帧一次生成，同一份提示词，同一批图像。
+
+| | Qwen3-VL-4B | GPT-6.2 Astra | Gemini 4 Argon |
+|---|---:|---:|---:|
+| 接触点 3D 落在可抓表面 3 cm 内 | 78.75%（63/80） | 100%（80/80） | 未跑成 |
+| 预抓取点 3D 落在可抓表面 3 cm 内 | 73.75%（59/80） | 100%（80/80） | 未跑成 |
+| 输出严格符合 JSON 格式 | 100% | 100% | — |
+| 延迟中位数 / 90 分位 / 最大值 | 1.37 / 1.47 / 1.75 s | 3.88 / 4.76 / 6.83 s | — |
+| 前 50 次调用的延迟（同上三项） | 1.35 / 1.46 / 1.75 s | 3.80 / 4.62 / 6.83 s | — |
+| 每帧输入 / 输出 token（均值） | 492 / 46 | 547 / 61 | — |
+| 资源 | 显存峰值 8.60 GB | 每次 0.0068 美元，80 次 0.54 美元 | — |
+| 运行位置 | T2M-PLUS，RTX 5090 | 从 Mac 发起（欧洲） | — |
+
+GPT-6.2 Astra 的细节：
+
+- 模型 ID `gpt-6.2-astra`，返回里的版本字段也是 `gpt-6.2-astra`，没有带日期的快照名。调用时间 2026-11-23 17:46–17:51 UTC，接口是 Chat Completions，请求参数全用默认值（没有设推理强度）。80 次里隐藏推理 token 合计 970，多数调用为 0。
+- 遮挡 20/20，同类物体二选一 10/10，锤子 12/12（都指在手柄上），1.6 m 以上的远目标 20/20。
+- 两点间距中位数 7.8 px，6 帧不超过 3 px，和 Qwen 一样贴得很近。两点连线定手掌朝向的问题在它身上同样存在。
+- 单价按 2026-11-24 官方价目：输入 8 美元、输出 40 美元每百万 token。
+- 延迟是从 Mac 发起的墙钟时间，含上传图像和网络往返；从别的地区或机器发起会不同。
+
+100% 只说明这 80 帧对它不够难，不能当成它在更杂乱场景里的正确率。
 
 ## Qwen 结果
 
@@ -129,20 +154,21 @@ x and y are numbers from 0 to 1000 over the full image: x from the left edge, y 
 - 错误归类按顺序判：离别的物体更近（10 px 内）算认错或选错；在目标上但离可抓表面超过 3 cm 算部位错；离目标 10 px 内算只偏一点；其余算背景。
 - 延迟是一帧完整指点的墙钟时间，含图像预处理和全部生成。Qwen 权重常驻显卡，加载和首次预热不计入。测量时显卡上没有别的任务（RTX 5090，BF16）。
 
-## 闭源部分还差什么
+## Gemini 还差什么
 
-1. 密钥：把 `OPENAI_API_KEY` 和 `GEMINI_API_KEY` 填到发起调用那台机器的 `agentic/env.local.sh`。
-2. 确切的模型版本号：填到 `agentic/configs/pointing-backends.json` 两处的 `model`。代码没有默认值，不填会直接报错。同一文件里可填每百万 token 的单价（用来算费用）和请求参数（例如推理强度）。
-3. 图像集要先到发起调用的机器上。默认从 Mac 发起，记录里的 `origin` 字段会写明发起地点。
+`gemini-4-argon` 的密钥有效（模型列表接口正常返回），但生成接口在 2026-11-23 17:44–17:59 UTC 的 5 次请求全部失败：3 次返回 503“模型当前需求过高”，2 次等满 120 s 超时。503 不计费；两次超时是否计费无法从本地判断，以账单为准。失败的请求保存在运行目录的 `errors.jsonl`，没有混进结果。脚本遇到第一次失败就停，不会自动重发。
 
-之后每个模型一条命令，80 帧里的前 50 次调用兼作计划第 2 节要的“各调用 50 次测延迟”：
+接口恢复后一条命令续跑（已完成的帧会跳过）：
 
 ```bash
-python agentic/scripts/run_pointing.py run --dataset <图像集> --backend openai --out <输出目录>/openai-<日期>-single --origin mac
-python agentic/scripts/run_pointing.py evaluate --dataset <图像集> --run <输出目录>/openai-<日期>-single
+source agentic/env.local.sh
+python agentic/scripts/run_pointing.py run --dataset <图像集> --backend gemini --out <输出目录>/gemini-20261124-single --origin mac
+python agentic/scripts/run_pointing.py evaluate --dataset <图像集> --run <输出目录>/gemini-20261124-single
 ```
 
-每次调用保存提示词、图像哈希、原始返回、返回里的模型版本、调用时间、延迟和 token 数。请求和解析只用假的返回做过单元测试，还没有对真实接口发过请求。请求格式按 2026-11-23 的官方文档核对过，返回里的个别字段没能在文档中逐字核到，第一次真实调用时要看一眼原始返回。
+按官方价目（输入 2 美元、输出 10 美元每百万 token，12 月 1 日起翻倍）和它默认开启的中等思考，80 帧的费用取决于思考 token，第一次成功调用后才能估准。Gemini 的请求和解析代码目前只用假返回测过。
+
+模型版本和单价写在 `agentic/configs/pointing-backends.json`，密钥从环境变量 `OPENAI_API_KEY`、`GEMINI_API_KEY` 读。每次调用保存提示词、图像哈希、原始返回、返回里的模型版本、调用时间、延迟和 token 数。
 
 ## 采图时发现的三件事
 
@@ -159,7 +185,7 @@ python agentic/scripts/run_pointing.py run --dataset <图像集> --backend qwen 
 python agentic/scripts/run_pointing.py evaluate --dataset <图像集> --run <输出目录>/qwen-single
 ```
 
-采集和两轮 Qwen 都在提交 `be6daf0` 上运行，工作区无改动；打分用提交 `0306e48`。Qwen 权重是 `Qwen/Qwen3-VL-4B-Instruct` 修订 `ebb281ec`，transformers 5.1.0，torch 2.10.0+cu129。
+采集和两轮 Qwen 都在提交 `be6daf0` 上运行，工作区无改动；打分用提交 `0306e48`。GPT 的调用和打分在提交 `a091511` 上。Mac 上的图像集副本逐文件核对过哈希，Qwen 两轮在 Mac 上重新打分与开发机结果完全一致。Qwen 权重是 `Qwen/Qwen3-VL-4B-Instruct` 修订 `ebb281ec`，transformers 5.1.0，torch 2.10.0+cu129。
 
 ## 范围
 
