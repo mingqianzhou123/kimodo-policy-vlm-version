@@ -879,7 +879,16 @@ class KimodoPolicy(nn.Module):
         rtc_overlap_frames: int = 0,
         rtc_frozen_frames: int = 0,
         rtc_ramp_power: float = 1.0,
+        future_condition: Optional[torch.Tensor] = None,
+        future_condition_mask: Optional[torch.Tensor] = None,
     ) -> dict[str, torch.Tensor]:
+        """Generate a future with optional sparse, unnormalized Kimodo features.
+
+        ``future_condition`` and its bool mask are [B, action_chunk, D] (or
+        [action_chunk, D] for B=1), in the SAME canonical frame as the history.
+        These are denoiser conditions, not a guarantee of exact decoded FK.
+        The caller must measure constraints after rotation-to-joint conversion.
+        """
         if isinstance(instruction, str):
             instruction = [instruction]
         if history_motion.ndim == 2:
@@ -1100,6 +1109,22 @@ class KimodoPolicy(nn.Module):
         motion_mask[:, :history_length] = history_feature_mask.to(
             dtype=motion_mask.dtype
         )
+        if (future_condition is None) != (future_condition_mask is None):
+            raise ValueError("future_condition and future_condition_mask must be supplied together")
+        if future_condition is not None:
+            if self.config.motion_mask_mode != "concat":
+                raise ValueError("sparse future conditions require motion_mask_mode='concat'")
+            if rtc_motion_reference is not None:
+                raise ValueError("sparse future conditions and RTC must be validated separately")
+            from .sparse_conditions import normalized_future_condition
+
+            future_values, future_mask = normalized_future_condition(
+                self.representation, future_condition, future_condition_mask,
+                batch_size=batch_size, frames=self.config.action_chunk,
+                device=self.device, dtype=denoiser_dtype,
+            )
+            observed_motion[:, history_length:] = future_values
+            motion_mask[:, history_length:] = future_mask.to(motion_mask.dtype)
         motion_pad_mask = torch.ones(
             batch_size, total_length, dtype=torch.bool, device=self.device
         )
@@ -1138,9 +1163,12 @@ class KimodoPolicy(nn.Module):
                     )
         text_features = text_features.to(device=self.device, dtype=denoiser_dtype)
         text_pad_mask = self._length_mask(text_lengths, text_features.shape[1], self.device)
-        image_features = self._encode_images(egoview).to(
-            dtype=next(self.controlnet.parameters()).dtype
-        )
+        # Native oracle path has no image encoder or ControlNet at all.
+        image_features = None
+        if self.controlnet is not None:
+            image_features = self._encode_images(egoview).to(
+                dtype=next(self.controlnet.parameters()).dtype
+            )
         heading_slice = self.representation.slice_dict["global_root_heading"]
         heading_history_mask = (
             history_mask
@@ -1198,11 +1226,12 @@ class KimodoPolicy(nn.Module):
             )
         for step in range(diffusion_steps - 1, -1, -1):
             current_history = current_motion[:, :history_length]
-            current_motion[:, :history_length] = torch.where(
-                history_feature_mask,
-                normalized_history,
-                current_history,
-            )
+            if not getattr(self, 'native_noisy_history', False):
+                current_motion[:, :history_length] = torch.where(
+                    history_feature_mask,
+                    normalized_history,
+                    current_history,
+                )
             sampler_timestep = torch.full((batch_size,), step, device=self.device, dtype=torch.long)
             model_timestep = timestep_map[sampler_timestep]
             if rtc_motion_clean is not None:
@@ -1224,9 +1253,11 @@ class KimodoPolicy(nn.Module):
                     rtc_hand_at_t,
                     rtc_hand_weights,
                 )
-            root_control_tokens, body_control_tokens = self.controlnet(
-                model_timestep, image_features, total_length, history_length
-            )
+            root_control_tokens = body_control_tokens = None
+            if self.controlnet is not None:
+                root_control_tokens, body_control_tokens = self.controlnet(
+                    model_timestep, image_features, total_length, history_length
+                )
             denoiser_output = self.denoiser(
                 x=current_motion,
                 x_pad_mask=motion_pad_mask,
@@ -1238,8 +1269,8 @@ class KimodoPolicy(nn.Module):
                 observed_motion=observed_motion,
                 root_control_tokens=root_control_tokens,
                 body_control_tokens=body_control_tokens,
-                root_hint_fuser=self.controlnet.root_hint_fusion,
-                body_hint_fuser=self.controlnet.body_hint_fusion,
+                root_hint_fuser=None if self.controlnet is None else self.controlnet.root_hint_fusion,
+                body_hint_fuser=None if self.controlnet is None else self.controlnet.body_hint_fusion,
                 control_future_start=history_length,
                 detach_root_for_body=False,
                 return_body_hidden=self.hand_head is not None,

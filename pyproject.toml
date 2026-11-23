@@ -39,4 +39,4 @@ include = ["kimodo_vla*"]
 "kimodo_vla.skeleton" = ["assets/**/*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "agentic/tests"]

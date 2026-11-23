@@ -5,6 +5,11 @@ Kimodo-Policy（人形机器人行走 + 操作的 VLA）的新代码库。模型
 之间切换，只换适配器。论文结果的复现版本在原仓库
 [kimodo-policy/kimodo-policy](https://github.com/kimodo-policy/kimodo-policy)，本仓库不改动它。
 
+本仓库有两条线，共用同一份 `kimodo_vla` 包：
+
+- **训练线**：在各 benchmark 上训练和评测 Kimodo-Policy（当前主要是 BiGym 2.0），本页以下内容。
+- **agentic 线**：零训练，开源 VLM 给意图、冻结 Kimodo 生成全身参考、冻结 SONIC 执行，见 [agentic/README.md](agentic/README.md)。
+
 - 代码怎么分层、接新 benchmark 写哪几个文件：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 每个 benchmark 的结论、做过的决定和待办：[BiGym 2.0](docs/benchmarks/bigym2.md)、
   [HumanoidToolBench](docs/benchmarks/toolbench.md)、[HumanoidArena 和 SIMPLE](docs/benchmarks/arena_simple.md)
@@ -60,9 +65,18 @@ python scripts/serve_simple.py --checkpoint <checkpoint 目录> --text-cache <�
 （不走集群时排到单机的空闲 GPU）、`cache_text_embeddings.py`（任务指令的文本 embedding）；
 用法见 [BiGym 文档](docs/benchmarks/bigym2.md) 的训练一节。
 
+## 代码管理约定
+
+- GitHub 上的 `main` 是唯一的真源，各台机器只 `git pull`，不手工拷文件。改动走分支和合并请求。
+- 代码里不写机器相关的路径和地址。机器配置放在 `scripts/sensecore/` 或不进 git 的 `env.local.sh`，代码只读环境变量。
+- 实验输出、权重、缓存、视频不进 git。
+- 正式实验在已提交的代码上跑，并记录提交号。
+
+前三条由 `tests/test_repo_hygiene.py` 自动检查。
+
 ## 测试
 
 ```bash
-pytest                                       # 不需要旧仓库的全部测试
+pytest                                       # 两条线不需要旧仓库的全部测试
 KIMODO_ORIGINAL_REPO=<旧仓库路径> pytest      # 再加上和旧仓库逐项对比的测试
 ```

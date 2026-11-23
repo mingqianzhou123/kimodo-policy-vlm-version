@@ -1,0 +1,5 @@
+# Experiment outputs, model weights and machine settings stay out of git.
+runs/
+archives/
+checkpoints/
+env.local.sh

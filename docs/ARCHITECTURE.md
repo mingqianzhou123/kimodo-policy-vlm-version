@@ -25,16 +25,21 @@ kimodo_vla/
   model/           planner.py：KimodoPlanner（KimodoPolicy 包成 Planner）
                    planner_original.py：OriginalTimingPlanner（旧仓库的取帧方式，只用于对比和复现）
                    features.py：位姿轨迹 → Kimodo 特征，评测和训练数据共用
-                   kimodo_policy.py、modules/：从旧仓库原样迁入
+                   kimodo_policy.py、modules/：从旧仓库原样迁入；`predict_future` 另可接收未来帧的稀疏条件
+                   sparse_conditions.py、native_policy.py：根部与双手关键帧条件、只用冻结 Kimodo 的推理（agentic 线用）
   motion/ skeleton/ utils/   G1 运动表示、正运动学、几何工具（原样迁入）
   controllers/     groot_wbc.py：GR00T-WBC（速度 + 转向角速度 + 高度）
                    decoupled_wbc.py：NVIDIA decoupled WBC（36 维：速度 + 目标朝向 + Dex3 手）
+                   gripper_gate.py：按实测到位情况触发合手
   data/            episodes.py：训练文件格式 + KimodoWindowDataset
                    build.py：一条演示 → 训练文件
   benchmarks/      base.py：BenchmarkAdapter、Demonstration、AgentPolicy
                    server.py：RequestAdapter、ChunkPolicy、make_server（按请求要整段动作的 benchmark）
                    replay.py：DemoPlanner / DirectPlanner（把演示当完美预测回放）
                    bigym2/  arena/  simple/  toolbench/：每个 benchmark 的适配器、读演示、入口
+  oracle/          agentic 线：给定手部目标 → 冻结 Kimodo 生成参考（连续性、IK 投影、支撑约束）
+  vlm/             agentic 线：Qwen 图像定位、深度反投影
+agentic/           agentic 线的仿真接入、入口脚本、测试和实验记录（见 agentic/README.md）
 scripts/           每个 benchmark 几个薄脚本（见 README）；train.py 通用（--task 指准备好的文件夹），集群脚本按 BiGym 配置
 configs/           训练配置（bigym2.yaml 为基础，其它配置只写不同的几项）
 tests/             见第 8 节
@@ -42,6 +47,9 @@ tests/             见第 8 节
 
 依赖方向只有一条：`benchmarks → core ← model`，`benchmarks → controllers、data`。
 `core/`、`model/`、`controllers/`、`data/` 里不出现任何 benchmark 名字。
+
+包只有这一份，训练线（BiGym 等）和 agentic 线共用。`oracle/`、`vlm/` 只被 agentic 线导入；
+对 `core/`、`model/` 的改动必须是新增或默认关闭的选项，并且两条线的测试都通过。
 
 ## 3. 三个约定（`core/types.py`）
 
