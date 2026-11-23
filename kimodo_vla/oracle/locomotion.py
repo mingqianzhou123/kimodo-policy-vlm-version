@@ -13,7 +13,8 @@ An episode runs through these phases:
   ready  0.5 s standing on the settled start pose
   walk   plans of ``walk_steps`` control steps, each a root ground path from the measured position
          toward the goal, until the measured root is within tolerance or the time allowance ends
-  stop   one plan that ends in the starting standing pose where the body now is
+  stop   one plan, executed whole, that ends in the starting standing pose where the body now is
+         (holding a mid-stride pose instead sent the robot running 3 m in one early run)
   reach  0.5 s plans with the root's ground point and the feet held at that stance and one wrist
          on a path to its target; the target stays conditioned until the episode ends
   lean   (lean goals) one plan from the start stance, feet held, that ends in the leaned pose
@@ -57,6 +58,7 @@ CANVAS = 50        # future frames Kimodo generates per plan, at 30 Hz
 READY_S = .5       # standing time before the first plan
 REACH_STEPS = 25   # control steps executed from each reach plan
 STAND_FROM = 30    # a stop plan is the standing pose from this frame on
+STOP_STEPS = 80    # control steps executed from the stop plan: all of it, so the body ends standing
 LEAN_FROM = 40     # a lean plan is the leaned pose from this frame on
 LEAN_STEPS = 80    # control steps executed from the lean plan
 NOT_YET = 1e6      # arrival time, in seconds from the start, until the final phase begins
@@ -411,7 +413,7 @@ class LocomotionPolicy(OraclePolicy):
         phase = self.advance(obs)
         if phase in ('ready', 'hold'):
             return self.hold_chunk(obs)
-        sent = REACH_STEPS if phase == 'reach' else LEAN_STEPS if phase == 'lean' else self.walk_steps
+        sent = {'reach': REACH_STEPS, 'lean': LEAN_STEPS, 'stop': STOP_STEPS}.get(phase, self.walk_steps)
         # Walking plans start from where the body is; a reach keeps the stance it began with.
         reference_root = np.asarray(obs['reference_root_pos'], dtype=float)
         shift = self.anchor(obs) if phase != 'reach' or before_phase != 'reach' else np.zeros(3)

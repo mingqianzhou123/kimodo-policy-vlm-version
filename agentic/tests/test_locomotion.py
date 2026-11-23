@@ -128,7 +128,7 @@ def test_perfect_tracker_walks_to_the_goal_then_stands_and_holds(tmp_path):
     assert target['noise_seed'] == 1003
     np.testing.assert_allclose(target['root_goal_world'], goal, atol=1e-6)
     plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
-    assert [p['phase'] for p in plans][-1] == 'stop' and all(p['sent_steps'] == 75 for p in plans)
+    assert [p['phase'] for p in plans][-1] == 'stop' and [p['sent_steps'] for p in plans] == [75]*(len(plans)-1)+[80]
     assert all(p['anchor_shift_m'] < 1e-5 and p['root_path_error_m'] < 1e-4 for p in plans)
     rep = policy.model.representation
     walk, stop = policy.model.calls[0], policy.model.calls[-1]
