@@ -40,6 +40,19 @@ python agentic/scripts/run_settled_suite.py --gpu 1
 python agentic/scripts/report_settled.py --suite settled-20261123-r1
 ```
 
+箱子抓取（实验一）用同一个启动器，加 `--grasp-loop`：
+
+```bash
+# 一个回合：每轮锁存箱子位姿、等待、走近、到位合手、夹起，失败重试，成功即停
+python agentic/scripts/run_oracle.py --run-id <名字> --grasp-loop --seed 1000 --sim-gpu 2 --policy-gpu 2 --share-policy-sim-gpu
+
+# 一组种子（debug 或 heldout，见 configs/grasp-loop.json），多张卡并行，然后汇总
+python agentic/scripts/run_grasp_suite.py --group debug --tag <标签> --gpus 2 3 4
+python agentic/scripts/report_grasp.py 'dbg-exp1-<标签>-*'
+```
+
+静态抓取门槛的结果（30 个预留种子成功 17 个，没到 26 个的门槛）和失败归因见 `docs/exp1-static-grasp-20261124.md`。
+
 `run_oracle.py` 的默认值就是 11 月 17 日以来所有实验共用的后端。加上 `--settled-goal <目标文件>` 是上面那个结果的完整配置。更早的变体要显式写开关，例如 `--variant original --support-constraints none --hand-constraints keyframes --trajectory-projection none`；`offset` 和 `box` 两种模式必须这样写。
 
 正式实验只在已提交的代码上跑：启动时记录提交号，有未提交的改动会拒绝启动，调试时加 `--allow-dirty`。每次运行结束后会删掉自己的仿真器缓存。
@@ -53,10 +66,10 @@ python agentic/scripts/report_settled.py --suite settled-20261123-r1
 | `arena/` | 接入仿真器的代码，在仿真进程内运行 |
 | `scripts/` | 入口和工具，见下表 |
 | `tests/` | 接口与几何检查，不替代真权重和仿真测试 |
-| `configs/` | 执行器与载荷对照用的参数 |
+| `configs/` | 执行器与载荷对照用的参数；实验计划；箱子抓取的参数和种子分组 |
 | `docs/` | 每个阶段的实验记录 |
 
-相关的包内模块：`kimodo_vla/oracle/`（目标、连续性、IK 投影、支撑约束）、`kimodo_vla/vlm/`（图像定位）、`kimodo_vla/model/sparse_conditions.py`、`kimodo_vla/model/native_policy.py`、`kimodo_vla/controllers/gripper_gate.py`。
+相关的包内模块：`kimodo_vla/oracle/`（目标、连续性、IK 投影、支撑约束、箱子抓取的回合逻辑 `grasp_policy.py`）、`kimodo_vla/vlm/`（图像定位）、`kimodo_vla/model/sparse_conditions.py`、`kimodo_vla/model/native_policy.py`、`kimodo_vla/controllers/gripper_gate.py`。
 
 ## 脚本
 
@@ -64,6 +77,8 @@ python agentic/scripts/report_settled.py --suite settled-20261123-r1
 |---|---|
 | `run_settled_suite.py` | **主入口**：对五个案例各调用一次 `run_oracle.py` |
 | `report_settled.py` | 汇总一组结果并和旧基线对比 |
+| `run_grasp_suite.py` | 箱子抓取：一组种子各跑一个回合，仿真器崩溃的回合自动重跑 |
+| `report_grasp.py` | 箱子抓取：成功数、逐轮标记、接触率、夹住后滑落率 |
 | `overview.py` | 生成实验进度页：按 `configs/experiments.json` 里的计划给每个实验算进度和成功率，每个实验目录可点开看误差曲线和视频。写到 `<实验输出>/overview/index.html`；加 `--serve 8765` 后在浏览器打开 `http://localhost:8765/overview/index.html`。页面模板是同名的 `overview.html` |
 | `run_oracle.py` | 启动器：起策略服务和仿真，检查 GPU，记录提交号、权重与源码哈希 |
 | `serve_oracle.py`、`serve_fixed_reference.py`、`serve_recorded_reference.py` | 三种参考来源的策略服务，由 `run_oracle.py` 启动 |
