@@ -1,0 +1,22 @@
+{
+ "assets": {
+  "box": {"usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/CubeBox_A03_21cm_PR_NVD_01/CubeBox_A03_21cm_PR_NVD_01_physics_rigid.usd", "scale": 0.01},
+  "cardbox_a": {"usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_A1/Cardbox_A1.usd", "scale": 1.0},
+  "cardbox_c": {"usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_C3/Cardbox_C3.usd", "scale": 1.0},
+  "cardbox_d": {"usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_D1/Cardbox_D1.usd", "scale": 1.0},
+  "crate": {"usd": "assets/objects/small_warehouse/SM_Crate_A14_Gray_01/SM_Crate_A14_Gray_01.usd", "scale": 0.01},
+  "hammer": {"usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/hammer/hammer.usd", "scale": 1.0},
+  "scissors": {"usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/scissors001/model_scissors_2.usd", "scale": 1.0},
+  "knife": {"usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/utility knife003/model_utility_knife_6.usd", "scale": 1.0},
+  "stapler": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/green stapler/model_stapler_1.usd", "scale": 1.0},
+  "bottle": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/drink016/model_drink016.usd", "scale": 1.0},
+  "can": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/drink062/model_drink062.usd", "scale": 1.0},
+  "vase": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/IKEA_PELARBJORK_vase_grey_green_20cm/model_PELARBJORK_vase_grey_green_20cm.usd", "scale": 1.0},
+  "book": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/book_17/model_book_17.usd", "scale": 1.0}
+ },
+ "scenes": {
+  "pp_box": {"task": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody", "env_config": "tasks/common_test_config/base_test/pp_box_sonic_test.yaml", "hide": [], "instances": {}},
+  "doubledesk": {"task": "Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody", "env_config": "tasks/common_test_config/base_test/doubledesk_sonic_test.yaml", "hide": [], "instances": {}}
+ },
+ "frames": []
+}
