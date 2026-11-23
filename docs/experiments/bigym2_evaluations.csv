@@ -1,0 +1,2 @@
+﻿id,task,checkpoint,seed_base,episodes,execution_frames,success_rate,role,source
+BG5090-001,move_plate,200,700000,2,50,0.0,流程检查,log/bigym2/check_1gpu/val700000/checkpoint_200.json

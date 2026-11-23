@@ -1,0 +1,609 @@
+{
+  "date": "2026-11-13",
+  "task": "dishwasher_load_cups",
+  "status": "审计与两端同checkpoint评测已完成；已确认GPU随机噪声差异，未声称其解释全部30k成功率差距",
+  "protocol": {
+    "validation_seeds": [
+      700000,
+      700049
+    ],
+    "episodes": 50,
+    "checkpoint_step": 30000,
+    "weights": "model",
+    "dtype": "fp32",
+    "diffusion_steps": 10,
+    "execution_frames": 50,
+    "noise": "per_plan",
+    "official_test_used": false
+  },
+  "results": [
+    {
+      "training_platform": "SenseCore A800",
+      "evaluation_platform": "SenseCore A800",
+      "successes": 11,
+      "episodes": 50,
+      "success_rate": 0.22,
+      "kind": "原始完整记录，非本次新复评"
+    },
+    {
+      "training_platform": "SenseCore A800",
+      "evaluation_platform": "SenseCore A800",
+      "successes": 10,
+      "episodes": 50,
+      "success_rate": 0.2,
+      "kind": "本次原环境新复评，5组固定种子并行合并"
+    },
+    {
+      "training_platform": "SenseCore A800",
+      "evaluation_platform": "Baidu RTX5090",
+      "successes": 12,
+      "episodes": 50,
+      "success_rate": 0.24,
+      "kind": "本次同 checkpoint 交叉评测，5组固定种子并行合并"
+    },
+    {
+      "training_platform": "Baidu RTX5090",
+      "evaluation_platform": "Baidu RTX5090",
+      "successes": 27,
+      "episodes": 50,
+      "success_rate": 0.54,
+      "kind": "原始记录与本次50回合复评，成功/失败逐种子一致"
+    }
+  ],
+  "conclusions": [
+    "统一到5090评测后，两份30k权重是27/50与12/50，相差30个百分点；大差距主要体现在训练所得权重。",
+    "商汤权重：A800历史11/50，本次A80010/50，本次5090为12/50。同平台A800新旧记录5个种子成败翻转；本次A800与5090有10个种子翻转（4成功变失败、6失败变成功）。净分差小不等于轨迹可复现。",
+    "5090自身30k权重本次复评仍27/50，全部50个成败复现，1个成功回合的完成步数不同。",
+    "关键超参数、当前源代码、准备数据、文字特征、使用的基础权重、底层ONNX控制器一致。重建253个可训练初始参数及rank0首批13个字段完全一致。",
+    "相同seed和GPU随机调用顺序，8个rank的训练尺寸motion噪声完整哈希都不同；首221184项的54个分块一致，后435块不同，抽样绝对差最大4.86。实际模型首批前向捕获的noise哈希与独立GPU探针相同。",
+    "单因素前向对照保留原生时间步，只共享noise：两端motion_loss差由0.027848变为0.000470，缩小59.25倍，确认GPU噪声是首批训练计算差异的重要来源。不是30k训练消融，不能据此把最终成功率差距全部归给噪声。",
+    "PyTorch CUDA分布内核根据SM数量及每SM最大线程数选择grid，grid参与Philox样本的位置及状态推进。A800为108 SM，5090为170 SM，因此seed相同不足以保证大张量GPU随机序列一致。",
+    "两条历史训练step50及25k前已不同，故5090后续25k断点恢复不是全部原因；该恢复未保存RNG与采样游标，另行改变后续轨迹。",
+    "PyTorch/CUDA版本与硬件数值实现仍不同，固定噪声后保留小的前向差异；尚未分别量化数值计算、噪声和恢复对30k成功率的贡献。"
+  ],
+  "audit_counts": {
+    "kimodo_vla_python": 68,
+    "bigym_code_and_assets": 499,
+    "shared_scripts": 23,
+    "prepared_data_files": 120,
+    "demos": 60,
+    "windows": 24683,
+    "initial_weight_config_stat_files": 11,
+    "loco_onnx_models": 2,
+    "trainable_initial_tensor_hashes": 253,
+    "first_batch_fields": 13
+  },
+  "runtime_difference": {
+    "sensecore": {
+      "torch": "2.14.1+cu126",
+      "torchvision": "0.29.1+cu126",
+      "cuda": "12.6",
+      "driver": "535.86.10"
+    },
+    "5090": {
+      "torch": "2.10.0+cu129",
+      "torchvision": "0.25.0+cu129",
+      "cuda": "12.9",
+      "driver": "580.159.04"
+    }
+  },
+  "resume_difference": "5090约29850步发生NCCL异常，从25000步恢复。当前保存机制不恢复RNG/采样游标，恢复后采样顺序改变。",
+  "checkpoint_sha256": {
+    "sensecore_30000": "eef2e8244affbf43ac38f51648ca44339913fd2e2fc18e1ab7161b22b30ae58c",
+    "5090_30000": "9e5d9b50aa6d12b93c85d78e7b96e310cd4f20f851b28815c06468c414beb586"
+  },
+  "paired_comparisons": {
+    "original_5090_vs_original_sensecore": {
+      "episodes": 50,
+      "a_successes": 27,
+      "b_successes": 11,
+      "success_changed_seeds": [
+        700000,
+        700004,
+        700006,
+        700010,
+        700012,
+        700014,
+        700016,
+        700019,
+        700021,
+        700022,
+        700023,
+        700030,
+        700034,
+        700035,
+        700036,
+        700042,
+        700047,
+        700049
+      ],
+      "a_success_b_failure": [
+        700000,
+        700004,
+        700006,
+        700010,
+        700012,
+        700014,
+        700016,
+        700019,
+        700021,
+        700022,
+        700030,
+        700034,
+        700035,
+        700036,
+        700042,
+        700047,
+        700049
+      ],
+      "a_failure_b_success": [
+        700023
+      ],
+      "full_record_changed_seeds": [
+        700000,
+        700003,
+        700004,
+        700005,
+        700006,
+        700007,
+        700008,
+        700010,
+        700012,
+        700013,
+        700014,
+        700016,
+        700019,
+        700021,
+        700022,
+        700023,
+        700026,
+        700028,
+        700030,
+        700034,
+        700035,
+        700036,
+        700039,
+        700042,
+        700043,
+        700047,
+        700048,
+        700049
+      ]
+    },
+    "5090_original_vs_repeat": {
+      "episodes": 50,
+      "a_successes": 27,
+      "b_successes": 27,
+      "success_changed_seeds": [],
+      "a_success_b_failure": [],
+      "a_failure_b_success": [],
+      "full_record_changed_seeds": [
+        700043
+      ]
+    },
+    "sensecore_original_vs_on5090": {
+      "episodes": 50,
+      "a_successes": 11,
+      "b_successes": 12,
+      "success_changed_seeds": [
+        700000,
+        700007,
+        700012,
+        700021,
+        700035,
+        700039,
+        700048
+      ],
+      "a_success_b_failure": [
+        700007,
+        700039,
+        700048
+      ],
+      "a_failure_b_success": [
+        700000,
+        700012,
+        700021,
+        700035
+      ],
+      "full_record_changed_seeds": [
+        700000,
+        700003,
+        700005,
+        700007,
+        700008,
+        700012,
+        700013,
+        700021,
+        700023,
+        700026,
+        700028,
+        700035,
+        700039,
+        700043,
+        700048
+      ]
+    },
+    "same_5090_env_local_vs_sensecore_checkpoint": {
+      "episodes": 50,
+      "a_successes": 27,
+      "b_successes": 12,
+      "success_changed_seeds": [
+        700004,
+        700006,
+        700007,
+        700010,
+        700014,
+        700016,
+        700019,
+        700022,
+        700023,
+        700030,
+        700034,
+        700036,
+        700039,
+        700042,
+        700047,
+        700048,
+        700049
+      ],
+      "a_success_b_failure": [
+        700004,
+        700006,
+        700007,
+        700010,
+        700014,
+        700016,
+        700019,
+        700022,
+        700030,
+        700034,
+        700036,
+        700039,
+        700042,
+        700047,
+        700048,
+        700049
+      ],
+      "a_failure_b_success": [
+        700023
+      ],
+      "full_record_changed_seeds": [
+        700000,
+        700003,
+        700004,
+        700005,
+        700006,
+        700007,
+        700008,
+        700010,
+        700012,
+        700013,
+        700014,
+        700016,
+        700019,
+        700021,
+        700022,
+        700023,
+        700026,
+        700028,
+        700030,
+        700034,
+        700035,
+        700036,
+        700039,
+        700042,
+        700043,
+        700047,
+        700048,
+        700049
+      ]
+    },
+    "sensecore_original_vs_repeat_A800": {
+      "episodes": 50,
+      "a_successes": 11,
+      "b_successes": 10,
+      "success_changed_seeds": [
+        700003,
+        700006,
+        700007,
+        700016,
+        700023
+      ],
+      "a_success_b_failure": [
+        700003,
+        700007,
+        700023
+      ],
+      "a_failure_b_success": [
+        700006,
+        700016
+      ],
+      "full_record_changed_seeds": [
+        700003,
+        700005,
+        700006,
+        700007,
+        700008,
+        700013,
+        700014,
+        700016,
+        700023,
+        700026,
+        700028,
+        700039,
+        700043,
+        700048
+      ]
+    },
+    "same_sensecore_checkpoint_fresh_A800_vs5090": {
+      "episodes": 50,
+      "a_successes": 10,
+      "b_successes": 12,
+      "success_changed_seeds": [
+        700000,
+        700003,
+        700006,
+        700012,
+        700016,
+        700021,
+        700023,
+        700035,
+        700039,
+        700048
+      ],
+      "a_success_b_failure": [
+        700006,
+        700016,
+        700039,
+        700048
+      ],
+      "a_failure_b_success": [
+        700000,
+        700003,
+        700012,
+        700021,
+        700023,
+        700035
+      ],
+      "full_record_changed_seeds": [
+        700000,
+        700003,
+        700005,
+        700006,
+        700008,
+        700012,
+        700013,
+        700014,
+        700016,
+        700021,
+        700023,
+        700026,
+        700028,
+        700035,
+        700039,
+        700043,
+        700048
+      ]
+    }
+  },
+  "next_steps": [
+    "后续横向比较固定在同一评测平台；两个训练平台的结果作为独立run保留，不能把同seed视作相同训练随机过程。",
+    "需要严格定位长期贡献时，共享初始化checkpoint、数据索引、时间步和噪声，并匹配软件栈做短程训练对照；之后单独验证断点恢复效应。",
+    "续训复现需保存恢复RNG、采样epoch及游标；现有生产训练代码未修改。"
+  ],
+  "evidence_dir": "outputs/01a1c9ca/cross-platform-audit",
+  "github_pushed": false,
+  "pytorch_reproducibility_reference": "https://docs.pytorch.org/docs/2.15/notes/randomness.html",
+  "cuda_rng_diagnostic": {
+    "device_sm_counts": [
+      108,
+      170
+    ],
+    "rows": [
+      {
+        "rank": 0,
+        "timesteps_equal": true,
+        "noise_hash_equal": false,
+        "first16_equal": true,
+        "first16_max_abs_diff": 0.0
+      },
+      {
+        "rank": 1,
+        "timesteps_equal": true,
+        "noise_hash_equal": false,
+        "first16_equal": true,
+        "first16_max_abs_diff": 0.0
+      },
+      {
+        "rank": 2,
+        "timesteps_equal": true,
+        "noise_hash_equal": false,
+        "first16_equal": true,
+        "first16_max_abs_diff": 0.0
+      },
+      {
+        "rank": 3,
+        "timesteps_equal": true,
+        "noise_hash_equal": false,
+        "first16_equal": true,
+        "first16_max_abs_diff": 0.0
+      },
+      {
+        "rank": 4,
+        "timesteps_equal": true,
+        "noise_hash_equal": false,
+        "first16_equal": true,
+        "first16_max_abs_diff": 0.0
+      },
+      {
+        "rank": 5,
+        "timesteps_equal": true,
+        "noise_hash_equal": false,
+        "first16_equal": true,
+        "first16_max_abs_diff": 0.0
+      },
+      {
+        "rank": 6,
+        "timesteps_equal": true,
+        "noise_hash_equal": false,
+        "first16_equal": true,
+        "first16_max_abs_diff": 0.0
+      },
+      {
+        "rank": 7,
+        "timesteps_equal": true,
+        "noise_hash_equal": false,
+        "first16_equal": true,
+        "first16_max_abs_diff": 0.0
+      }
+    ],
+    "interpretation": "同一seed、调用顺序及(32,150,417)形状，8个rank均为时间步相同、首16数相同、完整噪声哈希不同。已确认噪声输入存在差异；尚未量化其对最终成功率的单独贡献。",
+    "kernel_reference": "https://github.com/pytorch/pytorch/blob/v2.10.0/aten/src/ATen/native/cuda/DistributionTemplates.h",
+    "source_explanation": "已安装A800头文件与PyTorch2.10官方源码均按GPU multiProcessorCount及maxThreadsPerMultiProcessor选择grid，并据grid将Philox样本映射到张量位置。",
+    "details": {
+      "numel": 2001600,
+      "chunk_size": 4096,
+      "chunks": 489,
+      "equal_chunks": 54,
+      "different_chunks": 435,
+      "first_differing_chunk_start": 221184,
+      "first_different_sample_index": 229376,
+      "a800_first_different_sample": [
+        -0.16026417911052704,
+        0.7326775193214417,
+        -0.7798287868499756,
+        -1.3713568449020386,
+        0.7123558521270752,
+        0.25098639726638794,
+        0.36227571964263916,
+        0.41947469115257263
+      ],
+      "5090_first_different_sample": [
+        0.25351521372795105,
+        1.440595269203186,
+        -0.906040370464325,
+        -1.051880121231079,
+        0.17086461186408997,
+        -1.5024583339691162,
+        -0.7010032534599304,
+        -1.4787052869796753
+      ],
+      "sample_max_absolute_difference": 4.862803936004639
+    }
+  },
+  "forward_probe_initial": {
+    "native_gpu": {
+      "a800_losses": {
+        "loss": 2.4979116916656494,
+        "motion_loss": 0.3521482050418854,
+        "root_loss": 0.0783567801117897,
+        "body_loss": 0.03872108832001686,
+        "hand_loss": 2.145763397216797,
+        "hand_state_loss": 2.1298885345458984,
+        "hand_transition_loss": 0.07937438786029816
+      },
+      "5090_losses": {
+        "loss": 2.4715840816497803,
+        "motion_loss": 0.32430002093315125,
+        "root_loss": 0.07187601923942566,
+        "body_loss": 0.03679593279957771,
+        "hand_loss": 2.1472840309143066,
+        "hand_state_loss": 2.131307601928711,
+        "hand_transition_loss": 0.07988220453262329
+      },
+      "motion_loss_abs_diff": 0.02784818410873413,
+      "rng_trace_equal": false,
+      "rng_op_equal": [
+        true,
+        false,
+        false
+      ]
+    },
+    "shared_cpu": {
+      "a800_losses": {
+        "loss": 2.4076738357543945,
+        "motion_loss": 0.2638548016548157,
+        "root_loss": 0.05278700217604637,
+        "body_loss": 0.05270678550004959,
+        "hand_loss": 2.1438190937042236,
+        "hand_state_loss": 2.127923011779785,
+        "hand_transition_loss": 0.07948058843612671
+      },
+      "5090_losses": {
+        "loss": 2.40629506111145,
+        "motion_loss": 0.2635483741760254,
+        "root_loss": 0.05271577462553978,
+        "body_loss": 0.05268526077270508,
+        "hand_loss": 2.142746686935425,
+        "hand_state_loss": 2.1268510818481445,
+        "hand_transition_loss": 0.07947784662246704
+      },
+      "motion_loss_abs_diff": 0.0003064274787902832,
+      "rng_trace_equal": true,
+      "rng_op_equal": [
+        true,
+        true,
+        true
+      ]
+    },
+    "caveat": "shared_cpu同时改变两平台共同的时间步和噪声，故随后另做native时间步不变、只共享noise的更严格单因素对照。"
+  },
+  "audit_scope": {
+    "initialization": "current source/runtime reconstruction, all 253 trainable tensors",
+    "first_batch": "rank0 only, no optimizer steps",
+    "rng": "8 rank seeds; actual forward RNG trace validated for rank0",
+    "weights": "checkpoint files copied byte-for-byte; no weight updates"
+  },
+  "forward_noise_only": {
+    "native_gpu": {
+      "a800_motion_loss": 0.3521482050418854,
+      "5090_motion_loss": 0.32430002093315125,
+      "abs_diff": 0.02784818410873413,
+      "rng_trace_equal": false,
+      "timesteps_sha256": "a144c8068e7a5c5845d637976dc28855a759195c00466f4de9f3cd689efa241d"
+    },
+    "shared_noise_only": {
+      "a800_motion_loss": 0.2795276343822479,
+      "5090_motion_loss": 0.2790576219558716,
+      "abs_diff": 0.0004700124263763428,
+      "rng_trace_equal": true,
+      "timesteps_sha256": "a144c8068e7a5c5845d637976dc28855a759195c00466f4de9f3cd689efa241d"
+    },
+    "difference_reduction_factor": 59.24988903683977,
+    "active_dropouts": [
+      [],
+      []
+    ],
+    "scope": "rank0首批，bf16 no_grad，没有DDP/反向/优化器更新。保持原生且一致的时间步，只用共享CPU生成的motion/hand噪声替换原生GPU噪声。两端无启用的Dropout。"
+  },
+  "completed_job": {
+    "sensecore_job": "pt-62eea44x",
+    "name": "kvla-cups-cross-eval-20261113",
+    "script": "/data/NTU_slab/mingqianzhou/humanoid_vla/audit_20261113/evaluate_sensecore.sh",
+    "cleanup": "控制台已核实“已停止”，A800诊断作业资源已释放；完整新复评采用5组并行，替代暂挂的串行诊断",
+    "stopped_at": "2026-11-13T15:18:44+08:00"
+  },
+  "not_executed": [
+    "5090权重反向放到A800评测",
+    "保持完全共享噪声与恢复状态的30k重训消融"
+  ],
+  "diagnostic_finished_at": "2026-11-13T15:18:00+08:00",
+  "temporary_services_cleanup": {
+    "stopped": [
+      {
+        "pid": 1266698,
+        "script": "transfer_local.py"
+      },
+      {
+        "pid": 1269633,
+        "script": "transfer_chunks.py"
+      }
+    ],
+    "evidence": "WebIDE terminal STOPPED_TEMP_TRANSFERS confirmed",
+    "preserved": [
+      "dashboard on port 8765",
+      "xiancun",
+      "clash"
+    ]
+  }
+}

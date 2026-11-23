@@ -1,0 +1,447 @@
+[
+  {
+    "seed": 700000,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            3.16,
+            3.26
+          ],
+          [
+            3.28,
+            3.34
+          ]
+        ],
+        "off_cabinet_after8": 0
+      }
+    ]
+  },
+  {
+    "seed": 700004,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            4.8,
+            4.92
+          ]
+        ],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            3.62,
+            3.92
+          ],
+          [
+            3.94,
+            3.96
+          ]
+        ],
+        "off_cabinet_after8": 0
+      }
+    ]
+  },
+  {
+    "seed": 700006,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            5.32,
+            5.5
+          ]
+        ],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            3.16,
+            3.22
+          ],
+          [
+            3.24,
+            3.28
+          ]
+        ],
+        "off_cabinet_after8": 0
+      }
+    ]
+  },
+  {
+    "seed": 700007,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            4.32,
+            4.92
+          ],
+          [
+            5.56,
+            14.38
+          ],
+          [
+            14.78,
+            14.8
+          ],
+          [
+            14.9,
+            15.16
+          ],
+          [
+            16.56,
+            16.98
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            2.6,
+            2.64
+          ],
+          [
+            2.68,
+            2.7
+          ],
+          [
+            2.72,
+            2.78
+          ],
+          [
+            2.84,
+            3.14
+          ],
+          [
+            3.46,
+            3.48
+          ],
+          [
+            3.5,
+            3.54
+          ],
+          [
+            3.56,
+            3.8
+          ],
+          [
+            3.82,
+            3.94
+          ],
+          [
+            3.96,
+            3.98
+          ],
+          [
+            4.02,
+            4.04
+          ]
+        ],
+        "off_cabinet_after8": 0
+      }
+    ]
+  },
+  {
+    "seed": 700010,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [],
+        "off_cabinet_after8": 0
+      }
+    ]
+  },
+  {
+    "seed": 700012,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            5.24,
+            6.26
+          ]
+        ],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            3.78,
+            12.28
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      }
+    ]
+  },
+  {
+    "seed": 700019,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            4.3,
+            4.94
+          ],
+          [
+            5,
+            5.44
+          ]
+        ],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            3.74,
+            12.24
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      }
+    ]
+  },
+  {
+    "seed": 700021,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            4.88,
+            4.92
+          ],
+          [
+            5.02,
+            14.54
+          ],
+          [
+            14.6,
+            14.66
+          ],
+          [
+            14.68,
+            14.7
+          ],
+          [
+            14.72,
+            14.74
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            2.58,
+            3.28
+          ],
+          [
+            3.32,
+            3.46
+          ],
+          [
+            3.5,
+            3.54
+          ],
+          [
+            3.56,
+            3.58
+          ]
+        ],
+        "off_cabinet_after8": 0
+      }
+    ]
+  },
+  {
+    "seed": 700030,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            3.22,
+            3.26
+          ],
+          [
+            3.38,
+            12.02
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      }
+    ]
+  },
+  {
+    "seed": 700034,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            4.62,
+            4.64
+          ],
+          [
+            4.68,
+            4.7
+          ],
+          [
+            4.74,
+            13.54
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [],
+        "off_cabinet_after8": 0
+      }
+    ]
+  },
+  {
+    "seed": 700036,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            4.7,
+            13.44
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            3.08,
+            3.28
+          ]
+        ],
+        "off_cabinet_after8": 0
+      }
+    ]
+  },
+  {
+    "seed": 700039,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [
+          [
+            4.22,
+            5.14
+          ]
+        ],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            3.16,
+            3.28
+          ],
+          [
+            3.56,
+            12.04
+          ],
+          [
+            12.06,
+            12.08
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      }
+    ]
+  },
+  {
+    "seed": 700047,
+    "cups": [
+      {
+        "ever_floor": false,
+        "ever_tray": false,
+        "held_runs": [],
+        "off_cabinet_after8": 0
+      },
+      {
+        "ever_floor": false,
+        "ever_tray": true,
+        "held_runs": [
+          [
+            3.42,
+            3.44
+          ],
+          [
+            3.48,
+            11.74
+          ],
+          [
+            11.8,
+            11.82
+          ]
+        ],
+        "off_cabinet_after8": 1601
+      }
+    ]
+  }
+]

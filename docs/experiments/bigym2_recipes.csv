@@ -1,0 +1,9 @@
+﻿id,change,config,lr_backbone,lr_adapter,lr_hand,beta2,spike_factor,batch,schedule,dtype,shift,mask
+BASE30,第一套：30k×48，无增强,configs/bigym2.yaml,3e-05,0.0001,0.0001,0.999,,48,30000,bf16,0,0
+RECIPE,第二套：101k×256，加数据增强,configs/bigym2_recipe.yaml,3e-05,0.0001,0.0001,0.999,,256,101000,bf16,8,0.2
+STABLE,相对 RECIPE：LR×0.5；β2=.95；尖峰跳过×5,configs/bigym2_recipe_lr05.yaml,1.5e-05,5e-05,5e-05,0.95,5,256,101000,bf16,8,0.2
+STABLE-SMOKE,STABLE 单卡流程检查，总 batch 32,configs/bigym2_recipe_lr05.yaml,1.5e-05,5e-05,5e-05,0.95,5,32,101000,bf16,8,0.2
+LR03,历史短实验：RECIPE 学习率×0.3,历史日志未迁移,9e-06,3e-05,3e-05,0.999,,256,101000,bf16,8,0.2
+NOMASK,历史短实验：RECIPE 状态遮挡设 0,历史日志未迁移,3e-05,0.0001,0.0001,0.999,,256,101000,bf16,8,0
+FP32,历史短实验：RECIPE 改 fp32,历史日志未迁移,3e-05,0.0001,0.0001,0.999,,256,101000,fp32,8,0.2
+EMA,RECIPE 保存 EMA .999 和 .9999,configs/bigym2_recipe_ema.yaml,3e-05,0.0001,0.0001,0.999,,256,101000,bf16,8,0.2

@@ -1,0 +1,49 @@
+{
+  "created_at": "2026-11-12T17:35:00+08:00",
+  "run": "BG5090-003",
+  "status": "analysis_complete_next_experiments_planned",
+  "stage": "grasp_and_stable_lift_3_to_8_seconds",
+  "regressed_episodes": 13,
+  "both_cups_left": 4,
+  "one_cup_left": 9,
+  "left_cups": 17,
+  "no_sustained_hold_cups": 10,
+  "transient_hold_cups": 7,
+  "outcome_reproduced": 26,
+  "terminal_metrics_reproduced": 25,
+  "same_initial_qpos_pairs": 13,
+  "caveat": "700012 cp30000: original length829; replay866; success unchanged. No claim of framewise identical trajectories.",
+  "next_experiments": [
+    {
+      "priority": 1,
+      "parameter": "execution_frames",
+      "values": [
+        50,
+        25
+      ],
+      "checkpoints": [
+        30000,
+        100000
+      ],
+      "validation_seeds": [
+        700000,
+        700049
+      ],
+      "status": "planned_not_run"
+    },
+    {
+      "priority": 2,
+      "parameter": "learning_rate_multiplier",
+      "values": [
+        1,
+        0.3
+      ],
+      "init_checkpoint": 30000,
+      "extra_steps": [
+        5000,
+        10000
+      ],
+      "status": "planned_conditional"
+    }
+  ]
+}
