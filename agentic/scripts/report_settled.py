@@ -5,13 +5,13 @@ from pathlib import Path
 
 import numpy as np
 from scipy.spatial.transform import Rotation
+from paths import RUNS
 from analyze_root_dynamics import analyze
 from analyze_sonic_replay import vector_stats
 from arena.dynamics_override import FIELDS
 from arena.settled_start import WINDOW, stable
 from kimodo_vla.oracle.geometry import rotation_wxyz
 from kimodo_vla.oracle.recorded_reference import read_rows, sha, export_reference
-from paths import RUNS
 from run_settled_suite import CASES
 
 OLD = 'dynamics-actuator-20261119-r1'
