@@ -1,6 +1,0 @@
-{
-  "url": "https://download-r2.pytorch.org/whl/cu128/torch-2.7.0%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl#sha256=c4bbc0b4be60319ba1cefc90be9557b317f0b3c261eeceb96ca6e0343eec56bf",
-  "bytes": 1097813362,
-  "sha256": "c4bbc0b4be60319ba1cefc90be9557b317f0b3c261eeceb96ca6e0343eec56bf",
-  "file": "torch-2.7.0+cu128-cp311-cp311-manylinux_2_28_x86_64.whl"
-}
