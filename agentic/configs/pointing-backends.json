@@ -1,0 +1,16 @@
+{
+ "openai": {
+  "model": null,
+  "base_url": "https://api.openai.com/v1",
+  "request": {},
+  "price_per_million_tokens_usd": {"input": null, "output": null},
+  "timeout_s": 120
+ },
+ "gemini": {
+  "model": null,
+  "base_url": "https://generativelanguage.googleapis.com/v1beta",
+  "request": {},
+  "price_per_million_tokens_usd": {"input": null, "output": null},
+  "timeout_s": 120
+ }
+}

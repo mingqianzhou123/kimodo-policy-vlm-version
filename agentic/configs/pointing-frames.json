@@ -1,22 +1,329 @@
 {
  "assets": {
-  "box": {"usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/CubeBox_A03_21cm_PR_NVD_01/CubeBox_A03_21cm_PR_NVD_01_physics_rigid.usd", "scale": 0.01},
-  "cardbox_a": {"usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_A1/Cardbox_A1.usd", "scale": 1.0},
-  "cardbox_c": {"usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_C3/Cardbox_C3.usd", "scale": 1.0},
-  "cardbox_d": {"usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_D1/Cardbox_D1.usd", "scale": 1.0},
-  "crate": {"usd": "assets/objects/small_warehouse/SM_Crate_A14_Gray_01/SM_Crate_A14_Gray_01.usd", "scale": 0.01},
-  "hammer": {"usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/hammer/hammer.usd", "scale": 1.0},
-  "scissors": {"usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/scissors001/model_scissors_2.usd", "scale": 1.0},
-  "knife": {"usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/utility knife003/model_utility_knife_6.usd", "scale": 1.0},
-  "stapler": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/green stapler/model_stapler_1.usd", "scale": 1.0},
-  "bottle": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/drink016/model_drink016.usd", "scale": 1.0},
-  "can": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/drink062/model_drink062.usd", "scale": 1.0},
-  "vase": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/IKEA_PELARBJORK_vase_grey_green_20cm/model_PELARBJORK_vase_grey_green_20cm.usd", "scale": 1.0},
-  "book": {"usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/book_17/model_book_17.usd", "scale": 1.0}
+  "box": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/CubeBox_A03_21cm_PR_NVD_01/CubeBox_A03_21cm_PR_NVD_01_physics_rigid.usd",
+   "scale": 0.01
+  },
+  "cardbox_a": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_A1/Cardbox_A1.usd",
+   "scale": 0.01
+  },
+  "cardbox_c": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_C3/Cardbox_C3.usd",
+   "scale": 0.01
+  },
+  "cardbox_d": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_D1/Cardbox_D1.usd",
+   "scale": 0.01
+  },
+  "crate": {
+   "usd": "assets/objects/small_warehouse/SM_Crate_A14_Gray_01/SM_Crate_A14_Gray_01.usd",
+   "scale": 0.01
+  },
+  "hammer": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/hammer/hammer.usd",
+   "scale": 1.0
+  },
+  "scissors": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/scissors001/model_scissors_2.usd",
+   "scale": 1.0
+  },
+  "knife": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/utility knife003/model_utility_knife_6.usd",
+   "scale": 1.0
+  },
+  "stapler": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/green stapler/model_stapler_1.usd",
+   "scale": 1.0
+  },
+  "bottle": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/drink016/model_drink016.usd",
+   "scale": 1.0
+  },
+  "can": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/drink062/model_drink062.usd",
+   "scale": 1.0
+  },
+  "vase": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/IKEA_PELARBJORK_vase_grey_green_20cm/model_PELARBJORK_vase_grey_green_20cm.usd",
+   "scale": 1.0
+  },
+  "book": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/book_17/model_book_17.usd",
+   "scale": 1.0,
+   "base_quat": [
+    0.70710678,
+    0.70710678,
+    0,
+    0
+   ]
+  }
  },
  "scenes": {
-  "pp_box": {"task": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody", "env_config": "tasks/common_test_config/base_test/pp_box_sonic_test.yaml", "hide": [], "instances": {}},
-  "doubledesk": {"task": "Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody", "env_config": "tasks/common_test_config/base_test/doubledesk_sonic_test.yaml", "hide": [], "instances": {}}
+  "pp_box": {
+   "task": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody",
+   "env_config": "tasks/common_test_config/base_test/pp_box_sonic_test.yaml",
+   "hide": [
+    "/World/envs/env_0/Box"
+   ],
+   "instances": {
+    "box_a": "box",
+    "box_b": "box",
+    "carton": "cardbox_d",
+    "crate": "crate",
+    "hammer_a": "hammer",
+    "hammer_b": "hammer",
+    "scissors": "scissors",
+    "knife": "knife",
+    "stapler": "stapler",
+    "bottle_a": "bottle",
+    "bottle_b": "bottle",
+    "can": "can",
+    "vase": "vase",
+    "book": "book"
+   }
+  },
+  "doubledesk": {
+   "task": "Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody",
+   "env_config": "tasks/common_test_config/base_test/doubledesk_sonic_test.yaml",
+   "hide": [
+    "/World/envs/env_0/ObjectL",
+    "/World/envs/env_0/Basket"
+   ],
+   "instances": {
+    "box_a": "box",
+    "box_b": "box",
+    "carton": "cardbox_d",
+    "crate": "crate",
+    "hammer_a": "hammer",
+    "hammer_b": "hammer",
+    "scissors": "scissors",
+    "knife": "knife",
+    "stapler": "stapler",
+    "bottle_a": "bottle",
+    "bottle_b": "bottle",
+    "can": "can",
+    "vase": "vase",
+    "book": "book"
+   }
+  }
  },
- "frames": []
+ "frames": [
+  {
+   "id": "t1",
+   "scene": "pp_box",
+   "category": "distance",
+   "robot": [
+    -1.5,
+    -5.0,
+    0
+   ],
+   "objects": {
+    "box_a": [
+     -0.4,
+     -5.0,
+     0.746,
+     20
+    ],
+    "hammer_a": [
+     -0.45,
+     -4.55,
+     0.746,
+     30
+    ],
+    "can": [
+     -0.5,
+     -5.4,
+     0.746,
+     0
+    ],
+    "crate": [
+     -0.25,
+     -5.9,
+     0.746,
+     90
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the box_a."
+  },
+  {
+   "id": "t2",
+   "scene": "pp_box",
+   "category": "distance",
+   "robot": [
+    -1.05,
+    -4.6,
+    0
+   ],
+   "objects": {
+    "scissors": [
+     -0.5,
+     -4.6,
+     0.746,
+     0
+    ],
+    "knife": [
+     -0.45,
+     -4.35,
+     0.746,
+     40
+    ],
+    "stapler": [
+     -0.35,
+     -4.85,
+     0.746,
+     -30
+    ],
+    "book": [
+     -0.2,
+     -4.5,
+     0.746,
+     10
+    ]
+   },
+   "target": "scissors",
+   "instruction": "Pick up the scissors."
+  },
+  {
+   "id": "t3",
+   "scene": "pp_box",
+   "category": "distance",
+   "robot": [
+    -3.0,
+    -5.0,
+    0
+   ],
+   "objects": {
+    "box_a": [
+     -0.4,
+     -5.3,
+     0.746,
+     0
+    ],
+    "vase": [
+     -0.4,
+     -4.9,
+     0.746,
+     0
+    ],
+    "hammer_a": [
+     -0.5,
+     -4.5,
+     0.746,
+     90
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "t4",
+   "scene": "doubledesk",
+   "category": "distance",
+   "robot": [
+    -2.6,
+    -2.4,
+    -90
+   ],
+   "objects": {
+    "hammer_a": [
+     -2.6,
+     -3.2,
+     0.746,
+     60
+    ],
+    "box_a": [
+     -2.2,
+     -3.35,
+     0.746,
+     10
+    ],
+    "bottle_a": [
+     -2.9,
+     -3.1,
+     0.746,
+     0
+    ],
+    "crate": [
+     -3.3,
+     -3.3,
+     0.746,
+     0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer_a."
+  },
+  {
+   "id": "t5",
+   "scene": "doubledesk",
+   "category": "distance",
+   "robot": [
+    -2.6,
+    -1.9,
+    90
+   ],
+   "objects": {
+    "crate": [
+     -2.8,
+     -0.05,
+     0.746,
+     0
+    ],
+    "can": [
+     -2.3,
+     -0.1,
+     0.746,
+     0
+    ],
+    "vase": [
+     -1.9,
+     0.0,
+     0.746,
+     0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "t6",
+   "scene": "doubledesk",
+   "category": "distance",
+   "robot": [
+    -2.0,
+    -2.45,
+    -60
+   ],
+   "objects": {
+    "knife": [
+     -1.9,
+     -3.1,
+     0.746,
+     0
+    ],
+    "stapler": [
+     -1.7,
+     -3.3,
+     0.746,
+     20
+    ],
+    "scissors": [
+     -2.2,
+     -3.2,
+     0.746,
+     -40
+    ],
+    "book": [
+     -1.5,
+     -3.1,
+     0.746,
+     0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  }
+ ]
 }
