@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic 实验进度</title>
+<style>
+:root { --bg:#fcfcfb; --ink:#0b0b0b; --ink2:#62615d; --line:#dddcd5; --soft:#f2f1eb;
+  --left:#2a78d6; --right:#eb6834; --root:#1baf7a; --rootz:#6250d6; --good:#0b7a0b; --bad:#c8322b; }
+@media (prefers-color-scheme: dark) { :root { --bg:#1a1a19; --ink:#f0efec; --ink2:#b5b4aa; --line:#3b3b38; --soft:#242422;
+  --left:#3987e5; --right:#d95926; --root:#199e70; --rootz:#9085e9; --good:#0ca30c; --bad:#e66767; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.6 -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif; }
+h1 { font-size:22px; font-weight:600; margin:0; }
+h2 { font-size:14px; font-weight:600; margin:30px 0 6px; }
+p { margin:0; }
+button { font:inherit; color:inherit; background:none; border:0; padding:0; text-align:left; cursor:pointer; }
+.muted { color:var(--ink2); }
+.num { font-variant-numeric:tabular-nums; }
+.mono { font-family:ui-monospace, "SF Mono", Menlo, monospace; }
+.dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; background:var(--ink2); }
+.dot.good { background:var(--good); } .dot.bad { background:var(--bad); }
+
+/* experiments stay on the left, the chosen one fills the right, a run opens below it */
+.page { display:grid; grid-template-columns:400px minmax(0,1fr); height:100vh; }
+#side { overflow-y:auto; padding:28px 24px 40px 32px; border-right:1px solid var(--line); }
+#work { display:grid; grid-template-rows:minmax(0,1fr) auto; min-width:0; height:100vh; }
+#pane { overflow:auto; padding:28px 36px 48px; }
+#drawer { border-top:1px solid var(--ink); padding:14px 36px 18px; max-height:60vh; overflow:auto; }
+#drawer:empty { display:none; }
+.drawer-head { display:flex; justify-content:space-between; margin-bottom:6px; }
+
+/* one line per experiment: percent, name over a bar, steps finished */
+.item { display:grid; grid-template-columns:52px minmax(0,1fr) 78px; column-gap:12px; align-items:center;
+  width:100%; padding:11px 0; border-top:1px solid var(--line); }
+button.item:hover .name { text-decoration:underline; text-underline-offset:3px; }
+.item.on { box-shadow:inset 2px 0 0 var(--ink); padding-left:10px; }
+.pct { font-size:22px; font-variant-numeric:tabular-nums; }
+.name { font-weight:600; display:block; margin-bottom:7px; }
+.bar { display:block; height:4px; background:var(--line); }
+.bar i { display:block; height:100%; background:var(--ink); }
+.item .count { text-align:right; }
+.item.group { padding:8px 0; }
+.item.group .name { font-weight:400; margin:0; }
+
+dl.facts { display:grid; grid-template-columns:92px minmax(0,1fr); gap:4px 0; margin:0; max-width:860px; }
+dl.facts dt { color:var(--ink2); } dl.facts dd { margin:0; }
+.headline { display:flex; flex-wrap:wrap; gap:8px 44px; padding:10px 0 12px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin:8px 0 10px; }
+.headline b { display:block; font-size:22px; font-weight:400; font-variant-numeric:tabular-nums; }
+.notes { margin:8px 0; }
+
+table { border-collapse:collapse; width:100%; }
+th, td { text-align:left; padding:6px 14px 6px 0; border-bottom:1px solid var(--line); vertical-align:top; white-space:nowrap; }
+th { font-weight:400; color:var(--ink2); }
+td.r, th.r { text-align:right; }
+td.wrap { white-space:normal; min-width:260px; }
+table.steps .bar { width:140px; margin-top:9px; }
+tr.run { cursor:pointer; }
+tr.run:hover td, tr.run.on td { background:var(--soft); }
+.scroll { overflow-x:auto; }
+
+/* one run: curves on the left, video and facts on the right */
+.run-detail { display:grid; grid-template-columns:minmax(0,660px) minmax(260px,400px); gap:28px; align-items:start; }
+.run-detail video { width:100%; display:block; background:#000; }
+.chart-head { display:flex; justify-content:space-between; gap:12px; margin-top:10px; }
+.key { display:inline-flex; align-items:center; gap:5px; margin-left:12px; }
+.key i { width:14px; height:2px; display:inline-block; }
+svg.chart { width:100%; height:auto; display:block; cursor:crosshair; }
+svg.chart text { font-size:13px; fill:var(--ink2); font-variant-numeric:tabular-nums; }
+svg.chart .grid { stroke:var(--line); stroke-width:1; }
+svg.chart .mark { stroke:var(--ink2); stroke-width:1; stroke-dasharray:4 4; }
+svg.chart .line { fill:none; stroke-width:2; stroke-linejoin:round; }
+svg.chart .hair { stroke:var(--ink2); stroke-width:1; visibility:hidden; }
+svg.chart .play { stroke:var(--ink); stroke-width:1.5; visibility:hidden; }
+.readout { min-height:22px; margin-top:6px; }
+@media (max-width:1000px) { .page { grid-template-columns:300px minmax(0,1fr); } .run-detail { grid-template-columns:minmax(0,1fr); } }
+</style>
+<body>
+<div class="page">
+  <div id="side">
+    <h1>Agentic 实验进度</h1>
+    <p class="muted" id="about"></p>
+    <div id="plan" style="margin-top:22px"></div>
+    <h2 id="prior-title"></h2>
+    <p class="muted" id="prior-about"></p>
+    <div id="prior" style="margin-top:10px"></div>
+  </div>
+  <div id="work"><div id="pane"></div><div id="drawer"></div></div>
+</div>
+<script>
+const D = __DATA__;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct = (x) => Math.round(100 * x) + '%';
+const cm = (v) => v == null ? '' : v.toFixed(2);
+const pair = (v) => v ? cm(v[0]) + ' / ' + cm(v[1]) : '';
+const bar = (x) => `<span class="bar"><i style="width:${(100 * x).toFixed(1)}%"></i></span>`;
+const interval = (r) => `${r.wins}/${r.total}，95% 区间 ${pct(r.low)}–${pct(r.high)}`;
+
+/* ---------- left: the list of experiments ---------- */
+function item(kind, id, percent, name, count, share) {
+  return `<button class="item ${kind}" data-item="${kind}:${esc(id)}"><span class="pct">${percent}</span>
+    <span><span class="name">${esc(name)}</span>${share == null ? '' : bar(share)}</span><span class="count muted num">${count}</span></button>`;
+}
+$('about').textContent = `${D.plan || ''} · 生成于 ${D.generated}`;
+$('plan').innerHTML = `<div class="item"><span class="pct">${pct(D.progress)}</span><span><span class="name">整体</span>${bar(D.progress)}</span><span class="count muted">各项平均</span></div>`
+  + D.experiments.map((e) => item('exp', e.id, pct(e.progress), e.title, `${e.steps_done} / ${e.steps_counted} 步`, e.progress)).join('');
+$('prior-title').textContent = `计划之前的实验（${D.groups.reduce((n, g) => n + g.runs.length, 0)} 个）`;
+$('prior-about').textContent = `按主题和日期分组，不计入上面的进度。另有 ${D.other_folders} 个目录是成组汇总和审计材料，没有列出。`;
+$('prior').innerHTML = D.groups.map((g) => item('group', g.id, '', g.id, g.summary.passed ? `达标 ${g.summary.passed.wins}/${g.summary.passed.total}` : `${g.runs.length} 个`, null)).join('');
+
+/* ---------- right: what one experiment or group shows ---------- */
+function headline(s) {
+  const figures = [];
+  if (s.success) figures.push([pct(s.success.wins / s.success.total), `任务成功率（${interval(s.success)}）`]);
+  if (s.passed) figures.push([pct(s.passed.wins / s.passed.total), `${D.limit_cm} cm 标准达标率（${interval(s.passed)}）`]);
+  if (s.worst_wrist_cm != null) figures.push([cm(s.worst_wrist_cm) + ' cm', '双腕偏离参考，最差一帧']);
+  if (s.worst_marker_cm != null) figures.push([cm(s.worst_marker_cm) + ' cm', '双腕到真值标记，最差一帧']);
+  if (s.root_mean_cm != null) figures.push([cm(s.root_mean_cm) + ' cm', '根部平均偏离']);
+  return (figures.length ? `<div class="headline">${figures.map(([big, small]) => `<div><b>${big}</b><span class="muted">${esc(small)}</span></div>`).join('')}</div>` : '')
+    + (s.notes.length ? `<div class="notes">${s.notes.map((n) => `<p><span class="dot bad"></span>${esc(n)}</p>`).join('')}</div>` : '');
+}
+function runTable(names, summary) {
+  if (!names.length) return '';
+  const runs = names.map((n) => D.runs[n]);
+  const keys = [...new Set(runs.flatMap((r) => Object.keys(r.switches)))];
+  const shared = keys.filter((k) => runs.every((r) => r.switches[k] === runs[0].switches[k]));
+  const differ = keys.filter((k) => !shared.includes(k));
+  const scored = runs.some((r) => r.wins != null);
+  const version = (v) => !v ? '' : v.commit ? `提交 <span class="mono">${esc(v.commit)}</span>${v.dirty ? ' 含未提交改动' : ''}` : `指纹 <span class="mono">${esc(v.fingerprint)}</span>`;
+  const verdict = (m) => m?.pass == null ? '<span class="muted">无法判定</span>' : m.pass ? '<span class="dot good"></span>达标' : '<span class="dot bad"></span>未达标';
+  const state = (r) => `<span class="dot ${r.status === '完成' ? 'good' : r.status === '失败' ? 'bad' : ''}"></span>${esc(r.status)}`;
+  const won = (r) => r.wins == null ? '' : r.episodes > 1 ? `${r.wins}/${r.episodes}` : r.wins ? '<span class="dot good"></span>成功' : '<span class="dot bad"></span>失败';
+  return `${headline(summary)}
+  ${shared.length ? `<p class="muted" style="margin:6px 0 2px">共同设置：${shared.map((k) => `${esc(k)} ${esc(runs[0].switches[k])}`).join(' · ')}</p>` : ''}
+  <div class="scroll"><table><thead><tr><th>实验</th><th>日期</th><th>代码版本</th>${differ.length ? '<th>各自不同的设置</th>' : ''}<th>状态</th>${scored ? '<th>任务</th>' : ''}
+    <th class="r">双腕最大误差 左/右 cm</th><th class="r">到标记最大 左/右 cm</th><th class="r">根部平均 cm</th><th>${D.limit_cm} cm 标准</th></tr></thead><tbody>
+  ${runs.map((r) => `<tr class="run" data-run="${esc(r.name)}" tabindex="0"><td>${esc(r.name)}</td><td class="num">${esc(r.date)}</td><td>${version(r.version)}</td>
+    ${differ.length ? `<td class="wrap">${differ.filter((k) => r.switches[k] != null).map((k) => `${esc(k)} ${esc(r.switches[k])}`).join(' · ')}</td>` : ''}
+    <td>${state(r)}</td>${scored ? `<td class="num">${won(r)}</td>` : ''}<td class="r num">${pair(r.m?.wrist_max_cm)}</td><td class="r num">${pair(r.m?.marker_max_cm)}</td>
+    <td class="r num">${cm(r.m?.root_mean_cm)}</td><td>${verdict(r.m)}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+function record(e) {
+  const blank = (text) => `<span class="muted">${text}</span>`;
+  const rows = (list) => `<dl class="facts">${list.map(([k, v, missing]) => v || missing ? `<dt>${k}</dt><dd>${v ? esc(v) : blank(missing)}</dd>` : '').join('')}</dl>`;
+  const runs = !!e.judgment;   // the checklist before starting has nothing to predict or conclude
+  const before = rows([['要回答', e.question], ['成功的定义', e.success], ['预测', e.prediction, runs && '未写。开跑前写一句带数字的预测，跑完才看得出哪里想错了。'],
+    ['结果怎么用', e.judgment], ['何时停', e.stop]]);
+  const after = !runs || !(e.progress > 0 || e.conclusion || e.next) ? '' : `<h2>跑之后</h2>` + rows([['结论', e.conclusion, '未填'], ['把握', e.confidence, '未填'],
+    ['改了哪条判断', e.changed, '未填'], ['下一步', e.next, '未填']]);
+  return {before: (runs ? '<h2>跑之前</h2>' : '') + before, after};
+}
+function body(kind, id) {
+  if (kind === 'group') { const g = D.groups.find((x) => x.id === id); return runTable(g.runs, g.summary); }
+  const e = D.experiments.find((x) => x.id === id), started = e.steps.filter((s) => s.runs.length), written = record(e);
+  const predicted = (s) => s.predict == null ? '' : pct(s.predict) + (s.summary.success ? `，实测差 ${Math.round(100 * (s.summary.success.wins / s.summary.success.total - s.predict))} 点` : '');
+  return `${written.before}
+  <h2>步骤</h2>
+  <table class="steps"><thead><tr><th>步骤</th><th>进度</th><th class="r">做完 / 计划</th><th>成功率</th><th>预测</th><th>实验命名</th></tr></thead><tbody>
+  ${e.steps.map((s) => `<tr><td class="wrap">${esc(s.name)}${s.optional ? '<span class="muted">（按需，开跑后才计入）</span>' : ''}</td><td>${bar(s.share)}</td>
+    <td class="r num">${s.done} / ${s.planned}</td><td class="num">${s.summary.success ? `${pct(s.summary.success.wins / s.summary.success.total)}（${interval(s.summary.success)}）` : ''}</td>
+    <td class="num">${predicted(s)}</td><td class="mono muted">${esc(s.pattern || '手填')}</td></tr>`).join('')}
+  </tbody></table>
+  ${written.after}
+  ${started.map((s) => `<h2>${esc(s.name)}</h2>${runTable(s.runs, s.summary)}`).join('')}
+  ${e.basis.length ? `<h2>已有基础（计划之前做的，不计入进度）</h2>${runTable(e.basis, e.basis_summary)}` : ''}`;
+}
+
+/* ---------- one run: curves, video, facts ---------- */
+function nice(span) { const p = 10 ** Math.floor(Math.log10(span / 4)); return [1, 2, 5, 10].map((m) => m * p).find((s) => span / s <= 5); }
+function chart(o) {
+  const W = 660, H = 168, L = 40, R = 46, T = 10, Bm = 26, t = o.t, t1 = Math.max(t[t.length - 1], 1e-6);
+  const x = (v) => L + v / t1 * (W - L - R), y = (v) => T + (o.hi - v) / (o.hi - o.lo) * (H - T - Bm);
+  const step = nice(o.hi - o.lo), ticks = [];
+  for (let v = Math.ceil(o.lo / step) * step; v <= o.hi + 1e-9; v += step) ticks.push(+v.toFixed(6));
+  const xs = []; for (let v = 0; v <= t1 + 1e-9; v += t1 > 10 ? 2 : 1) xs.push(v);
+  const path = (vals) => { let d = '', pen = false; vals.forEach((v, i) => { if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + x(t[i]).toFixed(1) + ' ' + y(v).toFixed(1); pen = true; }); return d; };
+  const clip = 'c' + Math.random().toString(36).slice(2);
+  return `<div class="chart-head"><span>${esc(o.title)}</span><span class="muted">${o.lines.map((l) => `<span class="key"><i style="background:var(--${l.color})"></i>${esc(l.name)}</span>`).join('')}</span></div>
+  <svg class="chart" viewBox="0 0 ${W} ${H}" data-l="${L}" data-w="${W - L - R}" data-t1="${t1}" role="img" aria-label="${esc(o.title)}">
+    <clipPath id="${clip}"><rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - Bm}"/></clipPath>
+    ${ticks.map((v) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 7}" y="${y(v) + 4.5}" text-anchor="end">${v}</text>`).join('')}
+    ${xs.map((v) => `<text x="${x(v)}" y="${H - 7}" text-anchor="middle">${v}${v === xs[xs.length - 1] ? ' s' : ''}</text>`).join('')}
+    ${o.limit != null && o.limit <= o.hi ? `<line class="mark" x1="${L}" x2="${W - R}" y1="${y(o.limit)}" y2="${y(o.limit)}"/><text x="${W - R + 5}" y="${y(o.limit) + 4.5}">${o.limit} cm</text>` : ''}
+    ${o.arrival != null ? `<line class="mark" x1="${x(o.arrival)}" x2="${x(o.arrival)}" y1="${T}" y2="${H - Bm}"/><text x="${x(o.arrival) + 5}" y="${T + 11}">到达</text>` : ''}
+    <g clip-path="url(#${clip})">${o.lines.map((l) => `<path class="line" stroke="var(--${l.color})" d="${path(l.v)}"/>`).join('')}</g>
+    <line class="hair" y1="${T}" y2="${H - Bm}"/><line class="play" y1="${T}" y2="${H - Bm}"/></svg>`;
+}
+function detail(run) {
+  const s = run.s, charts = [];
+  if (s) {
+    const top = (lists, least) => Math.max(least, ...lists.flat().filter((v) => v != null));
+    const up = (v) => { const st = nice(v); return Math.ceil(v / st - 1e-9) * st; };
+    charts.push({title: '双腕偏离参考（cm）', t: s.t, arrival: s.arrival, limit: D.limit_cm, lo: 0, hi: up(top(s.wrist, 2 * D.limit_cm)),
+      lines: [{name: '左腕', color: 'left', v: s.wrist[0]}, {name: '右腕', color: 'right', v: s.wrist[1]}]});
+    if (s.aim) charts.push({title: `双腕到${s.aim_is_marker ? '真值标记' : '规划目标'}的距离（cm，只画 10 cm 以内）`, t: s.t, arrival: s.arrival, limit: D.limit_cm, lo: 0, hi: 10,
+      lines: [{name: '左腕', color: 'left', v: s.aim[0]}, {name: '右腕', color: 'right', v: s.aim[1]}]});
+    if (s.root) { const lo = Math.min(0, ...s.root_z.filter((v) => v != null)); charts.push({title: '根部偏离参考（cm）', t: s.t, arrival: s.arrival, lo: lo < 0 ? -up(-lo) : 0, hi: up(top([s.root, s.root_z], 1)),
+      lines: [{name: '三维总量', color: 'root', v: s.root}, {name: '竖直方向（正为偏高）', color: 'rootz', v: s.root_z}]}); }
+  }
+  const v = run.version;
+  const facts = [['状态', run.status + (run.error ? '：' + run.error : '')], ['日期', run.date], ['用时', run.minutes == null ? null : run.minutes + ' 分钟'],
+    ['代码版本', !v ? null : v.commit ? `提交 ${v.commit}${v.dirty ? '，含未提交改动（调试用，不能当正式结果）' : ''}` : `源码指纹 ${v.fingerprint}（这个实验早于记录提交号）`],
+    ['种子', run.seed], ['任务', run.wins == null ? '不评任务成功率' : `成功 ${run.wins}/${run.episodes}`],
+    ['控制帧', run.m ? `${run.m.frames} 帧，到达后 ${run.m.late_frames} 帧` : null],
+    ['到达后均值', run.m?.wrist_mean_cm ? `左 ${cm(run.m.wrist_mean_cm[0])} / 右 ${cm(run.m.wrist_mean_cm[1])} cm` : null],
+    ...Object.entries(run.switches)].filter(([, value]) => value != null && value !== '');
+  const video = !run.video ? '<p class="muted">这个实验没有录视频。</p>'
+    : run.video.plays ? `<video controls muted playsinline preload="metadata" src="${encodeURI(run.video.url)}"></video>`
+    : `<p class="muted">浏览器放不了这个视频的编码，装上 ffmpeg 后重新生成页面即可。<a href="${encodeURI(run.video.url)}">打开原文件</a></p>`;
+  const box = document.createElement('div');
+  box.className = 'run-detail';
+  box.innerHTML = `<div>${charts.length ? charts.map(chart).join('') + '<p class="readout muted num">把鼠标移到曲线上看数值；点一下，视频跳到那一刻。</p>' : '<p class="muted">这个实验没有逐步日志，画不出曲线。</p>'}</div>
+    <div>${video}<dl class="facts" style="margin-top:12px">${facts.map(([k, value]) => `<dt>${esc(k)}</dt><dd>${esc(value)}</dd>`).join('')}</dl></div>`;
+  const svgs = [...box.querySelectorAll('svg.chart')], film = box.querySelector('video'), readout = box.querySelector('.readout');
+  const place = (cls, time) => svgs.forEach((g) => { const line = g.querySelector('.' + cls), px = +g.dataset.l + time / +g.dataset.t1 * +g.dataset.w;
+    line.setAttribute('x1', px); line.setAttribute('x2', px); line.style.visibility = 'visible'; });
+  const timeAt = (g, ev) => { const r = g.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * 660;
+    return Math.min(Math.max((px - +g.dataset.l) / +g.dataset.w, 0), 1) * +g.dataset.t1; };
+  svgs.forEach((g) => {
+    g.addEventListener('mousemove', (ev) => {
+      const time = timeAt(g, ev); let i = 0; s.t.forEach((value, k) => { if (Math.abs(value - time) < Math.abs(s.t[i] - time)) i = k; });
+      place('hair', s.t[i]);
+      readout.textContent = `${s.t[i].toFixed(2)} s　偏离参考 左 ${cm(s.wrist[0][i])} 右 ${cm(s.wrist[1][i])}` + (s.aim ? `　到目标 左 ${cm(s.aim[0][i])} 右 ${cm(s.aim[1][i])}` : '') + (s.root ? `　根部 ${cm(s.root[i])}，竖直 ${cm(s.root_z[i])}` : '') + ' cm';
+    });
+    g.addEventListener('mouseleave', () => svgs.forEach((h) => { h.querySelector('.hair').style.visibility = 'hidden'; }));
+    g.addEventListener('click', (ev) => { if (film && film.duration) film.currentTime = timeAt(g, ev) / +g.dataset.t1 * film.duration; });
+  });
+  if (film && svgs.length) {
+    const follow = () => { if (film.duration) place('play', film.currentTime / film.duration * +svgs[0].dataset.t1); if (!film.paused) requestAnimationFrame(follow); };
+    ['play', 'seeked', 'timeupdate', 'loadedmetadata'].forEach((name) => film.addEventListener(name, follow));
+  }
+  return box;
+}
+
+/* ---------- opening things ---------- */
+function openItem(button) {
+  const [kind, id] = button.dataset.item.split(/:(.*)/);
+  document.querySelectorAll('.item.on').forEach((b) => b.classList.remove('on'));
+  button.classList.add('on');
+  const e = kind === 'exp' && D.experiments.find((x) => x.id === id), g = kind === 'group' && D.groups.find((x) => x.id === id);
+  $('pane').innerHTML = `<h1>${esc(e ? e.title : id)}</h1><p class="muted" style="margin-bottom:14px">${e ? `进度 ${pct(e.progress)} · ${esc(e.when)} · ${esc(e.owner)}` : `${esc(g.date)} · ${g.runs.length} 个实验`}</p>${body(kind, id)}`;
+  $('pane').scrollTop = 0;
+  $('drawer').innerHTML = '';
+}
+function openRun(row) {
+  const run = D.runs[row.dataset.run];
+  document.querySelectorAll('tr.run.on').forEach((r) => r.classList.remove('on'));
+  row.classList.add('on');
+  $('drawer').innerHTML = `<div class="drawer-head"><b>${esc(run.name)}</b><button class="muted" id="close">收起</button></div>`;
+  $('drawer').append(detail(run));
+  $('close').onclick = () => { $('drawer').innerHTML = ''; row.classList.remove('on'); };
+  row.scrollIntoView({block: 'nearest'});
+}
+document.addEventListener('click', (ev) => {
+  const button = ev.target.closest('button.item'), row = ev.target.closest('tr.run');
+  if (button) openItem(button); else if (row) openRun(row);
+});
+document.addEventListener('keydown', (ev) => {
+  const focused = document.activeElement.closest?.('tr.run');
+  if (focused && ev.key === 'Enter') return openRun(focused);
+  if (!['ArrowDown', 'ArrowUp'].includes(ev.key)) return;
+  const rows = [...document.querySelectorAll('#pane tr.run')], at = rows.findIndex((r) => r.classList.contains('on'));
+  const to = rows[at + (ev.key === 'ArrowDown' ? 1 : -1)];
+  if (at >= 0 && to) { ev.preventDefault(); openRun(to); }
+});
+openItem(document.querySelector('button.item'));
+</script>
+</html>
