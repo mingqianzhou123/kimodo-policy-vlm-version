@@ -66,6 +66,23 @@ def measure(run, rows):
     return results
 
 
+def assert_same_simulator_setup(cfg, oldcfg):
+    """Two runs used the same robot and simulator settings.
+
+    The robot USD is identified by its content hash. Its directory is where a machine keeps
+    the simulator cache, so runs made before and after that cache moves must still compare equal.
+    """
+    def settings(c):
+        spawn = {**c['robot_cfg']['spawn'], 'usd_path': Path(c['robot_cfg']['spawn']['usd_path']).name}
+        return {**{key: c[key] for key in ('sim_cfg','runtime_env','provider','body_names','joint_names','physics_dt','control_dt')},
+                'robot_cfg': {**c['robot_cfg'], 'spawn': spawn}}
+    sha = cfg['robot_asset']['sha256']
+    assert sha and sha == oldcfg['robot_asset']['sha256'], 'robot_asset'
+    new, old = settings(cfg), settings(oldcfg)
+    for key in new:
+        assert new[key] == old[key], key
+
+
 def compare(case, suite, dest):
     baseline = RUNS/(OLD+'-'+case)
     run = RUNS/(suite+'-'+case)
@@ -83,8 +100,7 @@ def compare(case, suite, dest):
         assert target[key]==old_target[key]==load(baseline,'target.json')[key]
     assert load(run,'visual-evaluation-truth.json')==load(source,'visual-evaluation-truth.json')
     cfg, oldcfg = load(run,'actuator-config.json'),load(baseline,'actuator-config.json')
-    for key in ('robot_asset','robot_cfg','sim_cfg','runtime_env','provider','body_names','joint_names','physics_dt','control_dt'):
-        assert cfg[key]==oldcfg[key], key
+    assert_same_simulator_setup(cfg, oldcfg)
     for key in (*FIELDS,'material_properties'):
         assert cfg['active_first_physics_step'][key]==oldcfg['active_first_physics_step'][key], key
     before = read_rows(baseline/'execution.jsonl')
