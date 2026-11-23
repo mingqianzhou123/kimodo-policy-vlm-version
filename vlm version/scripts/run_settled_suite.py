@@ -20,11 +20,8 @@ if __name__ == '__main__':
         run_id = 'settled-20261123-'+args.suffix+'-'+case
         print('START', run_id, flush=True)
         subprocess.run([sys.executable, 'scripts/run_oracle.py', '--run-id', run_id,
-            '--settled-goal', str(old/'target.json'), '--steps', '400', '--mode', 'hold',
+            '--settled-goal', str(old/'target.json'),
             '--sim-gpu', str(args.gpu), '--policy-gpu', str(args.gpu), '--share-policy-sim-gpu',
-            '--variant', 'bounded', '--support-constraints', 'root', '--joint-speed', '4',
-            '--hand-constraints', 'continuous', '--trajectory-projection', 'ik-hold',
-            '--visual-markers', '--marker-reach-rad', str(truth['reach_rad']),
-            '--camera-lateral-m', str(truth['camera_lateral_m']), '--actuator-audit',
-            '--dynamics-profile', 'actuator'], cwd=ROOT, check=True)
+            '--marker-reach-rad', str(truth['reach_rad']),
+            '--camera-lateral-m', str(truth['camera_lateral_m'])], cwd=ROOT, check=True)
         print('COMPLETE', run_id, flush=True)

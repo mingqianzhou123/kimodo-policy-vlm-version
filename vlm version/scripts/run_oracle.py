@@ -1,4 +1,10 @@
-"""Run one short oracle reach diagnostic in the existing HumanoidArena + SONIC environment."""
+"""Run one reach episode in the existing HumanoidArena + SONIC environment.
+
+The defaults are the backend every experiment since 2026-11-17 has used: bounded handoff,
+root support, continuous hand conditions, IK-hold projection, 4 rad/s, 400 steps.
+``--settled-goal`` additionally starts from stable double support with aligned actuators,
+which is the configuration of the 2026-11-23 result. Earlier variants need explicit flags.
+"""
 import argparse
 import hashlib
 import json
@@ -18,31 +24,32 @@ def sha(p):
         return hashlib.file_digest(f,'sha256').hexdigest()
 
 
-def main():
-    p=argparse.ArgumentParser(description=__doc__)
+def parse_args(argv=None):
+    p=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--run-id',required=True)
     p.add_argument('--mode',choices=['hold','reach','offset','box'],default='hold')
     p.add_argument('--sim-gpu',type=int,default=1)
     p.add_argument('--policy-gpu',type=int,default=2)
     p.add_argument('--share-policy-sim-gpu',action='store_true',
                    help='Explicitly colocate this run\'s policy and simulation on one otherwise empty GPU')
-    p.add_argument('--steps',type=int,default=150)
+    p.add_argument('--steps',type=int,default=400)
     p.add_argument('--diffusion-steps',type=int,default=50)
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
     p.add_argument('--root-anchor',choices=['reference','generated'],default='reference')
     p.add_argument('--reference-source',choices=['kimodo','fixed','replay'],default='kimodo')
-    p.add_argument('--settled-goal',type=Path,help='Start from stable double support, keeping archived hand goals in world coordinates')
+    p.add_argument('--settled-goal',type=Path,help='Start from stable double support, keeping archived hand goals in world coordinates; '
+        'implies --visual-markers --actuator-audit --dynamics-profile actuator')
     p.add_argument('--replay-fixture',type=Path)
     p.add_argument('--actuator-audit',action='store_true')
     p.add_argument('--dynamics-profile',choices=['sensor-load','actuator','actuator-load'])
     p.add_argument('--root-support',choices=['none','raised'],help='Root diagnostic: keep ground or add a reference-height support platform')
-    p.add_argument('--variant',choices=['original','handoff','bounded'],default='original')
+    p.add_argument('--variant',choices=['original','handoff','bounded'],default='bounded')
     p.add_argument('--handoff-seconds',type=float,default=.2)
-    p.add_argument('--joint-speed',type=float,default=2.)
-    p.add_argument('--support-constraints',choices=['none','root','root-feet','root-feet-keyframes'],default='none')
-    p.add_argument('--hand-constraints',choices=['keyframes','continuous'],default='keyframes')
-    p.add_argument('--trajectory-projection',choices=['none','ik','ik-hold'],default='none')
+    p.add_argument('--joint-speed',type=float,default=4.)
+    p.add_argument('--support-constraints',choices=['none','root','root-feet','root-feet-keyframes'],default='root')
+    p.add_argument('--hand-constraints',choices=['keyframes','continuous'],default='continuous')
+    p.add_argument('--trajectory-projection',choices=['none','ik','ik-hold'],default='ik-hold')
     p.add_argument('--vlm-model',type=Path)
     p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
     p.add_argument('--vlm-python',default=sys.executable)
@@ -54,7 +61,15 @@ def main():
     p.add_argument('--text-cache',type=Path,default=CACHE/'text-eval')
     p.add_argument('--gpu-min-free-mib',type=int,
         help='Explicitly allow existing GPU users if at least this much memory is free (minimum 16384 MiB)')
-    a=p.parse_args()
+    a=p.parse_args(argv)
+    if a.settled_goal:
+        a.visual_markers=a.actuator_audit=True
+        a.dynamics_profile=a.dynamics_profile or 'actuator'
+    return a
+
+
+def main():
+    a=parse_args()
     run=ROOT/'runs'/a.run_id
     replay=a.reference_source=='replay'
     fixed=a.reference_source in ('fixed','replay')

@@ -21,7 +21,9 @@ python scripts/run_settled_suite.py --gpu 1
 python scripts/report_settled.py --suite settled-20261123-r1
 ```
 
-`run_settled_suite.py` 只是把当前最佳配置的开关拼好后调用 `run_oracle.py`。`run_oracle.py` 的默认值仍是最早的原始路线，直接运行它得到的不是上面的结果。
+`run_oracle.py` 的默认值就是 11 月 17 日以来所有实验共用的后端：`--variant bounded --support-constraints root --hand-constraints continuous --trajectory-projection ik-hold --joint-speed 4 --steps 400`。加上 `--settled-goal <目标文件>` 就是上面这个结果的完整配置（它会自动打开视觉标记、执行器审计和对齐后的执行器参数）。`run_settled_suite.py` 只负责对五个案例各调用一次。
+
+更早的变体要显式写开关，例如 `--variant original --support-constraints none --hand-constraints keyframes --trajectory-projection none`。`offset` 和 `box` 两种模式不支持默认后端，必须这样写。
 
 第 2、3 步读取旧实验的输出作为输入：`runs/vlm-refined-20261118-r1-<案例>/` 提供目标，`runs/dynamics-actuator-20261119-r1-<案例>/` 提供对比基线。这两组目录不能删。部分测试也读 `runs/` 里的文件。
 
