@@ -1,0 +1,146 @@
+"""How far Kimodo's prediction at plan time is from what SONIC then did.
+
+Reads finished runs only. For every saved plan, the 50-frame raw Kimodo output
+(30 Hz, before handoff and IK) is decoded to root and wrist poses and compared
+with the measured state at the same simulation time, 0.5, 1.0 and 1.5 s ahead.
+"Persistence" is the trivial predictor that assumes the body stays where it was
+measured at plan time; a prediction is only informative where it beats that.
+"""
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from paths import RUNS, G1_XML
+from kimodo_vla.core.types import G1_JOINT_NAMES
+from kimodo_vla.model.features import KimodoFeatures
+from kimodo_vla.motion.g1_reference import rot6d_row_to_matrix
+from kimodo_vla.oracle.geometry import Frame, XmlFK, rotation_wxyz, angle_deg
+
+HORIZONS = (0., .5, 1., 1.5)
+ARRIVAL_S = 1.2  # OraclePolicy sets arrival = task start + 1.2 s
+SOURCES = ('kimodo', 'persistence')
+
+
+def decode_plan(features, fk, frame, motion_features):
+    """World root position/rotation and wrist position/rotation of every predicted frame."""
+    out = features.representation.inverse(torch.from_numpy(motion_features)[None], is_normalized=False)
+    local, root = out['local_rot_mats'][0], out['root_positions'][0]
+    actions = features.codec.encode(local, root, previous_root_position=root[0],
+                                    hand_binary=torch.zeros(len(root), 2)).numpy()
+    root_rot = frame.heading @ rot6d_row_to_matrix(torch.from_numpy(actions[:, 3:9])).numpy()
+    root_pos = frame.world(root.numpy())
+    wrists = [fk(a[9:38], p, r) for a, p, r in zip(actions, root_pos, root_rot)]
+    return root_pos, root_rot, np.array([w[0] for w in wrists]), np.array([w[1] for w in wrists])
+
+
+def measured_series(run):
+    rows = [json.loads(x) for x in (Path(run)/'execution.jsonl').read_text().splitlines()]
+    samples = [rows[0]['before']] + [r['after'] for r in rows]
+    return {'time': np.array([s['time'] for s in samples]),
+            'root_pos': np.array([s['root_pos'] for s in samples]),
+            'root_rot': np.array([rotation_wxyz(s['root_quat']) for s in samples]),
+            'wrist_pos': np.array([s['wrist_pos'] for s in samples]),
+            'wrist_rot': np.array([s['wrist_rot'] for s in samples])}
+
+
+def measured_at(series, time):
+    """Positions linearly interpolated, rotations from the nearest 50 Hz sample; None outside the record."""
+    t = series['time']
+    if not t[0]-1e-9 <= time <= t[-1]+1e-9:
+        return None
+    hi = int(np.clip(np.searchsorted(t, time), 1, len(t)-1))
+    lo = hi-1
+    w = float(np.clip((time-t[lo])/(t[hi]-t[lo]), 0, 1))
+    near = hi if w > .5 else lo
+    return {'root_pos': (1-w)*series['root_pos'][lo]+w*series['root_pos'][hi],
+            'wrist_pos': (1-w)*series['wrist_pos'][lo]+w*series['wrist_pos'][hi],
+            'root_rot': series['root_rot'][near], 'wrist_rot': series['wrist_rot'][near]}
+
+
+def errors(pred, actual):
+    return {'root_pos_cm': 100*float(np.linalg.norm(pred['root_pos']-actual['root_pos'])),
+            'root_rot_deg': angle_deg(pred['root_rot'], actual['root_rot']),
+            'wrist_pos_cm': (100*np.linalg.norm(pred['wrist_pos']-actual['wrist_pos'], axis=-1)).tolist(),
+            'wrist_rot_deg': [angle_deg(a, b) for a, b in zip(pred['wrist_rot'], actual['wrist_rot'])]}
+
+
+def analyze_run(run, features, fk):
+    run = Path(run)
+    target = json.loads((run/'target.json').read_text())
+    frame = Frame(target['origin'], target['heading'])
+    start = target['arrival_time']-ARRIVAL_S
+    series = measured_series(run)
+    rows = []
+    for plan in (json.loads(x) for x in (run/'plans.jsonl').read_text().splitlines()):
+        if round((plan['time']-start)*30) != plan['cut']:
+            raise ValueError(f"{run.name} plan {plan['plan']}: task start does not match the plan's frame index")
+        data = np.load(run/f"plan-{plan['plan']:03d}.npz")
+        root_pos, root_rot, wrist_pos, wrist_rot = decode_plan(features, fk, frame, data['motion_features'])
+        # The policy saved the same quantities; a mismatch means this decode is not the policy's.
+        saved = max(np.abs(wrist_pos-data['projected_wrist_world']).max(),
+                    np.abs(root_pos-data['raw_future_root_world']).max())
+        if saved > 1e-5:
+            raise ValueError(f"{run.name} plan {plan['plan']}: decoded plan differs from the saved one by {saved:.2e} m")
+        now = measured_at(series, plan['time'])
+        for horizon in HORIZONS:
+            k = int(round(horizon*30))
+            actual = measured_at(series, start+(plan['cut']+k)/30)
+            if actual is None:
+                continue
+            pred = {'root_pos': root_pos[k], 'root_rot': root_rot[k],
+                    'wrist_pos': wrist_pos[k], 'wrist_rot': wrist_rot[k]}
+            rows.append({'run': run.name, 'plan': plan['plan'], 'plan_time': plan['time'], 'horizon_s': horizon,
+                         'constrained_frames': sorted(set(plan['keyframes'])|set(plan['dense_hand_frames'])),
+                         'reaching': plan['time']-start < ARRIVAL_S,
+                         'kimodo': errors(pred, actual), 'persistence': errors(now, actual)})
+    return rows
+
+
+def summarize(rows):
+    """Mean, 90th percentile and maximum per phase and horizon; wrists pool both hands."""
+    def stats(values):
+        v = np.asarray(values, dtype=float)
+        return {'mean': float(v.mean()), 'p90': float(np.percentile(v, 90)), 'max': float(v.max()), 'n': int(v.size)}
+    table = {}
+    for phase, keep in (('all', lambda r: True), ('reaching', lambda r: r['reaching']),
+                        ('holding', lambda r: not r['reaching'])):
+        for horizon in sorted({r['horizon_s'] for r in rows}):
+            chosen = [r for r in rows if r['horizon_s'] == horizon and keep(r)]
+            if chosen:
+                table[f'{phase}@{horizon}'] = {source: {
+                    'root_pos_cm': stats([r[source]['root_pos_cm'] for r in chosen]),
+                    'root_rot_deg': stats([r[source]['root_rot_deg'] for r in chosen]),
+                    'wrist_pos_cm': stats([x for r in chosen for x in r[source]['wrist_pos_cm']]),
+                    'wrist_rot_deg': stats([x for r in chosen for x in r[source]['wrist_rot_deg']])}
+                    for source in SOURCES}
+    return table
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--suite', default='settled-20261123-r1', help='every run named <suite>-<case> with saved plans')
+    args = p.parse_args()
+    runs = sorted(r for r in RUNS.glob(args.suite+'-*') if (r/'plans.jsonl').exists())
+    if not runs:
+        raise SystemExit(f'No runs with saved plans under {RUNS} for {args.suite}')
+    features, fk = KimodoFeatures(50.), XmlFK(G1_XML, G1_JOINT_NAMES)
+    rows = [row for run in runs for row in analyze_run(run, features, fk)]
+    table = summarize(rows)
+    cell = lambda s: f"{s['mean']:.2f}/{s['p90']:.2f}/{s['max']:.2f}"
+    print(f'{len(runs)} runs, {len(rows)} plan-horizon pairs; each cell is mean/p90/max')
+    print(f"{'phase@horizon':<16}{'source':<12}{'root cm':>18}{'root deg':>18}{'wrist cm':>18}{'wrist deg':>20}{'plans':>7}")
+    for key, entry in table.items():
+        for source, m in entry.items():
+            print(f"{key:<16}{source:<12}{cell(m['root_pos_cm']):>18}{cell(m['root_rot_deg']):>18}"
+                  f"{cell(m['wrist_pos_cm']):>18}{cell(m['wrist_rot_deg']):>20}{m['root_pos_cm']['n']:>7}")
+    out = RUNS/args.suite/'prediction.json'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({'runs': [r.name for r in runs], 'summary': table, 'rows': rows}, indent=1))
+    print(out)
+
+
+if __name__ == '__main__':
+    main()
