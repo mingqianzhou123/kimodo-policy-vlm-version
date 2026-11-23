@@ -69,6 +69,7 @@ python agentic/scripts/report_settled.py --suite settled-20261123-r1
 | `serve_oracle.py`、`serve_fixed_reference.py`、`serve_recorded_reference.py` | 三种参考来源的策略服务，由 `run_oracle.py` 启动 |
 | `*_sim_bootstrap.py` | 仿真进程的启动钩子，由 `run_oracle.py` 按开关选择 |
 | `analyze_root_dynamics.py`、`analyze_sonic_replay.py` | `report_settled.py` 用到的误差分解 |
+| `analyze_prediction.py` | 只读已有运行：把每次规划里 Kimodo 的原始预测和 0.5 / 1.0 / 1.5 s 后的实测状态对比，并给出“假设身体不动”的对照。写到 `<实验输出>/<组名>/prediction.json` |
 | `prepare_vlm_model.py`、`cache_vlm_motion_text.py` | 一次性准备：下载 Qwen 权重、缓存运动短语的文本向量 |
 | `paths.py` | 所有位置的唯一来源 |
 
