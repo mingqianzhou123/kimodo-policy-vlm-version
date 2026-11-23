@@ -8,6 +8,7 @@
 
 - 已能用指定帧的腕位置和朝向驱动 Kimodo，由 SONIC 执行。五个固定案例从稳定双支撑开始后，双腕实际位置相对参考和真值标记的严格达标数为 5/5，根部三维平均跟踪误差 0.810 cm，最大真值标记误差 2.445 cm。[记录](docs/settled-start-20261123.md)
 - Qwen3-VL-4B 的图像定位在九组彩色标记条件下跑通，左右平均误差 0.49 / 0.48 cm。自然物体还没测。[记录](docs/vlm-refinement-20261118.md)
+- 走路、单手到达和前倾（实验二）：按计划的线底座不可用。到达 18 点只用 Kimodo 0 个达标，加手臂 IK 1 个；向前 0.5 m 到位 2/5，侧步和后退 0/10；髋带动的前倾 30° 做得到。SONIC 不看根部位置。[记录](docs/exp2-reach-coverage-20261124.md)
 - 夹爪一直保持打开，还没有抓取成功率。
 
 ## 每台机器配置一次
@@ -69,6 +70,9 @@ python agentic/scripts/report_settled.py --suite settled-20261123-r1
 | `serve_oracle.py`、`serve_fixed_reference.py`、`serve_recorded_reference.py` | 三种参考来源的策略服务，由 `run_oracle.py` 启动 |
 | `*_sim_bootstrap.py` | 仿真进程的启动钩子，由 `run_oracle.py` 按开关选择 |
 | `analyze_root_dynamics.py`、`analyze_sonic_replay.py` | `report_settled.py` 用到的误差分解 |
+| `run_motion_suite.py` | 实验二的入口：按 `configs/exp2-motions.json` 里的组（向前、侧步、后退、前倾、18 点到达）逐个调用 `run_oracle.py --motion-goal` |
+| `analyze_motion.py` | 给走动 / 到达 / 前倾的运行打分：跌倒、完成比例、手腕误差（目标→参考、参考→实际）、前倾角；`--markdown` 生成记录里的表 |
+| `rollout_kimodo.py` | 不开仿真，只让 Kimodo 把一个目标连续生成出来，半分钟看步态；`--against <运行>` 给出 3 s、5 s 的连续预测偏差 |
 | `analyze_prediction.py` | 只读已有运行：把每次规划里 Kimodo 的原始预测和 0.5 / 1.0 / 1.5 s 后的实测状态对比，并给出“假设身体不动”的对照。写到 `<实验输出>/<组名>/prediction.json` |
 | `prepare_vlm_model.py`、`cache_vlm_motion_text.py` | 一次性准备：下载 Qwen 权重、缓存运动短语的文本向量 |
 | `paths.py` | 所有位置的唯一来源 |
