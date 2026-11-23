@@ -6,7 +6,10 @@
 #
 # Run directory: $H/runs/bigym2/<group>/<task>_3cam_s<seed>. A rerun of the same arguments continues from resume.pt
 # and skips checkpoints already evaluated. Evaluation: EVAL_EPISODES (50) on the validation seed block EVAL_SEED_BASE
-# (700000; never the official 620000 block while tuning), one checkpoint per GPU at a time. The per-GPU micro-batch
+# (700000; never the official 620000 block while tuning), one checkpoint per GPU at a time. EVAL_WEIGHTS (comma list,
+# default model) also scores saved weight averages, e.g. EVAL_WEIGHTS=model,ema0.9999 for a run trained with
+# training.ema_decays=[0.9999]; set it in front of the command: acp_job.sh <name> env EVAL_WEIGHTS=... bash bigym_run.sh ...
+# The per-GPU micro-batch
 # is batch_size / GPUs (no accumulation) unless an override sets main.micro_batch_size.
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 H=$KVLA_HOME
@@ -17,6 +20,7 @@ export BIGYM2_PREPARED=$H/data/bigym2/prepared84
 EGL_ENV=(LD_LIBRARY_PATH=$H/envs/egl_loader/lib:${LD_LIBRARY_PATH:-} __EGL_VENDOR_LIBRARY_DIRS=$H/envs/egl_loader/vendor_nvidia MUJOCO_GL=egl)
 export MUJOCO_GL=disable
 GROUP=$1 CONFIG=$2 TASK=$3 SEED=$4 STOP=$5 EVAL=$6
+EVAL_WEIGHTS=${EVAL_WEIGHTS:-model}
 shift 6
 RUN=$H/runs/bigym2/$GROUP/${TASK}_3cam_s$SEED
 NGPU=$(nvidia-smi -L | wc -l)
@@ -67,12 +71,14 @@ echo BIGYM_TRAIN_DONE
 [ $RENDER_OK -eq 0 ] || { echo "BIGYM_EVAL_SKIPPED: no GPU EGL here; rerun the same command where rendering works"; exit 0; }
 
 i=0
-for STEP in ${EVAL//,/ }; do
-    env "${EGL_ENV[@]}" CUDA_VISIBLE_DEVICES=$((i % NGPU)) python scripts/eval_run.py --run-dir $RUN --steps $STEP --parallel 1 \
-        --episodes ${EVAL_EPISODES:-50} --seed-base ${EVAL_SEED_BASE:-700000} --execution-frames 50 &
-    i=$((i + 1))
-    [ $((i % NGPU)) -eq 0 ] && wait
+for WEIGHTS in ${EVAL_WEIGHTS//,/ }; do
+    for STEP in ${EVAL//,/ }; do
+        env "${EGL_ENV[@]}" CUDA_VISIBLE_DEVICES=$((i % NGPU)) python scripts/eval_run.py --run-dir $RUN --steps $STEP --parallel 1 \
+            --episodes ${EVAL_EPISODES:-50} --seed-base ${EVAL_SEED_BASE:-700000} --execution-frames 50 --weights $WEIGHTS &
+        i=$((i + 1))
+        [ $((i % NGPU)) -eq 0 ] && wait
+    done
 done
 wait
-ls $RUN/val${EVAL_SEED_BASE:-700000}/
+ls -d $RUN/val${EVAL_SEED_BASE:-700000}*/ && ls $RUN/val${EVAL_SEED_BASE:-700000}*/
 echo BIGYM_RUN_DONE
