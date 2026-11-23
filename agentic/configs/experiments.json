@@ -1,18 +1,20 @@
 {
-  "plan": "诊断实验计划（2026-11-23）",
+  "plan": "诊断实验计划（2026-11-23，开源与闭源 VLM 并行）",
   "experiments": [
     {
       "id": "prep",
       "title": "开工前确认",
       "when": "今天",
-      "owner": "全员",
-      "question": "开跑之前要定下来的六件事。",
+      "owner": "总调度会话",
+      "question": "开跑之前要定下来的八件事。",
       "steps": [
         {"name": "指定帧的腕位置和朝向能驱动 Kimodo，并由 SONIC 执行", "done": 1},
         {"name": "核对 SONIC 评测入口的默认时限（pp_box 29 s，DoubleDesk 40 s）", "done": 1},
         {"name": "实测桌面安全行程、各速度档轨迹、首次接触后的自由动力学、中途换目标事件", "done": 0},
-        {"name": "确认 v1 论文里的 RTC 指 Real-Time Chunking 还是 real-time correction", "done": 0},
-        {"name": "确认 HITCH 代码是否公开", "done": 0},
+        {"name": "接通 GPT-6 和 Gemini，各调用 50 次，记录延迟分布和单次费用", "done": 0},
+        {"name": "确认 VLM 调用期间仿真继续推进（现状：推理时仿真暂停，机制待做）", "done": 0},
+        {"name": "确认 v1 的 RTC 含义（结论：Real-Time Chunking；目前不能和稀疏约束同时使用）", "done": 1},
+        {"name": "确认 HITCH 代码是否公开（结论：已公开，仿真是 MuJoCo，不含 Arena 入口）", "done": 1},
         {"name": "定死所有判定数字", "done": 0}
       ]
     },
@@ -20,27 +22,30 @@
       "id": "exp1",
       "title": "实验一 · 阻塞式基线压力",
       "when": "第 1–4 天",
-      "owner": "同学甲",
+      "owner": "实验一会话",
       "question": "“命令跑完、停稳、再观察”的做法，在动态场景里是做不成，还是只是慢。",
       "success": "指定物体的质心比初始静止高度高至少 10 cm，并连续 0.5 s 保持夹持且脱离支撑面。",
       "stop": "静态调试和验收合计最多两天；两天内夹箱没过线，转到 DoubleDesk 右手抓锤子，重新做静态验收。",
-      "judgment": "各动态条件都达到静态成功率的 80%：主要损失的是速度。某档比静态低 25 个百分点以上：查锁存误差、首次接触和滑落。",
+      "judgment": "各动态条件都达到静态成功率的 80%：主要损失的是速度。某档比静态低 25 个百分点以上：查锁存误差、首次接触和滑落。短延迟（1.5 s）和长延迟（闭源实测中位数）分开判定。",
       "steps": [
         {"name": "静态抓取验收（预留 30 个种子，26 个成功才进动态）", "runs": "exp1-static-*", "planned": 30},
-        {"name": "桌面往复 0.03 m/s", "runs": "exp1-move003-*", "planned": 30},
-        {"name": "桌面往复 0.10 m/s", "runs": "exp1-move010-*", "planned": 30},
-        {"name": "桌面往复 0.30 m/s", "runs": "exp1-move030-*", "planned": 30},
-        {"name": "中途换目标", "runs": "exp1-switch-*", "planned": 30}
+        {"name": "短延迟 · 桌面往复 0.03 m/s", "runs": "exp1-move003-*", "planned": 30},
+        {"name": "短延迟 · 桌面往复 0.10 m/s", "runs": "exp1-move010-*", "planned": 30},
+        {"name": "短延迟 · 桌面往复 0.30 m/s", "runs": "exp1-move030-*", "planned": 30},
+        {"name": "短延迟 · 中途换目标", "runs": "exp1-switch-*", "planned": 30},
+        {"name": "长延迟 · 静态", "runs": "exp1-long-static-*", "planned": 30},
+        {"name": "长延迟 · 桌面往复 0.10 m/s", "runs": "exp1-long-move010-*", "planned": 30},
+        {"name": "长延迟 · 中途换目标", "runs": "exp1-long-switch-*", "planned": 30}
       ]
     },
     {
       "id": "exp2",
       "title": "实验二 · 全身到达精度与动作覆盖",
       "when": "第 1–3 天",
-      "owner": "同学乙",
+      "owner": "实验二会话",
       "question": "冻结 Kimodo 加冻结 SONIC 这个底座够不够用；Kimodo 的预测和实际执行差多少。",
       "success": "到达：手腕保持在目标 10 cm 内且不倒。",
-      "judgment": "到达率低于 39%，或加 IK 精修后位置误差仍大于 3 cm、朝向误差大于 20°，或静态抓取低于 6/10：底座不可用。1.0 s 处躯干偏差大于 15 cm 或 20°：放弃对着预测推理。",
+      "judgment": "到达率低于 39%，或加 IK 精修后位置误差仍大于 3 cm、朝向误差大于 20°，或静态抓取低于 6/10：底座不可用。1.0 s 处躯干偏差大于 15 cm 或 20°：放弃对着预测推理；闭源延迟中位数处超过同一阈值，则这个想法在闭源线上不成立。",
       "basis": ["settled-20261123-r1-*"],
       "steps": [
         {"name": "到达测试 · 只用 Kimodo（18 个目标点）", "runs": "exp2-reach-kimodo-*", "planned": 18},
@@ -48,50 +53,57 @@
         {"name": "动作覆盖 · 侧步 0.5 m", "runs": "exp2-sidestep-*", "planned": 10},
         {"name": "动作覆盖 · 后退 0.5 m", "runs": "exp2-backward-*", "planned": 10},
         {"name": "动作覆盖 · 前倾 30°", "runs": "exp2-lean-*", "planned": 10},
-        {"name": "静态抓取", "runs": "exp2-grasp-*", "planned": 10}
+        {"name": "静态抓取", "runs": "exp2-grasp-*", "planned": 10},
+        {"name": "预测与实际偏差 · 站立伸手五案离线分析（0.5 / 1.0 / 1.5 s）", "done": 1},
+        {"name": "预测与实际偏差 · 走动场景，以及闭源延迟需要的 3 s、5 s", "done": 0}
       ]
     },
     {
       "id": "exp3",
-      "title": "实验三 · 开源 VLM 指点能力摸底",
+      "title": "实验三 · VLM 指点能力与调用延迟（开源与闭源对照）",
       "when": "第 1–2 天",
-      "owner": "项目负责人",
-      "question": "没微调的开源 VLM 能否在图上指准接触点和预抓取点。",
+      "owner": "实验三会话",
+      "question": "没微调的 VLM 能否在图上指准接触点和预抓取点，调用一次要多久。三个模型用同一批图像和同一份提示词。",
       "success": "像素点经深度反投影后，落在真实可抓表面 3 cm 以内。",
-      "judgment": "反投影后的 3D 正确率低于 50%：指点本身是瓶颈，后处理或微调要计入后续计划。",
+      "judgment": "每个模型分别判：反投影后的 3D 正确率低于 50%，这个模型的指点是瓶颈。开源不达标，把后处理或微调计入后续计划；闭源不达标，只能加后处理或改成闭源推理、开源指点。",
       "basis": ["vlm-refined-20261118-r1-*"],
       "steps": [
-        {"name": "80 帧第一视角 RGB-D 指点测试（已评的帧数手填）", "done": 0, "planned": 80}
+        {"name": "80 帧第一视角 RGB-D 图像集与真值（已采的帧数手填）", "done": 0, "planned": 80},
+        {"name": "Qwen3-VL-4B（已评的帧数手填）", "done": 0, "planned": 80},
+        {"name": "GPT-6（已评的帧数手填）", "done": 0, "planned": 80},
+        {"name": "Gemini（已评的帧数手填）", "done": 0, "planned": 80}
       ]
     },
     {
       "id": "exp4",
       "title": "实验四 · 延迟鲁棒性（含中途改目标）",
       "when": "第 5–8 天",
-      "owner": "同学甲、同学乙",
+      "owner": "待开会话",
       "question": "意图锚定在物体上之后，VLM 的延迟是否在几秒内基本不影响成功率。",
       "success": "物体被抓起并抬高 10 cm。",
       "stop": "出现大趋势后再加密延迟档位，把关键格子的次数加到 100 以上。",
-      "judgment": "锚定更新比固定坐标高不到 25 个百分点，或它自己从 0.5 s 到 5 s 下降超过 25 个百分点：核心发现不成立。",
+      "judgment": "锚定更新比固定坐标高不到 25 个百分点，或它自己从 0.5 s 到 5 s 下降超过 25 个百分点：核心发现不成立。5 s 以内稳定但到闭源延迟量级明显下降：结论只对本地模型成立。",
       "steps": [
-        {"name": "阻塞式（3 档延迟 × 2 档速度，每格 30 次）", "runs": "exp4-blocking-*", "planned": 180},
-        {"name": "异步 · 固定坐标", "runs": "exp4-fixed-*", "planned": 180},
-        {"name": "异步 · 锚定更新", "runs": "exp4-anchored-*", "planned": 180}
+        {"name": "阻塞式（5 档延迟 × 2 档速度，每格 30 次）", "runs": "exp4-blocking-*", "planned": 300},
+        {"name": "异步 · 固定坐标", "runs": "exp4-fixed-*", "planned": 300},
+        {"name": "异步 · 锚定更新", "runs": "exp4-anchored-*", "planned": 300},
+        {"name": "延迟抖动（按闭源实测分布抽样，0.2 m/s，三种做法各 30 次）", "runs": "exp4-jitter-*", "planned": 90},
+        {"name": "真实调用验证（开源、闭源各一遍，已完成的格数手填）", "done": 0, "planned": 2}
       ]
     },
     {
       "id": "exp5",
       "title": "实验五 · 运动先验打分选优",
       "when": "第三阶段，未排期",
-      "owner": "项目负责人",
-      "question": "能否用冻结的 Kimodo 给 VLM 的几个候选做法打分并选出最好的。",
+      "owner": "待开会话",
+      "question": "能否用冻结的 Kimodo 给 VLM 的几个候选做法打分并选出最好的。候选分别由开源和闭源模型生成。",
       "stop": "打分指标还没定义清楚，先把指标想清楚再排这个实验。",
-      "judgment": "用 Kimodo 选必须同时明显好于另外两种选法，且耗时可接受，否则放弃。",
+      "judgment": "用 Kimodo 选必须同时明显好于另外两种选法，且耗时可接受，否则放弃。两条线分别判定。",
       "steps": [
         {"name": "定义打分指标", "done": 0},
-        {"name": "直接用第一个候选（50 个场景）", "runs": "exp5-first-*", "planned": 50},
-        {"name": "手臂 IK 可达性加碰撞检查来选", "runs": "exp5-ik-*", "planned": 50},
-        {"name": "Kimodo 生成结果的指标加碰撞检查来选", "runs": "exp5-kimodo-*", "planned": 50}
+        {"name": "直接用第一个候选（50 个场景 × 两类模型）", "runs": "exp5-first-*", "planned": 100},
+        {"name": "手臂 IK 可达性加碰撞检查来选", "runs": "exp5-ik-*", "planned": 100},
+        {"name": "Kimodo 生成结果的指标加碰撞检查来选", "runs": "exp5-kimodo-*", "planned": 100}
       ]
     }
   ]

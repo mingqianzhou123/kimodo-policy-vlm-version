@@ -72,6 +72,7 @@ python agentic/scripts/report_settled.py --suite settled-20261123-r1
 | `analyze_root_dynamics.py`、`analyze_sonic_replay.py` | `report_settled.py` 用到的误差分解 |
 | `capture_pointing_frames.py` | 采指点测试的第一视角 RGB-D 图像集：按 `configs/pointing-frames.json` 摆物体和机器人站位，每个场景启动一次仿真；模型输入写到 `<数据集>/inputs`，只供评测的真值写到 `<数据集>/truth`，`manifest.json` 列出每帧的覆盖类别、实测可见度和文件哈希。`pointing_sim_bootstrap.py` 是它的仿真启动钩子 |
 | `run_pointing.py` | `run`：用一个后端（`qwen`、`openai`、`gemini`）跑完图像集，逐帧记录输入、原始输出、延迟和 token，只读 `inputs/`；`evaluate`：对照真值打分。闭源后端的模型版本和单价写在 `configs/pointing-backends.json`，密钥从环境变量 `OPENAI_API_KEY`、`GEMINI_API_KEY` 读 |
+| `analyze_prediction.py` | 只读已有运行：把每次规划里 Kimodo 的原始预测和 0.5 / 1.0 / 1.5 s 后的实测状态对比，并给出“假设身体不动”的对照。写到 `<实验输出>/<组名>/prediction.json` |
 | `prepare_vlm_model.py`、`cache_vlm_motion_text.py` | 一次性准备：下载 Qwen 权重、缓存运动短语的文本向量 |
 | `paths.py` | 所有位置的唯一来源 |
 
