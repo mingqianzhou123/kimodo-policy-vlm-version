@@ -194,7 +194,12 @@ def test_reach_holds_the_stance_and_conditions_one_wrist_on_a_world_path(tmp_pat
         assert call['mask'][k, rotations+6*wrist:rotations+6*wrist+6].all()
         assert not call['mask'][k, positions+3*left:positions+3*left+3].any()
     assert not call['mask'][20, positions+3*wrist:positions+3*wrist+3].any()
-    assert call['mask'][1:, policy.feet_channels].all() and policy.feet_channels.sum() > 40
+    from kimodo_vla.oracle.support import support_channels
+    pelvis = support_channels(rep, 'root')
+    feet = support_channels(rep, 'root-feet') & ~pelvis
+    assert call['mask'][1:, pelvis].all() and not call['mask'][1:, feet].any()     # pelvis held, legs free
+    held = call['values'][1:, pelvis].numpy()
+    assert np.abs(held-held[0]).max() == 0
     # The root's ground point is held where the body stood when the reach began.
     stance = call['values'][1:, [policy.root_slot, policy.root_slot+2]].numpy()
     np.testing.assert_allclose(stance, np.tile(policy.stance_xz, (CANVAS-1, 1)), atol=1e-6)
@@ -253,8 +258,8 @@ def test_leaned_pose_pitches_the_trunk_and_keeps_the_feet(tmp_path):
     rows = follow(policy, start, 4.)
     assert [p['phase'] for p in policy.phases] == ['lean', 'hold']
     call = policy.model.calls[0]
-    assert len(policy.model.calls) == 1 and call['mask'][LEAN_FROM:].all() and call['mask'][1:, policy.feet_channels].all()
-    assert not call['mask'][1:LEAN_FROM, ~(policy.feet_channels | call['mask'][1])].any()
+    assert len(policy.model.calls) == 1 and call['mask'][LEAN_FROM:].all()
+    assert call['mask'][1:LEAN_FROM].sum(-1).eq(4).all()                           # only the root ground point and facing
     plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
     assert plans[0]['sent_steps'] == 80 and plans[0]['pose_frames'][0] == LEAN_FROM and len(rows) == 80
     target = json.loads((tmp_path/'target.json').read_text())

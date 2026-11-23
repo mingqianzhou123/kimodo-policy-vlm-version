@@ -99,6 +99,12 @@ def analyze(run, fk=None):
                                   body_names=['torso_link'])[1][0], heading) for s in steps]
             first = pitch_deg(fk(start['joints'], start['root_pos'], rotation_wxyz(start['root_quat']),
                                  body_names=['torso_link'])[1][0], heading)
+            waist = G1_JOINT_NAMES.index('waist_pitch_joint')
+            pelvis = np.array([pitch_deg(r, heading) for r in rotation])
+            out['lean_parts_deg'] = {  # trunk pitch = pelvis pitch + waist joint, over the hold window
+                'waist_joint_reference': float(np.degrees(np.mean(np.array([s['reference_joints'][waist] for s in steps])[hold]))),
+                'waist_joint_actual': float(np.degrees(np.mean(np.array([a['joints'][waist] for a in after])[hold]))),
+                'pelvis_pitch_change_actual': float(pelvis[hold].mean()-pelvis[0])}
             out['lean'] = {'commanded_deg': goal['lean']['pitch_deg'],
                            'reference_deg': float(np.mean(np.array(asked)[hold])-first),
                            'actual_deg': float(lean[hold].mean()-first), 'actual_max_deg': float(lean.max()-first)}

@@ -15,9 +15,12 @@ An episode runs through these phases:
          toward the goal, until the measured root is within tolerance or the time allowance ends
   stop   one plan, executed whole, that ends in the starting standing pose where the body now is
          (holding a mid-stride pose instead sent the robot running 3 m in one early run)
-  reach  0.5 s plans with the root's ground point and the feet held at that stance and one wrist
-         on a path to its target; the target stays conditioned until the episode ends
-  lean   (lean goals) one plan from the start stance, feet held, that ends in the leaned pose
+  reach  0.5 s plans with the pelvis held at that stance (position, rotation, zero velocity: the
+         standing backend's "root" support) and one wrist on a path to its target; the target stays
+         conditioned until the episode ends. Legs are not conditioned and the trunk is free, so the
+         reach is arm plus waist. Leaving the pelvis free instead made every plan a different
+         motion: in one near reach the reference's feet travelled 19 m in 3.5 s.
+  lean   (lean goals) one plan from the start stance that ends in the leaned pose
   hold   (goals without a hand) the last reference pose, repeated
 
 A goal is written in the start frame: x forward, y left, z up from the floor, origin on the floor
@@ -53,7 +56,7 @@ from .continuity import blend_reference, bounded_hinge_trajectory
 from .geometry import BASIS, SIDES, angle_deg, rotation_wxyz
 from .hand_path import execution_frames
 from .policy import OraclePolicy
-from .support import support_channels
+from .support import condition_support
 
 CANVAS = 50        # future frames Kimodo generates per plan, at 30 Hz
 READY_S = .5       # standing time before the first plan
@@ -262,7 +265,6 @@ class LocomotionPolicy(OraclePolicy):
         self.root_slot = representation.slice_dict['smooth_root_pos'].start
         self.heading_slice = representation.slice_dict['global_root_heading']
         self.pose_end = representation.slice_dict['global_rot_data'].stop
-        self.feet_channels = support_channels(representation, 'root-feet') & ~support_channels(representation, 'root')
         info = dict(mode='motion-goal', target_source='motion_goal', motion_goal=self.goal,
                     noise_seed=self.seed, walk_steps=self.walk_steps, arm_ik=self.arm_ik, active_sides=[], phases=self.phases,
                     root_goal_world=self.frame.world([self.root_end[0], 0., self.root_end[1]])[:2].tolist(),
@@ -402,9 +404,6 @@ class LocomotionPolicy(OraclePolicy):
             standing[self.root_slot], standing[self.root_slot+2] = float(path[-1, 0]), float(path[-1, 1])
             values[STAND_FROM:], mask[STAND_FROM:] = standing, True
         keyframes, dense = [], []
-        if phase in ('reach', 'lean'):
-            values[1:, self.feet_channels] = self.standing_features[self.feet_channels]
-            mask[1:, self.feet_channels] = True
         if phase == 'lean':
             leaned = self.lean_features.clone()
             # The leaned pelvis sits behind the stance's ground point by what the feet-fixed pitch needs.
@@ -412,6 +411,9 @@ class LocomotionPolicy(OraclePolicy):
             leaned[self.root_slot], leaned[self.root_slot+2] = (torch.as_tensor(self.stance_xz, dtype=leaned.dtype)+offset)
             values[LEAN_FROM:], mask[LEAN_FROM:] = leaned, True
         if phase == 'reach':
+            standing = self.standing_features.clone()
+            standing[self.root_slot], standing[self.root_slot+2] = float(self.stance_xz[0]), float(self.stance_xz[1])
+            condition_support(values, mask, standing, representation, 'root')
             arrival = round((self.hand_begin+self.goal['hand']['duration_s'])*30)-cut
             keyframes = [arrival] if 0 < arrival < CANVAS else [] if arrival > 0 else [15, 30, 49]
             dense = execution_frames(step, cut, REACH_STEPS)
