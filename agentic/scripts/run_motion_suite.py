@@ -3,7 +3,7 @@
 Groups, goals, seeds and the start position are in agentic/configs/exp2-motions.json. Each run is
 named <group prefix>-<date>-<suffix>-<goal>-s<seed>; its goal file is written beside the runs,
 under <runs>/<group prefix>-<date>-<suffix>/goals/. Runs are spread over the given GPUs, one at a
-time per GPU. Finished runs are skipped, so an interrupted suite can simply be started again.
+time per GPU; to run two at once on a GPU name it twice and add ``--gpu-min-free-mib 16384``. Finished runs are skipped, so an interrupted suite can simply be started again.
 """
 import argparse
 import json
@@ -110,7 +110,8 @@ def main():
                 continue
             path = goals/f"{goal['name']}.json"
             path.write_text(json.dumps(goal, indent=1))
-            wait_idle(gpu)
+            if '--gpu-min-free-mib' not in extra:  # sharing a GPU between runs is the caller's explicit choice
+                wait_idle(gpu)
             print('START', run_id, 'gpu', gpu, flush=True)
             done = subprocess.run([sys.executable, 'scripts/run_oracle.py', '--run-id', run_id, '--motion-goal', str(path),
                 '--start-xy', *map(str, config['start_xy']), '--noise-seed', str(seed), '--steps', str(steps_for(goal)),
