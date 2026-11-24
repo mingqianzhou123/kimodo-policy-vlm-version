@@ -36,6 +36,21 @@ def install_oracle_bridge():
         request_error, last_time = None, None
         run = Path(os.environ['ORACLE_RUN'])
         vision = None
+        grasp = os.environ.get('GRASP_LOOP') == '1'
+        loop = None
+        if grasp:
+            from arena.grasp_loop import GraspLoop
+            from arena.grasp_scene import read_contact
+            config = json.loads((Path(__file__).resolve().parents[1]/'configs/grasp-loop.json').read_text())
+            table = next((c for c in json.loads((run/'grasp-scene.json').read_text())['colliders_near_box']
+                          if 'PackingTable' in c['path']), None)
+            if table is None or abs(table['min'][0]-config['scene']['table_edge_x_m']) > .01:
+                raise ValueError('The table edge in the scene differs from the grasp configuration')
+            loop = GraspLoop(run, config, stop=lambda: setattr(env.kvla_controller, 'is_running', False))
+            apply_hands = provider._apply_hand_binary_targets
+            # The policy's hand channel is ignored: both hands follow the measured-arrival gate.
+            provider._apply_hand_binary_targets = lambda left_closed, right_closed: apply_hands(
+                left_closed=loop.closed, right_closed=loop.closed)
 
         def sample():
             data = env.scene['robot'].data
@@ -61,6 +76,7 @@ def install_oracle_bridge():
                 'foot_rot': [rotation_wxyz(q).tolist() for q in data.body_quat_w[0,foot_ids].detach().cpu().numpy()],
                 'wrist_velocity': data.body_lin_vel_w[0, wrist_ids].detach().cpu().numpy().tolist(),
                 'box_pos': box[:3].tolist(), 'box_quat': box[3:7].tolist(),
+                **({'box_com': env.scene['box'].data.root_com_pos_w[0].detach().cpu().numpy().tolist()} if grasp else {}),
                 'hand_joint_pos': {n: float(data.joint_pos[0,i]) for i,n in enumerate(joint_names)
                                    if i not in joint_ids},
                 'gripper_command': [int(provider._left_hand_binary_state), int(provider._right_hand_binary_state)]}
@@ -89,6 +105,8 @@ def install_oracle_bridge():
                 raise
             if path == '/infer':
                 target = response['oracle_target']
+                if loop is not None:
+                    loop.on_plan(response['grasp'], pending[-1])
                 pending.clear()
             elif path == '/reset':
                 pending.clear()
@@ -103,12 +121,17 @@ def install_oracle_bridge():
                 raise ValueError(f'Unexpected control timing {last_time} -> {before["time"]}')
             last_time = before['time']
             pending.append(before)
+            if loop is not None:
+                loop.before_step(before)
             action = get_action(current_env)
             if request_error is not None:
                 raise RuntimeError('Oracle HTTP failed') from request_error
             after = sample()
             record = {'before': before, 'after': after, 'control_dt': after['time']-before['time'],
                       'grasp_attempted': False, 'contact_sensor_available': False}
+            if loop is not None:
+                record.update(contact_sensor_available=True, grasp_attempted=loop.gate.fired_at is not None,
+                              grasp=loop.after_step(after, read_contact(env)))
             payload = provider._latest_pose_payload
             if payload and all(k in payload for k in ('body_pos','body_quat_w','joint_pos')):
                 refp, refr = fk(np.asarray(payload['joint_pos']).reshape(29),
@@ -155,3 +178,13 @@ def install_oracle_bridge():
             'task': args.task,'physics_dt':env.physics_dt}, indent=2))
         return provider
     factory.create_action_provider = create
+    if os.environ.get('GRASP_LOOP') == '1':
+        # The evaluation loop runs while its controller does; remember it so a physical
+        # success can end the episode without touching Arena's own reward.
+        control = importlib.import_module('layeredcontrol.robot_control_system')
+        set_provider = control.RobotController.set_action_provider
+
+        def remember(controller, provider):
+            controller.env.kvla_controller = controller
+            return set_provider(controller, provider)
+        control.RobotController.set_action_provider = remember

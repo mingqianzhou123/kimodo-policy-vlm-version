@@ -172,6 +172,10 @@ def describe(run, out):
     episodes = episodes if isinstance(episodes, list) and episodes else None
     episode = read(run/'episode.json') or {}
     success = episode.get('success')
+    grasp = read(run/'grasp-result.json')
+    if isinstance(grasp, dict) and isinstance(grasp.get('success'), bool):
+        # Grasp runs are judged by the physical criterion; Arena's own verdict is about the shelf.
+        success = grasp['success']
     if meta.get('success_rate_evaluation') is False:  # the run never tried the task, so its "failure" is not a result
         wins = None
     elif episodes and all(isinstance(e, dict) and isinstance(e.get('success'), bool) for e in episodes):
