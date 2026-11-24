@@ -583,6 +583,98 @@
     "reach_s": 1.5
    },
    "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
+  },
+  "deviation-open": {
+   "runs": "exp2dev-open",
+   "note": "Is the command deviation systematic or random (native-generation-20261125.md): the planner follows the reference's own position (--open-loop), so the executor's deviation stays in.",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--open-loop"
+   ],
+   "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+   ],
+   "command_grid": {
+    "directions": {
+     "fwd": 0,
+     "fl": 45,
+     "left": 90,
+     "bl": 135,
+     "back": 180,
+     "br": -135,
+     "right": -90,
+     "fr": -45
+    },
+    "distances_m": [
+     0.25,
+     0.5,
+     1.0,
+     1.5
+    ],
+    "turns_deg": [
+     45,
+     90,
+     180
+    ],
+    "speed_m_s": 0.35,
+    "turn_rate_deg_s": 45.0
+   }
+  },
+  "deviation-closed": {
+   "runs": "exp2dev-closed",
+   "note": "Closed-loop baseline for the deviation study: the same commands, the held-out seeds, experiment two's native closed-loop setting.",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--approach-gain",
+    "2"
+   ],
+   "seeds": [
+    1003,
+    1004
+   ],
+   "command_grid": {
+    "directions": {
+     "fwd": 0,
+     "fl": 45,
+     "left": 90,
+     "bl": 135,
+     "back": 180,
+     "br": -135,
+     "right": -90,
+     "fr": -45
+    },
+    "distances_m": [
+     0.25,
+     0.5,
+     1.0,
+     1.5
+    ],
+    "turns_deg": [
+     45,
+     90,
+     180
+    ],
+    "speed_m_s": 0.35,
+    "turn_rate_deg_s": 45.0
+   }
   }
  }
 }

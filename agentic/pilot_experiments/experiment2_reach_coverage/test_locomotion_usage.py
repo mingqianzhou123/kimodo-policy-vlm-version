@@ -208,3 +208,38 @@ def test_approach_gain_aims_past_the_goal_by_what_is_left(tmp_path, gain):
     walk = policy.model.calls[0]
     path = walk['values'][:, [policy.root_slot, policy.root_slot+2]].numpy()
     assert np.linalg.norm(path[-1]-path[0]) == pytest.approx(.1*gain, abs=2e-3)
+
+
+@pytest.mark.parametrize('open_loop', [False, True])
+def test_open_loop_plans_from_the_reference_not_the_body(tmp_path, monkeypatch, open_loop):
+    """With a body that covers half of each step, open loop never moves the plans onto it.
+
+    (The stand-in tracker assumes each plan starts on the body, so the body's own end point is not checked.)"""
+    from kimodo_vla.oracle import locomotion as lo
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'fwd', 'root': {'xy': [.6, 0.]}})
+    policy.generator_mode, policy.segment_frames, policy.segment_steps = 'native', 90, 100
+    policy.transition_frames, policy.walk_steps, policy.open_loop = 5, 50, open_loop
+    rep, stand_in = policy.model.representation, policy.model
+    slot = rep.slice_dict['smooth_root_pos'].start
+
+    def fake_sample(model, values, mask, *, first_heading, text_feat, text_weight, constraint_weight, steps, generator):
+        r = stand_in.pose['root_positions'].repeat(len(values), 1)
+        xz = values[:, [slot, slot+2]].clone()
+        for k in range(1, len(xz)):
+            if not mask[k, slot]:
+                xz[k] = xz[k-1]
+        r[:, 0], r[:, 2] = xz[:, 0], xz[:, 1]
+        feats = stand_in.representation(stand_in.pose['local_rot_mats'].repeat(len(values), 1, 1, 1), r, to_normalize=False)
+        return (feats[0] if feats.ndim == 3 else feats), {}
+    monkeypatch.setattr(lo, 'sample_segment', fake_sample)
+    rows = follow(policy, start, 8., carry=.5)
+    plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
+    shifts = [p['anchor_shift_m'] for p in plans]
+    reference = rotation[:2, :2].T @ (np.array(rows[-1]['sent_root_world'][:2])-root[:2])
+    if open_loop:
+        assert max(shifts) == 0.                              # never moved onto the body
+        assert reference[0] == pytest.approx(.6, abs=.06)     # the reference carried out the command
+    else:
+        assert max(shifts) > .05                              # replanned from the body
+    with pytest.raises(ValueError):
+        lo.LocomotionPolicy.__init__(lo.LocomotionPolicy.__new__(lo.LocomotionPolicy), motion_goal=WALK, open_loop=True)

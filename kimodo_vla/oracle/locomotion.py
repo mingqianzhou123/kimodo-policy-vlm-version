@@ -65,6 +65,9 @@ no text, the root ground path and heading on every frame, up to 100 history fram
                     and lean canvases 49 frames. Saved plan features start at now. ``text='auto'`` gives the walk the phrase of its
                     direction (``WALK_TEXTS``) and the other phases no text; ``text_until_m`` drops
                     the phrase once the goal is that close (it otherwise marches on the spot).
+  open_loop         plans start from the reference's own position and heading instead of the
+                    measured ones (no anchoring): the reference carries out the command and the
+                    tracker's deviation is left in, to measure it (native generator only)
   approach_gain     walk and stop paths aim at here + gain x (goal - here): the tracker covers only
                     part of each commanded displacement (about half for SONIC), so gain > 1 closes
                     the last centimetres; 1 (the default) aims at the goal.
@@ -203,6 +206,14 @@ def goal_direction(goal):
     return 'left' if left > 0 else 'right'
 
 
+def open_loop_seconds(goal, hold=2.):
+    """Episode length for ``open_loop``: the reference walks the command at its speed (or turns at its
+    rate), with 2 s to spare, then the stop plan and ``hold`` seconds."""
+    root = goal['root']
+    walk = abs(root['yaw_deg'])/root['yaw_rate_deg_s'] if root.get('yaw_deg') else np.linalg.norm(root['xy'])/root['speed_m_s']
+    return READY_S+.2+walk+2.+2*1.6+hold
+
+
 def episode_seconds(goal, hold=2., lead_s=0.):
     """Longest an episode of this goal can need: every phase at its allowance, then ``hold`` seconds.
 
@@ -326,12 +337,12 @@ class LocomotionPolicy(OraclePolicy):
     root_constraints, history_frames, lead = 'dense', 100, None
     clips, clip_walker = None, None
     generator_mode, segment_frames, segment_steps, transition_frames, walk_text = 'policy', CANVAS, 50, 5, None
-    approach_gain, text_until_m = 1., 0.
+    approach_gain, text_until_m, open_loop = 1., 0., False
 
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
                  root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None,
                  generator='policy', segment_seconds=4., segment_steps=100, transition_frames=5, approach_gain=1.,
-                 text_until_m=0., **kwargs):
+                 text_until_m=0., open_loop=False, **kwargs):
         # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
         # are solved for the path pose; legs and trunk stay as Kimodo generated them.
         self.arm_ik = bool(arm_ik)
@@ -344,7 +355,9 @@ class LocomotionPolicy(OraclePolicy):
                 raise ValueError('transition_frames must be 1-30')
         if text == 'auto' and generator != 'native':
             raise ValueError("text='auto' needs the native generator")
-        self.approach_gain, self.text_until_m = float(approach_gain), float(text_until_m)
+        self.approach_gain, self.text_until_m, self.open_loop = float(approach_gain), float(text_until_m), bool(open_loop)
+        if self.open_loop and (generator != 'native' or approach_gain != 1.):
+            raise ValueError('open_loop is for the native generator without approach gain')
         if not 1. <= self.approach_gain <= 4. or self.text_until_m < 0:
             raise ValueError('approach_gain in [1, 4]; text_until_m >= 0')
         if generator in ('segment', 'native'):
@@ -447,8 +460,8 @@ class LocomotionPolicy(OraclePolicy):
         self.save_target()
 
     def measured_yaw(self, obs):
-        """Heading of the measured root in the start frame, degrees, left positive."""
-        rotation = self.frame.heading.T @ rotation_wxyz(obs['root_quat'])
+        """Heading of the measured root in the start frame, degrees, left positive (open loop: the reference's)."""
+        rotation = self.frame.heading.T @ rotation_wxyz(obs['reference_root_quat' if self.open_loop else 'root_quat'])
         return float(np.degrees(np.arctan2(rotation[1, 0], rotation[0, 0])))
 
     def yaw_remaining(self, obs):
@@ -544,7 +557,8 @@ class LocomotionPolicy(OraclePolicy):
             self.goal['root'].get('yaw_deg'))
 
     def measured_xz(self, obs):
-        return self.frame.points(obs['root_pos'])[[0, 2]]
+        """Ground point the plans start from: the measured root (open loop: the reference's own root)."""
+        return self.frame.points(obs['reference_root_pos' if self.open_loop else 'root_pos'])[[0, 2]]
 
     def enter(self, phase, obs, **details):
         """Switch phase at a plan boundary and record when, where and why."""
@@ -613,6 +627,8 @@ class LocomotionPolicy(OraclePolicy):
         logged reference where the body is, and makes each plan continue from there.
         """
         shift = np.r_[np.asarray(obs['root_pos'])[:2]-np.asarray(obs['reference_root_pos'])[:2], 0.]
+        if self.open_loop:
+            shift[:] = 0.   # open loop: the reference keeps its own position; nothing is measured back in
         self.jumps.append((obs['time'], shift))
         return shift
 
