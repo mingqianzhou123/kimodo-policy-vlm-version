@@ -11,6 +11,17 @@ the loader's ``text_encoder`` argument.
 Each clip is written as a segment file (``demo_walks``) for gait numbers and SONIC replay; the
 window skips the first second (the start from rest).
 
+``--variant`` swaps one official setting for our wrapper's, to find which one spoils the gait
+(single-segment generation, the official path for constrained generation):
+
+  single              the official setting through the single-segment path (the base for the rest)
+  steps-50            50 DDIM steps instead of 100
+  path-text           text, plus the root ground path and heading on every frame (0.35 m/s, 1 m/s^2 start)
+  path-notext         the same path, text guidance weight 0 (our default conditioning and guidance)
+  short               only 50 frames (1.67 s) from scratch, measured whole
+  history             100 frames of an official clip (same seed) as full-body constraints, 50 free frames after
+  history-path-notext the history, plus the path on the 50 free frames and text weight 0 (one plan of our wrapper)
+
     python official_kimodo.py --kimodo-src <nv-tlabs/kimodo checkout> --checkpoint-dir <dir holding Kimodo-G1-RP-v1> \\
         --text-cache <phrase embeddings> --out <segments dir> [--seconds 8] [--seeds 1000 ...]
 """
@@ -78,6 +89,8 @@ def main():
     p.add_argument('--seeds', type=int, nargs='+', default=[1000, 1001, 1002, 1003, 1004])
     p.add_argument('--steps', type=int, default=100, help='DDIM steps (the official script\'s default is 100)')
     p.add_argument('--directions', nargs='+', default=list(PROMPTS))
+    p.add_argument('--variant', default='official', choices=['official', 'single', 'steps-50', 'path-text', 'path-notext',
+                                                               'short', 'history', 'history-path-notext'])
     args = p.parse_args()
     sys.path.insert(0, str(Path(args.kimodo_src).resolve()))
     os.environ['CHECKPOINT_DIR'] = str(Path(args.checkpoint_dir).resolve())
@@ -85,6 +98,7 @@ def main():
     from kimodo import load_model
     from kimodo.exports.mujoco import MujocoQposConverter
     from kimodo.tools import seed_everything
+    from kimodo.constraints import FullBodyConstraintSet, Root2DConstraintSet
     model, name = load_model('Kimodo-G1-RP-v1', device='cuda', text_encoder=CachedText(args.text_cache),
                              return_resolved_name=True)
     converter = MujocoQposConverter(model.skeleton)
@@ -97,20 +111,56 @@ def main():
     frames = int(args.seconds*model.fps)
     fk = dw.g1_fk()
     rows = []
+    v = args.variant
+    steps = 50 if v == 'steps-50' else args.steps
+
+    def path(n, direction, speed=.35, accel=1.):
+        """Root ground path (kimodo x left, z forward) and constant heading for n frames."""
+        unit = {'forward': (0., 1.), 'backward': (0., -1.), 'left': (1., 0.), 'right': (-1., 0.)}[direction]
+        t = np.arange(n)/model.fps
+        dist = np.where(t < speed/accel, .5*accel*t**2, .5*speed**2/accel+speed*(t-speed/accel))
+        xz = torch.tensor(np.outer(dist, unit), dtype=torch.float32, device='cuda')
+        heading = torch.tensor(np.tile([1., 0.], (n, 1)), dtype=torch.float32, device='cuda')
+        return xz, heading
+
     for direction in args.directions:
         key, prompt = PROMPTS[direction]
         for seed in args.seeds:
-            seed_everything(seed)
             began = time.time()
-            motion = model([prompt], [frames], num_denoising_steps=args.steps, num_samples=1, multi_prompt=True,
-                           num_transition_frames=5, post_processing=False, return_numpy=True)  # as generate.py calls it
+            n = 50 if v == 'short' else 150 if v.startswith('history') else frames
+            constraints, cfg = [], [2., 2.]
+            if v.startswith('history'):
+                seed_everything(seed)
+                ref = model([prompt], [150], num_denoising_steps=steps, num_samples=1, post_processing=False)
+                idx = torch.arange(100, device='cuda')
+                constraints.append(FullBodyConstraintSet(model.skeleton, idx, ref['posed_joints'][0, :100],
+                                                         ref['global_rot_mats'][0, :100]))
+            if v in ('path-text', 'path-notext', 'history-path-notext'):
+                if direction == 'turn':
+                    continue                   # a turning path needs the heading's sign convention checked first
+                first = 100 if v.startswith('history') else 0
+                xz, heading = path(n-first, direction)
+                if first:
+                    xz = xz+constraints[0].smooth_root_2d[-1]
+                constraints.append(Root2DConstraintSet(model.skeleton, torch.arange(first, n, device='cuda'), xz,
+                                                       global_root_heading=heading if not first else None))
+            if v in ('path-notext', 'history-path-notext'):
+                cfg = [0., 2.]
+            seed_everything(seed)
+            if v == 'official':
+                motion = model([prompt], [frames], num_denoising_steps=steps, num_samples=1, multi_prompt=True,
+                               num_transition_frames=5, post_processing=False, return_numpy=True)  # as generate.py calls it
+            else:
+                motion = model([prompt], [n], num_denoising_steps=steps, num_samples=1, constraint_lst=constraints,
+                               cfg_weight=cfg, post_processing=False, return_numpy=True)
             qpos = converter.dict_to_qpos(motion, root_quat_w_first=True)
             qpos = np.asarray(qpos)[0] if np.asarray(qpos).ndim == 3 else np.asarray(qpos)
             actions = qpos_to_actions(qpos, model.fps)
-            window = [int(dw.RATE), len(actions)-1]
-            seg = {'name': f'official-{direction}-s{seed}', 'direction': direction, 'window': window,
-                   'source': {'pipeline': 'nv-tlabs/kimodo', 'model': name, 'prompt': prompt, 'seed': seed,
-                              'seconds': args.seconds, 'diffusion_steps': args.steps, 'post_processing': False},
+            start = 0 if v == 'short' else int(round(100*dw.RATE/model.fps)) if v.startswith('history') else int(dw.RATE)
+            window = [start, len(actions)-1]
+            seg = {'name': f'{v}-{direction}-s{seed}', 'direction': direction, 'window': window,
+                   'source': {'pipeline': 'nv-tlabs/kimodo', 'model': name, 'prompt': prompt, 'seed': seed, 'variant': v,
+                              'frames': n, 'diffusion_steps': steps, 'cfg_weight': cfg, 'post_processing': False},
                    'actions': actions.tolist()}
             (out/f"{seg['name']}.json").write_text(json.dumps(seg))
             a = actions[window[0]:]
