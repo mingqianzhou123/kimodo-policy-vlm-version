@@ -30,3 +30,26 @@ def test_systematic_gain_is_calibration_and_noise_is_random(tmp_path):
     assert abs(out['fwd']['coefficient']-.5) < .02 and out['fwd']['verdict'] == 'calibration is enough'
     assert out['left']['verdict'] == 'mostly random: only closed loop'
     assert abs(out['turn']['coefficient']-.9) < .02 and out['turn']['verdict'] == 'calibration is enough'
+
+
+def test_walk_row_reads_a_run(tmp_path):
+    """One finished open-loop run on disk -> one triplet row (command, reference, actual in the start frame)."""
+    run = tmp_path/'exp2dev-open-20261125-r1-fl-050-s1000'
+    run.mkdir()
+    eye = np.eye(3)
+    (run/'target.json').write_text(json.dumps({'motion_goal': {'name': 'fl-050', 'root': {'xy': [.35, .35], 'speed_m_s': .35}},
+                                               'heading': eye.tolist(), 'noise_seed': 1000, 'phases': []}))
+    quat = [1., 0., 0., 0.]
+    feet = [[0., .1, 0.], [0., -.1, 0.]]
+
+    def step(t, x, y):
+        sample = {'time': t, 'root_pos': [x, y, .75], 'root_quat': quat}
+        return {'before': sample, 'after': sample, 'reference_root_world': [2*x, 2*y, .75],
+                'reference_foot_world': [[2*x+f[0], 2*y+f[1], f[2]] for f in feet], 'reference_root_quat': quat}
+    (run/'execution.jsonl').write_text('\n'.join(json.dumps(step(t, .1*t, .1*t)) for t in range(4)))
+    row = deviation.walk_row(run)
+    assert row['group'] == 'open' and row['direction'] == 'fl' and row['size'] == .5
+    np.testing.assert_allclose(row['actual_xy'], [.3, .3])
+    np.testing.assert_allclose(row['reference_xy'], [.6, .6])
+    np.testing.assert_allclose(row['target_xy'], [.5/np.sqrt(2), .5/np.sqrt(2)])
+    assert not row['fell']

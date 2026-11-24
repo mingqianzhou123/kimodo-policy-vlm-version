@@ -53,9 +53,9 @@ def walk_row(run):
     direction, size = name.rsplit('-', 1)
     root_goal = goal['root']
     group = next((g for g in ('open', 'closed', 'comp') if f'-{g}-' in run.name), 'other')
-    target = ([0., 0.] if direction == 'turn' else
-              (int(size)/100*np.array([np.cos(np.radians(DIRECTION_DEG[direction])), np.sin(np.radians(DIRECTION_DEG[direction]))])).tolist())
-    return {'run': run.name, 'group': group, 'target_xy': target,
+    target_xy = ([0., 0.] if direction == 'turn' else
+                 (int(size)/100*np.array([np.cos(np.radians(DIRECTION_DEG[direction])), np.sin(np.radians(DIRECTION_DEG[direction]))])).tolist())
+    return {'run': run.name, 'group': group, 'target_xy': target_xy,
             'seed': target.get('noise_seed'), 'command': name, 'direction': direction,
             'size': int(size)/(1 if direction == 'turn' else 100),
             'command_xy': root_goal['xy'], 'command_yaw_deg': root_goal.get('yaw_deg', 0.),
