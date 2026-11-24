@@ -23,6 +23,10 @@ the demonstrations' gait measured here. Subcommands:
   cycles the gait-cycle library for walking on recorded strides (kimodo_vla/oracle/clip_legs.py):
              walk_attribution.py cycles --segments <LAFAN1 segments dir> --out <library.json>
          then run_motion_suite.py --group clip-walk / clip-reach ... --walk-clips <library.json>
+  roundtrip  does the feature <-> joint conversion itself make feet slide? Clean recorded windows
+         go to Kimodo's 417 features and back the way generated motion reaches SONIC; Kimodo's own
+         saved plans are decoded with feet from rotations and from position features:
+             walk_attribution.py roundtrip --segments <LAFAN1 segments dir> --plans '<run prefix>*'
   table  test two's table: each sweep condition's gait per direction next to the recorded
          references' (medians over seeds):
              walk_attribution.py table --sweep <run id> [<run id> ...] --baseline <segments dir> [...]
@@ -378,6 +382,82 @@ def cycles(args):
                       round(c['loop_cost'], 2)) for c in cs])
 
 
+def roundtrip(args):
+    import torch
+    from kimodo_vla.model.features import KimodoFeatures
+    from kimodo_vla.motion.g1_reference import _interpolate_motion
+    from kimodo_vla.oracle.continuity import bounded_hinge_trajectory
+    F = KimodoFeatures(dw.RATE)
+    fk = dw.g1_fk()
+    names = F.representation.skeleton.bone_order_names
+    ankles = [names.index(f'{s}_ankle_roll_skel') for s in ('left', 'right')]
+    to_z_up = F.codec.mujoco_to_kimodo.numpy()
+
+    def feature_feet(feats):
+        """Ankles at 30 Hz from features, posed from rotations and from position features (z up)."""
+        out = {}
+        for how in ('rotations', 'positions'):
+            d = F.representation.inverse(torch.as_tensor(feats)[None].float(), is_normalized=False, posed_joints_from=how)
+            out[how] = d['posed_joints'][0][:, ankles].numpy() @ to_z_up
+        return out, d
+
+    def back_to_actions(local, root, first_joints, hinge):
+        n = local.shape[0]
+        times = torch.arange(0., (n-1)*dw.RATE/30+1e-6)*30/dw.RATE
+        local50, root50 = _interpolate_motion(local, root, times)
+        a = F.codec.encode(local50, root50, previous_root_position=root50[0], hand_binary=torch.zeros(len(times), 2)).numpy()
+        if hinge:
+            a[:, 9:38] = bounded_hinge_trajectory(local50, F.codec, fk.joint_limits, first_joints, 4.)
+        return a
+
+    rows = []
+    for path in sorted(p for p in Path(args.segments).glob('*.json') if p.name != 'segments.json'):
+        seg = dw.load_segment(path)
+        a = np.asarray(seg['actions'], dtype=float)
+        b, e = seg['window']
+        a = a[b:e+1]
+        rot = dw.rot6d_rows(a)
+        root = dw.integrate_root(a, rot)
+        heading = dw.yaw_matrix(float(dw.yaw_of(rot[0])))
+        root, rot = (root-root[0]*[1, 1, 0]) @ heading, np.einsum('ij,tjk->tik', heading.T, rot)
+        first = np.clip(a[0, 9:38], fk.joint_limits[:, 0], fk.joint_limits[:, 1])
+        local, root30 = F.motion(a[:, 9:38], root, rot)
+        feats = F.features(local, root30)
+        from_feats, decoded = feature_feet(feats.numpy())
+        g = {'recorded': dw.stepping(dw.reference_feet(a, fk)),
+             'resampled only': dw.stepping(dw.reference_feet(back_to_actions(local, root30, first, False), fk)),
+             'features, encode': dw.stepping(dw.reference_feet(back_to_actions(decoded['local_rot_mats'][0], decoded['root_positions'][0], first, False), fk)),
+             'features, encode + hinge bounds': dw.stepping(dw.reference_feet(back_to_actions(decoded['local_rot_mats'][0], decoded['root_positions'][0], first, True), fk)),
+             'features, feet from rotations': dw.stepping(from_feats['rotations'], rate=30.),
+             'features, feet from positions': dw.stepping(from_feats['positions'], rate=30.)}
+        rows.append({'segment': seg['name'], 'direction': seg['direction'], 'gait': g})
+        print(seg['name'][:40], ' '.join(f"{k}:{v['slide_m_s'] or 0:.3f}/{v['both_moving']:.2f}" for k, v in g.items()), flush=True)
+    plans = []
+    for run in sorted(RUNS.glob(args.plans)) if args.plans else []:
+        for f in sorted(run.glob('plan-*.npz')):
+            with np.load(f) as z:
+                if 'motion_features' not in z:
+                    continue
+                feats = z['motion_features']
+            from_feats, _ = feature_feet(feats)
+            plans.append({'run': run.name, 'plan': f.stem, 'rotations': dw.stepping(from_feats['rotations'], rate=30.),
+                          'positions': dw.stepping(from_feats['positions'], rate=30.)})
+    out = {'segments': rows, 'kimodo_plans': plans}
+    (Path(args.out)).write_text(json.dumps(out, indent=1))
+    keys = list(rows[0]['gait']) if rows else []
+    for d in dw.DIRECTIONS:
+        group = [r['gait'] for r in rows if r['direction'] == d]
+        if group:
+            print(d, len(group), ' | '.join(f"{k} {np.median([x[k]['slide_m_s'] or 0 for x in group]):.3f}/"
+                                             f"{np.median([x[k]['both_moving'] for x in group]):.2f}/"
+                                             f"{np.median([x[k]['step_length_m'] or 0 for x in group]):.2f}" for k in keys))
+    if plans:
+        walk = [p for p in plans if p['rotations']['slide_m_s'] is not None and p['positions']['slide_m_s'] is not None]
+        print('kimodo plans', len(walk), 'slide rotations / positions',
+              f"{np.median([p['rotations']['slide_m_s'] for p in walk]):.3f} / {np.median([p['positions']['slide_m_s'] for p in walk]):.3f}",
+              'both', f"{np.median([p['rotations']['both_moving'] for p in walk]):.2f} / {np.median([p['positions']['both_moving'] for p in walk]):.2f}")
+
+
 def score(args):
     rows = []
     for run in sorted(RUNS.glob(args.pattern)):
@@ -474,11 +554,15 @@ def main():
     k = sub.add_parser('cycles')
     k.add_argument('--segments', required=True)
     k.add_argument('--out', required=True)
+    q = sub.add_parser('roundtrip')
+    q.add_argument('--segments', required=True)
+    q.add_argument('--plans', help="runs whose saved Kimodo plans to decode, e.g. 'wa-x-20261124-r1-base-forward-*'")
+    q.add_argument('--out', required=True)
     t = sub.add_parser('table')
     t.add_argument('--sweep', nargs='+', required=True)
     t.add_argument('--baseline', nargs='+', required=True, help='segment dirs written by mine')
     args = p.parse_args()
-    {'cycles': cycles, 'table': sweep_table, 'mine': mine, 'suite': suite, 'score': score, 'cross': cross, 'score-cross': score_cross}[args.command](args)
+    {'roundtrip': roundtrip, 'cycles': cycles, 'table': sweep_table, 'mine': mine, 'suite': suite, 'score': score, 'cross': cross, 'score-cross': score_cross}[args.command](args)
 
 
 if __name__ == '__main__':
