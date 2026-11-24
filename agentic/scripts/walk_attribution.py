@@ -14,6 +14,12 @@ the demonstrations' gait measured here. Subcommands:
              walk_attribution.py suite --segments <dir> --tag <tag> --gpus 0 6 7 0 6 7
   score  score finished replays (completion, sideways and heading drift, falls, measured gait):
              walk_attribution.py score '<run prefix>*' [--markdown]
+  cross  the cross-check: run named conditions of the test-two sweep config live in the
+         simulator (Kimodo replanning from the measured body, SONIC executing), then score
+         the first seconds of each walk as test two scores the generated one:
+             walk_attribution.py cross --conditions base text --tag <tag> --gpus 0 6 7 \
+                 --text-cache <dir> --lead-dirs lafan=<dir> arena=<dir>
+             walk_attribution.py score-cross '<tag>-*'
 
 Segment files go to ``--out``; runs to the usual runs directory as ``<tag>-<segment>``.
 """
@@ -187,6 +193,122 @@ def suite(args):
         t.join()
 
 
+def run_queue(jobs, gpus, stagger, dds_domain):
+    """Run (run_id, command) jobs over the GPUs, one at a time per listed GPU; finished runs are skipped."""
+    queue, lock = list(jobs), threading.Lock()
+
+    def worker(gpu, slot):
+        while True:
+            with lock:
+                if not queue:
+                    return
+                run_id, cmd = queue.pop(0)
+            if (RUNS/run_id/'run.json').is_file() and json.loads((RUNS/run_id/'run.json').read_text()).get('status') == 'completed':
+                continue
+            cmd = [c.replace('{gpu}', str(gpu)) for c in cmd]
+            began = time.time()
+            env = dict(os.environ, KVLA_DDS_DOMAIN=str(dds_domain+slot))
+            result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+            print(f'{run_id} on GPU {gpu}: exit {result.returncode} in {time.time()-began:.0f} s', flush=True)
+            if result.returncode:
+                print(result.stderr[-1500:], flush=True)
+    threads = []
+    for i, gpu in enumerate(gpus):
+        threads.append(threading.Thread(target=worker, args=(gpu, i)))
+        threads[-1].start()
+        time.sleep(stagger)
+    for t in threads:
+        t.join()
+
+
+def cross(args):
+    from rollout_kimodo import condition_goal, lead_through_window
+    cfg = json.loads(Path(args.config).read_text())
+    inputs = RUNS/f'{args.tag}-inputs'
+    inputs.mkdir(exist_ok=True)
+    jobs = []
+    for name in args.conditions:
+        use = {**cfg['base'], **cfg['conditions'][name]}
+        for direction in args.directions or cfg['directions']:
+            rate = use['turn_rate'] if direction == 'turn' else use['speed']
+            speed = rate[direction] if isinstance(rate, dict) else rate
+            for i, seed in enumerate(cfg['seeds'][:args.repeats]):
+                run_id = f'{args.tag}-{name}-{direction}-s{seed}'
+                goal = inputs/f'{name}-{direction}.json'
+                goal.write_text(json.dumps(condition_goal(direction, speed, cfg)))
+                cmd = [sys.executable, str(ROOT/'scripts/run_oracle.py'), '--run-id', run_id, '--motion-goal', str(goal),
+                       '--start-xy', *map(str, START_XY), '--sim-gpu', '{gpu}', '--policy-gpu', '{gpu}',
+                       '--share-policy-sim-gpu', '--gpu-min-free-mib', '16384', '--noise-seed', str(seed),
+                       '--walk-steps', str(use['walk_steps']), '--constraint-cfg', str(use['constraint_cfg']),
+                       '--root-constraints', use['root_constraints'], '--history-frames', str(use['history_frames'])]
+                lead_s = 0.
+                if use.get('text'):
+                    cmd += ['--text', cfg['texts'][direction], '--text-cfg', str(use.get('text_cfg', 2.)), '--text-cache', args.text_cache]
+                if use.get('lead'):
+                    names = cfg['lead_segments'][use['lead']][direction]
+                    lead = lead_through_window(Path(dict(args.lead_dirs)[use['lead']])/f'{names[i % len(names)]}.json',
+                                               inputs/f'{name}-{direction}-s{seed}-lead.json')
+                    cmd += ['--lead-segment', str(lead)]
+                    lead_s = (len(json.loads(lead.read_text())['actions'])+50)/dw.RATE
+                cmd += ['--steps', str(int(round((.7+lead_s+cfg['seconds']+.6)*dw.RATE)))]
+                jobs.append((run_id, cmd))
+    run_queue(jobs, args.gpus, args.stagger, args.dds_domain)
+
+
+def score_measured(steps, target, seconds):
+    """Progress, drift, falls and gait of a live walk over its first ``seconds`` (from the walk phase's start)."""
+    walk = next((p for p in target['phases'] if p['phase'] == 'walk'), None)
+    if walk is None:
+        return None
+    goal = target['motion_goal']['root']
+    after = [s['after'] for s in steps]
+    time_ = np.array([x['time'] for x in after])
+    i0 = int(np.argmin(abs(time_-walk['time'])))
+    i1 = i0+int(round(seconds*dw.RATE))
+    if i1 >= len(after):
+        return None
+    root = np.array([x['root_pos'] for x in after])
+    rotations = np.array([dw.rotation_wxyz(x['root_quat']) for x in after])
+    tilt = np.degrees(np.arccos(np.clip(rotations[:i1+1, 2, 2], -1, 1)))
+    d, yaw = dw.heading_frame_motion(root, rotations, i0, i1)
+    out = {'fell': bool((root[:i1+1, 2] < .40).any() or (tilt > 60).any()), 'moved_m': d.tolist(), 'yaw_deg': yaw,
+           'gait_actual': dw.stepping(np.array([x['foot_pos'] for x in after])[i0:i1+1])}
+    if goal.get('yaw_deg'):
+        out['progress'] = yaw/(goal['yaw_rate_deg_s']*seconds)
+        out['drift_cm'] = 100*float(np.hypot(*d))
+    else:
+        along = np.asarray(goal['xy'])/np.linalg.norm(goal['xy'])
+        out['progress'] = float(d @ along)/(goal['speed_m_s']*seconds)
+        out['lateral_cm'] = 100*float(abs(along[0]*d[1]-along[1]*d[0]))
+    out['heading_drift_deg'] = None if goal.get('yaw_deg') else yaw
+    return out
+
+
+def score_cross(args):
+    rows = []
+    for run in sorted(RUNS.glob(args.pattern)):
+        if not (run/'run.json').is_file() or run.name.endswith('-inputs'):
+            continue
+        manifest = json.loads((run/'run.json').read_text())
+        if manifest.get('status') != 'completed':
+            continue
+        steps = [json.loads(x) for x in (run/'execution.jsonl').read_text().splitlines() if x.strip()]
+        target = json.loads((run/'target.json').read_text())
+        result = score_measured(steps, target, args.seconds)
+        result = {'run': run.name, 'direction': target['motion_goal']['name'], 'seed': manifest['noise_seed'],
+                  'condition': {k: manifest.get(k) for k in ('text', 'root_constraints', 'history_frames', 'walk_steps',
+                                                             'lead_segment')}, 'measured': result}
+        (run/'cross-result.json').write_text(json.dumps(result, indent=1))
+        rows.append(result)
+    name = args.pattern.rstrip('*').rstrip('-')
+    (RUNS/f'{name}-cross-summary.json').write_text(json.dumps(rows, indent=1))
+    for r in rows:
+        m = r['measured']
+        print(r['run'], 'no walk window' if m is None else
+              f"progress {m['progress']:.2f} fell {m['fell']} slide {m['gait_actual']['slide_m_s'] or 0:.3f} "
+              f"both {m['gait_actual']['both_moving']:.2f}")
+
+
 def score(args):
     rows = []
     for run in sorted(RUNS.glob(args.pattern)):
@@ -258,8 +380,22 @@ def main():
     c = sub.add_parser('score')
     c.add_argument('pattern')
     c.add_argument('--markdown', action='store_true')
+    x = sub.add_parser('cross')
+    x.add_argument('--config', default=str(ROOT/'configs/walk-attribution.json'))
+    x.add_argument('--conditions', nargs='+', required=True)
+    x.add_argument('--directions', nargs='*')
+    x.add_argument('--repeats', type=int, default=5)
+    x.add_argument('--tag', required=True)
+    x.add_argument('--gpus', type=int, nargs='+', required=True)
+    x.add_argument('--text-cache')
+    x.add_argument('--lead-dirs', nargs='*', default=[], type=lambda v: v.split('=', 1))
+    x.add_argument('--stagger', type=float, default=20.)
+    x.add_argument('--dds-domain', type=int, default=60)
+    y = sub.add_parser('score-cross')
+    y.add_argument('pattern')
+    y.add_argument('--seconds', type=float, default=4.)
     args = p.parse_args()
-    {'mine': mine, 'suite': suite, 'score': score}[args.command](args)
+    {'mine': mine, 'suite': suite, 'score': score, 'cross': cross, 'score-cross': score_cross}[args.command](args)
 
 
 if __name__ == '__main__':

@@ -48,6 +48,11 @@ def parse_args(argv=None):
     p.add_argument('--start-xy',type=float,nargs=2,metavar=('X','Y'),help='With --motion-goal: world position to start from instead of the task reset position')
     p.add_argument('--walk-steps',type=int,default=75,help='With --motion-goal: control steps executed from each 1.63 s walking plan before planning again')
     p.add_argument('--arm-ik',action='store_true',help='With --motion-goal: solve the reaching arm for the wrist over the last 25 cm of its path; legs and trunk stay as generated')
+    p.add_argument('--text',help='With --motion-goal: phrase key in --text-cache; Kimodo then uses separated text/constraint guidance')
+    p.add_argument('--text-cfg',type=float,default=2.,help='With --text: the text guidance weight')
+    p.add_argument('--root-constraints',choices=['dense','sparse','none'],default='dense',help='With --motion-goal: walking root path on every frame, every 0.5 s, or not at all')
+    p.add_argument('--history-frames',type=int,default=100,help='With --motion-goal: consumed-reference frames conditioning each plan')
+    p.add_argument('--lead-segment',type=Path,help='With --motion-goal: recorded walking segment played before the walk (kimodo_vla/oracle/demo_walks.py)')
     p.add_argument('--noise-seed',type=int,help='With --motion-goal: seed of Kimodo\'s sampling noise, to repeat one goal with different motions')
     p.add_argument('--actuator-audit',action='store_true')
     p.add_argument('--dynamics-profile',choices=['sensor-load','actuator','actuator-load'])
@@ -108,6 +113,8 @@ def main():
             raise ValueError('Moving goals run live on the bounded handoff with aligned actuators and nothing else')
         if not a.motion_goal.is_file():raise FileNotFoundError(a.motion_goal)
     elif (a.start_xy and not demo) or a.noise_seed is not None or a.arm_ik:raise ValueError('--start-xy, --noise-seed and --arm-ik need --motion-goal')
+    if not a.motion_goal and (a.text or a.lead_segment or a.root_constraints!='dense' or a.history_frames!=100):
+        raise ValueError('--text, --root-constraints, --history-frames and --lead-segment need --motion-goal')
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
     if a.dynamics_profile and not a.motion_goal and not demo and not ((replay or a.settled_goal) and a.actuator_audit):
@@ -181,6 +188,9 @@ def main():
         policycmd+=['--motion-goal',str(a.motion_goal.resolve()),'--walk-steps',str(a.walk_steps)]
         if a.arm_ik:policycmd.append('--arm-ik')
         if a.noise_seed is not None:policycmd+=['--noise-seed',str(a.noise_seed)]
+        policycmd+=['--root-constraints',a.root_constraints,'--history-frames',str(a.history_frames)]
+        if a.text:policycmd+=['--text',a.text,'--text-cfg',str(a.text_cfg)]
+        if a.lead_segment:policycmd+=['--lead-segment',str(a.lead_segment.resolve())]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -238,7 +248,9 @@ def main():
     if a.motion_goal:record.update(experiment='MOTION-GOAL',oracle=False,target_source='motion_goal',
         motion_goal=json.loads(a.motion_goal.read_text()),motion_goal_sha256=sha(a.motion_goal),
         start_xy=a.start_xy,noise_seed=a.noise_seed,walk_steps=a.walk_steps,
-        arm_ik=a.arm_ik)
+        arm_ik=a.arm_ik,text=a.text,text_cfg=a.text_cfg if a.text else None,root_constraints=a.root_constraints,
+        history_frames=a.history_frames,lead_segment=str(a.lead_segment) if a.lead_segment else None,
+        lead_segment_sha256=sha(a.lead_segment) if a.lead_segment else None)
     if demo:record.update(experiment='DEMO-REPLAY',oracle=False,target_source='demo_segment',
         demo_segment=str(a.demo_segment.resolve()),demo_segment_sha256=sha(a.demo_segment),start_xy=a.start_xy)
     record['arena_sha256']={f:sha(arena/f) for f in (

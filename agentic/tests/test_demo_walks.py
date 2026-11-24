@@ -127,3 +127,17 @@ def test_lafan1_rows_become_actions_with_the_same_root_path_and_joint_order():
     np.testing.assert_allclose(root[-1, :2]-root[0, :2], [.5*end, -.2*end], atol=1e-6)
     knee = G1_JOINT_NAMES.index('right_knee_joint')
     assert abs(a[0, 9+knee]-dw.LAFAN1_G1_JOINTS.index('right_knee_joint')/100.) < 1e-12
+
+
+def test_live_walk_is_scored_from_the_start_of_its_walk_phase():
+    from walk_attribution import score_measured
+    steps = []
+    for i in range(400):
+        x = -4.+max(0, i-100)*.3/dw.RATE                      # stands 2 s, then 0.3 m/s forward
+        steps.append({'after': {'time': (i+1)/dw.RATE, 'root_pos': [x, -4., .78], 'root_quat': [1., 0., 0., 0.],
+                                'foot_pos': [[x, -3.9, .05], [x, -4.1, .05]]}})
+    target = {'phases': [{'phase': 'walk', 'time': 101/dw.RATE}],
+              'motion_goal': {'root': {'xy': [3., 0.], 'speed_m_s': .35}}}
+    m = score_measured(steps, target, 4.)
+    assert not m['fell'] and abs(m['progress']-.3/.35) < .01 and m['lateral_cm'] < 1e-6
+    assert score_measured(steps, target, 7.) is None          # the run ended before 7 s of walking
