@@ -29,7 +29,7 @@
 | `run_oracle.py --grasp-loop --seed N` | 跑一个回合；`--latch-delay-steps` 改等待步数，`--start-at-stance` 是诊断用的台前起步 |
 | `run_grasp_suite.py --group debug\|heldout` | 一组种子，多张卡并行；仿真器崩溃的回合挪到 `infra-failed/` 后重跑 |
 | `report_grasp.py '<运行名通配>'` | 成功数、逐轮标记、接触率、夹住后滑落率 |
-| `configs/grasp-loop.json` | 全部参数、判据阈值、两组种子 |
+| `agentic/configs/grasp-loop.json` | 全部参数、判据阈值、两组种子 |
 | 运行目录里的 `grasp-result.json` | 回合结论：终止原因、每轮标记和接触 / 合手 / 离台 / 夹住 / 滑落时刻 |
 | `grasp-steps.jsonl` | 每个控制步的箱子位姿、双腕位置、各来源接触力、压着箱子的刚体、门控状态 |
 | `rounds.jsonl`、`plans.jsonl` | 每轮锁存的位姿和各阶段时刻；每次规划的记录 |
@@ -165,11 +165,11 @@
 
 ```bash
 source agentic/env.local.sh
-python agentic/scripts/run_grasp_suite.py --group heldout --tag 20261124-r1 --gpus 2 3 4
-python agentic/scripts/report_grasp.py 'exp1-static-20261124-r1-*'
+python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group heldout --tag 20261124-r1 --gpus 2 3 4
+python agentic/pilot_experiments/experiment1_blocking_grasp/report_grasp.py 'exp1-static-20261124-r1-*'
 # 不走路的对照：同样的种子，机器人直接放在台前站位
-python agentic/scripts/run_grasp_suite.py --group heldout --tag 20261124-r1 --gpus 2 3 4 --start-at-stance
-python agentic/scripts/report_grasp.py 'exp1-stance-20261124-r1-*'
+python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group heldout --tag 20261124-r1 --gpus 2 3 4 --start-at-stance
+python agentic/pilot_experiments/experiment1_blocking_grasp/report_grasp.py 'exp1-stance-20261124-r1-*'
 ```
 
 单个回合约 4–11 分钟（成功即停）。视频是头部相机视角，成功回合的文件名以 `__grasp_success.mp4` 结尾。预留种子已经用过一次；之后再做验收需要换一组新种子。

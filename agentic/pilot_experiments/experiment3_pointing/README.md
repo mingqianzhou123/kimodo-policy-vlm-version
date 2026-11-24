@@ -137,7 +137,7 @@ Gemini 4 Argon 的细节：
 | 遮挡 | 可见比例在 0.2–0.85 之间 | 0.26–0.75，中位数 0.54 |
 | 多物体干扰 | 视野内至少另有 2 个物体 | 一半是同类物体二选一，用“左边的”“离你更近的”指代 |
 
-物体是 Arena 资产库里的 10 种：纸箱、扁纸箱、塑料篮、锤子、剪刀、美工刀、订书机、瓶子、易拉罐、花瓶。目标是其中 8 种，扁纸箱和塑料篮只当遮挡物。物体是摆上去的纯几何副本，不参与物理，位姿就是写入的位姿；机器人用默认站姿放到指定站位。80 帧的摆放写在 `agentic/configs/pointing-frames.json`。
+物体是 Arena 资产库里的 10 种：纸箱、扁纸箱、塑料篮、锤子、剪刀、美工刀、订书机、瓶子、易拉罐、花瓶。目标是其中 8 种，扁纸箱和塑料篮只当遮挡物。物体是摆上去的纯几何副本，不参与物理，位姿就是写入的位姿；机器人用默认站姿放到指定站位。80 帧的摆放写在同目录的 `pointing-frames.json`。
 
 **真值和图像对得上的证据**：不遮挡的 60 帧里，目标轮廓内的深度像素有 88%–99%（中位数 95%–97%）落在网格 8 mm 以内。
 
@@ -168,7 +168,7 @@ x and y are numbers from 0 to 1000 over the full image: x from the left edge, y 
 
 ## 闭源调用的记录方式
 
-模型版本和单价写在 `agentic/configs/pointing-backends.json`，密钥从环境变量 `OPENAI_API_KEY`、`GEMINI_API_KEY` 读。每次调用保存提示词、图像哈希、原始返回、返回里的模型版本、调用时间、延迟和 token 数。
+模型版本和单价写在同目录的 `pointing-backends.json`，密钥从环境变量 `OPENAI_API_KEY`、`GEMINI_API_KEY` 读。每次调用保存提示词、图像哈希、原始返回、返回里的模型版本、调用时间、延迟和 token 数。
 
 ## 采图时发现的三件事
 
@@ -180,9 +180,10 @@ x and y are numbers from 0 to 1000 over the full image: x from the left edge, y 
 
 ```bash
 source agentic/env.local.sh
-python agentic/scripts/capture_pointing_frames.py --out <图像集> --gpu 5
-python agentic/scripts/run_pointing.py run --dataset <图像集> --backend qwen --localizer single --out <输出目录>/qwen-single --gpu 5
-python agentic/scripts/run_pointing.py evaluate --dataset <图像集> --run <输出目录>/qwen-single
+cd agentic/pilot_experiments/experiment3_pointing
+python capture_pointing_frames.py --out <图像集> --gpu 5
+python run_pointing.py run --dataset <图像集> --backend qwen --localizer single --out <输出目录>/qwen-single --gpu 5
+python run_pointing.py evaluate --dataset <图像集> --run <输出目录>/qwen-single
 ```
 
 采集和两轮 Qwen 都在提交 `be6daf0` 上运行，工作区无改动；打分用提交 `0306e48`。GPT 的调用和打分在提交 `a091511` 上，Gemini 在提交 `9467031` 上。Mac 上的图像集副本逐文件核对过哈希，Qwen 两轮在 Mac 上重新打分与开发机结果完全一致。Qwen 权重是 `Qwen/Qwen3-VL-4B-Instruct` 修订 `ebb281ec`，transformers 5.1.0，torch 2.10.0+cu129。

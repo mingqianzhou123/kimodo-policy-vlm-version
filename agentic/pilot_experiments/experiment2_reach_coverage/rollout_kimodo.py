@@ -19,6 +19,8 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import CHECKPOINTS, RUNS, sim_cache
 from analyze_motion import gait
 from kimodo_vla.oracle.geometry import angle_deg, rotation_wxyz

@@ -77,7 +77,7 @@ class ApiBackend:
 
     def __init__(self, config, post=post_json):
         if not config.get('model'):
-            raise SystemExit(f"Set the exact model version for '{self.name}' in agentic/configs/pointing-backends.json (field 'model')")
+            raise SystemExit(f"Set the exact model version for '{self.name}' in agentic/pilot_experiments/experiment3_pointing/pointing-backends.json (field 'model')")
         self.key = os.environ.get(self.key_variable)
         if not self.key:
             raise SystemExit(f'{self.key_variable} is not set: put it in agentic/env.local.sh and source that file')
