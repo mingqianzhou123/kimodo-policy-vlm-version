@@ -29,17 +29,33 @@ def rz(deg):
     return Rotation.from_euler('z', np.radians(deg)).as_matrix()
 
 
-def find_cycle(actions, begin, end, fk=None, min_s=.7, max_s=1.6):
-    """The best looping stride ``(i, j)`` in ``actions[begin:end+1]``: both feet down at both ends, pose nearly repeating."""
+def find_cycle(actions, begin, end, fk=None, min_s=.7, max_s=1.6, direction=None, min_advance_m=.25, max_side=.35,
+               min_turn_deg=30.):
+    """The best looping stride ``(i, j)`` in ``actions[begin:end+1]``: both feet down at both ends, pose nearly repeating.
+
+    With ``direction`` the stride must also go that way: at least ``min_advance_m`` along it and no
+    more than ``max_side`` of that sideways, or for 'turn' at least ``min_turn_deg``.
+    """
     a = np.asarray(actions, dtype=float)[begin:end+1]
     feet = reference_feet(a, fk)
     down = feet[..., 2]-np.percentile(feet[..., 2], 5, axis=0) < CONTACT_M
     both = np.flatnonzero(down.all(axis=1))
     rot = rot6d_rows(a)
     tilt = np.stack([r[:, 2] for r in rot])           # body up axis: pitch and roll, not heading
+    root = integrate_root(a, rot)
     best, pair = np.inf, None
     for i in both:
         for j in both[(both >= i+min_s*RATE) & (both <= i+max_s*RATE)]:
+            if direction is not None:
+                d, turn = heading_frame_motion(root, rot, i, j)
+                if direction == 'turn':
+                    if abs(turn) < min_turn_deg:
+                        continue
+                else:
+                    unit = np.array(DIRECTION_UNITS[direction])
+                    along, side = d @ unit, abs(unit[0]*d[1]-unit[1]*d[0])
+                    if along < min_advance_m or side > max_side*along:
+                        continue
             cost = (np.linalg.norm(a[i, 9:38][list(LEGS_AND_WAIST)]-a[j, 9:38][list(LEGS_AND_WAIST)])
                     + 5*abs(a[i, 2]-a[j, 2]) + 2*np.linalg.norm(tilt[i]-tilt[j]))
             if cost < best:
@@ -76,7 +92,7 @@ def build_library(segment_paths):
         seg = load_segment(path)
         a = np.asarray(seg['actions'], dtype=float)
         b, e = seg['window']
-        found = find_cycle(a, b, e, fk)
+        found = find_cycle(a, b, e, fk, direction=seg['direction'])
         if found is None:
             continue
         i, j, cost = found
