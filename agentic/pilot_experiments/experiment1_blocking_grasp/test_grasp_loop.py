@@ -423,8 +423,22 @@ def test_region_placements_follow_the_seed_only_and_stay_inside(tmp_path):
         assert .1 <= p['depth_m'] <= .18 and -.05 <= p['lateral_m'] <= .1 and abs(p['yaw_deg']) <= 45
         assert p['direction'] in (-1, 1) and p['stance_extra_m'] == .03
         np.testing.assert_allclose(p['segment_y'], np.array([-.05, .1]) + config['stand']['robot_y_m'])
+    config['stand']['region'] = None
     with pytest.raises(ValueError):
-        in_region(6000, CONFIG)                                       # not fixed yet
+        in_region(6000, config)                                       # no region fixed yet
+
+
+def test_the_fixed_region_keeps_the_box_on_the_table_and_inside_the_map():
+    stand, m = CONFIG['stand'], CONFIG['stand']['map']
+    assert stand['stance_extra_m'] in m['stance_extra_m']
+    for key, grid in (('depth_m', m['depth_m']), ('lateral_m', m['lateral_m'])):
+        low, high = stand['region'][key]
+        assert low in grid and high in grid and low <= high      # spans measured map points only
+    table = [[CONFIG['scene']['table_edge_x_m'], -6.237], [.121, -3.763]]
+    for seed in CONFIG['seeds']['region']:
+        p = in_region(seed, CONFIG)
+        assert all(supported([p['box_xy'][0], y], p['yaw_deg'], CONFIG['scene']['box_half_m'], table)
+                   for y in [p['box_xy'][1], *p['segment_y']])
 
 
 def test_a_box_over_the_table_edge_is_not_supported():
