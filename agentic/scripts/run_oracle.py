@@ -4,6 +4,8 @@ The defaults are the backend every experiment since 2026-11-17 has used: bounded
 root support, continuous hand conditions, IK-hold projection, 4 rad/s, 400 steps.
 ``--settled-goal`` additionally starts from stable double support with aligned actuators,
 which is the configuration of the 2026-11-23 result. Earlier variants need explicit flags.
+``--grasp-loop`` runs blocking walk-reach-close-lift rounds on the box from the same settled
+start, with a physical success criterion; it defaults to the task's 1450-step time limit.
 """
 import argparse
 import hashlib
@@ -32,7 +34,13 @@ def parse_args(argv=None):
     p.add_argument('--policy-gpu',type=int,default=2)
     p.add_argument('--share-policy-sim-gpu',action='store_true',
                    help='Explicitly colocate this run\'s policy and simulation on one otherwise empty GPU')
-    p.add_argument('--steps',type=int,default=400)
+    p.add_argument('--steps',type=int,help='Default: 400, or 1450 with --grasp-loop')
+    p.add_argument('--seed',type=int,default=1000,help='Episode seed: object placement and generator noise')
+    p.add_argument('--grasp-loop',action='store_true',help='Blocking grasp rounds on the box: latch its pose, wait, '
+        'walk, reach, close both hands on measured arrival, lift; retry until success, fall or the step limit')
+    p.add_argument('--latch-delay-steps',type=int,default=75,help='Control steps each round waits after latching the box pose')
+    p.add_argument('--start-at-stance',action='store_true',help='Diagnostic for --grasp-loop: start the robot at the grasp '
+        'stance instead of the task position, so an attempt needs no walking')
     p.add_argument('--diffusion-steps',type=int,default=50)
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
@@ -69,6 +77,9 @@ def parse_args(argv=None):
     p.add_argument('--gpu-min-free-mib',type=int,
         help='Explicitly allow existing GPU users if at least this much memory is free (minimum 16384 MiB)')
     a=p.parse_args(argv)
+    a.steps=a.steps or (1450 if a.grasp_loop else 400)
+    if a.grasp_loop:
+        a.dynamics_profile=a.dynamics_profile or 'actuator'
     if a.settled_goal:
         a.visual_markers=a.actuator_audit=True
         a.dynamics_profile=a.dynamics_profile or 'actuator'
@@ -92,14 +103,18 @@ def main():
             raise ValueError('Settled comparison requires live IK-hold, aligned actuators and original floor/load')
         if not a.settled_goal.is_file():raise FileNotFoundError(a.settled_goal)
     if a.motion_goal:
-        if (fixed or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision or a.visual_markers
+        if (fixed or a.settled_goal or a.grasp_loop or a.vlm_model or a.root_support or a.capture_vision or a.visual_markers
                 or a.actuator_audit or a.mode!='hold' or a.variant!='bounded' or a.dynamics_profile!='actuator'):
             raise ValueError('Moving goals run live on the bounded handoff with aligned actuators and nothing else')
         if not a.motion_goal.is_file():raise FileNotFoundError(a.motion_goal)
     elif a.start_xy or a.noise_seed is not None or a.arm_ik:raise ValueError('--start-xy, --noise-seed and --arm-ik need --motion-goal')
+    if a.grasp_loop and (fixed or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision or a.visual_markers
+            or a.actuator_audit or a.mode!='hold' or a.trajectory_projection!='ik-hold' or a.dynamics_profile!='actuator'
+            or a.latch_delay_steps<0):
+        raise ValueError('The grasp loop runs on the live IK-hold backend with aligned actuators and nothing else')
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
-    if a.dynamics_profile and not a.motion_goal and not ((replay or a.settled_goal) and a.actuator_audit):
+    if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not ((replay or a.settled_goal) and a.actuator_audit):
         raise ValueError('Dynamics interventions require audited immutable replay')
     if a.root_support and not (a.actuator_audit and replay and a.dynamics_profile in ('actuator','actuator-load')):
         raise ValueError('Root diagnostics require fixed reference and aligned actuators')
@@ -145,6 +160,10 @@ def main():
     env={k:v for k,v in os.environ.items() if k.lower() not in ('http_proxy','https_proxy','all_proxy')}
     env.update(PYTHONUNBUFFERED='1',OMP_NUM_THREADS='4',ORACLE_RUN=str(run))
     if a.dynamics_profile:env['SONIC_DYNAMICS_PROFILE']=a.dynamics_profile
+    if a.grasp_loop:env['GRASP_LOOP']='1'
+    if a.start_at_stance:
+        if not a.grasp_loop:raise ValueError('--start-at-stance belongs to the grasp loop')
+        env['GRASP_START_AT_STANCE']='1'
     if a.root_support:env['SONIC_ROOT_SUPPORT']=a.root_support
     if a.settled_goal:
         for key in ('VLM_CAPTURE','SONIC_ROOT_SUPPORT'):
@@ -170,6 +189,8 @@ def main():
         policycmd+=['--motion-goal',str(a.motion_goal.resolve()),'--walk-steps',str(a.walk_steps)]
         if a.arm_ik:policycmd.append('--arm-ik')
         if a.noise_seed is not None:policycmd+=['--noise-seed',str(a.noise_seed)]
+    if a.grasp_loop:
+        policycmd+=['--grasp-loop',str(ROOT/'configs/grasp-loop.json'),'--latch-delay-steps',str(a.latch_delay_steps)]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -184,18 +205,18 @@ def main():
     simenv['LD_LIBRARY_PATH']=str(CACHE/'system-libs/usr/lib/x86_64-linux-gnu')+':'+env.get('LD_LIBRARY_PATH','')
     for key,folder in [('XDG_CACHE_HOME','cache'),('XDG_DATA_HOME','data'),('XDG_CONFIG_HOME','config'),('CUDA_CACHE_PATH','cuda')]:
         simenv[key]=str(runtime/folder)
-    episode={'seed':1000,'episode_seed':1000,'repeat_idx':0,'episode_index':0,'max_steps':a.steps,
+    episode={'seed':a.seed,'episode_seed':a.seed,'repeat_idx':0,'episode_index':0,'max_steps':a.steps,
         'result_json':str(run/'episode.json'),'success_video_dir':str(run/'videos'),
         'failure_video_dir':str(run/'videos'),'recording_save_dir':str(run/'recordings'),'video_fps':30,
-        'post_termination_record_steps':0,'model_label':('replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
+        'post_termination_record_steps':0,'model_label':('grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
         'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
-    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
+    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal else 'grasp_sim_bootstrap.py' if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
         '--task','Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','--env_config_yaml',
         str(arena/'tasks/common_test_config/base_test/pp_box_sonic_test.yaml'),
-        '--seed','1000','--episode_seed','1000','--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
+        '--seed',str(a.seed),'--episode_seed',str(a.seed),'--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
         '--lerobot_server_url',f'http://127.0.0.1:{port}','--lerobot_server_timeout','660' if a.vlm_model else '120','--step_log_every_n','50',
         '--sonic_encoder_path',str(CACHE/'sim-assets/sonic/model_encoder.onnx'),
         '--sonic_decoder_path',str(CACHE/'sim-assets/sonic/model_decoder.onnx')]
@@ -212,7 +233,8 @@ def main():
         'variant':a.variant,'handoff_seconds':a.handoff_seconds,'joint_speed_rad_s':a.joint_speed,
         'support_constraints':a.support_constraints,'hand_constraints':a.hand_constraints,'trajectory_projection':a.trajectory_projection,
         'policy_command':policycmd,'gpu_uuids':uuids,'started_unix':time.time(),
-        'grasp_attempted':False,'success_rate_evaluation':False,
+        'grasp_attempted':a.grasp_loop,'success_rate_evaluation':a.grasp_loop,'seed':a.seed,
+        'latch_delay_steps':a.latch_delay_steps if a.grasp_loop else None,'start_at_stance':a.start_at_stance,
         'git_commit':commit,'git_dirty':dirty,
         # Keys keep the pre-merge layout so runs stay comparable with those before 2026-11-23.
         'source_sha256':{str(p.relative_to(base)):sha(p) for base,directory in ((REPO,'kimodo_vla'),(ROOT,'arena'),(ROOT,'scripts'))
@@ -226,6 +248,8 @@ def main():
         motion_goal=json.loads(a.motion_goal.read_text()),motion_goal_sha256=sha(a.motion_goal),
         start_xy=a.start_xy,noise_seed=a.noise_seed,walk_steps=a.walk_steps,
         arm_ik=a.arm_ik)
+    if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',
+        grasp_config_sha256=sha(ROOT/'configs/grasp-loop.json'))
     record['arena_sha256']={f:sha(arena/f) for f in (
         'action_provider/action_provider_sonic.py','action_provider/vla_robot_current_local_runtime_v3.py',
         'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')}
@@ -263,6 +287,19 @@ def main():
             episode_result=json.loads((run/'episode.json').read_text())
             if episode_result.get('error'):
                 raise RuntimeError(episode_result['error'])
+            if a.grasp_loop:
+                # The physical criterion decides success; Arena's own verdict and reward are kept beside it.
+                result=json.loads((run/'grasp-result.json').read_text())
+                video=Path(episode_result.get('video_path') or '')
+                if result['success'] and video.is_file():
+                    # Arena names the file after its own verdict, which knows nothing of this success.
+                    episode_result['video_path']=str(video.rename(video.with_name(video.stem.rsplit('__',1)[0]+'__grasp_success.mp4')))
+                result.update(termination='success' if result['success'] else episode_result['failure_reason'],
+                    seed=a.seed,latch_delay_steps=a.latch_delay_steps,start_at_stance=a.start_at_stance,
+                    episode_steps=episode_result['episode_steps'],
+                    max_steps=a.steps,video_path=episode_result.get('video_path'),
+                    arena={k:episode_result.get(k) for k in ('success','failure_reason','final_reward','max_reward')})
+                (run/'grasp-result.json').write_text(json.dumps(result,indent=1))
             record['status']='completed'
         except BaseException as exc:
             record.update(status='failed',error=repr(exc))
