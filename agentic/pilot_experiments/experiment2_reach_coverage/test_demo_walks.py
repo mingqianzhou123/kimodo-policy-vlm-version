@@ -135,11 +135,14 @@ def test_live_walk_is_scored_from_the_start_of_its_walk_phase():
     for i in range(400):
         x = -4.+max(0, i-100)*.3/dw.RATE                      # stands 2 s, then 0.3 m/s forward
         steps.append({'after': {'time': (i+1)/dw.RATE, 'root_pos': [x, -4., .78], 'root_quat': [1., 0., 0., 0.],
-                                'foot_pos': [[x, -3.9, .05], [x, -4.1, .05]]}})
+                                'foot_pos': [[x, -3.9, .05], [x, -4.1, .05]]},
+                      'reference_root_world': [x+.1*i/dw.RATE, -4., .78],       # the reference asks for 0.1 m/s more
+                      'reference_foot_world': [[-4., -3.9, .05], [-4., -4.1, .05]]})
     target = {'phases': [{'phase': 'walk', 'time': 101/dw.RATE}],
               'motion_goal': {'root': {'xy': [3., 0.], 'speed_m_s': .35}}}
     m = score_measured(steps, target, 4.)
     assert not m['fell'] and abs(m['progress']-.3/.35) < .01 and m['lateral_cm'] < 1e-6
+    assert abs(m['reference_leg_progress']-.4/.35) < .01      # planted reference feet: the legs command it all
     assert score_measured(steps, target, 7.) is None          # the run ended before 7 s of walking
 
 

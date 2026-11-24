@@ -285,6 +285,16 @@ def score_measured(steps, target, seconds):
         out['progress'] = float(d @ along)/(goal['speed_m_s']*seconds)
         out['lateral_cm'] = 100*float(abs(along[0]*d[1]-along[1]*d[0]))
     out['heading_drift_deg'] = None if goal.get('yaw_deg') else yaw
+    # What the sent reference's legs command over the same window (its feet may skate; the logged
+    # reference root jumps back onto the body at each plan, which moves root and feet alike).
+    ref_feet = np.array([s['reference_foot_world'] for s in steps])[i0:i1+1]
+    ref_root = np.array([s['reference_root_world'] for s in steps])[i0:i1+1]
+    legs = dw.leg_displacement(ref_feet, ref_root)
+    c, sn = np.cos(dw.yaw_of(rotations[i0])), np.sin(dw.yaw_of(rotations[i0]))
+    legs = np.array([c*legs[0]+sn*legs[1], -sn*legs[0]+c*legs[1]])
+    out['reference_leg_m'] = legs.tolist()
+    if not goal.get('yaw_deg'):
+        out['reference_leg_progress'] = float(legs @ along)/(goal['speed_m_s']*seconds)
     return out
 
 
