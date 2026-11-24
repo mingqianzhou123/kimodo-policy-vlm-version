@@ -491,7 +491,7 @@ class LocomotionPolicy(OraclePolicy):
                 self.enter('lead', obs)
             else:
                 self.enter('walk' if 'root' in self.goal else 'lean' if 'lean' in self.goal else 'reach', obs)
-        if self.phase == 'lead' and step_of(obs, self.start_time) >= self.lead_end_step:
+        if self.phase == 'lead' and self.lead_end_step is not None and step_of(obs, self.start_time) >= self.lead_end_step:
             self.enter('walk', obs)
         if self.phase == 'walk':
             remaining = float(np.linalg.norm(self.root_end-self.measured_xz(obs)))

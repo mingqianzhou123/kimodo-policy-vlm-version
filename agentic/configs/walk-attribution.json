@@ -1,0 +1,196 @@
+{
+ "note": "Test two of the walking attribution (agentic/docs/walk-attribution-*.md). One factor at a time from experiment two's setting ('base'), then a few combinations. Turns use turn_rate (deg/s) in place of speed. Lead-ins play a recorded segment through its directional window, then Kimodo continues in the same direction.",
+ "start_from": "exp2-forward-20261124-r1-forward-050-s1000",
+ "seconds": 4.0,
+ "distance_m": 3.0,
+ "turn_deg": 180,
+ "seeds": [
+  1000,
+  1001,
+  1002,
+  1003,
+  1004
+ ],
+ "directions": [
+  "forward",
+  "backward",
+  "left",
+  "right",
+  "turn"
+ ],
+ "texts": {
+  "forward": "walk_forward",
+  "backward": "walk_backward",
+  "left": "sidestep_left",
+  "right": "sidestep_right",
+  "turn": "turn_left_in_place"
+ },
+ "base": {
+  "text": false,
+  "text_cfg": 2.0,
+  "root_constraints": "dense",
+  "history_frames": 100,
+  "walk_steps": 25,
+  "constraint_cfg": 2.0,
+  "speed": 0.35,
+  "turn_rate": 45.0,
+  "lead": null
+ },
+ "demo_pace_note": "arena: median speed of the Arena SONIC demonstration windows; lafan: of the LAFAN1 windows (walk_attribution.py mine)",
+ "conditions": {
+  "base": {},
+  "history-1": {
+   "history_frames": 1
+  },
+  "history-lafan": {
+   "lead": "lafan"
+  },
+  "history-arena": {
+   "lead": "arena"
+  },
+  "text": {
+   "text": true
+  },
+  "sparse": {
+   "root_constraints": "sparse"
+  },
+  "no-root": {
+   "root_constraints": "none"
+  },
+  "whole-plan": {
+   "walk_steps": 80
+  },
+  "cfg-1": {
+   "constraint_cfg": 1.0
+  },
+  "cfg-4": {
+   "constraint_cfg": 4.0
+  },
+  "pace-arena": {
+   "speed": {
+    "forward": 0.4,
+    "backward": 0.13,
+    "left": 0.17,
+    "right": 0.35
+   },
+   "turn_rate": 54.0
+  },
+  "pace-lafan": {
+   "speed": {
+    "forward": 0.58,
+    "backward": 0.43,
+    "left": 0.41,
+    "right": 0.44
+   },
+   "turn_rate": 90.0
+  },
+  "text+no-root": {
+   "text": true,
+   "root_constraints": "none"
+  },
+  "text+sparse": {
+   "text": true,
+   "root_constraints": "sparse"
+  },
+  "lafan+text": {
+   "lead": "lafan",
+   "text": true
+  },
+  "lafan+text+no-root": {
+   "lead": "lafan",
+   "text": true,
+   "root_constraints": "none"
+  },
+  "lafan+text+sparse+whole": {
+   "lead": "lafan",
+   "text": true,
+   "root_constraints": "sparse",
+   "walk_steps": 80
+  },
+  "lafan+pace": {
+   "lead": "lafan",
+   "speed": {
+    "forward": 0.58,
+    "backward": 0.43,
+    "left": 0.41,
+    "right": 0.44
+   },
+   "turn_rate": 90.0
+  }
+ },
+ "lead_segments": {
+  "lafan": {
+   "forward": [
+    "forward-lafan1-walk1_subject1-e000-f170",
+    "forward-lafan1-walk1_subject2-e001-f9690",
+    "forward-lafan1-walk2_subject1-e003-f4210",
+    "forward-lafan1-walk2_subject4-e005-f1430",
+    "forward-lafan1-walk3_subject2-e007-f7710"
+   ],
+   "backward": [
+    "backward-lafan1-walk1_subject1-e000-f2210",
+    "backward-lafan1-walk1_subject5-e002-f5310",
+    "backward-lafan1-walk2_subject1-e003-f11620",
+    "backward-lafan1-walk2_subject3-e004-f11780",
+    "backward-lafan1-walk3_subject4-e009-f3030"
+   ],
+   "left": [
+    "left-lafan1-walk1_subject1-e000-f11060",
+    "left-lafan1-walk1_subject2-e001-f1670",
+    "left-lafan1-walk1_subject5-e002-f5810",
+    "left-lafan1-walk2_subject1-e003-f7320",
+    "left-lafan1-walk3_subject2-e007-f9080"
+   ],
+   "right": [
+    "right-lafan1-walk1_subject2-e001-f3910",
+    "right-lafan1-walk1_subject5-e002-f6470",
+    "right-lafan1-walk3_subject2-e007-f9220",
+    "right-lafan1-walk3_subject5-e010-f3500"
+   ],
+   "turn": [
+    "turn-lafan1-walk1_subject1-e000-f1330",
+    "turn-lafan1-walk1_subject2-e001-f4380",
+    "turn-lafan1-walk2_subject1-e003-f8430",
+    "turn-lafan1-walk3_subject1-e006-f2510",
+    "turn-lafan1-walk3_subject2-e007-f2290"
+   ]
+  },
+  "arena": {
+   "forward": [
+    "forward-hoi_double_desk-e004-f650",
+    "forward-hoi_football-e001-f170",
+    "forward-hoi_pp_box-e016-f170",
+    "forward-hsi_open_door-e035-f220",
+    "forward-hsi_vision_navi-e000-f700"
+   ],
+   "backward": [
+    "backward-hoi_double_desk-e089-f400",
+    "backward-hoi_pp_box-e008-f670",
+    "backward-hsi_boxing-e082-f310",
+    "backward-hsi_sit_sofa-e061-f530",
+    "backward-hsi_vision_navi-e060-f1520"
+   ],
+   "left": [
+    "left-hoi_double_desk-e014-f840",
+    "left-hoi_football-e055-f340",
+    "left-hoi_grap_cup-e026-f880",
+    "left-hoi_pp_box-e015-f530",
+    "left-hsi_boxing-e004-f540"
+   ],
+   "right": [
+    "right-hoi_football-e055-f200",
+    "right-hoi_grap_cup-e099-f900",
+    "right-hsi_boxing-e036-f330",
+    "right-hsi_sit_sofa-e019-f210",
+    "right-hsi_vision_navi-e084-f1700"
+   ],
+   "turn": [
+    "turn-hoi_double_desk-e067-f400",
+    "turn-hoi_football-e020-f620",
+    "turn-hoi_pp_box-e034-f330",
+    "turn-hsi_sit_sofa-e070-f420",
+    "turn-hsi_vision_navi-e019-f1260"
+   ]
+  }
+ }
+}

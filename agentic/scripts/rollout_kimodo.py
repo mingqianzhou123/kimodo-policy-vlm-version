@@ -11,9 +11,15 @@ existing run.
 sample with a perfect tracker, and compares the result with what the run measured 0.5 to 5 s
 after its walk began. That is Kimodo's prediction over several chained plans (ten 0.5 s plans
 for 5 s), next to "the body stays where it was".
+
+``--sweep CONFIG`` measures the gait Kimodo generates under different ways of using it (text,
+root constraints, history, plan length, guidance, speed; ``agentic/configs/walk-attribution.json``),
+each walking direction and seed once with a perfect tracker, and writes one table next to the
+demonstrations' gait (``walk_attribution.py mine``). The model is loaded once.
 """
 import argparse
 import json
+import time
 from pathlib import Path
 
 import numpy as np
@@ -83,6 +89,107 @@ def chain_errors(rows, measured, begin):
     return out
 
 
+DIRECTION_GOALS = {'forward': [1, 0], 'backward': [-1, 0], 'left': [0, 1], 'right': [0, -1]}
+
+
+def condition_goal(direction, speed, cfg):
+    """The goal of one sweep rollout: far enough that the measured seconds are all walking."""
+    if direction == 'turn':
+        return {'name': 'turn', 'root': {'xy': [0., 0.], 'yaw_deg': cfg['turn_deg'], 'yaw_rate_deg_s': speed}}
+    return {'name': direction, 'root': {'xy': (np.array(DIRECTION_GOALS[direction])*cfg['distance_m']).tolist(),
+                                        'speed_m_s': speed}}
+
+
+def lead_through_window(segment_path, out):
+    """A copy of a recorded segment whose lead-in runs to the end of its directional window."""
+    segment = json.loads(Path(segment_path).read_text())
+    end = int(segment['window'][1])
+    segment['actions'], segment['window'] = segment['actions'][:end+2], [end, end+1]
+    out.write_text(json.dumps(segment))
+    return out
+
+
+def score_walk(rows, direction, speed, seconds):
+    """Gait and progress of the generated walk over its first ``seconds`` (perfect tracker)."""
+    from kimodo_vla.oracle.demo_walks import stepping
+    walk = [r for r in rows if r['phase'] == 'walk'][:int(round(seconds*50))]
+    if len(walk) < 25:
+        return None
+    feet = np.array([r['sent_feet'] for r in walk])
+    root = np.array([r['sent_root_world'] for r in walk])
+    rot = np.array([r['sent_root_rotation_world'] for r in walk])
+    yaw = np.unwrap(np.arctan2(rot[:, 1, 0], rot[:, 0, 0]))
+    c, sn = np.cos(yaw[0]), np.sin(yaw[0])
+    d = root[-1, :2]-root[0, :2]
+    local = np.array([c*d[0]+sn*d[1], -sn*d[0]+c*d[1]])
+    out = {'gait': stepping(feet), 'seconds': len(walk)/50, 'yaw_deg': float(np.degrees(yaw[-1]-yaw[0]))}
+    if direction == 'turn':
+        out['progress'] = out['yaw_deg']/(speed*out['seconds'])
+    else:
+        along = np.array(DIRECTION_GOALS[direction], dtype=float)
+        out['moved_m'] = float(local @ along)
+        out['progress'] = out['moved_m']/(speed*out['seconds'])
+        out['sideways_m'] = float(abs(along[0]*local[1]-along[1]*local[0]))
+    return out
+
+
+def sweep(args):
+    """Every condition x direction x seed of the sweep config; one results file and a table."""
+    from kimodo_vla.model.native_policy import NativeKimodoPolicy
+    cfg = json.loads(Path(args.sweep).read_text())
+    out = RUNS/args.run_id
+    out.mkdir(exist_ok=False)
+    (out/'config.json').write_text(json.dumps(cfg, indent=1))
+    start = json.loads((RUNS/cfg['start_from']/'execution.jsonl').open().readline())['before']
+    model = NativeKimodoPolicy(CHECKPOINTS/'Kimodo-G1-RP-v1', constraint_cfg=2.).to('cuda').eval()
+    text_cache = Path(args.text_cache) if args.text_cache else sim_cache()/'text-eval'
+    results = []
+    only = set(args.only or cfg['conditions'])
+    for name, change in cfg['conditions'].items():
+        if name not in only:
+            continue
+        use = {**cfg['base'], **change}
+        for direction in cfg['directions']:
+            speed = use['speed'][direction] if isinstance(use['speed'], dict) else use['speed']
+            if direction == 'turn':
+                speed = use.get('turn_rate', cfg['base']['turn_rate'])
+                speed = speed[direction] if isinstance(speed, dict) else speed
+            for i, seed in enumerate(cfg['seeds']):
+                run = out/f'{name}-{direction}-s{seed}'
+                run.mkdir()
+                goal = run/'goal.json'
+                goal.write_text(json.dumps(condition_goal(direction, speed, cfg)))
+                lead = None
+                if use.get('lead'):
+                    names = cfg['lead_segments'][use['lead']][direction]
+                    lead = lead_through_window(Path(dict(args.lead_dirs)[use['lead']])/f'{names[i % len(names)]}.json',
+                                               run/'lead.json')
+                began = time.time()
+                policy = LocomotionPolicy(CHECKPOINTS/'Kimodo-G1-RP-v1', text_cache, run, 'hold',
+                    constraint_cfg=use['constraint_cfg'], variant='bounded', joint_speed=4.,
+                    support_constraints='none', hand_constraints='keyframes', trajectory_projection='none',
+                    motion_goal=goal, noise_seed=seed, walk_steps=use['walk_steps'],
+                    text=cfg['texts'][direction] if use.get('text') else None, text_cfg=use.get('text_cfg', 2.),
+                    root_constraints=use['root_constraints'], history_frames=use['history_frames'],
+                    lead_segment=lead, model=model)
+                lead_s = 0. if lead is None else (len(json.loads(lead.read_text())['actions'])+50)/50
+                rows = follow(policy, start, .7+lead_s+cfg['seconds']+.1)
+                result = {'condition': name, 'direction': direction, 'seed': seed, 'use': use, 'speed': speed,
+                          'lead': None if lead is None else json.loads(lead.read_text())['name'],
+                          'wall_s': time.time()-began,
+                          'walk': score_walk(rows, direction, speed, cfg['seconds'])}
+                (run/'result.json').write_text(json.dumps(result, indent=1))
+                for f in run.glob('plan-*.npz'):
+                    f.unlink()              # the per-plan arrays are 0.2 MB each; the table needs none of them
+                (run/'commands.jsonl').unlink(missing_ok=True)
+                results.append(result)
+                w = result['walk']
+                print(f"{name} {direction} s{seed}: " + ('no walk' if w is None else
+                      f"progress {w['progress']:.2f}, slide {w['gait']['slide_m_s'] or 0:.3f}, "
+                      f"both {w['gait']['both_moving']:.2f}, steps {w['gait']['steps']}"), flush=True)
+    (out/'sweep.json').write_text(json.dumps(results, indent=1))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--run-id', required=True)
@@ -95,7 +202,14 @@ def main():
     p.add_argument('--constraint-cfg', type=float, default=2.)
     p.add_argument('--joint-speed', type=float, default=4.)
     p.add_argument('--seconds', type=float, help='default: the goal\'s longest possible episode')
+    p.add_argument('--sweep', help='sweep config (agentic/configs/walk-attribution.json): gait under each way of using Kimodo')
+    p.add_argument('--only', nargs='*', help='with --sweep: these conditions only')
+    p.add_argument('--text-cache', help='with --sweep: the phrase embeddings (default <KVLA_SIM_CACHE>/text-eval)')
+    p.add_argument('--lead-dirs', nargs='*', default=[], type=lambda x: x.split('=', 1),
+                   help='with --sweep: SET=DIR for each set of recorded segments the config names (walk_attribution.py mine output)')
     args = p.parse_args()
+    if args.sweep:
+        return sweep(args)
     if args.against:
         theirs = json.loads((RUNS/args.against/'target.json').read_text())
         manifest = json.loads((RUNS/args.against/'run.json').read_text())
