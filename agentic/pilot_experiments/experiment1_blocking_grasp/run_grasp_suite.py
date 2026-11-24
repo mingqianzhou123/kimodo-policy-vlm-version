@@ -87,6 +87,8 @@ if __name__ == '__main__':
     p.add_argument('--speed', type=float, default=0., help='Region group: box speed in m/s')
     p.add_argument('--latch-delay-steps', type=int, default=75, help='Region group: steps each round waits')
     p.add_argument('--per-gpu', type=int, default=1, help='Episodes run side by side on each GPU')
+    p.add_argument('--conditions', nargs='+', metavar='SPEED:DELAY', help='Region group: several conditions in one '
+                   'queue, run in the order given, e.g. 0:194 0.03:194 0.1:194; replaces --speed and --latch-delay-steps')
     args, args.extra = p.parse_known_args()
     config = json.loads((ROOT/'configs/grasp-loop.json').read_text())
     jobs, lock = queue.Queue(), threading.Lock()
@@ -102,13 +104,16 @@ if __name__ == '__main__':
                 jobs.put((f'exp1-map-{args.tag}-{cell_name(cell)}', config['stand']['map']['first_seed'] + i,
                           ['--stand-still', '--box-at', *map(str, values), *delay, *shared]))
         else:
-            prefix = region_prefix(args.speed, args.latch_delay_steps, config)
             group = config['seeds']['region']
             if not set(args.seeds or group) <= set(group):
                 raise SystemExit('Seeds outside the region group')
-            for seed in args.seeds or group:
-                jobs.put((f'{prefix}-{args.tag}-s{seed}', seed, ['--stand-still', '--box-in-region',
-                          '--box-speed', str(args.speed), *delay, *shared]))
+            conditions = ([tuple(map(float, c.split(':'))) for c in args.conditions] if args.conditions
+                          else [(args.speed, args.latch_delay_steps)])
+            for speed, steps in conditions:
+                prefix = region_prefix(speed, int(steps), config)
+                for seed in args.seeds or group:
+                    jobs.put((f'{prefix}-{args.tag}-s{seed}', seed, ['--stand-still', '--box-in-region',
+                              '--box-speed', str(speed), '--latch-delay-steps', str(int(steps)), *shared]))
         workers = [threading.Thread(target=work, args=(gpu, jobs, args, lock))
                    for _ in range(args.per_gpu) for gpu in args.gpus]
         for i, worker in enumerate(workers):

@@ -106,9 +106,10 @@ def displacement(results, bins=BINS_CM):
     for r in results:
         for a in r['attempts']:
             n = a.get('notes', {})
-            if 'reach_box_pos' not in n:
+            # Runs before 2026-11-25 kept only the closing position; rounds that never closed then drop out.
+            at = n.get('close_box_pos', n.get('reach_box_pos'))
+            if at is None:
                 continue
-            at = n.get('close_box_pos', n['reach_box_pos'])
             latched = a['latched_box_pos']
             rows.append({'run': r['run'], 'round': a['attempt'], 'success': a['label'] == 'success', 'label': a['label'],
                          'lateral_cm': abs(at[1] - latched[1]) * 100,
