@@ -77,7 +77,10 @@ def install_oracle_bridge():
                 'foot_rot': [rotation_wxyz(q).tolist() for q in data.body_quat_w[0,foot_ids].detach().cpu().numpy()],
                 'wrist_velocity': data.body_lin_vel_w[0, wrist_ids].detach().cpu().numpy().tolist(),
                 'box_pos': box[:3].tolist(), 'box_quat': box[3:7].tolist(),
-                **({'box_com': env.scene['box'].data.root_com_pos_w[0].detach().cpu().numpy().tolist()} if grasp else {}),
+                **({'box_com': env.scene['box'].data.root_com_pos_w[0].detach().cpu().numpy().tolist(),
+                    # torque the actuators applied, canonical joint order (for the proprioceptive checks)
+                    'applied_torque': data.applied_torque[0, joint_ids].detach().cpu().numpy().tolist()}
+                   if grasp else {}),
                 'hand_joint_pos': {n: float(data.joint_pos[0,i]) for i,n in enumerate(joint_names)
                                    if i not in joint_ids},
                 'gripper_command': [int(provider._left_hand_binary_state), int(provider._right_hand_binary_state)]}
