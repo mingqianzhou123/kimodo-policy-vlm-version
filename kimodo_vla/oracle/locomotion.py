@@ -52,6 +52,9 @@ no text, the root ground path and heading on every frame, up to 100 history fram
   lead_segment      a recorded walking segment (``demo_walks``) played open loop before the walk,
                     so the walk's history is real walking; the goal is then relative to where the
                     body is and faces when the lead-in ends
+  walk_clips        a gait-cycle library (``clip_legs``): the walk is looped recorded strides chosen
+                    from the measured position, Kimodo is not called until the walk has stopped
+                    (the reach, if any, is Kimodo's as before); there is no separate stop plan
 """
 import json
 import time
@@ -67,6 +70,7 @@ from kimodo_vla.model.planner import _episode_noise_seed
 from kimodo_vla.model.sparse_conditions import hand_keyframe
 from kimodo_vla.motion.g1_reference import _interpolate_motion, rot6d_row_to_matrix
 from .continuity import blend_reference, bounded_hinge_trajectory
+from .clip_legs import ClipWalker, load_library
 from .demo_walks import Timeline, load_segment
 from .geometry import BASIS, SIDES, angle_deg, rotation_wxyz
 from .hand_path import execution_frames
@@ -291,9 +295,10 @@ class LocomotionPolicy(OraclePolicy):
     # Ways of using Kimodo (module docstring); class defaults are experiment two's setting.
     text, text_cfg, text_feat = None, 2., None
     root_constraints, history_frames, lead = 'dense', 100, None
+    clips, clip_walker = None, None
 
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
-                 root_constraints='dense', history_frames=100, lead_segment=None, model=None, **kwargs):
+                 root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None, **kwargs):
         # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
         # are solved for the path pose; legs and trunk stay as Kimodo generated them.
         self.arm_ik = bool(arm_ik)
@@ -308,6 +313,9 @@ class LocomotionPolicy(OraclePolicy):
         self.lead = None if lead_segment is None else load_segment(lead_segment)
         if self.lead is not None and 'root' not in self.goal:
             raise ValueError('A recorded lead-in comes before a walk')
+        self.clips = None if walk_clips is None else load_library(walk_clips)
+        if self.clips is not None and ('root' not in self.goal or self.lead is not None):
+            raise ValueError('Walking on recorded cycles needs a root goal and no lead-in')
         self.shared_model = model      # a loaded model to reuse (offline sweeps), else OraclePolicy loads one
         super().__init__(*args, **kwargs)
         self.text, self.text_cfg = text, float(text_cfg)
@@ -331,6 +339,7 @@ class LocomotionPolicy(OraclePolicy):
         self.hand_start = self.hand_begin = self.stance_xz = self.walk_begin = None
         self.stop_sent = self.lean_sent = False
         self.lead_timeline = self.lead_begin = self.lead_end_step = None
+        self.clip_walker = None
         self.walk_yaw = self.last_yaw = self.turned = 0.
         status = super().reset(seed)
         if self.noise_seed is not None:
@@ -427,7 +436,28 @@ class LocomotionPolicy(OraclePolicy):
         began = Rotation.from_euler('z', np.radians(self.lead_yaw)).as_matrix()
         relative = np.einsum('ij,tjk->tik', began, rot6d_row_to_matrix(torch.from_numpy(actions[:, 3:9])).numpy())
         actions[:, 3:9] = relative[:, :, :2].reshape(len(actions), 6)
-        # Log in the walk plans' format, the root integrated from where the body is now.
+        self.log_open_loop(actions, relative, obs, 'lead', {'lead_index': int(index)})
+        return {'action_chunk': actions.tolist(), 'oracle_target': self.target_info}
+
+    def clip_chunk(self, obs):
+        """The next commands of the walk on recorded gait cycles (``clip_legs``)."""
+        here = (np.asarray(obs['root_pos'], dtype=float)-self.frame.origin) @ self.frame.heading
+        if self.clip_walker is None:
+            rot = self.frame.heading.T @ rotation_wxyz(obs['reference_root_quat'])
+            stance = np.r_[0., 0., obs['reference_root_pos'][2], rot[:, :2].ravel(), obs['reference_joints'], 0., 0.]
+            goal = self.frame.heading.T @ (np.r_[self.frame.world([self.root_end[0], 0., self.root_end[1]])[:2], 0.]
+                                           - self.frame.origin)
+            turn = self.goal['root'].get('yaw_deg', 0.)
+            self.clip_walker = ClipWalker(self.clips, goal[:2], self.walk_yaw+turn if turn else 0., stance,
+                                          variant=(self.seed or 1000)-1000, tolerance_m=self.goal['root']['tolerance_m'])
+        actions = self.clip_walker.chunk(here[:2], self.measured_yaw(obs), obs['time'])
+        relative = rot6d_row_to_matrix(torch.from_numpy(actions[:, 3:9])).numpy()
+        self.log_open_loop(actions, relative, obs, 'walk', {'clip': self.clip_walker.current,
+                                                            'expected_advance': dict(self.clip_walker.expected)})
+        return {'action_chunk': actions.tolist(), 'oracle_target': self.target_info}
+
+    def log_open_loop(self, actions, relative, obs, phase, extra):
+        """Log commands that did not come from Kimodo in the walk plans' format, root integrated from the body."""
         rotation = self.frame.heading @ relative
         root, rows = np.array(obs['root_pos'], dtype=float), []
         for i, (a, r) in enumerate(zip(actions, rotation)):
@@ -435,7 +465,7 @@ class LocomotionPolicy(OraclePolicy):
             root = np.array([root[0]+step[0], root[1]+step[1], a[2]])
             wrist = self.fk(a[9:38], root, r)[0]
             feet = self.fk(a[9:38], root, r, body_names=self.foot_names)[0]
-            rows.append({'plan': self.plan_index, 'action_index': i, 'time': obs['time']+(i+1)/50, 'phase': 'lead',
+            rows.append({'plan': self.plan_index, 'action_index': i, 'time': obs['time']+(i+1)/50, 'phase': phase,
                          'raw_projected_wrist': wrist.tolist(), 'sent_wrist': wrist.tolist(),
                          'raw_joints': a[9:38].tolist(), 'sent_joints': a[9:38].tolist(),
                          'raw_root_world': root.tolist(), 'sent_root_world': root.tolist(),
@@ -444,11 +474,9 @@ class LocomotionPolicy(OraclePolicy):
         with (self.run/'commands.jsonl').open('a') as f:
             f.write(''.join(json.dumps(x)+'\n' for x in rows))
         with (self.run/'plans.jsonl').open('a') as f:
-            f.write(json.dumps({'plan': self.plan_index, 'time': obs['time'], 'phase': 'lead', 'sent_steps': size,
-                                'lead_index': int(index), 'model_called': False, 'inference_s': 0.,
-                                'root_path_error_m': 0.})+'\n')
+            f.write(json.dumps({'plan': self.plan_index, 'time': obs['time'], 'phase': phase, 'sent_steps': len(actions),
+                                'model_called': False, 'inference_s': 0., 'root_path_error_m': 0., **extra})+'\n')
         self.plan_index += 1
-        return {'action_chunk': actions.tolist(), 'oracle_target': self.target_info}
 
     def save_target(self):
         (self.run/'target.json').write_text(json.dumps(self.target_info, indent=2))
@@ -498,6 +526,11 @@ class LocomotionPolicy(OraclePolicy):
                 self.enter('walk' if 'root' in self.goal else 'lean' if 'lean' in self.goal else 'reach', obs)
         if self.phase == 'lead' and self.lead_end_step is not None and step_of(obs, self.start_time) >= self.lead_end_step:
             self.enter('walk', obs)
+        if self.phase == 'walk' and self.clips is not None:
+            if self.clip_walker is not None and self.clip_walker.done:
+                self.target_info['clip_walk'] = self.clip_walker.log
+                self.enter('reach' if 'hand' in self.goal else 'hold', obs)
+            return self.phase
         if self.phase == 'walk':
             remaining = float(np.linalg.norm(self.root_end-self.measured_xz(obs)))
             yaw_left = abs(self.yaw_remaining(obs))
@@ -635,6 +668,8 @@ class LocomotionPolicy(OraclePolicy):
             return self.hold_chunk(obs)
         if phase == 'lead':
             return self.lead_chunk(obs)
+        if phase == 'walk' and self.clips is not None:
+            return self.clip_chunk(obs)
         sent = {'reach': REACH_STEPS, 'lean': LEAN_STEPS, 'stop': STOP_STEPS}.get(phase, self.walk_steps)
         # Every plan starts from where the body is. In a reach the conditions stay on the stance it
         # began with; without this the reference's root wandered 0.3 m from the body over a reach,

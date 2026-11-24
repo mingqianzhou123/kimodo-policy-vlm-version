@@ -223,6 +223,102 @@
     "speed_m_s": 0.35,
     "reach_s": 1.5
    }
+  },
+  "clip-walk": {
+   "runs": "exp2-clipwalk",
+   "note": "Legs from LAFAN1 gait cycles (pass --walk-clips <library>); the seed picks the cycle variant (seed-1000). Goals as experiment two's, plus a 90 degree left turn; stop within 10 cm.",
+   "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+   ],
+   "goals": [
+    {
+     "name": "forward-050",
+     "root": {
+      "xy": [
+       0.5,
+       0.0
+      ],
+      "tolerance_m": 0.1
+     }
+    },
+    {
+     "name": "left-050",
+     "root": {
+      "xy": [
+       0.0,
+       0.5
+      ],
+      "tolerance_m": 0.1
+     }
+    },
+    {
+     "name": "right-050",
+     "root": {
+      "xy": [
+       0.0,
+       -0.5
+      ],
+      "tolerance_m": 0.1
+     }
+    },
+    {
+     "name": "backward-050",
+     "root": {
+      "xy": [
+       -0.5,
+       0.0
+      ],
+      "tolerance_m": 0.1
+     }
+    },
+    {
+     "name": "turn-090",
+     "root": {
+      "xy": [
+       0.0,
+       0.0
+      ],
+      "yaw_deg": 90,
+      "tolerance_m": 0.1
+     }
+    }
+   ]
+  },
+  "clip-reach": {
+   "runs": "exp2-clipreach",
+   "note": "Walk on LAFAN1 gait cycles (pass --walk-clips <library>), then experiment two's reach with arm IK (configuration two).",
+   "flags": [
+    "--arm-ik"
+   ],
+   "seeds": [
+    1000
+   ],
+   "reach_grid": {
+    "distances_m": [
+     1.0,
+     1.8
+    ],
+    "heights_m": [
+     0.95
+    ],
+    "lateral_m": -0.2,
+    "standoff_m": {
+     "0.95": 0.35
+    },
+    "approach_pitch_deg": {
+     "0.95": {
+      "level": 0,
+      "down": -40
+     }
+    },
+    "walk_threshold_m": 0.05,
+    "speed_m_s": 0.35,
+    "reach_s": 1.5
+   }
   }
  }
 }

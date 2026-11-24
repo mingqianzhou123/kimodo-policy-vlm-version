@@ -20,6 +20,9 @@ the demonstrations' gait measured here. Subcommands:
              walk_attribution.py cross --conditions base text --tag <tag> --gpus 0 6 7 \
                  --text-cache <dir> --lead-dirs lafan=<dir> arena=<dir>
              walk_attribution.py score-cross '<tag>-*'
+  cycles the gait-cycle library for walking on recorded strides (kimodo_vla/oracle/clip_legs.py):
+             walk_attribution.py cycles --segments <LAFAN1 segments dir> --out <library.json>
+         then run_motion_suite.py --group clip-walk / clip-reach ... --walk-clips <library.json>
   table  test two's table: each sweep condition's gait per direction next to the recorded
          references' (medians over seeds):
              walk_attribution.py table --sweep <run id> [<run id> ...] --baseline <segments dir> [...]
@@ -365,6 +368,16 @@ def sweep_table(args):
                       f"{f(c['cadence_hz'])} | {f(c['progress'])} |")
 
 
+def cycles(args):
+    from kimodo_vla.oracle.clip_legs import build_library
+    paths = sorted(p for p in Path(args.segments).glob('*.json') if p.name != 'segments.json')
+    library = build_library(paths)
+    Path(args.out).write_text(json.dumps(library))
+    for name, cs in library.items():
+        print(name, [(c['source'][:40], round(c['seconds'], 2), [round(x, 2) for x in c['advance_m']], round(c['yaw_deg']),
+                      round(c['loop_cost'], 2)) for c in cs])
+
+
 def score(args):
     rows = []
     for run in sorted(RUNS.glob(args.pattern)):
@@ -458,11 +471,14 @@ def main():
     y = sub.add_parser('score-cross')
     y.add_argument('pattern')
     y.add_argument('--seconds', type=float, default=4.)
+    k = sub.add_parser('cycles')
+    k.add_argument('--segments', required=True)
+    k.add_argument('--out', required=True)
     t = sub.add_parser('table')
     t.add_argument('--sweep', nargs='+', required=True)
     t.add_argument('--baseline', nargs='+', required=True, help='segment dirs written by mine')
     args = p.parse_args()
-    {'table': sweep_table, 'mine': mine, 'suite': suite, 'score': score, 'cross': cross, 'score-cross': score_cross}[args.command](args)
+    {'cycles': cycles, 'table': sweep_table, 'mine': mine, 'suite': suite, 'score': score, 'cross': cross, 'score-cross': score_cross}[args.command](args)
 
 
 if __name__ == '__main__':
