@@ -79,6 +79,50 @@ def qpos_to_actions(qpos, fps):
     return dw.lafan1_actions(rows, fps=fps)
 
 
+def compare_port(args, model):
+    """Official ``_generate`` vs ``kimodo_vla.model.segment_sampler.sample_segment`` from the same noise."""
+    from kimodo.constraints import Root2DConstraintSet
+    from kimodo_vla.model.native_policy import NativeKimodoPolicy
+    from kimodo_vla.model.segment_sampler import sample_segment
+    ours = NativeKimodoPolicy(Path(args.checkpoint_dir)/'Kimodo-G1-RP-v1').to('cuda').eval()
+    text = CachedText(args.text_cache)
+    frames, rows = int(args.seconds*model.fps), []
+    for direction in args.directions:
+        if direction == 'turn':
+            continue
+        key, prompt = PROMPTS[direction]
+        for seed in args.seeds[:2]:
+            for case in ('text', 'path-notext'):
+                observed = mask = None
+                cfg = [2., 2.]
+                if case == 'path-notext':
+                    unit = {'forward': (0., 1.), 'backward': (0., -1.), 'left': (1., 0.), 'right': (-1., 0.)}[direction]
+                    xz = torch.tensor(np.outer(.35*np.arange(frames)/model.fps, unit), dtype=torch.float32, device='cuda')
+                    c = Root2DConstraintSet(model.skeleton, torch.arange(frames, device='cuda'), xz,
+                                            global_root_heading=torch.tensor(np.tile([1., 0.], (frames, 1)), dtype=torch.float32, device='cuda'))
+                    observed, mask = model.motion_rep.create_conditions_from_constraints_batched(
+                        [c], torch.tensor([frames], device='cuda'), to_normalize=True, device='cuda')
+                    cfg = [0., 2.]
+                torch.manual_seed(seed)
+                theirs = model._generate([prompt], frames, num_denoising_steps=args.steps,
+                                         pad_mask=torch.ones(1, frames, dtype=torch.bool, device='cuda'),
+                                         first_heading_angle=torch.zeros(1, device='cuda'), motion_mask=mask,
+                                         observed_motion=observed, cfg_weight=cfg, progress_bar=lambda x: x)
+                if mask is None:
+                    values, m = torch.zeros(frames, ours.representation.motion_rep_dim), torch.zeros(frames, ours.representation.motion_rep_dim, dtype=torch.bool)
+                else:
+                    m = mask[0].bool().cpu()
+                    values = ours.representation.unnormalize(observed[0].float()).cpu().masked_fill(~m, 0)
+                torch.manual_seed(seed)
+                feats, _ = sample_segment(ours, values, m, first_heading=0., text_feat=text.table[prompt] if case == 'text' else None,
+                                          text_weight=cfg[0], constraint_weight=cfg[1], steps=args.steps)
+                mine = ours.representation.normalize(feats.to('cuda')[None])
+                diff = float((mine-theirs.float()).abs().max())
+                rows.append({'direction': direction, 'seed': seed, 'case': case, 'max_abs_diff_normalized': diff})
+                print(direction, seed, case, f'max |official - ours| (normalized features) = {diff:.2e}', flush=True)
+    print(json.dumps(rows))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--kimodo-src', required=True)
@@ -89,6 +133,8 @@ def main():
     p.add_argument('--seeds', type=int, nargs='+', default=[1000, 1001, 1002, 1003, 1004])
     p.add_argument('--steps', type=int, default=100, help='DDIM steps (the official script\'s default is 100)')
     p.add_argument('--directions', nargs='+', default=list(PROMPTS))
+    p.add_argument('--compare-port', action='store_true',
+                   help='instead: check that kimodo_vla.model.segment_sampler reproduces the official sampler (same seed)')
     p.add_argument('--variant', default='official', choices=['official', 'single', 'steps-50', 'path-text', 'path-notext',
                                                                'short', 'history', 'history-path-notext'])
     args = p.parse_args()
@@ -106,6 +152,8 @@ def main():
              if j.get('name') and j.get('type', 'hinge') == 'hinge']
     if tuple(names) != dw.LAFAN1_G1_JOINTS:
         raise SystemExit(f'Unexpected joint order in {converter.xml_path}: {names}')
+    if args.compare_port:
+        return compare_port(args, model)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=False)
     frames = int(args.seconds*model.fps)
