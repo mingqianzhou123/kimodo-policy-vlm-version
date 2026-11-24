@@ -192,10 +192,11 @@ Arena 的 SONIC 输入是 29 个关节角和角速度的参考窗口、根部朝
 ## 复现
 
 ```bash
-python agentic/scripts/run_motion_suite.py --group sidestep --gpus 0 7      # 组名见 agentic/configs/exp2-motions.json
-python agentic/scripts/analyze_motion.py 'exp2-sidestep-20261124-r1-*' --markdown
-python agentic/scripts/analyze_prediction.py --suite exp2-sidestep-20261124-r1
-python agentic/scripts/rollout_kimodo.py --run-id <新名字> --against <一次已完成的运行>   # 连续生成的 3 s / 5 s 预测
+cd agentic/pilot_experiments/experiment2_reach_coverage
+python run_motion_suite.py --group sidestep --gpus 0 7      # 组名见同目录的 exp2-motions.json
+python analyze_motion.py 'exp2-sidestep-20261124-r1-*' --markdown
+python analyze_prediction.py --suite exp2-sidestep-20261124-r1
+python rollout_kimodo.py --run-id <新名字> --against <一次已完成的运行>   # 连续生成的 3 s / 5 s 预测
 ```
 
 运行目录：`exp2-forward-20261124-r1-*`、`exp2-sidestep-20261124-r1-*`、`exp2-backward-20261124-r1-*`、`exp2-lean-20261124-r1-*`、`exp2-reach-kimodo-20261124-r2-*`、`exp2-reach-ik-20261124-r2-*`；试跑是 `exp2probe-*`。

@@ -13,6 +13,8 @@ import signal
 import subprocess
 import time
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import AGENTIC as ROOT, REPO, sim_cache
 
 ARENA = 'sources/HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783/isaaclab_twist2_g1'
@@ -82,7 +84,7 @@ def capture_scene(name, scene, spec_path, out, gpu, probe, cache):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--spec', type=Path, default=ROOT/'configs/pointing-frames.json')
+    p.add_argument('--spec', type=Path, default=Path(__file__).with_name('pointing-frames.json'))
     p.add_argument('--out', type=Path, required=True, help='New dataset directory; use persistent storage')
     p.add_argument('--gpu', type=int, required=True)
     p.add_argument('--scenes', nargs='+')

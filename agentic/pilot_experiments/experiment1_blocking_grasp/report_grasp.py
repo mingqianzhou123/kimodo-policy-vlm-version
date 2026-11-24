@@ -1,12 +1,15 @@
 """Summarize a set of blocking grasp runs: success by episode, attempts by label, contact and slip rates.
 
-    python agentic/scripts/report_grasp.py 'exp1-static-20261124-r1-*'
+    python agentic/pilot_experiments/experiment1_blocking_grasp/report_grasp.py 'exp1-static-20261124-r1-*'
 """
 import argparse
 from collections import Counter
 import fnmatch
 import json
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import RUNS
 
 

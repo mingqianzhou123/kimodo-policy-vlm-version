@@ -190,7 +190,7 @@ def test_hosted_backends_build_requests_and_keep_no_key(monkeypatch):
 
 def test_hosted_backends_refuse_to_guess_model_or_run_without_key(monkeypatch):
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
-    released = json.loads((Path(__file__).resolve().parents[1]/'configs/pointing-backends.json').read_text())
+    released = json.loads(Path(__file__).with_name('pointing-backends.json').read_text())
     for name in ('openai', 'gemini'):
         assert released[name]['request'] == {}  # provider defaults unless the user asks otherwise
         with pytest.raises(SystemExit, match='exact model version'):
@@ -200,7 +200,7 @@ def test_hosted_backends_refuse_to_guess_model_or_run_without_key(monkeypatch):
 
 
 def test_frame_specification_covers_the_plan():
-    spec = json.loads((Path(__file__).resolve().parents[1]/'configs/pointing-frames.json').read_text())
+    spec = json.loads(Path(__file__).with_name('pointing-frames.json').read_text())
     frames = spec['frames']
     assert len(frames) == 80 and len({f['id'] for f in frames}) == 80
     for category in ('small', 'occlusion', 'distance', 'distractor'):
