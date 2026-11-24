@@ -237,7 +237,7 @@ def group(items, key):
 
 # ---- three: age of the latched target ---------------------------------------------------------
 
-AGE_BINS_S = (0, 4, 5, 6, 8, 10, 12)
+AGE_BINS_S = (0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14)
 
 
 def age(pattern):
