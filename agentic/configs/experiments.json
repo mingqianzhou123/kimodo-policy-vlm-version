@@ -68,10 +68,10 @@
       "judgment": "每个模型分别判：反投影后的 3D 正确率低于 50%，这个模型的指点是瓶颈。开源不达标，把后处理或微调计入后续计划；闭源不达标，只能加后处理或改成闭源推理、开源指点。",
       "basis": ["vlm-refined-20261118-r1-*"],
       "steps": [
-        {"name": "80 帧第一视角 RGB-D 图像集与真值（已采的帧数手填）", "done": 0, "planned": 80},
-        {"name": "Qwen3-VL-4B（已评的帧数手填）", "done": 0, "planned": 80},
-        {"name": "GPT-6（已评的帧数手填）", "done": 0, "planned": 80},
-        {"name": "Gemini（已评的帧数手填）", "done": 0, "planned": 80}
+        {"name": "80 帧第一视角 RGB-D 图像集与真值（已采的帧数手填）", "done": 80, "planned": 80},
+        {"name": "Qwen3-VL-4B（已评的帧数手填）", "done": 80, "planned": 80},
+        {"name": "GPT-6（已评的帧数手填）", "done": 80, "planned": 80},
+        {"name": "Gemini（已评的帧数手填）", "done": 80, "planned": 80}
       ]
     },
     {
