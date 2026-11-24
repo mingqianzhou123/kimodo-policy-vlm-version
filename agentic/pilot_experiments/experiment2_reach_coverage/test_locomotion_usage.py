@@ -153,3 +153,48 @@ def test_segment_generator_plans_whole_segments_without_history(tmp_path, monkey
     with pytest.raises(ValueError):
         lo.LocomotionPolicy.__init__(lo.LocomotionPolicy.__new__(lo.LocomotionPolicy), motion_goal=WALK,
                                      generator='segment', segment_seconds=4., walk_steps=250)
+
+
+def test_native_generator_continues_the_sent_reference_over_a_few_frames(tmp_path, monkeypatch):
+    from kimodo_vla.oracle import locomotion as lo
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'fwd', 'root': {'xy': [.6, 0.]}})
+    policy.generator_mode, policy.segment_frames, policy.segment_steps = 'native', 90, 100
+    policy.transition_frames, policy.walk_steps = 5, 50
+    rep = policy.model.representation
+    slot, calls, stand_in = rep.slice_dict['smooth_root_pos'].start, [], policy.model
+    joints = rep.slice_dict['local_joints_positions']
+
+    def fake_sample(model, values, mask, *, first_heading, text_feat, text_weight, constraint_weight, steps, generator):
+        calls.append(dict(frames=len(values), mask=mask.clone(), values=values.clone(), heading=first_heading,
+                          text=text_feat))
+        r = stand_in.pose['root_positions'].repeat(len(values), 1)
+        known = mask[:, slot]
+        xz = values[:, [slot, slot+2]].clone()
+        for k in range(len(xz)):                              # hold the last conditioned ground point
+            if not known[k] and k:
+                xz[k] = xz[k-1]
+        r[:, 0], r[:, 2] = xz[:, 0], xz[:, 1]
+        local = stand_in.pose['local_rot_mats'].repeat(len(values), 1, 1, 1)
+        feats = stand_in.representation(local, r, to_normalize=False)
+        return (feats[0] if feats.ndim == 3 else feats), {}
+    monkeypatch.setattr(lo, 'sample_segment', fake_sample)
+    follow(policy, start, 6.)
+    assert calls and stand_in.calls == []                     # the history canvas is never used
+    plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
+    assert len(plans) == len(calls) and all(p['generator'] == 'native' and p['transition_frames'] == 5 for p in plans)
+    phases = [p['phase'] for p in plans]
+    assert 'walk' in phases and 'stop' in phases
+    for c, phase in zip(calls, phases):
+        body = c['mask'][:, joints].all(-1)
+        assert c['frames'] == 5+89 and body[:5].all()        # the five transition frames, in full
+        assert c['values'][0, slot] == 0. and c['values'][0, slot+2] == 0.   # moved to the ground origin
+        assert c['text'] is None                              # no text given
+        if phase == 'walk':
+            assert not body[5:].any() and c['mask'][5:, slot].all()   # then only the path, on every frame
+        else:                                                 # the stop plan ends in the standing pose
+            assert body[5+lo.STAND_FROM-1:].all()
+    reach = lo.LocomotionPolicy.__new__(lo.LocomotionPolicy)
+    with pytest.raises(ValueError):
+        lo.LocomotionPolicy.__init__(reach, motion_goal=WALK, text='auto')            # 'auto' is native only
+    with pytest.raises(ValueError):
+        lo.LocomotionPolicy.__init__(reach, motion_goal=WALK, generator='native', transition_frames=0)
