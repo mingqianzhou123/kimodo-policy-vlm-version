@@ -583,3 +583,19 @@ def test_rounds_are_binned_by_how_far_the_box_moved_before_the_hands_got_there()
     assert len(rows) == 3                                             # a round that never reached is left out
     lateral = {b['from_cm']: (b['rounds'], b['successes']) for b in table['lateral_cm']}
     assert lateral[0] == (1, 1) and lateral[1] == (1, 1) and lateral[5] == (1, 0)
+
+
+def test_followup_helpers_rank_auc_and_call_a_scene_wrecked():
+    from analyze_followups import auc, damage, logistic
+    assert auc([.1, .2, .8, .9], [0, 0, 1, 1]) == 1. and auc([.9, .8, .2, .1], [0, 0, 1, 1]) == 0.
+    assert auc([.5, .5, .5, .5], [0, 1, 0, 1]) == .5 and auc([1, 2], [1, 1]) is None
+    x = np.array([[0.], [1.], [2.], [3.]]); y = np.array([0., 0., 1., 1.])
+    score, _ = logistic(x, y)
+    assert auc(score(x), y) == 1.
+    layout = {'robot_xy': [-.9, CONFIG['stand']['robot_y_m']]}
+    inside = [CONFIG['scene']['table_edge_x_m'] + .16, CONFIG['stand']['robot_y_m'] - .05, .85]
+    calm = damage(inside, quat(10), [inside[0] + .02, inside[1], .85], quat(20), layout)
+    assert not calm['wrecked'] and calm['moved_cm'] == pytest.approx(2.) and calm['turned_deg'] == pytest.approx(10.)
+    assert damage(inside, quat(10), inside, quat(40), layout)['wrecked']                 # turned 30 degrees
+    assert damage(inside, quat(0), [inside[0], inside[1] + .08, .85], quat(0), layout)['outside']
+    assert damage(inside, quat(0), [inside[0] + .06, inside[1], .85], quat(0), None)['wrecked']
