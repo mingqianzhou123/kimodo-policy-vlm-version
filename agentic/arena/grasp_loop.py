@@ -113,8 +113,12 @@ class GraspLoop:
         now, com = sample['time'], sample['box_com']
         already = self.judge.success_time is not None
         success = self.judge.update(now, com[2], forces)
+        driven = self.motion is not None and self.drive_released_at is None
         self.measure(sample, forces)
-        self.attempts[-1].update(now, com, up_z(sample['box_quat']), forces, self.gate.closed, success)
+        if driven and self.drive_released_at is not None:
+            self.attempts[-1].shove_from = tuple(com[:2])   # pushes count from where the drive let go
+        self.attempts[-1].update(now, com, up_z(sample['box_quat']), forces, self.gate.closed, success,
+                                 driven=driven and self.drive_released_at is None)
         row = {'time': now, 'round': self.info['round'], 'phase': self.info['phase'], 'box_com': com,
                'box_quat': sample['box_quat'], 'wrist_pos': sample['wrist_pos'], 'hands_closed': self.gate.closed,
                'gate': self.gate.status, 'lift_m': com[2] - self.judge.rest_height, 'success': success, **forces}

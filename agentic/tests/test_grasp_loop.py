@@ -520,3 +520,19 @@ def test_region_conditions_have_the_progress_page_names():
     with pytest.raises(SystemExit):
         region_prefix(.3, 194, CONFIG)
     assert not set(CONFIG['seeds']['region']) & (set(CONFIG['seeds']['debug']) | set(CONFIG['seeds']['heldout']))
+
+
+def test_a_driven_box_away_from_its_latch_is_not_knocked_over_until_it_is_pushed(tmp_path):
+    loop = GraspLoop(tmp_path, CONFIG, stop=lambda: None, layout={'speed_mps': .3, 'segment_y': [-5., -4.5], 'direction': 1})
+    base = {'wrist_pos': [[0.]*3]*2, 'wrist_rot': [EYE.tolist()]*2, 'root_pos': [-.84, -4.75, .78],
+            'wrist_velocity': [[0.]*3]*2, 'box_quat': quat(0)}
+    at = lambda t, y: {**base, 'time': t, 'box_com': [BOX[0], y, .85]}
+    loop.on_plan({'round': 0, 'phase': 'wait', 'latch_time': 0., 'latched_box_pos': [BOX[0], -4.9, .85],
+                  'hands': 'open', 'event': None}, at(0., -4.9))
+    loop.after_step(at(1., -4.6), RESTING)                            # 30 cm from the latch, carried by the drive
+    assert loop.attempts[0].label == 'no_contact'
+    loop.after_step(at(1.02, -4.6), dict(RESTING, right_n=.2))        # a hand touches: the drive lets go here
+    loop.after_step(at(1.5, -4.55), RESTING)
+    assert loop.attempts[0].label == 'touched_not_held'
+    loop.after_step(at(2., -4.45), RESTING)                           # now pushed 15 cm by the hand
+    assert loop.attempts[0].label == 'knocked_over'
