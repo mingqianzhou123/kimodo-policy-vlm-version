@@ -243,3 +243,20 @@ def test_open_loop_plans_from_the_reference_not_the_body(tmp_path, monkeypatch, 
         assert max(shifts) > .05                              # replanned from the body
     with pytest.raises(ValueError):
         lo.LocomotionPolicy.__init__(lo.LocomotionPolicy.__new__(lo.LocomotionPolicy), motion_goal=WALK, open_loop=True)
+
+
+def test_native_stop_after_a_turn_stands_facing_the_turned_heading(tmp_path):
+    from kimodo_vla.motion.feature_utils import compute_heading_angle
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'turn', 'root': {'xy': [0., 0.], 'yaw_deg': 90}})
+    policy.initialize(start)
+    rep = policy.model.representation
+    standing = policy.standing_features.clone()
+    target = policy.heading_features(90.)[0]
+    turned = policy.turned_standing(standing, target)
+    assert torch.allclose(turned[policy.heading_slice], target, atol=1e-4)
+    # the joints turned with it: the hip heading of the decoded pose is the target's
+    def hips(f):
+        return float(compute_heading_angle(rep.inverse(f[None, None], is_normalized=False)['posed_joints'], rep.skeleton)[0, 0])
+    want = float(torch.atan2(target[1], target[0]))
+    assert abs((hips(turned)-want+np.pi) % (2*np.pi)-np.pi) < np.radians(2)
+    assert abs((hips(standing)-want+np.pi) % (2*np.pi)-np.pi) > np.radians(80)

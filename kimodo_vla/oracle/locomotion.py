@@ -474,6 +474,17 @@ class LocomotionPolicy(OraclePolicy):
         self.last_yaw = now
         return self.goal['root']['yaw_deg']-self.turned
 
+    def turned_standing(self, standing, heading):
+        """Standing features rotated about the vertical so their heading entries equal ``heading`` (cos, sin)."""
+        rep = self.model.representation
+        now = standing[self.heading_slice]
+        delta = float(torch.atan2(heading[1], heading[0])-torch.atan2(now[1], now[0]))
+        for angle in (delta, -delta):
+            turned = rep.rotate(standing[None, None].cpu(), torch.tensor([angle]))[0, 0].to(standing)
+            if torch.allclose(turned[self.heading_slice], torch.as_tensor(heading).to(standing), atol=1e-4):
+                return turned
+        raise RuntimeError('Could not turn the standing pose to the requested heading')
+
     def heading_features(self, yaw_deg):
         """Kimodo heading features [N, 2] of the standing pose turned ``yaw_deg`` (start frame, left positive)."""
         yaw = np.radians(np.atleast_1d(np.asarray(yaw_deg, dtype=float)))
@@ -694,6 +705,11 @@ class LocomotionPolicy(OraclePolicy):
             mask[k, self.heading_slice] = True
         if phase == 'stop':
             standing = self.standing_features.clone()
+            if heading is not None and self.generator_mode == 'native':
+                # The standing pose turned to the heading reached; without this the pose (joint
+                # positions and rotations, not only the heading entries) faces the start and the stop
+                # plan turns the body back. Only for the native generator: the other paths keep theirs.
+                standing = self.turned_standing(standing, heading[-1])
             standing[self.root_slot], standing[self.root_slot+2] = float(path[-1, 0]), float(path[-1, 1])
             if heading is not None:
                 standing[self.heading_slice] = heading[-1]
