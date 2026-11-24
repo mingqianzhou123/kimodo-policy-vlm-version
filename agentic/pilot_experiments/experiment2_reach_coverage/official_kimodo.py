@@ -101,8 +101,8 @@ def main():
         for seed in args.seeds:
             seed_everything(seed)
             began = time.time()
-            motion = model([prompt], [frames], num_denoising_steps=args.steps, multi_prompt=True,
-                           num_transition_frames=5, post_processing=False, return_numpy=True)
+            motion = model([prompt], [frames], num_denoising_steps=args.steps, num_samples=1, multi_prompt=True,
+                           num_transition_frames=5, post_processing=False, return_numpy=True)  # as generate.py calls it
             qpos = converter.dict_to_qpos(motion, root_quat_w_first=True)
             qpos = np.asarray(qpos)[0] if np.asarray(qpos).ndim == 3 else np.asarray(qpos)
             actions = qpos_to_actions(qpos, model.fps)
