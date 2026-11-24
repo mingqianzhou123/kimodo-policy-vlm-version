@@ -325,14 +325,14 @@
    "flags": [
     "--generator",
     "native",
-    "--text",
-    "auto",
     "--walk-steps",
     "50",
     "--segment-seconds",
     "5",
     "--transition-frames",
-    "5"
+    "5",
+    "--approach-gain",
+    "2"
    ],
    "seeds": [
     1000,
@@ -352,21 +352,21 @@
      }
     }
    ],
-   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py): same goals and seeds as the group without 'native-'; pass --text-cache <phrase embeddings> (the five walking phrases)."
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
   },
   "native-sidestep": {
    "runs": "exp2n-sidestep",
    "flags": [
     "--generator",
     "native",
-    "--text",
-    "auto",
     "--walk-steps",
     "50",
     "--segment-seconds",
     "5",
     "--transition-frames",
-    "5"
+    "5",
+    "--approach-gain",
+    "2"
    ],
    "goals": [
     {
@@ -402,21 +402,21 @@
      ]
     }
    ],
-   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py): same goals and seeds as the group without 'native-'; pass --text-cache <phrase embeddings> (the five walking phrases)."
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
   },
   "native-backward": {
    "runs": "exp2n-backward",
    "flags": [
     "--generator",
     "native",
-    "--text",
-    "auto",
     "--walk-steps",
     "50",
     "--segment-seconds",
     "5",
     "--transition-frames",
-    "5"
+    "5",
+    "--approach-gain",
+    "2"
    ],
    "seeds": [
     1000,
@@ -441,7 +441,7 @@
      }
     }
    ],
-   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py): same goals and seeds as the group without 'native-'; pass --text-cache <phrase embeddings> (the five walking phrases)."
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
   },
   "native-lean": {
    "runs": "exp2n-lean",
@@ -464,30 +464,30 @@
    "flags": [
     "--generator",
     "native",
-    "--text",
-    "auto",
     "--walk-steps",
     "50",
     "--segment-seconds",
     "5",
     "--transition-frames",
-    "5"
+    "5",
+    "--approach-gain",
+    "2"
    ],
-   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py): same goals and seeds as the group without 'native-'; pass --text-cache <phrase embeddings> (the five walking phrases). Hips-led lean only."
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'. Hips-led lean only."
   },
   "native-reach-kimodo": {
    "runs": "exp2n-reach-kimodo",
    "flags": [
     "--generator",
     "native",
-    "--text",
-    "auto",
     "--walk-steps",
     "50",
     "--segment-seconds",
     "5",
     "--transition-frames",
-    "5"
+    "5",
+    "--approach-gain",
+    "2"
    ],
    "seeds": [
     1000
@@ -527,21 +527,21 @@
     "speed_m_s": 0.35,
     "reach_s": 1.5
    },
-   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py): same goals and seeds as the group without 'native-'; pass --text-cache <phrase embeddings> (the five walking phrases)."
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
   },
   "native-reach-ik": {
    "runs": "exp2n-reach-ik",
    "flags": [
     "--generator",
     "native",
-    "--text",
-    "auto",
     "--walk-steps",
     "50",
     "--segment-seconds",
     "5",
     "--transition-frames",
     "5",
+    "--approach-gain",
+    "2",
     "--arm-ik"
    ],
    "seeds": [
@@ -582,7 +582,7 @@
     "speed_m_s": 0.35,
     "reach_s": 1.5
    },
-   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py): same goals and seeds as the group without 'native-'; pass --text-cache <phrase embeddings> (the five walking phrases)."
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
   }
  }
 }
