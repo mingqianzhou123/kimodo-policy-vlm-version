@@ -252,6 +252,9 @@ def cross(args):
                        '--share-policy-sim-gpu', '--gpu-min-free-mib', '16384', '--noise-seed', str(seed),
                        '--walk-steps', str(use['walk_steps']), '--constraint-cfg', str(use['constraint_cfg']),
                        '--root-constraints', use['root_constraints'], '--history-frames', str(use['history_frames'])]
+                if use.get('generator', 'policy') != 'policy':
+                    cmd += ['--generator', use['generator'], '--segment-seconds', str(use.get('segment_seconds', 4.)),
+                            '--segment-steps', str(use.get('segment_steps', 100))]
                 lead_s = 0.
                 if use.get('text'):
                     cmd += ['--text', cfg['texts'][direction], '--text-cfg', str(use.get('text_cfg', 2.)), '--text-cache', args.text_cache]

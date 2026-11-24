@@ -116,6 +116,23 @@
     "right": 0.44
    },
    "turn_rate": 90.0
+  },
+  "segment-0.5s": {
+   "generator": "segment",
+   "walk_steps": 25
+  },
+  "segment-1.6s": {
+   "generator": "segment",
+   "walk_steps": 80
+  },
+  "segment-whole": {
+   "generator": "segment",
+   "walk_steps": 198
+  },
+  "segment-1.6s+text": {
+   "generator": "segment",
+   "walk_steps": 80,
+   "text": true
   }
  },
  "lead_segments": {
@@ -192,5 +209,6 @@
     "turn-hsi_vision_navi-e019-f1260"
    ]
   }
- }
+ },
+ "segment_note": "segment-*: whole 4 s segments sampled the official Kimodo way (kimodo_vla/model/segment_sampler.py), 100 DDIM steps, the present only a frame-0 keyframe; walk_steps control steps executed before the next segment (198 = all of it)."
 }

@@ -127,3 +127,29 @@ def test_separated_guidance_reduces_to_constraint_guidance_without_text():
     assert SeparatedGuidance(model, 0., 2.)(**kw) == ConstraintGuidance(model, 2.)(**kw)
     u, c, t = 0., 8., 30.                                     # empty, constraints only, text only
     assert SeparatedGuidance(model, 3., 2.)(**kw) == pytest.approx(u+2*(c-u)+3*(t-u))
+
+
+def test_segment_generator_plans_whole_segments_without_history(tmp_path, monkeypatch):
+    from kimodo_vla.oracle import locomotion as lo
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'fwd', 'root': {'xy': [.6, 0.]}})
+    policy.generator_mode, policy.segment_frames, policy.segment_steps, policy.walk_steps = 'segment', 120, 100, 150
+    calls = []
+    stand_in = policy.model
+
+    def fake_sample(model, values, mask, *, first_heading, text_feat, text_weight, constraint_weight, steps, generator):
+        calls.append(dict(frames=len(values), steps=steps, first=mask[0].any().item(), heading=first_heading))
+        start_ = stand_in.representation.slice_dict['smooth_root_pos'].start
+        r = stand_in.pose['root_positions'].repeat(len(values), 1)
+        r[:, 0], r[:, 2] = values[:, start_], values[:, start_+2]
+        local = stand_in.pose['local_rot_mats'].repeat(len(values), 1, 1, 1)
+        return stand_in.representation(local, r, to_normalize=False)[0], {'local_rot_mats': local, 'root_positions': r}
+    monkeypatch.setattr(lo, 'sample_segment', fake_sample)
+    follow(policy, start, 8.)
+    assert calls and all(c['frames'] == 120 and c['steps'] == 100 and c['first'] for c in calls)
+    assert stand_in.calls == []                               # predict_future (the history canvas) never called
+    plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
+    walk = [p for p in plans if p['phase'] == 'walk']
+    assert walk and all(p['generator'] == 'segment' and p['canvas_frames'] == 120 and p['sent_steps'] == 150 for p in walk)
+    with pytest.raises(ValueError):
+        lo.LocomotionPolicy.__init__(lo.LocomotionPolicy.__new__(lo.LocomotionPolicy), motion_goal=WALK,
+                                     generator='segment', segment_seconds=4., walk_steps=250)

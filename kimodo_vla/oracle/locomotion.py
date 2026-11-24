@@ -52,6 +52,10 @@ no text, the root ground path and heading on every frame, up to 100 history fram
   lead_segment      a recorded walking segment (``demo_walks``) played open loop before the walk,
                     so the walk's history is real walking; the goal is then relative to where the
                     body is and faces when the lead-in ends
+  generator         'policy' (Kimodo-policy's canvas: up to 100 history frames + 50 generated, the
+                    default) or 'segment': walk and stop plans are whole segments of
+                    ``segment_seconds`` sampled the official Kimodo way (``model.segment_sampler``),
+                    the present only a frame-0 keyframe, ``segment_steps`` DDIM steps
   walk_clips        a gait-cycle library (``clip_legs``): the walk is looped recorded strides chosen
                     from the measured position, Kimodo is not called until the walk has stopped
                     (the reach, if any, is Kimodo's as before); there is no separate stop plan
@@ -70,6 +74,7 @@ from kimodo_vla.model.planner import _episode_noise_seed
 from kimodo_vla.model.sparse_conditions import hand_keyframe
 from kimodo_vla.motion.g1_reference import _interpolate_motion, rot6d_row_to_matrix
 from .continuity import blend_reference, bounded_hinge_trajectory
+from kimodo_vla.model.segment_sampler import sample_segment
 from .clip_legs import ClipWalker, load_library
 from .demo_walks import Timeline, load_segment
 from .geometry import BASIS, SIDES, angle_deg, rotation_wxyz
@@ -296,13 +301,22 @@ class LocomotionPolicy(OraclePolicy):
     text, text_cfg, text_feat = None, 2., None
     root_constraints, history_frames, lead = 'dense', 100, None
     clips, clip_walker = None, None
+    generator_mode, segment_frames, segment_steps = 'policy', CANVAS, 50
 
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
-                 root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None, **kwargs):
+                 root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None,
+                 generator='policy', segment_seconds=4., segment_steps=100, **kwargs):
         # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
         # are solved for the path pose; legs and trunk stay as Kimodo generated them.
         self.arm_ik = bool(arm_ik)
-        if not 25 <= walk_steps <= 80:
+        if generator not in ('policy', 'segment'):
+            raise ValueError("generator must be 'policy' or 'segment'")
+        self.generator_mode = generator
+        if generator == 'segment':
+            self.segment_frames, self.segment_steps = int(round(segment_seconds*30)), int(segment_steps)
+            if not 2 <= segment_seconds <= 10 or not 25 <= walk_steps <= int((self.segment_frames-1)/.6):
+                raise ValueError('Segments of 2-10 s; execute at least 25 control steps and no more than the segment')
+        elif not 25 <= walk_steps <= 80:
             raise ValueError('A plan covers 1.63 s; execute between 25 and 80 control steps of a walking plan')
         self.goal = load_goal(motion_goal)
         self.walk_steps = int(walk_steps)
@@ -582,27 +596,27 @@ class LocomotionPolicy(OraclePolicy):
         turn = Slerp([0., 1.], Rotation.from_matrix(np.stack([start_rot, self.hand_goal_rotation])))
         return position, turn(w).as_matrix()
 
-    def conditions(self, phase, obs, step, cut):
-        """Sparse future conditions of one plan: (values, mask, root path [CANVAS, 2], hand keyframes, dense hand frames)."""
+    def conditions(self, phase, obs, step, cut, canvas=CANVAS):
+        """Sparse future conditions of one plan: (values, mask, root path [canvas, 2], hand keyframes, dense hand frames)."""
         representation = self.model.representation
-        values = torch.zeros(CANVAS, representation.motion_rep_dim)
+        values = torch.zeros(canvas, representation.motion_rep_dim)
         mask = torch.zeros_like(values, dtype=torch.bool)
         here = self.measured_xz(obs)
         if phase in ('reach', 'lean'):
-            path = np.tile(self.stance_xz, (CANVAS, 1))
+            path = np.tile(self.stance_xz, (canvas, 1))
         else:
             target = self.root_end
             if phase == 'stop' and self.phases[-1].get('walk_timed_out'):
                 target = here  # stopped short: stand where the body is
-            path = ground_path(here, target, self.speed_toward(target), self.goal['root']['speed_m_s'])
+            path = ground_path(here, target, self.speed_toward(target), self.goal['root']['speed_m_s'], frames=canvas)
         heading = None   # experiment two: the start heading on every frame
         if phase == 'walk' and (self.lead is not None or self.goal['root'].get('yaw_deg')):
             now, left = self.measured_yaw(obs), self.yaw_remaining(obs)
-            turned = np.sign(left)*np.minimum(abs(left), self.goal['root'].get('yaw_rate_deg_s', 0.)*np.arange(CANVAS)/30)
+            turned = np.sign(left)*np.minimum(abs(left), self.goal['root'].get('yaw_rate_deg_s', 0.)*np.arange(canvas)/30)
             heading = self.heading_features(now+turned)
         elif phase == 'stop' and (self.lead is not None or self.goal['root'].get('yaw_deg')):
-            heading = self.heading_features(np.full(CANVAS, self.measured_yaw(obs)))
-        frames = range(1, CANVAS)
+            heading = self.heading_features(np.full(canvas, self.measured_yaw(obs)))
+        frames = range(1, canvas)
         if phase == 'walk' and self.root_constraints != 'dense':
             frames = SPARSE_FRAMES if self.root_constraints == 'sparse' else ()
         for k in frames:
@@ -680,16 +694,27 @@ class LocomotionPolicy(OraclePolicy):
         features = self.reference_features()
         hist = features[:-1][-self.history_frames:]
         hist_mask = torch.ones_like(hist, dtype=torch.bool)
-        values, mask, path, keyframes, dense = self.conditions(phase, obs, step, cut)
+        segment = self.generator_mode == 'segment' and phase in ('walk', 'stop')
+        canvas = self.segment_frames if segment else CANVAS
+        values, mask, path, keyframes, dense = self.conditions(phase, obs, step, cut, canvas)
         # Frame zero is now: its pose is known, its velocities and contacts are left to the model.
         values[0, :self.pose_end], mask[0, :self.pose_end] = features[-1, :self.pose_end], True
         generator = torch.Generator(device=self.model.device).manual_seed(_episode_noise_seed(self.seed, self.plan_index))
         begin = time.perf_counter()
-        output = self.model.predict_future(str(request['task']).strip(), torch.zeros(1, 3, 1, 1), hist,
-            history_feature_mask=hist_mask,
-            text_feat=(torch.zeros(1, 4096) if self.text_feat is None else self.text_feat).to(self.model.device),
-            future_condition=values, future_condition_mask=mask,
-            diffusion_steps=self.steps, generator=generator)
+        if segment:
+            # The official way: the whole segment from noise, the present only as the frame-0 keyframe.
+            cos_sin = features[-1, self.heading_slice]
+            feats, decoded = sample_segment(self.model, values, mask, first_heading=float(torch.atan2(cos_sin[1], cos_sin[0])),
+                text_feat=self.text_feat, text_weight=self.text_cfg, constraint_weight=self.constraint_cfg,
+                steps=self.segment_steps, generator=generator)
+            output = {'local_rot_mats': decoded['local_rot_mats'], 'root_positions': decoded['root_positions'],
+                      'history_last_root_position': decoded['root_positions'][0].clone(), 'motion_features': feats}
+        else:
+            output = self.model.predict_future(str(request['task']).strip(), torch.zeros(1, 3, 1, 1), hist,
+                history_feature_mask=hist_mask,
+                text_feat=(torch.zeros(1, 4096) if self.text_feat is None else self.text_feat).to(self.model.device),
+                future_condition=values, future_condition_mask=mask,
+                diffusion_steps=self.steps, generator=generator)
         elapsed = time.perf_counter()-begin
         output = {k: v.cpu() if torch.is_tensor(v) else v for k, v in output.items()}
         if phase == 'stop':
@@ -752,13 +777,14 @@ class LocomotionPolicy(OraclePolicy):
 
         # The whole 50-frame prediction, decoded the way analyze_prediction.py decodes it.
         all_actions = self.features.codec.encode(output['local_rot_mats'], output['root_positions'],
-            previous_root_position=before[0], hand_binary=torch.zeros(CANVAS, 2)).numpy()
+            previous_root_position=before[0], hand_binary=torch.zeros(len(output['local_rot_mats']), 2)).numpy()
         _, future_wrist, future_wrist_rotation = world_pose(all_actions, output['root_positions'])
         future_root = self.frame.world(output['root_positions'].numpy())
         path_world = self.frame.world(np.insert(path, 1, 0., axis=1))[:, :2]
         record = {'plan': self.plan_index, 'time': obs['time'], 'cut': cut, 'phase': phase, 'sent_steps': sent,
-                  'keyframes': keyframes, 'dense_hand_frames': dense, 'root_frames': list(range(1, CANVAS)),
-                  'pose_frames': list(range({'stop': STAND_FROM, 'lean': LEAN_FROM}.get(phase, CANVAS), CANVAS)),
+                  'keyframes': keyframes, 'dense_hand_frames': dense, 'root_frames': list(range(1, canvas)),
+                  'pose_frames': list(range({'stop': STAND_FROM, 'lean': LEAN_FROM}.get(phase, canvas), canvas)),
+                  'generator': 'segment' if segment else 'policy', 'canvas_frames': canvas,
                   'hand_constraints': 'continuous', 'history_source': 'reference',
                   'history_condition_frames': int(hist_mask.any(-1).sum()),
                   'text': self.text, 'text_cfg': self.text_cfg if self.text else None,

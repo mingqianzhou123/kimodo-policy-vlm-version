@@ -60,6 +60,9 @@ def parse_args(argv=None):
     p.add_argument('--text-cfg',type=float,default=2.,help='With --text: the text guidance weight')
     p.add_argument('--root-constraints',choices=['dense','sparse','none'],default='dense',help='With --motion-goal: walking root path on every frame, every 0.5 s, or not at all')
     p.add_argument('--history-frames',type=int,default=100,help='With --motion-goal: consumed-reference frames conditioning each plan')
+    p.add_argument('--generator',choices=['policy','segment'],default='policy',help="With --motion-goal: 'segment' samples whole walking segments the official Kimodo way (kimodo_vla/model/segment_sampler.py) instead of the policy canvas")
+    p.add_argument('--segment-seconds',type=float,default=4.)
+    p.add_argument('--segment-steps',type=int,default=100)
     p.add_argument('--walk-clips',type=Path,help='With --motion-goal: walk on looped recorded gait cycles from this library (kimodo_vla/oracle/clip_legs.py) instead of Kimodo')
     p.add_argument('--lead-segment',type=Path,help='With --motion-goal: recorded walking segment played before the walk (kimodo_vla/oracle/demo_walks.py)')
     p.add_argument('--noise-seed',type=int,help='With --motion-goal: seed of Kimodo\'s sampling noise, to repeat one goal with different motions')
@@ -125,7 +128,7 @@ def main():
             raise ValueError('Moving goals run live on the bounded handoff with aligned actuators and nothing else')
         if not a.motion_goal.is_file():raise FileNotFoundError(a.motion_goal)
     elif (a.start_xy and not demo) or a.noise_seed is not None or a.arm_ik:raise ValueError('--start-xy, --noise-seed and --arm-ik need --motion-goal')
-    if not a.motion_goal and (a.text or a.lead_segment or a.walk_clips or a.root_constraints!='dense' or a.history_frames!=100):
+    if not a.motion_goal and (a.text or a.lead_segment or a.walk_clips or a.generator!='policy' or a.root_constraints!='dense' or a.history_frames!=100):
         raise ValueError('--text, --root-constraints, --history-frames and --lead-segment need --motion-goal')
     if a.grasp_loop and (fixed or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision or a.visual_markers
             or a.actuator_audit or a.mode!='hold' or a.trajectory_projection!='ik-hold' or a.dynamics_profile!='actuator'
@@ -212,6 +215,7 @@ def main():
         if a.text:policycmd+=['--text',a.text,'--text-cfg',str(a.text_cfg)]
         if a.lead_segment:policycmd+=['--lead-segment',str(a.lead_segment.resolve())]
         if a.walk_clips:policycmd+=['--walk-clips',str(a.walk_clips.resolve())]
+        if a.generator!='policy':policycmd+=['--generator',a.generator,'--segment-seconds',str(a.segment_seconds),'--segment-steps',str(a.segment_steps)]
     if a.grasp_loop:
         policycmd+=['--grasp-loop',str(ROOT/'configs/grasp-loop.json'),'--latch-delay-steps',str(a.latch_delay_steps)]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
@@ -275,7 +279,9 @@ def main():
         arm_ik=a.arm_ik,text=a.text,text_cfg=a.text_cfg if a.text else None,root_constraints=a.root_constraints,
         history_frames=a.history_frames,lead_segment=str(a.lead_segment) if a.lead_segment else None,
         lead_segment_sha256=sha(a.lead_segment) if a.lead_segment else None,
-        walk_clips=str(a.walk_clips) if a.walk_clips else None,walk_clips_sha256=sha(a.walk_clips) if a.walk_clips else None)
+        walk_clips=str(a.walk_clips) if a.walk_clips else None,walk_clips_sha256=sha(a.walk_clips) if a.walk_clips else None,
+        generator=a.generator,segment_seconds=a.segment_seconds if a.generator=='segment' else None,
+        segment_steps=a.segment_steps if a.generator=='segment' else None)
     if demo:record.update(experiment='DEMO-REPLAY',oracle=False,target_source='demo_segment',
         demo_segment=str(a.demo_segment.resolve()),demo_segment_sha256=sha(a.demo_segment),start_xy=a.start_xy)
     if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',

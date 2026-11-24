@@ -37,6 +37,9 @@ p.add_argument('--root-constraints',choices=['dense','sparse','none'],default='d
 p.add_argument('--history-frames',type=int,default=100)
 p.add_argument('--lead-segment')
 p.add_argument('--walk-clips')
+p.add_argument('--generator',choices=['policy','segment'],default='policy')
+p.add_argument('--segment-seconds',type=float,default=4.)
+p.add_argument('--segment-steps',type=int,default=100)
 p.add_argument('--grasp-loop',help='Grasp loop configuration (JSON); selects the blocking box grasp policy')
 p.add_argument('--latch-delay-steps',type=int,default=75)
 p.add_argument('--vlm-model')
@@ -54,7 +57,8 @@ elif a.motion_goal:
     policy_class = LocomotionPolicy
     extra = dict(motion_goal=a.motion_goal, noise_seed=a.noise_seed, walk_steps=a.walk_steps, arm_ik=a.arm_ik,
                  text=a.text, text_cfg=a.text_cfg, root_constraints=a.root_constraints,
-                 history_frames=a.history_frames, lead_segment=a.lead_segment, walk_clips=a.walk_clips)
+                 history_frames=a.history_frames, lead_segment=a.lead_segment, walk_clips=a.walk_clips,
+                 generator=a.generator, segment_seconds=a.segment_seconds, segment_steps=a.segment_steps)
 elif a.grasp_loop:
     import json
     from kimodo_vla.oracle.grasp_policy import BoxGraspPolicy
