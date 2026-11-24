@@ -141,10 +141,11 @@ def g1_fk():
     return XmlFK(Path(__file__).resolve().parents[1]/'skeleton/assets/g1skel34/xml/g1.xml', G1_JOINT_NAMES)
 
 
-def stepping(feet, rate=RATE, contact_m=CONTACT_M, moving=MOVING_M_S):
+def stepping(feet, rate=RATE, contact_m=CONTACT_M, moving=MOVING_M_S, span_s=.1):
     """How a foot trajectory [T, 2, 3] walks.
 
     contact          ankle within ``contact_m`` of its own 5th-percentile height
+    (all speeds are ground displacement over ``span_s`` divided by it)
     slide_m_s        mean ground speed of a foot in the planted part of a stance (0 for a clean foot)
     slide_p90_m_s    its 90th percentile
     both_moving      share of frames on which both ankles move faster than ``moving`` m/s
@@ -154,17 +155,22 @@ def stepping(feet, rate=RATE, contact_m=CONTACT_M, moving=MOVING_M_S):
     foot_travel_m    ground distance of both ankles
     """
     feet = np.asarray(feet, dtype=float)
-    speed = rate*np.linalg.norm(np.diff(feet[..., :2], axis=0), axis=-1)       # [T-1, 2]
+    # Speeds over 0.1 s, not per frame: the recorded demonstrations repeat a frame now and then
+    # and make up for it with a double step on the next, which per-frame speeds read as sliding.
+    k = max(1, int(round(span_s*rate)))
+    speed = (rate/k)*np.linalg.norm(feet[k:, :, :2]-feet[:-k, :, :2], axis=-1)   # [T-k, 2]
     height = feet[..., 2]-np.percentile(feet[..., 2], 5, axis=0)
     contact = height < contact_m
     # The planted part of a stance: in contact for 3 frames (0.06 s) either side, so the first and
     # last moments of a swing, when the ankle is low but already moving, do not count as sliding.
-    k = 3
     planted = contact.copy()
-    for shift in range(1, k+1):
+    for shift in range(1, 4):
         planted[shift:] &= contact[:-shift]
         planted[:-shift] &= contact[shift:]
-    slide = speed[planted[1:] & planted[:-1]]
+    over = np.ones((len(feet)-k, 2), dtype=bool)
+    for shift in range(k+1):
+        over &= planted[shift:len(feet)-k+shift]
+    slide = speed[over]
     lengths, swings = [], 0
     for side in range(2):
         c = contact[:, side]
