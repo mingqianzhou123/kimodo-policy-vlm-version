@@ -21,7 +21,7 @@ from report_grasp import pick_region, summarize as summarize_runs
 from run_grasp_suite import region_prefix
 from run_oracle import parse_args
 
-CONFIG = json.loads((Path(__file__).resolve().parents[1]/'configs/grasp-loop.json').read_text())
+CONFIG = json.loads((Path(__file__).resolve().parents[2]/'configs/grasp-loop.json').read_text())
 CFG = CONFIG['policy']
 BOX = [-.46, -4.6, .85]   # centre of mass; the asset origin is on the bottom face
 EYE = np.eye(3)

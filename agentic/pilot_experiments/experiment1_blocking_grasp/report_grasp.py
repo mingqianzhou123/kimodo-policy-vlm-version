@@ -1,8 +1,8 @@
 """Summarize a set of blocking grasp runs: success by episode, attempts by label, contact and slip rates.
 
-    python agentic/scripts/report_grasp.py 'exp1-static-20261124-r1-*'
-    python agentic/scripts/report_grasp.py 'exp1-map-20261124-m1-*' --map      # success grid per map cell
-    python agentic/scripts/report_grasp.py 'exp1-move010-*' --rounds           # every round: reach and box motion
+    python agentic/pilot_experiments/experiment1_blocking_grasp/report_grasp.py 'exp1-static-20261124-r1-*'
+    python agentic/pilot_experiments/experiment1_blocking_grasp/report_grasp.py 'exp1-map-20261124-m1-*' --map      # success grid per map cell
+    python agentic/pilot_experiments/experiment1_blocking_grasp/report_grasp.py 'exp1-move010-*' --rounds           # every round: reach and box motion
 
 Reach notes (per round, from the simulator): clearance of the pelvis from the table edge when the
 hands start to rise, how far the pelvis backed off while they went up and out, and how far each
@@ -13,6 +13,9 @@ from collections import Counter
 import fnmatch
 import json
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import RUNS
 
 

@@ -1,7 +1,7 @@
 """Build one page: how far each planned experiment is, and every run's numbers, curves and video.
 
 The plan (experiments, their steps and which run names count toward each step) is
-agentic/configs/experiments.json. Runs are read from RUNS; the page is written to RUNS/overview/.
+agentic/pilot_experiments/experiments.json. Runs are read from RUNS; the page is written to RUNS/overview/.
 """
 import argparse
 import fnmatch
@@ -318,7 +318,7 @@ class Ranged(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--plan', type=Path, default=AGENTIC/'configs/experiments.json')
+    p.add_argument('--plan', type=Path, default=AGENTIC/'pilot_experiments/experiments.json')
     p.add_argument('--serve', type=int, metavar='PORT', help='after building, serve the page on this local port')
     args = p.parse_args()
     out = RUNS/'overview'

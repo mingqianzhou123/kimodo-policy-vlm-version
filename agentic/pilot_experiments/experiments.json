@@ -51,7 +51,7 @@
       "conclusion": "底座不可用（静态抓取未测，归抓取线）。到达：只用 Kimodo 0/18，加手臂 IK 1/18，平均 14 cm / 37°。向前 0.5 m 到位 2/5，侧步 0/10，后退 0/10，不管要求往哪走身体都往前漂 0.5–3 m。前倾 30°：髋带动实际 28–31°，腰带动只有 7–8°。走动时 Kimodo 对 1.0 s 后躯干位置的预测偏 32 cm，“假设不动”偏 12 cm：放弃对着预测推理。",
       "confidence": "方向可信，数字粗。到达每点一次；动作每种 5–10 次只换采样种子；全程没有文本条件，没试落脚点约束。",
       "changed": "SONIC 的输入里没有根部位置，也几乎不执行腰部俯仰。走到哪取决于参考步态在物理上是否成立，而无文本的 Kimodo 给不出干净步态。",
-      "next": "先修走路：给 Kimodo 文本条件（要拿 Llama-3 底座）或落脚点约束；弯腰下蹲改用髋和膝；伸手时用 IK 钉住腿。记录：docs/exp2-reach-coverage-20261124.md",
+      "next": "先修走路：给 Kimodo 文本条件（要拿 Llama-3 底座）或落脚点约束；弯腰下蹲改用髋和膝；伸手时用 IK 钉住腿。记录：pilot_experiments/experiment2_reach_coverage/README.md",
       "basis": ["settled-20261123-r1-*"],
       "steps": [
         {"name": "到达测试 · 只用 Kimodo（18 个目标点）", "runs": "exp2-reach-kimodo-*", "planned": 18},

@@ -1,8 +1,8 @@
 """Run the blocking box grasp over one seed group, one episode per run folder, several GPUs at once.
 
-    python agentic/scripts/run_grasp_suite.py --group heldout --tag 20261124-r1 --gpus 2 3 4
-    python agentic/scripts/run_grasp_suite.py --group map --tag 20261124-m1 --gpus 2 3 4 5
-    python agentic/scripts/run_grasp_suite.py --group region --tag 20261125-r1 --gpus 2 3 4 5 --speed 0.10
+    python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group heldout --tag 20261124-r1 --gpus 2 3 4
+    python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group map --tag 20261124-m1 --gpus 2 3 4 5
+    python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group region --tag 20261125-r1 --gpus 2 3 4 5 --speed 0.10
 
 Run folders are named <prefix>-<tag>-s<seed>: exp1-static for the held-out seeds from the task
 start (the acceptance run), exp1-stance for the same seeds with ``--start-at-stance`` (the
@@ -27,6 +27,7 @@ import sys
 import threading
 import time
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import AGENTIC as ROOT, RUNS
 
 

@@ -14,6 +14,8 @@ from pathlib import Path
 import platform
 import subprocess
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import AGENTIC as ROOT, CHECKPOINTS, REPO
 
 
@@ -101,7 +103,7 @@ def main():
     r.add_argument('--limit', type=int, help='Only the first N frames')
     r.add_argument('--gpu', type=int, default=0, help='GPU for the local model')
     r.add_argument('--qwen-model', type=Path, help='Default: <KVLA_CHECKPOINTS>/Qwen3-VL-4B-Instruct')
-    r.add_argument('--config', type=Path, default=ROOT/'configs/pointing-backends.json')
+    r.add_argument('--config', type=Path, default=Path(__file__).with_name('pointing-backends.json'))
     r.add_argument('--origin', default=platform.node(), help='Where the calls are sent from; recorded with every call')
     r.set_defaults(func=run)
     e = commands.add_parser('evaluate')
