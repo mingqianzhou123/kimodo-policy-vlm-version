@@ -186,7 +186,7 @@ def test_native_generator_continues_the_sent_reference_over_a_few_frames(tmp_pat
     assert 'walk' in phases and 'stop' in phases
     for c, phase in zip(calls, phases):
         body = c['mask'][:, joints].all(-1)
-        assert c['frames'] == 5+89 and body[:5].all()        # the five transition frames, in full
+        assert c['frames'] == 5+90 and body[:5].all()        # the five transition frames, in full
         assert c['values'][0, slot] == 0. and c['values'][0, slot+2] == 0.   # moved to the ground origin
         assert c['text'] is None                              # no text given
         if phase == 'walk':

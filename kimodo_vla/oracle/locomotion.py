@@ -62,7 +62,7 @@ no text, the root ground path and heading on every frame, up to 100 history fram
                     moved to where the body was measured) constrained in full plus hand and foot
                     rotations, the rest of the canvas free but for the phase's own conditions; no
                     longer history. Walk and stop canvases run ``segment_seconds`` past now, reach
-                    and lean canvases 49 frames. ``text='auto'`` gives the walk the phrase of its
+                    and lean canvases 49 frames. Saved plan features start at now. ``text='auto'`` gives the walk the phrase of its
                     direction (``WALK_TEXTS``) and the other phases no text.
   walk_clips        a gait-cycle library (``clip_legs``): the walk is looped recorded strides chosen
                     from the measured position, Kimodo is not called until the walk has stopped
@@ -728,7 +728,8 @@ class LocomotionPolicy(OraclePolicy):
         hist_mask = torch.ones_like(hist, dtype=torch.bool)
         native = self.generator_mode == 'native'
         segment = self.generator_mode in ('segment', 'native') and phase in ('walk', 'stop')
-        canvas = self.segment_frames if segment else CANVAS
+        # A native walk or stop canvas is now plus segment_seconds after it (5 s reads a 5 s prediction).
+        canvas = self.segment_frames+native if segment else CANVAS
         values, mask, path, keyframes, dense = self.conditions(phase, obs, step, cut, canvas)
         if not native:
             # Frame zero is now: its pose is known, its velocities and contacts are left to the model.
@@ -749,7 +750,7 @@ class LocomotionPolicy(OraclePolicy):
             feats[:, self.root_slot+2] += origin[1]
             decoded = decode(self.model.representation, feats[n-1:])   # frame 0 is now
             output = {'local_rot_mats': decoded['local_rot_mats'], 'root_positions': decoded['root_positions'],
-                      'history_last_root_position': decoded['root_positions'][0].clone(), 'motion_features': feats}
+                      'history_last_root_position': decoded['root_positions'][0].clone(), 'motion_features': feats[n-1:]}
             hist_mask = torch.zeros(0, dtype=torch.bool)
         elif segment:
             # The official way: the whole segment from noise, the present only as the frame-0 keyframe.
