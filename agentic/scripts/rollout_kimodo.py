@@ -151,7 +151,7 @@ def sweep(args):
         if name not in only:
             continue
         use = {**cfg['base'], **change}
-        for direction in cfg['directions']:
+        for direction in args.directions or cfg['directions']:
             rate = use['turn_rate'] if direction == 'turn' else use['speed']
             speed = rate[direction] if isinstance(rate, dict) else rate
             for i, seed in enumerate(cfg['seeds']):
@@ -204,6 +204,7 @@ def main():
     p.add_argument('--seconds', type=float, help='default: the goal\'s longest possible episode')
     p.add_argument('--sweep', help='sweep config (agentic/configs/walk-attribution.json): gait under each way of using Kimodo')
     p.add_argument('--only', nargs='*', help='with --sweep: these conditions only')
+    p.add_argument('--directions', nargs='*', help='with --sweep: these directions only')
     p.add_argument('--text-cache', help='with --sweep: the phrase embeddings (default <KVLA_SIM_CACHE>/text-eval)')
     p.add_argument('--lead-dirs', nargs='*', default=[], type=lambda x: x.split('=', 1),
                    help='with --sweep: SET=DIR for each set of recorded segments the config names (walk_attribution.py mine output)')

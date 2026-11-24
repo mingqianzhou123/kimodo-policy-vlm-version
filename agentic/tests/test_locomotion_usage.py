@@ -51,9 +51,27 @@ def test_turn_goal_turns_the_heading_condition_and_keeps_the_feet_on_the_spot(tm
     angle = np.degrees(np.unwrap(np.arctan2(heading[1:, 1], heading[1:, 0])))
     turned = abs(angle[-1]-angle[0])
     assert 45*48/30-1 < turned < 45*48/30+1                # 45 deg/s over the 48 frames after frame 1
+    assert policy.yaw_remaining(start) == pytest.approx(90.)  # not turned yet: all of it still to go
     root = walk['values'][1:, [policy.root_slot, policy.root_slot+2]].numpy()
     assert np.abs(root-root[0]).max() < 1e-6                  # on the spot
     assert policy.phases[0]['phase'] == 'walk'
+
+
+def test_a_half_turn_goes_left_and_is_tracked_past_180_degrees(tmp_path):
+    from scipy.spatial.transform import Rotation
+    goal = {'name': 'turn', 'root': {'xy': [0., 0.], 'yaw_deg': 180, 'yaw_rate_deg_s': 45}}
+    policy, start, rotation, _ = make_policy(tmp_path, goal)
+    follow(policy, start, .7)                                 # enters the walk
+    assert policy.yaw_remaining(start) == pytest.approx(180.)
+    walk = policy.model.calls[0]['values'][:, policy.heading_slice].numpy()
+    left = policy.heading_features([0., 10.]).numpy()
+    # the conditioned heading moves the way +10 degrees (left) moves it
+    assert np.sign(np.cross(walk[1], walk[-1])) == np.sign(np.cross(left[0], left[1]))
+    for yaw in (90., 170., 200., 260.):                       # the body keeps turning left
+        sample = dict(start, root_quat=np.roll(Rotation.from_matrix(
+            Rotation.from_euler('z', np.radians(yaw)).as_matrix() @ rotation).as_quat(), 1).tolist())
+        left_to_go = policy.yaw_remaining(sample)
+    assert left_to_go == pytest.approx(180.-260.)
 
 
 def test_heading_features_turn_left_for_positive_yaw(tmp_path):

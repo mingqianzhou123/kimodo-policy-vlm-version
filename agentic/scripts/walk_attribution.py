@@ -316,6 +316,8 @@ def sweep_table(args):
     rows = []
     for run_id in args.sweep:
         rows += [json.loads(f.read_text()) for f in sorted((RUNS/run_id).glob('*/result.json'))]
+    # a condition run again (a later sweep listed later) replaces the earlier rollouts of the same cell
+    rows = list({(r['condition'], r['direction'], r['seed']): r for r in rows}.values())
     baselines = {Path(d).name: json.loads((Path(d)/'segments.json').read_text())['baseline'] for d in args.baseline}
     order = list(dict.fromkeys(r['condition'] for r in rows))
     table = {}

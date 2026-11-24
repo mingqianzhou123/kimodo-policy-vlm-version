@@ -331,7 +331,7 @@ class LocomotionPolicy(OraclePolicy):
         self.hand_start = self.hand_begin = self.stance_xz = self.walk_begin = None
         self.stop_sent = self.lean_sent = False
         self.lead_timeline = self.lead_begin = self.lead_end_step = None
-        self.walk_yaw = 0.
+        self.walk_yaw = self.last_yaw = self.turned = 0.
         status = super().reset(seed)
         if self.noise_seed is not None:
             self.seed = int(self.noise_seed)
@@ -391,7 +391,11 @@ class LocomotionPolicy(OraclePolicy):
         """Degrees still to turn (0 for goals without a turn)."""
         if not self.goal.get('root', {}).get('yaw_deg'):
             return 0.
-        return (self.walk_yaw+self.goal['root']['yaw_deg']-self.measured_yaw(obs)+180.) % 360.-180.
+        # Turned so far, unwrapped from sample to sample: a 180 degree goal must not read as -180.
+        now = self.measured_yaw(obs)
+        self.turned += (now-self.last_yaw+180.) % 360.-180.
+        self.last_yaw = now
+        return self.goal['root']['yaw_deg']-self.turned
 
     def heading_features(self, yaw_deg):
         """Kimodo heading features [N, 2] of the standing pose turned ``yaw_deg`` (start frame, left positive)."""
@@ -460,7 +464,8 @@ class LocomotionPolicy(OraclePolicy):
         self.phases.append(dict(phase=phase, time=obs['time'], elapsed_s=t, root_remaining_m=remaining, **details))
         if phase == 'walk':
             self.walk_begin = t
-            self.walk_yaw = self.measured_yaw(obs)
+            self.walk_yaw = self.last_yaw = self.measured_yaw(obs)
+            self.turned = 0.
             if self.lead is not None:
                 # The goal is relative to where the body is and faces when the recorded lead-in ends.
                 here = np.asarray(obs['root_pos'], dtype=float)
