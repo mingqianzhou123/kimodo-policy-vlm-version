@@ -119,7 +119,12 @@ def window_summary(actions, begin, end):
     d, yaw = heading_frame_motion(root, rotations, begin, end)
     seconds = (end-begin)/RATE
     distance = float(np.hypot(*d))
+    feet = feet_world(g1_fk(), a[begin:end+1, 9:38], root[begin:end+1], rotations[begin:end+1])
+    legs = leg_displacement(feet, root[begin:end+1])
+    c, s = np.cos(yaw_of(rotations[begin])), np.sin(yaw_of(rotations[begin]))
+    legs = np.array([c*legs[0]+s*legs[1], -s*legs[0]+c*legs[1]])
     return {'displacement_m': d.tolist(), 'distance_m': distance, 'yaw_deg': yaw, 'seconds': seconds,
+            'leg_displacement_m': legs.tolist(),
             'speed_m_s': distance/seconds, 'yaw_rate_deg_s': yaw/seconds,
             'min_height_m': float(a[begin:end+1, 2].min())}
 
@@ -200,6 +205,24 @@ def stepping(feet, rate=RATE, contact_m=CONTACT_M, moving=MOVING_M_S, span_s=.1)
             'steps': swings, 'step_length_m': float(np.median(lengths)) if lengths else None,
             'cadence_hz': swings/seconds, 'foot_travel_m': float(speed.sum()/rate),
             'contact_share': float(contact.mean()), 'seconds': seconds}
+
+
+def leg_displacement(feet, root, contact_m=CONTACT_M):
+    """Ground displacement [2] the legs alone would produce: the root's, minus what planted feet skate.
+
+    Each frame the root's ground step is reduced by the mean ground step of the feet in contact
+    (a planted foot that slides is ground the legs do not push the body over). Frames without a
+    foot in contact keep the root's step. For a clean reference this equals the root displacement.
+    """
+    feet, root = np.asarray(feet, dtype=float), np.asarray(root, dtype=float)
+    contact = feet[..., 2]-np.percentile(feet[..., 2], 5, axis=0) < contact_m
+    step_root = np.diff(root[:, :2], axis=0)
+    step_feet = np.diff(feet[..., :2], axis=0)
+    both = contact[1:] & contact[:-1]
+    out = np.zeros(2)
+    for t in range(len(step_root)):
+        out += step_root[t]-(step_feet[t][both[t]].mean(axis=0) if both[t].any() else 0.)
+    return out
 
 
 class Timeline:
@@ -361,6 +384,10 @@ def score_run(steps, target, segment):
     else:
         along = np.asarray(ref['displacement_m'])/ref['distance_m']
         out['completion'] = float(d_act @ along)/ref['distance_m']
+        # against what the reference's legs command along its direction (its feet may skate)
+        legs = float(np.asarray(ref['leg_displacement_m']) @ along)
+        out['leg_distance_m'] = legs
+        out['completion_of_legs'] = float(d_act @ along)/legs if legs > .05 else None
         out['lateral_cm'] = 100*float(abs(along[0]*d_act[1]-along[1]*d_act[0]))
         out['heading_drift_deg'] = yaw_act-ref['yaw_deg']
     feet = np.array([x['foot_pos'] for x in after])[i0:i1+1]

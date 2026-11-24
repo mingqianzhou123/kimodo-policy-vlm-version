@@ -381,6 +381,10 @@ def summarize(rows):
              'at_least_half': sum(c >= .5 for c in completion), 'at_least_80': sum(c >= .8 for c in completion),
              'heading_drift_deg_median': float(np.median([r['heading_drift_deg'] for r in group])),
              'reference_speed_m_s': float(np.median([r['reference']['speed_m_s'] for r in group]))}
+        legs = [r['completion_of_legs'] for r in group if r.get('completion_of_legs') is not None]
+        if legs:
+            s['completion_of_legs_median'] = float(np.median(legs))
+            s['leg_share_of_reference'] = float(np.median([r['leg_distance_m']/r['reference']['distance_m'] for r in group]))
         key = 'drift_cm' if direction == 'turn' else 'lateral_cm'
         s[key+'_median'] = float(np.median([r[key] for r in group]))
         for k in GAIT_KEYS:
@@ -391,13 +395,15 @@ def summarize(rows):
 
 
 def markdown(summary):
-    lines = ['| 方向 | 次数 | 跌倒 | 完成比例 中位数（范围） | ≥50% | ≥80% | 横向 / 位移漂移 cm | 朝向漂移 ° | 参考速度 m/s |',
-             '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
+    lines = ['| 方向 | 次数 | 跌倒 | 完成比例 中位数（范围） | ≥50% | ≥80% | 横向 / 位移漂移 cm | 朝向漂移 ° | 参考速度 m/s | 腿部可实现位移占参考 | 按腿部位移算的完成比例 |',
+             '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
     for d, s in summary.items():
         drift = s.get('lateral_cm_median', s.get('drift_cm_median'))
         lines.append(f"| {d} | {s['runs']} | {s['fell']} | {100*s['completion_median']:.0f}% "
                      f"({100*s['completion_range'][0]:.0f}% 到 {100*s['completion_range'][1]:.0f}%) | {s['at_least_half']} | "
-                     f"{s['at_least_80']} | {drift:.0f} | {s['heading_drift_deg_median']:.0f} | {s['reference_speed_m_s']:.2f} |")
+                     f"{s['at_least_80']} | {drift:.0f} | {s['heading_drift_deg_median']:.0f} | {s['reference_speed_m_s']:.2f} | "
+                     + (f"{100*s['leg_share_of_reference']:.0f}% | {100*s['completion_of_legs_median']:.0f}% |"
+                        if 'completion_of_legs_median' in s else '— | — |'))
     return '\n'.join(lines)
 
 

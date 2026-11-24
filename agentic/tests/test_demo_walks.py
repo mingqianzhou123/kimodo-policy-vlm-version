@@ -141,3 +141,13 @@ def test_live_walk_is_scored_from_the_start_of_its_walk_phase():
     m = score_measured(steps, target, 4.)
     assert not m['fell'] and abs(m['progress']-.3/.35) < .01 and m['lateral_cm'] < 1e-6
     assert score_measured(steps, target, 7.) is None          # the run ended before 7 s of walking
+
+
+def test_leg_displacement_removes_what_planted_feet_skate():
+    t = np.arange(100)/dw.RATE
+    root = np.stack([.5*t, 0*t, .78+0*t], axis=1)
+    planted = np.stack([np.stack([0*t, .1+0*t, 0*t], 1), np.stack([0*t, -.1+0*t, 0*t], 1)], axis=1)
+    np.testing.assert_allclose(dw.leg_displacement(planted, root), [.5*t[-1], 0.], atol=1e-9)   # clean: the root's
+    skating = planted.copy()
+    skating[..., 0] += .2*t[:, None]                          # both planted feet slide forward at 0.2 m/s
+    np.testing.assert_allclose(dw.leg_displacement(skating, root), [.3*t[-1], 0.], atol=1e-9)
