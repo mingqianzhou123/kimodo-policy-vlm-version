@@ -110,3 +110,20 @@ def test_demo_reference_serves_the_timeline_and_scores_a_perfect_follower(tmp_pa
     result = dw.score_run(steps, target, dw.load_segment(path))
     assert result['complete'] and not result['fell']
     assert abs(result['completion']-1) < 1e-6 and result['lateral_cm'] < 1e-6 and abs(result['heading_drift_deg']) < 1e-6
+
+
+def test_lafan1_rows_become_actions_with_the_same_root_path_and_joint_order():
+    from kimodo_vla.core.types import G1_JOINT_NAMES
+    t = np.arange(90)/30.
+    yaw = .4+.3*t
+    rows = np.zeros((90, 36))
+    rows[:, 0], rows[:, 1], rows[:, 2] = .5*t, -.2*t, .79
+    rows[:, 3:7] = Rotation.from_euler('z', yaw[:, None]).as_quat()
+    rows[:, 7:] = np.arange(29)/100.                         # joint k in LAFAN1 order holds k/100
+    a = dw.lafan1_actions(rows)
+    end = (len(a)-1)/dw.RATE
+    assert len(a) == 1+int(t[-1]*dw.RATE)
+    root = dw.integrate_root(a)
+    np.testing.assert_allclose(root[-1, :2]-root[0, :2], [.5*end, -.2*end], atol=1e-6)
+    knee = G1_JOINT_NAMES.index('right_knee_joint')
+    assert abs(a[0, 9+knee]-dw.LAFAN1_G1_JOINTS.index('right_knee_joint')/100.) < 1e-12

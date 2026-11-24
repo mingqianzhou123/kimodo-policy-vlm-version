@@ -246,6 +246,36 @@ class Timeline:
         return rows
 
 
+# Joint order of the LAFAN1 G1 retargeting (huggingface.co/datasets/lvhaidong/LAFAN1_Retargeting_Dataset):
+# 30 FPS rows of root x y z, quaternion x y z w, then these 29 joints.
+LAFAN1_G1_JOINTS = tuple(f'{side}_{j}_joint' for side in ('left', 'right') for j in
+                         ('hip_pitch', 'hip_roll', 'hip_yaw', 'knee', 'ankle_pitch', 'ankle_roll')) + \
+    ('waist_yaw_joint', 'waist_roll_joint', 'waist_pitch_joint') + \
+    tuple(f'{side}_{j}_joint' for side in ('left', 'right') for j in
+          ('shoulder_pitch', 'shoulder_roll', 'shoulder_yaw', 'elbow', 'wrist_roll', 'wrist_pitch', 'wrist_yaw'))
+
+
+def lafan1_actions(rows, fps=30.):
+    """LAFAN1 G1 rows [T, 36] -> actions [T', 40] at 50 Hz (root steps in the body frame, as Arena stores them)."""
+    rows = np.asarray(rows, dtype=float)
+    if rows.ndim != 2 or rows.shape[1] != 36:
+        raise ValueError('LAFAN1 G1 rows have 36 columns: root xyz, quaternion xyzw, 29 joints')
+    t = np.arange(len(rows))/fps
+    grid = np.arange(0., t[-1]+1e-9, 1/RATE)
+    position = np.stack([np.interp(grid, t, rows[:, i]) for i in range(3)], axis=1)
+    rotation = Slerp(t, Rotation.from_quat(rows[:, 3:7]))(grid).as_matrix()
+    order = [LAFAN1_G1_JOINTS.index(n) for n in G1_JOINT_NAMES]
+    joints = np.stack([np.interp(grid, t, rows[:, 7+i]) for i in order], axis=1)
+    out = np.zeros((len(grid), 40))
+    step = np.zeros_like(position)
+    step[1:] = position[1:]-position[:-1]
+    out[:, :2] = np.einsum('tji,tj->ti', rotation, step)[:, :2]
+    out[:, 2] = position[:, 2]
+    out[:, 3:9] = rotation[:, :, :2].reshape(len(grid), 6)
+    out[:, 9:38] = joints
+    return out
+
+
 def load_segment(path):
     """A reference file: JSON with ``actions`` [T, 40], ``window`` [begin, end], ``direction``, ``source``."""
     segment = json.loads(Path(path).read_text())

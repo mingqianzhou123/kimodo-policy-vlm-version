@@ -8,6 +8,8 @@ the demonstrations' gait measured here. Subcommands:
   mine   find directional walking windows in the demonstrations, pick segments, write one
          reference file per segment and the demonstrations' gait numbers:
              walk_attribution.py mine --data <HumanoidArena_dataset_v3_1 copy> --out <segments dir>
+         or the same from the LAFAN1 motion capture retargeted to G1 (retargeted against foot slip):
+             walk_attribution.py mine --lafan <LAFAN1_Retargeting_Dataset copy> --out <segments dir>
   suite  replay every segment in the simulator from experiment two's open-floor start:
              walk_attribution.py suite --segments <dir> --tag <tag> --gpus 0 6 7 0 6 7
   score  score finished replays (completion, sideways and heading drift, falls, measured gait):
@@ -35,30 +37,38 @@ LEAD_S = (3.4, 5.)     # lead-in before the window: at least Kimodo's history, s
 START_XY = (-4., -4.)  # experiment two's open-floor start
 
 
-def candidates(data):
+def episodes(data, lafan):
+    """(task, episode index, actions) of every demonstration episode, or of every LAFAN1 G1 walk."""
+    if lafan:
+        for i, path in enumerate(sorted(Path(lafan).glob('g1/walk*.csv'))):
+            yield 'lafan1-'+path.stem, i, dw.lafan1_actions(np.loadtxt(path, delimiter=','))
+        return
     from kimodo_vla.benchmarks.arena import demos
-    out = []
     for task in TASKS:
         directory = demos.dataset_dir(Path(data), task, 'sonic')
         if not directory.is_dir():
             print(f'{task}: not in {data}, skipped', flush=True)
             continue
-        _, episodes = demos.read_dataset(directory)
-        for episode in episodes:
-            _, actions = demos.read_episode(episode)
-            for w in dw.find_windows(actions, lead_s=LEAD_S[0]):
+        for episode in demos.read_dataset(directory)[1]:
+            yield task, episode.index, demos.read_episode(episode)[1]
+
+
+def candidates(data, lafan=None):
+    out = []
+    for task, index, actions in episodes(data, lafan):
+        for w in dw.find_windows(actions, lead_s=LEAD_S[0]):
+            summary = dw.window_summary(actions, w['begin'], w['end'])
+            if dw.classify(summary['displacement_m'], summary['yaw_deg'], summary['seconds']) != w['direction']:
+                w['end'] = w['begin']+100      # the merged window curves: keep its first 2 s
                 summary = dw.window_summary(actions, w['begin'], w['end'])
-                if dw.classify(summary['displacement_m'], summary['yaw_deg'], summary['seconds']) != w['direction']:
-                    w['end'] = w['begin']+100      # the merged window curves: keep its first 2 s
-                    summary = dw.window_summary(actions, w['begin'], w['end'])
-                    if dw.classify(summary['displacement_m'], summary['yaw_deg'], 2.) != w['direction']:
-                        continue
-                d = np.array(summary['displacement_m'])
-                purity = (abs(summary['yaw_deg']) if w['direction'] == 'turn'
-                          else float(abs(d @ {'forward': [1, 0], 'backward': [-1, 0], 'left': [0, 1],
-                                              'right': [0, -1]}[w['direction']]))/summary['distance_m'])
-                out.append(dict(w, task=task, episode=episode.index, summary=summary, purity=purity,
-                                actions=actions))
+                if dw.classify(summary['displacement_m'], summary['yaw_deg'], 2.) != w['direction']:
+                    continue
+            d = np.array(summary['displacement_m'])
+            purity = (abs(summary['yaw_deg']) if w['direction'] == 'turn'
+                      else float(abs(d @ {'forward': [1, 0], 'backward': [-1, 0], 'left': [0, 1],
+                                          'right': [0, -1]}[w['direction']]))/summary['distance_m'])
+            out.append(dict(w, task=task, episode=index, summary=summary, purity=purity,
+                            actions=actions))
     return out
 
 
@@ -91,7 +101,9 @@ def lead_start(actions, begin):
 def mine(args):
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=False)
-    found = candidates(args.data)
+    if bool(args.data) == bool(args.lafan):
+        raise SystemExit('Give --data (Arena demonstrations) or --lafan (LAFAN1 G1 retargeting), not both')
+    found = candidates(args.data, args.lafan)
     counts = {d: sum(c['direction'] == d for c in found) for d in dw.DIRECTIONS}
     print('candidate windows (one episode can give several):', counts, flush=True)
     fk = dw.g1_fk()
@@ -100,9 +112,10 @@ def mine(args):
         a = c['actions']
         start, speed = lead_start(a, c['begin'])
         name = f"{c['direction']}-{c['task'].lower()}-e{c['episode']:03d}-f{c['begin']}"
-        segment = {'name': name, 'direction': c['direction'], 'source': {
-                       'dataset': 'WilliamWang16/HumanoidArena_dataset_v3_1@ca04c2d5', 'task': c['task'],
-                       'tracker': 'sonic', 'episode': c['episode'], 'frames': [start, c['end']]},
+        source = ({'dataset': 'lvhaidong/LAFAN1_Retargeting_Dataset (g1, resampled 30 -> 50 Hz)', 'file': c['task'][7:]}
+                  if args.lafan else {'dataset': 'WilliamWang16/HumanoidArena_dataset_v3_1@ca04c2d5', 'task': c['task'],
+                                      'tracker': 'sonic', 'episode': c['episode']})
+        segment = {'name': name, 'direction': c['direction'], 'source': dict(source, frames=[start, c['end']]),
                    'window': [c['begin']-start, c['end']-start], 'lead_start_speed_m_s': speed,
                    'actions': a[start:c['end']+1].tolist()}
         (out/f'{name}.json').write_text(json.dumps(segment))
@@ -229,7 +242,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='command', required=True)
     m = sub.add_parser('mine')
-    m.add_argument('--data', required=True)
+    m.add_argument('--data', help='local copy of WilliamWang16/HumanoidArena_dataset_v3_1')
+    m.add_argument('--lafan', help='local copy of lvhaidong/LAFAN1_Retargeting_Dataset (its g1/walk*.csv)')
     m.add_argument('--out', required=True)
     s = sub.add_parser('suite')
     s.add_argument('--segments', required=True)
