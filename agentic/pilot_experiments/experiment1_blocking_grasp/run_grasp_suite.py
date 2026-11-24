@@ -11,8 +11,8 @@ diagnostic without walking), dbg-exp1 for the debug seeds.
 The robot never walks in the last two groups. ``map`` runs one episode per workspace map cell
 (configs/grasp-loop.json, stand.map) as exp1-map-<tag>-<cell>. ``region`` runs the region seeds
 with the box placed inside the fixed region: exp1-region (static, the acceptance run),
-exp1-move003 / -move010 / -move030 (moving), and with the long delay exp1-long-static and
-exp1-long-move010.
+exp1-move003 / exp1-move010 (moving), and with the long delays (194 / 383 steps)
+exp1-long-* / exp1-xlong-* static, move003 and move010.
 
 A run that ends without an episode verdict (the simulator crashed or hung) is moved to
 <runs>/infra-failed/ and tried again, so that only episodes that were actually played count.
@@ -62,15 +62,18 @@ def work(gpu, jobs, args, lock):
 
 
 def region_prefix(speed, delay, config):
-    """Fixed run names of the region conditions; anything else is not part of the plan."""
+    """Fixed run names of the region conditions; anything else is not part of the plan.
+
+    exp1-region is the short-delay static run (the acceptance run, also the short-delay baseline);
+    long = 194 steps (GPT median), xlong = 383 steps (Gemini median).
+    """
     stand = config['stand']
-    names = {(0., 75): 'exp1-region', (0., stand['long_delay_steps']): 'exp1-long-static'}
-    for v in stand['speeds_mps']:
-        names[(v, 75)] = f'exp1-move{int(round(v * 100)):03d}'
-    names[(.10, stand['long_delay_steps'])] = 'exp1-long-move010'
-    if (speed, delay) not in names:
+    delays = {75: 'exp1-', stand['long_delay_steps']: 'exp1-long-', stand['xlong_delay_steps']: 'exp1-xlong-'}
+    if delay not in delays or speed not in [0.] + stand['speeds_mps']:
         raise SystemExit(f'No planned condition with speed {speed} m/s and delay {delay} steps')
-    return names[(speed, delay)]
+    if speed == 0.:
+        return 'exp1-region' if delay == 75 else delays[delay] + 'static'
+    return delays[delay] + f'move{int(round(speed * 100)):03d}'
 
 
 if __name__ == '__main__':

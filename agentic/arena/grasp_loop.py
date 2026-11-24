@@ -86,6 +86,9 @@ class GraspLoop:
             n['backoff_m'] = max(n.get('backoff_m', 0.), n['anchor_root_x'] - x)
             if phase == 'advance' and self.targets is not None and not self.gate.closed:
                 n['wrist_gap_m'] = np.linalg.norm(np.asarray(sample['wrist_pos']) - self.targets, axis=1).tolist()
+                # Where the box is while the open hands are still on their way: the last such step is
+                # the box at the moment the hands closed, or when the gate gave up.
+                n.update(reach_time=now, reach_box_pos=list(com))
         if self.gate.closed and 'close_box_pos' not in n:
             latched = np.asarray(self.attempts[-1].latched_box_pos)
             n.update(close_time=now, close_box_pos=list(com),

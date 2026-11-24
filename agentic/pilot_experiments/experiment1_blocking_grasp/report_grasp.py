@@ -10,6 +10,8 @@ wrist still was from its target when the hands closed or the gate gave up.
 """
 import argparse
 from collections import Counter
+
+import numpy as np
 import fnmatch
 import json
 
@@ -91,6 +93,37 @@ def pick_region(results, config, rate=.9):
     return None if best is None else best[1]
 
 
+BINS_CM = (0, 1, 2, 3, 5, 8, 12)
+
+
+def displacement(results, bins=BINS_CM):
+    """Every round that reached for the box, by how far the box was from its latched place when the
+    open hands got there (closed on it, or the gate gave up): success rate per bin, lateral and total.
+
+    The rounds come from all given runs together, so a long-delay condition contributes few of them.
+    """
+    rows = []
+    for r in results:
+        for a in r['attempts']:
+            n = a.get('notes', {})
+            if 'reach_box_pos' not in n:
+                continue
+            at = n.get('close_box_pos', n['reach_box_pos'])
+            latched = a['latched_box_pos']
+            rows.append({'run': r['run'], 'round': a['attempt'], 'success': a['label'] == 'success', 'label': a['label'],
+                         'lateral_cm': abs(at[1] - latched[1]) * 100,
+                         'total_cm': float(np.hypot(at[0] - latched[0], at[1] - latched[1])) * 100})
+    table = {}
+    for key in ('lateral_cm', 'total_cm'):
+        table[key] = []
+        for low, high in zip(bins, list(bins[1:]) + [None]):
+            inside = [x for x in rows if x[key] >= low and (high is None or x[key] < high)]
+            table[key].append({'from_cm': low, 'to_cm': high, 'rounds': len(inside),
+                               'successes': sum(x['success'] for x in inside),
+                               'labels': dict(Counter(x['label'] for x in inside))})
+    return rows, table
+
+
 def motion(results):
     """Box motion across all rounds of moving-box episodes: what the latch missed by the time the hands closed."""
     closed = [a['notes'] for r in results for a in r['attempts'] if 'close_time' in a.get('notes', {})]
@@ -127,8 +160,17 @@ if __name__ == '__main__':
     p.add_argument('--map', action='store_true', help='Success grid per map cell and first-round attribution')
     p.add_argument('--rounds', action='store_true', help='Every round with its reach and box-motion notes')
     p.add_argument('--pick-region', action='store_true', help='Apply the region rule to a finished map and print it')
+    p.add_argument('--displacement', action='store_true', help='Round success by how far the box moved from its latch')
     a = p.parse_args()
     results, unfinished = load(a.pattern)
+    if a.displacement:
+        rows, table = displacement(results)
+        for key, bins in table.items():
+            print(key)
+            for b in bins:
+                rate = '  -' if not b['rounds'] else f"{100 * b['successes'] / b['rounds']:3.0f}%"
+                print(f"  {b['from_cm']:>3}-{b['to_cm'] or '':<3} cm  rounds {b['rounds']:3d}  success {rate}  {b['labels']}")
+        raise SystemExit(0)
     if a.pick_region:
         from paths import AGENTIC
         print(json.dumps(pick_region(results, json.loads((AGENTIC/'configs/grasp-loop.json').read_text()))))

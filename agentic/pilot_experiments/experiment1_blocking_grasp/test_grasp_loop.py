@@ -17,7 +17,7 @@ from kimodo_vla.oracle.geometry import SIDES, XmlFK
 from kimodo_vla.oracle.grasp_policy import (BoxGraspPolicy, WristPath, clip_profile, face_yaw, graspable, half_width,
                                              stance, waypoints)
 import overview
-from report_grasp import pick_region, summarize as summarize_runs
+from report_grasp import displacement, pick_region, summarize as summarize_runs
 from run_grasp_suite import region_prefix
 from run_oracle import parse_args
 
@@ -528,11 +528,13 @@ def test_stand_still_run_flags():
 
 
 def test_region_conditions_have_the_progress_page_names():
-    names = {(v, d): region_prefix(v, d, CONFIG) for v, d in [(0., 75), (.03, 75), (.1, 75), (.3, 75), (0., 194), (.1, 194)]}
-    assert list(names.values()) == ['exp1-region', 'exp1-move003', 'exp1-move010', 'exp1-move030',
-                                    'exp1-long-static', 'exp1-long-move010']
-    with pytest.raises(SystemExit):
-        region_prefix(.3, 194, CONFIG)
+    pairs = [(0., 75), (.03, 75), (.1, 75), (0., 194), (.03, 194), (.1, 194), (0., 383), (.03, 383), (.1, 383)]
+    assert [region_prefix(v, d, CONFIG) for v, d in pairs] == [
+        'exp1-region', 'exp1-move003', 'exp1-move010', 'exp1-long-static', 'exp1-long-move003', 'exp1-long-move010',
+        'exp1-xlong-static', 'exp1-xlong-move003', 'exp1-xlong-move010']
+    for v, d in [(.3, 75), (.1, 100)]:
+        with pytest.raises(SystemExit):
+            region_prefix(v, d, CONFIG)
     assert not set(CONFIG['seeds']['region']) & (set(CONFIG['seeds']['debug']) | set(CONFIG['seeds']['heldout']))
 
 
@@ -566,3 +568,18 @@ def test_region_rule_takes_the_largest_rectangle_at_ninety_percent():
                     'episodes': 18, 'successes': 17}
     assert pick_region(far, CONFIG)['region'] == {'depth_m': [.08, .24], 'lateral_m': [0., 0.]}
     assert pick_region([], CONFIG) is None
+
+
+def test_rounds_are_binned_by_how_far_the_box_moved_before_the_hands_got_there():
+    def attempt(label, dy, closed=True):
+        n = {'reach_box_pos': [0., dy, .85]}
+        if closed:
+            n['close_box_pos'] = [0., dy + .001, .85]
+        return {'attempt': 0, 'label': label, 'latched_box_pos': [0., 0., .85], 'notes': n}
+    results = [{'run': 'a', 'attempts': [attempt('success', .004), attempt('touched_not_held', .06, closed=False)]},
+               {'run': 'b', 'attempts': [attempt('success', -.015), {'attempt': 1, 'label': 'no_contact',
+                                                                     'latched_box_pos': [0, 0, .85], 'notes': {}}]}]
+    rows, table = displacement(results)
+    assert len(rows) == 3                                             # a round that never reached is left out
+    lateral = {b['from_cm']: (b['rounds'], b['successes']) for b in table['lateral_cm']}
+    assert lateral[0] == (1, 1) and lateral[1] == (1, 1) and lateral[5] == (1, 0)
