@@ -20,6 +20,9 @@ the demonstrations' gait measured here. Subcommands:
              walk_attribution.py cross --conditions base text --tag <tag> --gpus 0 6 7 \
                  --text-cache <dir> --lead-dirs lafan=<dir> arena=<dir>
              walk_attribution.py score-cross '<tag>-*'
+  table  test two's table: each sweep condition's gait per direction next to the recorded
+         references' (medians over seeds):
+             walk_attribution.py table --sweep <run id> [<run id> ...] --baseline <segments dir> [...]
 
 Segment files go to ``--out``; runs to the usual runs directory as ``<tag>-<segment>``.
 """
@@ -309,6 +312,42 @@ def score_cross(args):
               f"both {m['gait_actual']['both_moving']:.2f}")
 
 
+def sweep_table(args):
+    rows = []
+    for run_id in args.sweep:
+        rows += json.loads((RUNS/run_id/'sweep.json').read_text())
+    baselines = {Path(d).name: json.loads((Path(d)/'segments.json').read_text())['baseline'] for d in args.baseline}
+    order = list(dict.fromkeys(r['condition'] for r in rows))
+    table = {}
+    for name in order:
+        for direction in dw.DIRECTIONS:
+            group = [r['walk'] for r in rows if r['condition'] == name and r['direction'] == direction and r['walk']]
+            if not group:
+                continue
+            cell = {'n': len(group), 'progress': float(np.median([g['progress'] for g in group]))}
+            for k in GAIT_KEYS:
+                v = [g['gait'][k] for g in group if g['gait'][k] is not None]
+                cell[k] = float(np.median(v)) if v else None
+            table.setdefault(name, {})[direction] = cell
+    out = {'conditions': table, 'baselines': baselines}
+    (RUNS/f'{args.sweep[0]}-table.json').write_text(json.dumps(out, indent=1))
+    f = lambda v, d=2: '—' if v is None else f'{v:.{d}f}'
+    for direction in dw.DIRECTIONS:
+        print(f'\n#### {direction}\n')
+        print('| 来源 / 用法 | 次数 | 站立脚滑动 m/s | 两脚同时动 | 步长 m | 步频 Hz | 完成指令比例 |')
+        print('|---|---:|---:|---:|---:|---:|---:|')
+        for name, b in baselines.items():
+            if direction in b:
+                c = b[direction]
+                print(f"| 录制参考 {name} | {c['windows']} | {f(c['slide_m_s'][0], 3)} | {f(c['both_moving'][0])} | "
+                      f"{f(c['step_length_m'][0])} | {f(c['cadence_hz'][0])} | — |")
+        for name in order:
+            c = table.get(name, {}).get(direction)
+            if c:
+                print(f"| Kimodo {name} | {c['n']} | {f(c['slide_m_s'], 3)} | {f(c['both_moving'])} | {f(c['step_length_m'])} | "
+                      f"{f(c['cadence_hz'])} | {f(c['progress'])} |")
+
+
 def score(args):
     rows = []
     for run in sorted(RUNS.glob(args.pattern)):
@@ -394,8 +433,11 @@ def main():
     y = sub.add_parser('score-cross')
     y.add_argument('pattern')
     y.add_argument('--seconds', type=float, default=4.)
+    t = sub.add_parser('table')
+    t.add_argument('--sweep', nargs='+', required=True)
+    t.add_argument('--baseline', nargs='+', required=True, help='segment dirs written by mine')
     args = p.parse_args()
-    {'mine': mine, 'suite': suite, 'score': score, 'cross': cross, 'score-cross': score_cross}[args.command](args)
+    {'table': sweep_table, 'mine': mine, 'suite': suite, 'score': score, 'cross': cross, 'score-cross': score_cross}[args.command](args)
 
 
 if __name__ == '__main__':
