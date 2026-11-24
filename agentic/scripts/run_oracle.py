@@ -49,6 +49,12 @@ def parse_args(argv=None):
     p.add_argument('--settled-goal',type=Path,help='Start from stable double support, keeping archived hand goals in world coordinates; '
         'implies --visual-markers --actuator-audit --dynamics-profile actuator')
     p.add_argument('--replay-fixture',type=Path)
+    p.add_argument('--motion-goal',type=Path,help='Goal file with a root ground path and/or one hand target (kimodo_vla/oracle/locomotion.py). '
+        'Starts settled on both feet with aligned actuators; implies no standing support, no IK repair')
+    p.add_argument('--start-xy',type=float,nargs=2,metavar=('X','Y'),help='With --motion-goal: world position to start from instead of the task reset position')
+    p.add_argument('--walk-steps',type=int,default=75,help='With --motion-goal: control steps executed from each 1.63 s walking plan before planning again')
+    p.add_argument('--arm-ik',action='store_true',help='With --motion-goal: solve the reaching arm for the wrist over the last 25 cm of its path; legs and trunk stay as generated')
+    p.add_argument('--noise-seed',type=int,help='With --motion-goal: seed of Kimodo\'s sampling noise, to repeat one goal with different motions')
     p.add_argument('--actuator-audit',action='store_true')
     p.add_argument('--dynamics-profile',choices=['sensor-load','actuator','actuator-load'])
     p.add_argument('--root-support',choices=['none','raised'],help='Root diagnostic: keep ground or add a reference-height support platform')
@@ -77,6 +83,9 @@ def parse_args(argv=None):
     if a.settled_goal:
         a.visual_markers=a.actuator_audit=True
         a.dynamics_profile=a.dynamics_profile or 'actuator'
+    if a.motion_goal:
+        a.support_constraints,a.hand_constraints,a.trajectory_projection='none','keyframes','none'
+        a.dynamics_profile=a.dynamics_profile or 'actuator'
     return a
 
 
@@ -93,13 +102,19 @@ def main():
                 or a.dynamics_profile!='actuator'):
             raise ValueError('Settled comparison requires live IK-hold, aligned actuators and original floor/load')
         if not a.settled_goal.is_file():raise FileNotFoundError(a.settled_goal)
+    if a.motion_goal:
+        if (fixed or a.settled_goal or a.grasp_loop or a.vlm_model or a.root_support or a.capture_vision or a.visual_markers
+                or a.actuator_audit or a.mode!='hold' or a.variant!='bounded' or a.dynamics_profile!='actuator'):
+            raise ValueError('Moving goals run live on the bounded handoff with aligned actuators and nothing else')
+        if not a.motion_goal.is_file():raise FileNotFoundError(a.motion_goal)
+    elif a.start_xy or a.noise_seed is not None or a.arm_ik:raise ValueError('--start-xy, --noise-seed and --arm-ik need --motion-goal')
     if a.grasp_loop and (fixed or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision or a.visual_markers
             or a.actuator_audit or a.mode!='hold' or a.trajectory_projection!='ik-hold' or a.dynamics_profile!='actuator'
             or a.latch_delay_steps<0):
         raise ValueError('The grasp loop runs on the live IK-hold backend with aligned actuators and nothing else')
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
-    if a.dynamics_profile and not a.grasp_loop and not ((replay or a.settled_goal) and a.actuator_audit):
+    if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not ((replay or a.settled_goal) and a.actuator_audit):
         raise ValueError('Dynamics interventions require audited immutable replay')
     if a.root_support and not (a.actuator_audit and replay and a.dynamics_profile in ('actuator','actuator-load')):
         raise ValueError('Root diagnostics require fixed reference and aligned actuators')
@@ -154,6 +169,7 @@ def main():
         for key in ('VLM_CAPTURE','SONIC_ROOT_SUPPORT'):
             env.pop(key,None)
         env.update(VLM_MARKER_REACH_RAD=str(a.marker_reach_rad),VLM_CAMERA_LATERAL_M=str(a.camera_lateral_m))
+    if a.start_xy:env['KVLA_START_XY']=f'{a.start_xy[0]},{a.start_xy[1]}'
     if a.capture_vision or a.vlm_model:
         env.update(VLM_CAPTURE='1',VLM_CAMERA=a.camera,ENABLE_DEPTH='1')
         if a.visual_markers:
@@ -169,6 +185,10 @@ def main():
         '--handoff-seconds',str(a.handoff_seconds),'--joint-speed',str(a.joint_speed),
         '--support-constraints',a.support_constraints,'--hand-constraints',a.hand_constraints,'--trajectory-projection',a.trajectory_projection]
     if a.settled_goal:policycmd+=['--archived-goal',str(a.settled_goal.resolve())]
+    if a.motion_goal:
+        policycmd+=['--motion-goal',str(a.motion_goal.resolve()),'--walk-steps',str(a.walk_steps)]
+        if a.arm_ik:policycmd.append('--arm-ik')
+        if a.noise_seed is not None:policycmd+=['--noise-seed',str(a.noise_seed)]
     if a.grasp_loop:
         policycmd+=['--grasp-loop',str(ROOT/'configs/grasp-loop.json'),'--latch-delay-steps',str(a.latch_delay_steps)]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
@@ -191,7 +211,7 @@ def main():
         'post_termination_record_steps':0,'model_label':('grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
         'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
-    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('grasp_sim_bootstrap.py' if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
+    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal else 'grasp_sim_bootstrap.py' if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
         '--task','Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','--env_config_yaml',
@@ -224,6 +244,10 @@ def main():
     if a.settled_goal:record.update(experiment='SETTLED-VISUAL-GOAL',oracle=False,target_source='archived_visual_world',
         archived_goal_sha256=sha(a.settled_goal),marker_reach_rad=a.marker_reach_rad,camera_lateral_m=a.camera_lateral_m)
     if a.vlm_model:record.update(experiment='VLM-A',oracle=False)
+    if a.motion_goal:record.update(experiment='MOTION-GOAL',oracle=False,target_source='motion_goal',
+        motion_goal=json.loads(a.motion_goal.read_text()),motion_goal_sha256=sha(a.motion_goal),
+        start_xy=a.start_xy,noise_seed=a.noise_seed,walk_steps=a.walk_steps,
+        arm_ik=a.arm_ik)
     if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',
         grasp_config_sha256=sha(ROOT/'configs/grasp-loop.json'))
     record['arena_sha256']={f:sha(arena/f) for f in (
@@ -253,7 +277,7 @@ def main():
                 except OSError:
                     time.sleep(1)
             record['status']='running'; manifest.write_text(json.dumps(record,indent=2))
-            sim=subprocess.run(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,timeout=1800)
+            sim=subprocess.run(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,timeout=max(1800,3*a.steps))
             record['sim_exit_code']=sim.returncode
             sim.check_returncode()
             if not (run/'execution.jsonl').is_file() or not (run/'plans.jsonl').is_file():

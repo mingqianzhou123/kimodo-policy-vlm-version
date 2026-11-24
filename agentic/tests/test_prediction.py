@@ -46,3 +46,18 @@ def test_summary_separates_reaching_from_holding_and_pools_both_wrists():
     assert table['holding@0.5']['kimodo']['wrist_pos_cm']['mean'] == 6.
     assert table['all@0.5']['kimodo']['wrist_pos_cm']['n'] == 4
     assert 'reaching@1.0' not in table and table['all@1.0']['kimodo']['root_pos_cm']['n'] == 1
+
+
+def test_summary_groups_moving_goal_phases_and_keeps_only_covered_horizons():
+    def row(phase, horizon, root, wrist, root_covered=True, wrist_covered=True):
+        e = {'root_pos_cm': root, 'root_rot_deg': 1., 'wrist_pos_cm': wrist, 'wrist_rot_deg': [0., 0.]}
+        return {'phase': phase, 'reaching': True, 'horizon_s': horizon, 'kimodo': e, 'persistence': e,
+                'root_covered': root_covered, 'wrist_covered': wrist_covered, 'wrist_sides': [1]}
+    table = summarize([row('walk', 1., 10., [50., 4.], wrist_covered=False), row('walk', 1., 20., [50., 6.], wrist_covered=False),
+                       row('reach', 1., 2., [50., 1.]), row('reach', 1., 4., [50., 3.], wrist_covered=False)])
+    walk, reach = table['walk@1.0']['kimodo'], table['reach@1.0']['kimodo']
+    assert list(table) == ['all@1.0', 'walk@1.0', 'reach@1.0']
+    assert walk['root_pos_cm']['mean'] == 15. and walk['covered']['root_pos_cm']['n'] == 2
+    assert walk['wrist_pos_cm'] == {'mean': 5., 'p90': 5.8, 'max': 6., 'n': 2}    # the conditioned hand only
+    assert walk['covered']['wrist_pos_cm'] is None                                # no hand condition while walking
+    assert reach['covered']['wrist_pos_cm'] == {'mean': 1., 'p90': 1., 'max': 1., 'n': 1}
