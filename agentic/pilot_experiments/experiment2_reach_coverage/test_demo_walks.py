@@ -143,6 +143,10 @@ def test_live_walk_is_scored_from_the_start_of_its_walk_phase():
     m = score_measured(steps, target, 4.)
     assert not m['fell'] and abs(m['progress']-.3/.35) < .01 and m['lateral_cm'] < 1e-6
     assert abs(m['reference_leg_progress']-.4/.35) < .01      # planted reference feet: the legs command it all
+    for st in steps:
+        st['reference_root_quat'] = [1., 0., 0., 0.]
+    turn = dict(target, motion_goal={'root': {'xy': [0., 0.], 'yaw_deg': 90, 'yaw_rate_deg_s': 45, 'speed_m_s': .35}})
+    assert score_measured(steps, turn, 4.)['reference_yaw_progress'] == 0.
     assert score_measured(steps, target, 7.) is None          # the run ended before 7 s of walking
 
 

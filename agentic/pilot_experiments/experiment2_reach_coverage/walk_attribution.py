@@ -295,6 +295,10 @@ def score_measured(steps, target, seconds):
     out['reference_leg_m'] = legs.tolist()
     if not goal.get('yaw_deg'):
         out['reference_leg_progress'] = float(legs @ along)/(goal['speed_m_s']*seconds)
+    else:   # how far the sent reference itself turned over the window
+        ref_rot = np.array([dw.rotation_wxyz(s['reference_root_quat']) for s in steps])[i0:i1+1]
+        ref_yaw = float(np.degrees(np.unwrap(dw.yaw_of(ref_rot))[-1]-np.unwrap(dw.yaw_of(ref_rot))[0]))
+        out['reference_yaw_progress'] = ref_yaw/(goal['yaw_rate_deg_s']*seconds)
     return out
 
 
