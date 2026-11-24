@@ -8,6 +8,7 @@ from scipy.spatial.transform import Rotation
 
 from arena.grasp_judge import Attempt, Criteria, GraspJudge, summarize
 from arena.grasp_loop import GraspLoop, up_z
+from arena.box_layout import BoxMotion, cell_name, in_region, map_cells, place, supported
 from arena.grasp_scene import hand_side, split_forces
 from kimodo_vla.controllers.gripper_gate import SynchronizedGripperGate
 from kimodo_vla.core.types import G1_JOINT_NAMES
@@ -17,6 +18,7 @@ from kimodo_vla.oracle.grasp_policy import (BoxGraspPolicy, WristPath, clip_prof
                                              stance, waypoints)
 import overview
 from report_grasp import summarize as summarize_runs
+from run_grasp_suite import region_prefix
 from run_oracle import parse_args
 
 CONFIG = json.loads((Path(__file__).resolve().parents[1]/'configs/grasp-loop.json').read_text())
@@ -134,7 +136,7 @@ def test_grasp_loop_closes_judges_and_stops(tmp_path):
     loop = GraspLoop(tmp_path, CONFIG, stop=lambda: stopped.append(True), post_success_steps=2)
     w = waypoints(BOX, quat(0), [-.84, -4.6], CFG)
     def sample(t, wrists, height=.85):
-        return {'time': t, 'wrist_pos': wrists.tolist(), 'wrist_rot': w['rotation'].tolist(),
+        return {'time': t, 'wrist_pos': wrists.tolist(), 'wrist_rot': w['rotation'].tolist(), 'root_pos': [-.84, -4.6, .78],
                 'wrist_velocity': [[0.]*3]*2, 'box_com': [BOX[0], BOX[1], height], 'box_quat': quat(0)}
     info = {'round': 0, 'phase': 'advance', 'latch_time': 0., 'latched_box_pos': BOX, 'hands': 'open', 'event': None}
     loop.on_plan(info, sample(0., w['pre']))
@@ -272,6 +274,7 @@ def scripted_policy(tmp_path, delay=75):
     """The round logic without weights: everything except the two calls into the diffusion model."""
     policy = BoxGraspPolicy.__new__(BoxGraspPolicy)
     policy.cfg, policy.latch_delay, policy.run, policy.mode = CFG, delay, tmp_path, 'hold'
+    policy.stand_still = False
     policy.features, policy.fk = KimodoFeatures(50.), XmlFK(G1_XML_PATH, G1_JOINT_NAMES)
     names = policy.features.representation.skeleton.bone_order_names
     policy.ids = [[names.index(f'{s}_{j}_skel') for j in ('wrist_yaw', 'hand_roll')] for s in SIDES]
@@ -393,3 +396,127 @@ def test_wrists_that_stop_short_beside_the_box_get_a_bounded_correction(tmp_path
     before = policy.bias.copy()
     policy.correct(short(arrived + 5.))
     np.testing.assert_allclose(policy.bias, before)                  # pressing on the box is not a shortfall
+
+
+# ---- standing still: the workspace map, the region and the moving box ---------------------
+
+def test_map_cells_place_the_robot_by_the_stance_rule_and_the_box_by_depth_and_lateral():
+    cells = map_cells(CONFIG)
+    assert len(cells) == 100 and len({cell_name(c) for c in cells}) == 100
+    assert cell_name(dict(depth=.16, lateral=-.1, yaw=40, extra=.05)) == 'd16-l-10-y40-e05'
+    edge, y0 = CONFIG['scene']['table_edge_x_m'], CONFIG['stand']['robot_y_m']
+    near, deep = place(.08, .1, 0, 0., CONFIG), place(.24, -.2, 40, .05, CONFIG)
+    np.testing.assert_allclose(near['box_xy'], [edge + .08, y0 + .1])
+    assert near['robot_xy'][1] == y0 and deep['robot_xy'][1] == y0
+    rule = lambda d: max(CFG['stance_clearance_m'], edge - stance([edge + d, 0., .85], CFG)[0])
+    assert near['clearance_m'] == pytest.approx(rule(.08)) and near['clearance_m'] > CFG['stance_clearance_m']
+    assert deep['clearance_m'] == pytest.approx(CFG['stance_clearance_m'] + .05)
+
+
+def test_region_placements_follow_the_seed_only_and_stay_inside(tmp_path):
+    config = json.loads(json.dumps(CONFIG))
+    config['stand'].update(region={'depth_m': [.1, .18], 'lateral_m': [-.05, .1]}, stance_extra_m=.03)
+    a, b = in_region(6001, config), in_region(6001, config)
+    assert a == b and a != in_region(6002, config)
+    for seed in config['seeds']['region']:
+        p = in_region(seed, config)
+        assert .1 <= p['depth_m'] <= .18 and -.05 <= p['lateral_m'] <= .1 and abs(p['yaw_deg']) <= 45
+        assert p['direction'] in (-1, 1) and p['stance_extra_m'] == .03
+        np.testing.assert_allclose(p['segment_y'], np.array([-.05, .1]) + config['stand']['robot_y_m'])
+    with pytest.raises(ValueError):
+        in_region(6000, CONFIG)                                       # not fixed yet
+
+
+def test_a_box_over_the_table_edge_is_not_supported():
+    table = [[-.641, -6.237], [.121, -3.763]]
+    assert supported([-.5, -4.8], 40, .105, table)
+    assert not supported([-.5, -3.8], 0, .105, table) and not supported([-.7, -4.8], 0, .105, table)
+
+
+def test_box_motion_turns_at_both_ends():
+    m = BoxMotion([0., .3], .1, .1, 1)
+    assert m.position(0) == pytest.approx(.1) and m.position(1.) == pytest.approx(.2) and m.velocity(1.) == .1
+    assert m.position(3.) == pytest.approx(.2) and m.velocity(3.) == -.1          # turned at 0.3 after 2 s
+    assert m.position(6.) == pytest.approx(.1) and m.velocity(6.) == .1           # turned at 0 after 5 s
+    assert (m.turns(0, 1.9), m.turns(0, 2.1), m.turns(1.9, 5.1), m.turns(3, 3)) == (0, 1, 2, 0)
+    down = BoxMotion([0., .3], .1, .1, -1)
+    assert down.position(.5) == pytest.approx(.05) and down.velocity(.5) == -.1 and down.position(2.) == pytest.approx(.1)
+    still = BoxMotion([0., .3], 0., .1, 1)
+    assert still.position(9.) == pytest.approx(.1) and still.velocity(9.) == 0. and still.turns(0, 9) == 0
+
+
+def test_a_driven_box_is_released_on_the_first_hand_contact_and_never_driven_again(tmp_path):
+    layout = {'speed_mps': .1, 'segment_y': [-4.9, -4.6], 'direction': 1}
+    loop = GraspLoop(tmp_path, CONFIG, stop=lambda: None, layout=layout)
+    w = waypoints(BOX, quat(0), [-.84, -4.6], CFG)
+    def sample(t, box_y, root_x=-.84):
+        return {'time': t, 'wrist_pos': (w['pre'] - [.05, 0, 0]).tolist(), 'wrist_rot': w['rotation'].tolist(),
+                'root_pos': [root_x, -4.75, .78], 'wrist_velocity': [[0.]*3]*2,
+                'box_com': [BOX[0], box_y, .85], 'box_quat': quat(0)}
+    assert loop.drive(0.) is None                                     # nothing before the first latch
+    info = {'round': 0, 'phase': 'raise', 'latch_time': 1., 'latched_box_pos': [BOX[0], -4.7, .85],
+            'hands': 'open', 'event': None}
+    loop.on_plan(info, sample(1., -4.7))
+    y, vy = loop.drive(2.)
+    assert y == pytest.approx(-4.6) and vy == .1
+    assert loop.drive(2.5)[1] == -.1                                  # turned at the far end
+    loop.after_step(sample(1.02, -4.698), RESTING)
+    loop.after_step(sample(1.04, -4.696, root_x=-.90), RESTING)       # the pelvis backs off 6 cm
+    event = {'id': 'round-0', 'positions': w['pre'].tolist(), 'rotations': w['rotation'].tolist(), 'deadline': 9.}
+    loop.on_plan({**info, 'phase': 'advance', 'hands': 'gate', 'event': event}, sample(1.06, -4.694))
+    loop.after_step(sample(1.06, -4.694, root_x=-.88), RESTING)
+    touch = dict(RESTING, left_n=.3)
+    loop.after_step(sample(1.08, -4.692, root_x=-.88), touch)
+    assert loop.drive_released_at == pytest.approx(1.08) and loop.drive(1.1) is None
+    result = json.loads((tmp_path/'grasp-result.json').read_text())
+    notes = result['attempts'][0]['notes']
+    assert notes['backoff_m'] == pytest.approx(.06) and notes['anchor_clearance_m'] == pytest.approx(CFG['table_edge_x_m'] + .84)
+    np.testing.assert_allclose(notes['wrist_gap_m'], [.05, .05])
+    assert result['drive_released_round'] == 0 and result['layout'] == layout
+    loop.on_plan({**info, 'round': 1, 'phase': 'wait', 'latch_time': 3.}, sample(3., -4.69))
+    assert loop.drive(3.5) is None                                    # a new round does not restart the drive
+
+
+def test_hands_closing_records_where_the_box_went_since_the_latch(tmp_path):
+    layout = {'speed_mps': .3, 'segment_y': [-4.9, -4.6], 'direction': 1}
+    loop = GraspLoop(tmp_path, CONFIG, stop=lambda: None, layout=layout)
+    loop.gate.closed = True
+    base = {'wrist_pos': [[0.]*3]*2, 'wrist_rot': [EYE.tolist()]*2, 'root_pos': [-.84, -4.75, .78],
+            'wrist_velocity': [[0.]*3]*2, 'box_quat': quat(0)}
+    loop.on_plan({'round': 0, 'phase': 'grip', 'latch_time': 0., 'latched_box_pos': [BOX[0], -4.8, .85],
+                  'hands': 'gate', 'event': None}, {**base, 'time': 0., 'box_com': [BOX[0], -4.8, .85]})
+    loop.after_step({**base, 'time': 2., 'box_com': [BOX[0], -4.7, .85]}, RESTING)
+    n = loop.attempts[0].notes
+    assert n['latch_to_close_m'] == pytest.approx(.1) and n['close_time'] == 2. and n['turned']
+
+
+def test_stand_still_reaches_from_where_it_stands(tmp_path):
+    policy = scripted_policy(tmp_path, delay=5)
+    policy.stand_still = True
+    aside = standing_sample(policy, 0., BOX, root_xy=stance(BOX, CFG) + [-.05, -.15])
+    policy.begin_episode(aside)
+    for step in range(1, 7):
+        policy.advance([standing_sample(policy, step * .02, BOX, root_xy=stance(BOX, CFG) + [-.05, -.15])])
+    assert policy.round.phase == 'raise' and policy.walk is None and policy.round.notes['stand_still']
+
+
+def test_stand_still_run_flags():
+    a = parse_args(['--run-id', 'x', '--grasp-loop', '--stand-still', '--box-at', '.16', '-.1', '40', '.05'])
+    assert a.box_at == [.16, -.1, 40., .05] and a.box_speed == 0.
+    b = parse_args(['--run-id', 'x', '--grasp-loop', '--stand-still', '--box-in-region', '--box-speed', '.1'])
+    assert b.box_in_region and b.box_speed == .1
+    for bad in (['--stand-still'], ['--box-in-region'], ['--box-in-region', '--box-speed', '.1'],
+                ['--stand-still', '--box-at', '.1', '0', '0', '0', '--box-in-region'],
+                ['--stand-still', '--box-in-region', '--start-at-stance'],
+                ['--stand-still', '--box-in-region', '--box-speed', '-.1']):
+        with pytest.raises(ValueError):
+            parse_args(['--run-id', 'x', '--grasp-loop', *bad])
+
+
+def test_region_conditions_have_the_progress_page_names():
+    names = {(v, d): region_prefix(v, d, CONFIG) for v, d in [(0., 75), (.03, 75), (.1, 75), (.3, 75), (0., 194), (.1, 194)]}
+    assert list(names.values()) == ['exp1-region', 'exp1-move003', 'exp1-move010', 'exp1-move030',
+                                    'exp1-long-static', 'exp1-long-move010']
+    with pytest.raises(SystemExit):
+        region_prefix(.3, 194, CONFIG)
+    assert not set(CONFIG['seeds']['region']) & (set(CONFIG['seeds']['debug']) | set(CONFIG['seeds']['heldout']))

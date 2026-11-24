@@ -126,6 +126,77 @@
    3027,
    3028,
    3029
+  ],
+  "region": [
+   6000,
+   6001,
+   6002,
+   6003,
+   6004,
+   6005,
+   6006,
+   6007,
+   6008,
+   6009,
+   6010,
+   6011,
+   6012,
+   6013,
+   6014,
+   6015,
+   6016,
+   6017,
+   6018,
+   6019,
+   6020,
+   6021,
+   6022,
+   6023,
+   6024,
+   6025,
+   6026,
+   6027,
+   6028,
+   6029
   ]
+ },
+ "stand": {
+  "_about": "Robot stays in front of the table and never walks (--stand-still). Depth: box centre behind the table's near edge; lateral: to the robot's left. The map is measured first; region and stance_extra_m are fixed from it by the rule in _region_rule and not changed afterwards.",
+  "robot_y_m": -4.78,
+  "map": {
+   "depth_m": [
+    0.08,
+    0.12,
+    0.16,
+    0.2,
+    0.24
+   ],
+   "lateral_m": [
+    -0.2,
+    -0.1,
+    0.0,
+    0.1,
+    0.2
+   ],
+   "yaw_deg": [
+    0,
+    40
+   ],
+   "stance_extra_m": [
+    0.0,
+    0.05
+   ],
+   "first_seed": 7000
+  },
+  "_region_rule": "Largest depth x lateral rectangle of map cells in which both yaw columns succeed at >= 90% at the chosen stance distance; each edge then pulled in by half a grid step.",
+  "region": null,
+  "stance_extra_m": null,
+  "max_yaw_deg": 45,
+  "speeds_mps": [
+   0.03,
+   0.1,
+   0.3
+  ],
+  "long_delay_steps": 194
  }
 }

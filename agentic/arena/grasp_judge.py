@@ -69,6 +69,7 @@ class Attempt:
     events: dict = field(default_factory=dict)
     end_time: float | None = None
     holding: bool = False
+    notes: dict = field(default_factory=dict)   # reach and box-motion measurements, see GraspLoop
 
     def __post_init__(self):
         self._grip = Sustained(self.criteria.grip_s)
@@ -126,7 +127,8 @@ class Attempt:
     def summary(self):
         return {'attempt': self.index, 'label': self.label, 'start_time': self.start_time,
                 'end_time': self.end_time, 'latched_box_pos': list(self.latched_box_pos),
-                'touched': self.touched, 'held': 'held' in self.events, 'events': dict(self.events)}
+                'touched': self.touched, 'held': 'held' in self.events, 'events': dict(self.events),
+                **({'notes': dict(self.notes)} if self.notes else {})}
 
 
 def summarize(attempts, termination, success_time, clock_start):

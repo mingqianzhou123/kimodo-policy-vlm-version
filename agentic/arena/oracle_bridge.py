@@ -37,16 +37,17 @@ def install_oracle_bridge():
         run = Path(os.environ['ORACLE_RUN'])
         vision = None
         grasp = os.environ.get('GRASP_LOOP') == '1'
-        loop = None
+        loop = drive_rest = None
         if grasp:
             from arena.grasp_loop import GraspLoop
-            from arena.grasp_scene import read_contact
+            from arena.grasp_scene import drive_box, load_layout, read_contact
             config = json.loads((Path(__file__).resolve().parents[1]/'configs/grasp-loop.json').read_text())
             table = next((c for c in json.loads((run/'grasp-scene.json').read_text())['colliders_near_box']
                           if 'PackingTable' in c['path']), None)
             if table is None or abs(table['min'][0]-config['scene']['table_edge_x_m']) > .01:
                 raise ValueError('The table edge in the scene differs from the grasp configuration')
-            loop = GraspLoop(run, config, stop=lambda: setattr(env.kvla_controller, 'is_running', False))
+            loop = GraspLoop(run, config, stop=lambda: setattr(env.kvla_controller, 'is_running', False),
+                             layout=load_layout())
             apply_hands = provider._apply_hand_binary_targets
             # The policy's hand channel is ignored: both hands follow the measured-arrival gate.
             provider._apply_hand_binary_targets = lambda left_closed, right_closed: apply_hands(
@@ -115,7 +116,13 @@ def install_oracle_bridge():
             return response
 
         def act(current_env):
-            nonlocal last_time
+            nonlocal last_time, drive_rest
+            if loop is not None:
+                drive = loop.drive(float(env.sim.current_time))
+                if drive is not None:
+                    if drive_rest is None:
+                        drive_rest = env.scene['box'].data.root_state_w[:, :7].clone()
+                    drive_box(env, drive_rest, *drive)
             before = sample()
             if last_time is not None and not np.isclose(before['time']-last_time,.02,atol=1e-6):
                 raise ValueError(f'Unexpected control timing {last_time} -> {before["time"]}')
