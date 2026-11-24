@@ -79,3 +79,17 @@ def test_policy_walks_on_cycles_then_holds(tmp_path):
     assert abs(moved[0]-.5) < .2 and abs(moved[1]) < .05
     plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
     assert all(not p['model_called'] for p in plans)
+
+
+def test_mirror_reflects_the_feet_and_swaps_side_steps():
+    rng = np.random.default_rng(1)
+    a = stride([.1, .3], 20.)
+    a[:, 9:38] = rng.uniform(-.3, .3, size=(1, 29))
+    fk = dw.g1_fk()
+    feet, mirrored = dw.reference_feet(a, fk), dw.reference_feet(cl.mirror(a), fk)
+    reflect = feet[:, ::-1].copy()
+    reflect[..., 1] *= -1                                     # the right foot lands where the left one's reflection is
+    np.testing.assert_allclose(mirrored, reflect, atol=1e-6)
+    np.testing.assert_allclose(cl.mirror(cl.mirror(a)), a, atol=1e-9)
+    lib = cl.add_mirrors({'left': library()['left']})
+    assert lib['right'][0]['advance_m'][1] < -.3 and lib['right'][0]['source'] == 'mirror:left'

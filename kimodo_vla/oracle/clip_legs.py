@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation, Slerp
 
-from kimodo_vla.core.types import yaw_of
+from kimodo_vla.core.types import G1_JOINT_NAMES, yaw_of
 from .demo_walks import RATE, g1_fk, heading_frame_motion, integrate_root, load_segment, reference_feet, rot6d_rows, CONTACT_M
 
 LEGS_AND_WAIST = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 17, 18)  # hips, waist, knees, ankles (G1_JOINT_NAMES order)
@@ -97,9 +97,47 @@ def build_library(segment_paths):
             continue
         i, j, cost = found
         cycle = make_cycle(a, i, j, seg['direction'] == 'turn')
+        if seg['direction'] != 'turn':   # taking the heading drift out changes the path: check the loop itself
+            unit = np.array(DIRECTION_UNITS[seg['direction']])
+            d = np.array(cycle['advance_m'])
+            if d @ unit < .25 or abs(unit[0]*d[1]-unit[1]*d[0]) > .35*(d @ unit):
+                continue
         name = seg['direction'] if seg['direction'] != 'turn' else ('turn-left' if cycle['yaw_deg'] > 0 else 'turn-right')
         cycle.update(source=seg['name'], frames=[i, j], loop_cost=cost)
         out.setdefault(name, []).append(cycle)
+    return add_mirrors(out)
+
+
+MIRROR_FLIP = ('roll', 'yaw')   # joints about the forward or vertical axis change sign in a left-right mirror
+MIRROR = np.diag([1., -1., 1.])
+
+
+def mirror(actions):
+    """The left-right mirror image of action rows: sides swapped, roll and yaw joints negated."""
+    a = np.array(actions, dtype=float)
+    names = list(G1_JOINT_NAMES)
+    out = a.copy()
+    for k, name in enumerate(names):
+        other = name.replace('left_', 'RIGHT_').replace('right_', 'left_').replace('RIGHT_', 'right_')
+        sign = -1. if any(f'_{w}_' in name for w in MIRROR_FLIP) else 1.
+        out[:, 9+names.index(other)] = sign*a[:, 9+k]
+    rot = np.einsum('ij,tjk,kl->til', MIRROR, rot6d_rows(a), MIRROR)
+    out[:, 3:9] = rot[:, :, :2].reshape(len(a), 6)
+    out[:, 1] = -a[:, 1]
+    return out
+
+
+def add_mirrors(library):
+    """Mirrored cycles for each side: left <-> right, turn-left <-> turn-right (sources marked 'mirror:')."""
+    pairs = {'left': 'right', 'right': 'left', 'turn-left': 'turn-right', 'turn-right': 'turn-left'}
+    out = {k: list(v) for k, v in library.items()}
+    for name, other in pairs.items():
+        for c in library.get(name, []):
+            a = mirror(c['actions'])
+            root = integrate_root(a)
+            d, turn = heading_frame_motion(root, rot6d_rows(a), 0, len(a)-1)
+            out.setdefault(other, []).append(dict(c, actions=a.tolist(), advance_m=d.tolist(),
+                                                  yaw_deg=turn if other.startswith('turn') else 0., source='mirror:'+c['source']))
     return out
 
 
