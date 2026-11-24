@@ -675,6 +675,54 @@
     "speed_m_s": 0.35,
     "turn_rate_deg_s": 45.0
    }
+  },
+  "deviation-comp": {
+   "runs": "exp2dev-comp",
+   "note": "Check of the per-direction coefficient compensation: open loop, each command multiplied by 1 / (the coefficient fitted on seeds 1000-1002 of deviation-open); held-out seeds. Goal names keep the uncompensated command.",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--open-loop"
+   ],
+   "seeds": [
+    1003,
+    1004
+   ],
+   "command_grid": {
+    "directions": {
+     "fwd": 0,
+     "fl": 45,
+     "left": 90,
+     "bl": 135,
+     "back": 180,
+     "br": -135,
+     "right": -90,
+     "fr": -45
+    },
+    "distances_m": [
+     0.5,
+     1.0
+    ],
+    "turns_deg": [],
+    "speed_m_s": 0.35,
+    "turn_rate_deg_s": 45.0,
+    "scale": {
+     "back": 3.0189,
+     "bl": 1.9635,
+     "br": 2.921,
+     "fl": 1.4858,
+     "fr": 1.2285,
+     "fwd": 1.7999,
+     "left": 1.5759,
+     "right": 1.7015
+    }
+   }
   }
  }
 }

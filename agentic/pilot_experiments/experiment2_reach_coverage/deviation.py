@@ -24,6 +24,7 @@ from kimodo_vla.oracle import demo_walks as dw
 from kimodo_vla.oracle.geometry import angle_deg, rotation_wxyz
 
 FIT_SEEDS, TEST_SEEDS = (1000, 1001, 1002), (1003, 1004)
+DIRECTION_DEG = {'fwd': 0, 'fl': 45, 'left': 90, 'bl': 135, 'back': 180, 'br': -135, 'right': -90, 'fr': -45}
 LINE_CM, LINE_DEG, EXPLAINED, MODEL_GAIN = 10., 10., .8, .25   # the pre-registered lines
 
 
@@ -51,7 +52,10 @@ def walk_row(run):
     name = goal['name']
     direction, size = name.rsplit('-', 1)
     root_goal = goal['root']
-    return {'run': run.name, 'group': 'open' if '-open-' in run.name else 'closed' if '-closed-' in run.name else 'other',
+    group = next((g for g in ('open', 'closed', 'comp') if f'-{g}-' in run.name), 'other')
+    target = ([0., 0.] if direction == 'turn' else
+              (int(size)/100*np.array([np.cos(np.radians(DIRECTION_DEG[direction])), np.sin(np.radians(DIRECTION_DEG[direction]))])).tolist())
+    return {'run': run.name, 'group': group, 'target_xy': target,
             'seed': target.get('noise_seed'), 'command': name, 'direction': direction,
             'size': int(size)/(1 if direction == 'turn' else 100),
             'command_xy': root_goal['xy'], 'command_yaw_deg': root_goal.get('yaw_deg', 0.),
@@ -113,6 +117,7 @@ def analyze(args):
     fell = [w['run'] for w in data['walks'] if w['fell']]
     opened = [w for w in walks if w['group'] == 'open']
     closed = [w for w in walks if w['group'] == 'closed']
+    comp = [w for w in walks if w['group'] == 'comp']
     directions = list(dict.fromkeys(w['direction'] for w in opened))
     out = {'fell': fell, 'directions': {}}
 
@@ -182,6 +187,11 @@ def analyze(args):
                'coefficient_error_loo_size': float(np.mean(loo_k)) if loo_k else None,
                'model_error_loo_size': float(np.mean(loo_m)) if loo_m else None,
                'closed_loop_error': float(closed_err.mean()) if len(closed_err) else None, 'closed_runs': len(closed_err),
+               # the coefficient compensation actually run (commands scaled by 1/k), error to the intended target
+               'compensated_measured': float(np.mean([np.linalg.norm(np.subtract(w['actual_xy'], w['target_xy'])) for w in comp
+                                                      if w['direction'] == d])*s) if any(w['direction'] == d for w in comp) else None,
+               'compensated_estimate_same_commands': float(np.mean([np.linalg.norm(vec(w, 'actual')-k*vec(w, 'command'))*s for w in test
+                                                                    if any(c['command'] == w['command'] for c in comp)])) if comp and d != 'turn' else None,
                'scatter': float(np.mean(scatter)), 'bias': float(np.mean(bias))}
         # the pre-registered verdict, in the pre-registered order
         row['calibration_passes'] = bool(row['coefficient_error'] <= line or (explained is not None and explained >= EXPLAINED))
@@ -208,13 +218,14 @@ def analyze(args):
                     'mean_distance_cm': 100*float(np.linalg.norm(o, axis=1).mean())}
     path = Path(args.triplets).with_name('analysis.json')
     path.write_text(json.dumps(out, indent=1))
-    print(f"{'direction':<10}{'k':>6}{'raw':>8}{'coef':>8}{'expl':>6}{'model':>8}{'k-loo':>8}{'m-loo':>8}{'closed':>8}{'scatter':>8}{'bias':>8}  verdict")
+    print(f"{'direction':<10}{'k':>6}{'raw':>8}{'coef':>8}{'expl':>6}{'model':>8}{'k-loo':>8}{'m-loo':>8}{'closed':>8}{'scatter':>8}{'bias':>8}{'comp':>8}{'c-est':>8}  verdict")
     for d, r in out['directions'].items():
         f = lambda x: '-' if x is None else f'{x:.1f}'
         print(f"{d:<10}{r['coefficient']:>6.2f}{f(r['uncompensated']):>8}{f(r['coefficient_error']):>8}"
               f"{'-' if r['coefficient_explained'] is None else format(r['coefficient_explained'], '.2f'):>6}"
               f"{f(r['model_error']):>8}{f(r['coefficient_error_loo_size']):>8}{f(r['model_error_loo_size']):>8}"
-              f"{f(r['closed_loop_error']):>8}{f(r['scatter']):>8}{f(r['bias']):>8}  {r['verdict']} ({r['unit']})")
+              f"{f(r['closed_loop_error']):>8}{f(r['scatter']):>8}{f(r['bias']):>8}{f(r['compensated_measured']):>8}"
+              f"{f(r['compensated_estimate_same_commands']):>8}  {r['verdict']} ({r['unit']})")
     if fell:
         print('fell (left out):', fell)
     print(json.dumps(out.get('reach', {})))
