@@ -17,7 +17,7 @@ from kimodo_vla.oracle.geometry import SIDES, XmlFK
 from kimodo_vla.oracle.grasp_policy import (BoxGraspPolicy, WristPath, clip_profile, face_yaw, graspable, half_width,
                                              stance, waypoints)
 import overview
-from report_grasp import summarize as summarize_runs
+from report_grasp import pick_region, summarize as summarize_runs
 from run_grasp_suite import region_prefix
 from run_oracle import parse_args
 
@@ -536,3 +536,19 @@ def test_a_driven_box_away_from_its_latch_is_not_knocked_over_until_it_is_pushed
     assert loop.attempts[0].label == 'touched_not_held'
     loop.after_step(at(2., -4.45), RESTING)                           # now pushed 15 cm by the hand
     assert loop.attempts[0].label == 'knocked_over'
+
+
+def test_region_rule_takes_the_largest_rectangle_at_ninety_percent():
+    def episode(d, l, y, e, ok):
+        return {'success': ok, 'layout': {'depth_m': d, 'lateral_m': l, 'yaw_deg': y, 'stance_extra_m': e}}
+    m = CONFIG['stand']['map']
+    # near stance: everything at depth <= 0.16 and |lateral| <= 0.10 works, one 40-degree miss inside
+    near = [episode(d, l, y, 0., d <= .16 and abs(l) <= .1 and (d, l, y) != (.12, .1, 40))
+            for d in m['depth_m'] for l in m['lateral_m'] for y in m['yaw_deg']]
+    # far stance: only the centre column works
+    far = [episode(d, l, y, .05, l == 0.) for d in m['depth_m'] for l in m['lateral_m'] for y in m['yaw_deg']]
+    pick = pick_region(near + far, CONFIG)
+    assert pick == {'stance_extra_m': 0., 'region': {'depth_m': [.08, .16], 'lateral_m': [-.1, .1]},
+                    'episodes': 18, 'successes': 17}
+    assert pick_region(far, CONFIG)['region'] == {'depth_m': [.08, .24], 'lateral_m': [0., 0.]}
+    assert pick_region([], CONFIG) is None

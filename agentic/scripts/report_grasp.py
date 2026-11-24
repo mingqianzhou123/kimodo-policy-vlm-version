@@ -54,6 +54,40 @@ def grid(results):
     return cells
 
 
+def pick_region(results, config, rate=.9):
+    """The region rule, fixed before the map was run (configs/grasp-loop.json, stand._region_rule).
+
+    A cell stands for the square of half a grid step around its point. For each stance distance,
+    take the rectangle of whole cells with the most cells whose episodes, both yaws pooled,
+    succeed at least ``rate``; ties go to the higher rate, then the wider lateral span (the box
+    moves sideways), then the nearer stance. Pulling every outer edge in by half a step leaves
+    the span between the outermost measured points: nothing is extrapolated.
+    """
+    m = config['stand']['map']
+    depths, laterals, yaws = sorted(m['depth_m']), sorted(m['lateral_m']), m['yaw_deg']
+    key = lambda *v: tuple(round(float(x), 3) for x in v)
+    best = None
+    for extra in sorted(m['stance_extra_m']):
+        outcome = {key(l['depth_m'], l['lateral_m'], l['yaw_deg']): r['success'] for r in results
+                   if (l := r.get('layout') or {}).get('depth_m') is not None and abs(l['stance_extra_m'] - extra) < 1e-6}
+        for i0 in range(len(depths)):
+            for i1 in range(i0, len(depths)):
+                for j0 in range(len(laterals)):
+                    for j1 in range(j0, len(laterals)):
+                        cells = [key(d, l, y) for d in depths[i0:i1 + 1] for l in laterals[j0:j1 + 1] for y in yaws]
+                        if any(c not in outcome for c in cells):
+                            continue
+                        wins = sum(outcome[c] for c in cells)
+                        if wins < rate * len(cells) - 1e-9:
+                            continue
+                        score = (len(cells), wins / len(cells), laterals[j1] - laterals[j0], -extra)
+                        if best is None or score > best[0]:
+                            best = (score, {'stance_extra_m': extra, 'region': {
+                                'depth_m': [depths[i0], depths[i1]], 'lateral_m': [laterals[j0], laterals[j1]]},
+                                'episodes': len(cells), 'successes': wins})
+    return None if best is None else best[1]
+
+
 def motion(results):
     """Box motion across all rounds of moving-box episodes: what the latch missed by the time the hands closed."""
     closed = [a['notes'] for r in results for a in r['attempts'] if 'close_time' in a.get('notes', {})]
@@ -89,8 +123,13 @@ if __name__ == '__main__':
     p.add_argument('--json', action='store_true')
     p.add_argument('--map', action='store_true', help='Success grid per map cell and first-round attribution')
     p.add_argument('--rounds', action='store_true', help='Every round with its reach and box-motion notes')
+    p.add_argument('--pick-region', action='store_true', help='Apply the region rule to a finished map and print it')
     a = p.parse_args()
     results, unfinished = load(a.pattern)
+    if a.pick_region:
+        from paths import AGENTIC
+        print(json.dumps(pick_region(results, json.loads((AGENTIC/'configs/grasp-loop.json').read_text()))))
+        raise SystemExit(0)
     summary = summarize(results)
     if any((r.get('layout') or {}).get('speed_mps') for r in results):
         summary['motion'] = motion(results)
