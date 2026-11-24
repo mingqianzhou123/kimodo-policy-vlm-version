@@ -1,0 +1,228 @@
+{
+ "start_xy": [
+  -4.0,
+  -4.0
+ ],
+ "groups": {
+  "forward": {
+   "runs": "exp2-forward",
+   "flags": [
+    "--walk-steps",
+    "25"
+   ],
+   "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+   ],
+   "goals": [
+    {
+     "name": "forward-050",
+     "root": {
+      "xy": [
+       0.5,
+       0.0
+      ]
+     }
+    }
+   ]
+  },
+  "sidestep": {
+   "runs": "exp2-sidestep",
+   "flags": [
+    "--walk-steps",
+    "25"
+   ],
+   "goals": [
+    {
+     "name": "left-050",
+     "root": {
+      "xy": [
+       0.0,
+       0.5
+      ]
+     },
+     "seeds": [
+      1000,
+      1001,
+      1002,
+      1003,
+      1004
+     ]
+    },
+    {
+     "name": "right-050",
+     "root": {
+      "xy": [
+       0.0,
+       -0.5
+      ]
+     },
+     "seeds": [
+      1005,
+      1006,
+      1007,
+      1008,
+      1009
+     ]
+    }
+   ]
+  },
+  "backward": {
+   "runs": "exp2-backward",
+   "flags": [
+    "--walk-steps",
+    "25"
+   ],
+   "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009
+   ],
+   "goals": [
+    {
+     "name": "back-050",
+     "root": {
+      "xy": [
+       -0.5,
+       0.0
+      ]
+     }
+    }
+   ]
+  },
+  "lean": {
+   "runs": "exp2-lean",
+   "goals": [
+    {
+     "name": "lean-30-waist",
+     "lean": {
+      "pitch_deg": 30,
+      "by": "waist"
+     },
+     "seeds": [
+      1000,
+      1001,
+      1002,
+      1003,
+      1004
+     ]
+    },
+    {
+     "name": "lean-30-hips",
+     "lean": {
+      "pitch_deg": 30,
+      "by": "hips"
+     },
+     "seeds": [
+      1005,
+      1006,
+      1007,
+      1008,
+      1009
+     ]
+    }
+   ]
+  },
+  "reach-kimodo": {
+   "runs": "exp2-reach-kimodo",
+   "flags": [
+    "--walk-steps",
+    "25"
+   ],
+   "seeds": [
+    1000
+   ],
+   "reach_grid": {
+    "distances_m": [
+     0.35,
+     1.0,
+     1.8
+    ],
+    "heights_m": [
+     0.55,
+     0.95,
+     1.35
+    ],
+    "lateral_m": -0.2,
+    "standoff_m": {
+     "0.55": 0.4,
+     "0.95": 0.35,
+     "1.35": 0.3
+    },
+    "approach_pitch_deg": {
+     "0.55": {
+      "level": 0,
+      "down": -40
+     },
+     "0.95": {
+      "level": 0,
+      "down": -40
+     },
+     "1.35": {
+      "level": 0,
+      "up": 30
+     }
+    },
+    "walk_threshold_m": 0.05,
+    "speed_m_s": 0.35,
+    "reach_s": 1.5
+   }
+  },
+  "reach-ik": {
+   "runs": "exp2-reach-ik",
+   "flags": [
+    "--walk-steps",
+    "25",
+    "--arm-ik"
+   ],
+   "seeds": [
+    1000
+   ],
+   "reach_grid": {
+    "distances_m": [
+     0.35,
+     1.0,
+     1.8
+    ],
+    "heights_m": [
+     0.55,
+     0.95,
+     1.35
+    ],
+    "lateral_m": -0.2,
+    "standoff_m": {
+     "0.55": 0.4,
+     "0.95": 0.35,
+     "1.35": 0.3
+    },
+    "approach_pitch_deg": {
+     "0.55": {
+      "level": 0,
+      "down": -40
+     },
+     "0.95": {
+      "level": 0,
+      "down": -40
+     },
+     "1.35": {
+      "level": 0,
+      "up": 30
+     }
+    },
+    "walk_threshold_m": 0.05,
+    "speed_m_s": 0.35,
+    "reach_s": 1.5
+   }
+  }
+ }
+}

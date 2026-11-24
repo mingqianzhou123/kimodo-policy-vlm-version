@@ -172,3 +172,12 @@ def test_server_answers_byte_ranges(tmp_path):
     finally:
         server.shutdown()
         server.server_close()
+
+
+@pytest.mark.parametrize('verdict', [True, False])
+def test_a_moving_goal_run_is_judged_by_its_own_result_file(tmp_path, verdict):
+    rows, _ = logged(8)  # 8 cm from the reference: fails the standing 3 cm rule either way
+    run = save(tmp_path/'run', rows, {'status': 'completed'}, {'arrival_time': ARRIVAL})
+    assert overview.describe(run, tmp_path)['m']['pass'] is False
+    (run/'motion-result.json').write_text(json.dumps({'pass': verdict}))
+    assert overview.describe(run, tmp_path)['m']['pass'] is verdict

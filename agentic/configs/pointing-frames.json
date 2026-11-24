@@ -1,0 +1,2257 @@
+{
+ "assets": {
+  "box": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/CubeBox_A03_21cm_PR_NVD_01/CubeBox_A03_21cm_PR_NVD_01_physics_rigid.usd",
+   "scale": 0.01
+  },
+  "cardbox_d": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_box/intreaction_obj/vendor_props/Cardbox_D1/Cardbox_D1.usd",
+   "scale": 0.01
+  },
+  "crate": {
+   "usd": "assets/objects/small_warehouse/SM_Crate_A14_Gray_01/SM_Crate_A14_Gray_01.usd",
+   "scale": 0.01
+  },
+  "hammer": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/hammer/hammer.usd",
+   "scale": 1.0,
+   "graspable_box": [
+    [
+     -1,
+     -1,
+     -1
+    ],
+    [
+     1,
+     0.095,
+     1
+    ]
+   ]
+  },
+  "scissors": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/scissors001/model_scissors_2.usd",
+   "scale": 1.0
+  },
+  "knife": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_doubledesk/interaction_obj/utility knife003/model_utility_knife_6.usd",
+   "scale": 1.0
+  },
+  "stapler": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/green stapler/model_stapler_1.usd",
+   "scale": 1.0
+  },
+  "bottle": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/drink016/model_drink016.usd",
+   "scale": 1.0
+  },
+  "can": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/drink062/model_drink062.usd",
+   "scale": 1.0
+  },
+  "vase": {
+   "usd": "assets/objects/small_warehouse/small_warehouse_grapcup/interaction_obj/IKEA_PELARBJORK_vase_grey_green_20cm/model_PELARBJORK_vase_grey_green_20cm.usd",
+   "scale": 1.0
+  }
+ },
+ "scenes": {
+  "pp_box": {
+   "task": "Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody",
+   "env_config": "tasks/common_test_config/base_test/pp_box_sonic_test.yaml",
+   "hide": [
+    "/World/envs/env_0/Box"
+   ],
+   "instances": {
+    "box_a": "box",
+    "box_b": "box",
+    "carton": "cardbox_d",
+    "crate": "crate",
+    "hammer_a": "hammer",
+    "hammer_b": "hammer",
+    "scissors": "scissors",
+    "knife": "knife",
+    "stapler": "stapler",
+    "bottle_a": "bottle",
+    "bottle_b": "bottle",
+    "can": "can",
+    "vase": "vase"
+   }
+  },
+  "doubledesk": {
+   "task": "Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody",
+   "env_config": "tasks/common_test_config/base_test/doubledesk_sonic_test.yaml",
+   "hide": [
+    "/World/envs/env_0/ObjectL",
+    "/World/envs/env_0/Basket"
+   ],
+   "instances": {
+    "box_a": "box",
+    "box_b": "box",
+    "carton": "cardbox_d",
+    "crate": "crate",
+    "hammer_a": "hammer",
+    "hammer_b": "hammer",
+    "scissors": "scissors",
+    "knife": "knife",
+    "stapler": "stapler",
+    "bottle_a": "bottle",
+    "bottle_b": "bottle",
+    "can": "can",
+    "vase": "vase"
+   }
+  }
+ },
+ "frames": [
+  {
+   "id": "pp_box-distance-01",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -1.067,
+    -5.003,
+    -13.7
+   ],
+   "objects": {
+    "box_a": [
+     -0.369,
+     -4.942,
+     0.746,
+     5.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box."
+  },
+  {
+   "id": "pp_box-distance-02",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -1.136,
+    -4.65,
+    -0.8
+   ],
+   "objects": {
+    "hammer_a": [
+     -0.378,
+     -4.755,
+     0.746,
+     -152.0
+    ],
+    "can": [
+     -0.469,
+     -4.214,
+     0.746,
+     -149.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer."
+  },
+  {
+   "id": "pp_box-distance-03",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -1.114,
+    -5.11,
+    11.7
+   ],
+   "objects": {
+    "stapler": [
+     -0.346,
+     -5.175,
+     0.746,
+     178.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "pp_box-distance-04",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -1.483,
+    -5.234,
+    1.3
+   ],
+   "objects": {
+    "box_a": [
+     -0.42,
+     -5.159,
+     0.746,
+     -177.0
+    ],
+    "vase": [
+     -0.138,
+     -4.125,
+     0.746,
+     113.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box."
+  },
+  {
+   "id": "pp_box-distance-05",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -1.47,
+    -5.36,
+    13.4
+   ],
+   "objects": {
+    "can": [
+     -0.089,
+     -5.784,
+     0.746,
+     16.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "pp_box-distance-06",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -1.581,
+    -4.86,
+    -9.4
+   ],
+   "objects": {
+    "vase": [
+     -0.038,
+     -4.58,
+     0.746,
+     -134.0
+    ],
+    "hammer_a": [
+     -0.449,
+     -5.298,
+     0.746,
+     126.0
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "pp_box-distance-07",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -2.193,
+    -4.619,
+    -6.6
+   ],
+   "objects": {
+    "box_a": [
+     -0.463,
+     -4.425,
+     0.746,
+     -29.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box."
+  },
+  {
+   "id": "pp_box-distance-08",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -2.273,
+    -4.643,
+    -6.9
+   ],
+   "objects": {
+    "hammer_a": [
+     -0.364,
+     -4.453,
+     0.746,
+     46.0
+    ],
+    "box_a": [
+     -0.267,
+     -4.136,
+     0.746,
+     -136.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer."
+  },
+  {
+   "id": "pp_box-distance-09",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -2.228,
+    -4.33,
+    13.6
+   ],
+   "objects": {
+    "vase": [
+     -0.222,
+     -4.722,
+     0.746,
+     137.0
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "pp_box-distance-10",
+   "category": "distance",
+   "scene": "pp_box",
+   "robot": [
+    -2.22,
+    -4.935,
+    -9.5
+   ],
+   "objects": {
+    "bottle_a": [
+     -0.126,
+     -4.625,
+     0.746,
+     -161.0
+    ],
+    "crate": [
+     -0.206,
+     -5.171,
+     0.746,
+     154.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "doubledesk-distance-01",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -2.915,
+    -2.491,
+    -84.1
+   ],
+   "objects": {
+    "box_a": [
+     -2.989,
+     -3.104,
+     0.746,
+     -0.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box."
+  },
+  {
+   "id": "doubledesk-distance-02",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -2.96,
+    -0.852,
+    86.9
+   ],
+   "objects": {
+    "hammer_a": [
+     -2.935,
+     -0.193,
+     0.746,
+     -62.0
+    ],
+    "can": [
+     -2.61,
+     -0.186,
+     0.746,
+     -139.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer."
+  },
+  {
+   "id": "doubledesk-distance-03",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -2.824,
+    -2.48,
+    -84.6
+   ],
+   "objects": {
+    "scissors": [
+     -2.936,
+     -3.067,
+     0.746,
+     6.0
+    ]
+   },
+   "target": "scissors",
+   "instruction": "Pick up the scissors."
+  },
+  {
+   "id": "doubledesk-distance-04",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -2.836,
+    -1.254,
+    86.0
+   ],
+   "objects": {
+    "box_a": [
+     -2.963,
+     0.174,
+     0.746,
+     45.0
+    ],
+    "vase": [
+     -3.529,
+     0.045,
+     0.746,
+     154.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box."
+  },
+  {
+   "id": "doubledesk-distance-05",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -2.927,
+    -2.143,
+    -89.8
+   ],
+   "objects": {
+    "can": [
+     -3.007,
+     -3.411,
+     0.746,
+     114.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "doubledesk-distance-06",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -2.737,
+    -1.447,
+    100.1
+   ],
+   "objects": {
+    "vase": [
+     -2.35,
+     0.098,
+     0.746,
+     86.0
+    ],
+    "hammer_a": [
+     -1.916,
+     0.169,
+     0.746,
+     -98.0
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "doubledesk-distance-07",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -2.876,
+    -0.926,
+    -89.1
+   ],
+   "objects": {
+    "box_a": [
+     -2.905,
+     -3.163,
+     0.746,
+     66.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box."
+  },
+  {
+   "id": "doubledesk-distance-08",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -3.417,
+    -1.846,
+    90.1
+   ],
+   "objects": {
+    "hammer_a": [
+     -3.458,
+     -0.094,
+     0.746,
+     -48.0
+    ],
+    "box_a": [
+     -1.905,
+     0.217,
+     0.746,
+     117.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer."
+  },
+  {
+   "id": "doubledesk-distance-09",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -3.216,
+    -0.853,
+    -98.2
+   ],
+   "objects": {
+    "vase": [
+     -2.819,
+     -3.154,
+     0.746,
+     -44.0
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "doubledesk-distance-10",
+   "category": "distance",
+   "scene": "doubledesk",
+   "robot": [
+    -3.703,
+    -1.848,
+    99.2
+   ],
+   "objects": {
+    "bottle_a": [
+     -3.309,
+     0.151,
+     0.746,
+     4.0
+    ],
+    "crate": [
+     -2.454,
+     0.114,
+     0.746,
+     73.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "pp_box-small-01",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.533,
+    -5.248,
+    12.8
+   ],
+   "objects": {
+    "hammer_a": [
+     -0.19,
+     -5.578,
+     0.746,
+     89.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer."
+  },
+  {
+   "id": "pp_box-small-02",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.303,
+    -5.648,
+    6.4
+   ],
+   "objects": {
+    "scissors": [
+     -0.213,
+     -5.849,
+     0.746,
+     1.0
+    ],
+    "box_a": [
+     -0.23,
+     -5.4,
+     0.746,
+     -121.0
+    ]
+   },
+   "target": "scissors",
+   "instruction": "Pick up the scissors."
+  },
+  {
+   "id": "pp_box-small-03",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.122,
+    -5.566,
+    10.1
+   ],
+   "objects": {
+    "knife": [
+     -0.145,
+     -5.632,
+     0.746,
+     -174.0
+    ]
+   },
+   "target": "knife",
+   "instruction": "Pick up the utility knife."
+  },
+  {
+   "id": "pp_box-small-04",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.855,
+    -4.995,
+    8.6
+   ],
+   "objects": {
+    "stapler": [
+     -0.103,
+     -5.166,
+     0.746,
+     168.0
+    ],
+    "vase": [
+     -0.48,
+     -4.124,
+     0.746,
+     -33.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "pp_box-small-05",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.129,
+    -5.066,
+    -11.5
+   ],
+   "objects": {
+    "bottle_a": [
+     -0.458,
+     -4.903,
+     0.746,
+     74.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "pp_box-small-06",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.303,
+    -5.826,
+    -7.0
+   ],
+   "objects": {
+    "can": [
+     -0.49,
+     -5.823,
+     0.746,
+     142.0
+    ],
+    "crate": [
+     -0.132,
+     -5.518,
+     0.746,
+     6.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "pp_box-small-07",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.404,
+    -5.369,
+    9.1
+   ],
+   "objects": {
+    "scissors": [
+     -0.311,
+     -5.539,
+     0.746,
+     -68.0
+    ]
+   },
+   "target": "scissors",
+   "instruction": "Pick up the scissors."
+  },
+  {
+   "id": "pp_box-small-08",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.525,
+    -5.161,
+    12.9
+   ],
+   "objects": {
+    "knife": [
+     -0.447,
+     -5.35,
+     0.746,
+     -151.0
+    ],
+    "box_a": [
+     -0.406,
+     -4.251,
+     0.746,
+     11.0
+    ]
+   },
+   "target": "knife",
+   "instruction": "Pick up the utility knife."
+  },
+  {
+   "id": "pp_box-small-09",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.665,
+    -4.21,
+    2.0
+   ],
+   "objects": {
+    "bottle_a": [
+     -0.094,
+     -4.147,
+     0.746,
+     128.0
+    ],
+    "hammer_a": [
+     -0.164,
+     -5.814,
+     0.746,
+     -42.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "pp_box-small-10",
+   "category": "small",
+   "scene": "pp_box",
+   "robot": [
+    -1.441,
+    -4.688,
+    -1.6
+   ],
+   "objects": {
+    "can": [
+     -0.373,
+     -4.637,
+     0.746,
+     18.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "doubledesk-small-01",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -3.051,
+    -1.965,
+    -92.0
+   ],
+   "objects": {
+    "hammer_a": [
+     -2.915,
+     -3.368,
+     0.746,
+     -98.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer."
+  },
+  {
+   "id": "doubledesk-small-02",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -2.622,
+    -1.219,
+    101.9
+   ],
+   "objects": {
+    "scissors": [
+     -2.332,
+     0.195,
+     0.746,
+     -116.0
+    ],
+    "box_a": [
+     -2.836,
+     0.161,
+     0.746,
+     29.0
+    ]
+   },
+   "target": "scissors",
+   "instruction": "Pick up the scissors."
+  },
+  {
+   "id": "doubledesk-small-03",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -3.309,
+    -2.32,
+    -101.9
+   ],
+   "objects": {
+    "knife": [
+     -3.112,
+     -3.308,
+     0.746,
+     74.0
+    ]
+   },
+   "target": "knife",
+   "instruction": "Pick up the utility knife."
+  },
+  {
+   "id": "doubledesk-small-04",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -2.824,
+    -0.935,
+    102.8
+   ],
+   "objects": {
+    "stapler": [
+     -2.533,
+     -0.025,
+     0.746,
+     -95.0
+    ],
+    "vase": [
+     -3.271,
+     0.165,
+     0.746,
+     67.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "doubledesk-small-05",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -2.548,
+    -2.147,
+    -77.5
+   ],
+   "objects": {
+    "bottle_a": [
+     -2.879,
+     -3.547,
+     0.746,
+     -3.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "doubledesk-small-06",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -2.656,
+    -1.013,
+    100.3
+   ],
+   "objects": {
+    "can": [
+     -2.52,
+     -0.271,
+     0.746,
+     54.0
+    ],
+    "crate": [
+     -2.846,
+     -0.047,
+     0.746,
+     154.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "doubledesk-small-07",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -1.874,
+    -2.074,
+    -102.0
+   ],
+   "objects": {
+    "scissors": [
+     -1.692,
+     -3.324,
+     0.746,
+     128.0
+    ]
+   },
+   "target": "scissors",
+   "instruction": "Pick up the scissors."
+  },
+  {
+   "id": "doubledesk-small-08",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -2.298,
+    -0.91,
+    82.0
+   ],
+   "objects": {
+    "knife": [
+     -2.532,
+     0.013,
+     0.746,
+     51.0
+    ],
+    "box_a": [
+     -2.075,
+     -0.003,
+     0.746,
+     118.0
+    ]
+   },
+   "target": "knife",
+   "instruction": "Pick up the utility knife."
+  },
+  {
+   "id": "doubledesk-small-09",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -2.401,
+    -2.461,
+    -95.1
+   ],
+   "objects": {
+    "bottle_a": [
+     -2.384,
+     -3.428,
+     0.746,
+     90.0
+    ],
+    "hammer_a": [
+     -2.074,
+     -3.124,
+     0.746,
+     35.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "doubledesk-small-10",
+   "category": "small",
+   "scene": "doubledesk",
+   "robot": [
+    -3.255,
+    -1.119,
+    90.0
+   ],
+   "objects": {
+    "can": [
+     -3.273,
+     -0.081,
+     0.746,
+     -130.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "pp_box-occlusion-01",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -1.472,
+    -4.002,
+    2.6
+   ],
+   "objects": {
+    "can": [
+     -0.164,
+     -4.119,
+     0.746,
+     37.0
+    ],
+    "box_a": [
+     -0.5,
+     -4.197,
+     0.746,
+     -6.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "pp_box-occlusion-02",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -1.488,
+    -5.337,
+    8.5
+   ],
+   "objects": {
+    "bottle_a": [
+     -0.134,
+     -5.558,
+     0.746,
+     -142.0
+    ],
+    "carton": [
+     -0.46,
+     -5.361,
+     0.746,
+     -11.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "pp_box-occlusion-03",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -1.688,
+    -5.138,
+    9.5
+   ],
+   "objects": {
+    "stapler": [
+     -0.192,
+     -5.276,
+     0.766,
+     55.0
+    ],
+    "crate": [
+     -0.162,
+     -5.303,
+     0.746,
+     -5.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "pp_box-occlusion-04",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -2.345,
+    -4.797,
+    11.8
+   ],
+   "objects": {
+    "vase": [
+     -0.058,
+     -5.336,
+     0.746,
+     137.0
+    ],
+    "box_a": [
+     -0.389,
+     -5.198,
+     0.746,
+     -14.0
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "pp_box-occlusion-05",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -1.267,
+    -4.347,
+    -3.3
+   ],
+   "objects": {
+    "hammer_a": [
+     -0.34,
+     -4.341,
+     0.766,
+     176.0
+    ],
+    "crate": [
+     -0.375,
+     -4.347,
+     0.746,
+     98.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer."
+  },
+  {
+   "id": "pp_box-occlusion-06",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -2.045,
+    -5.219,
+    -10.2
+   ],
+   "objects": {
+    "can": [
+     -0.029,
+     -4.971,
+     0.746,
+     -37.0
+    ],
+    "vase": [
+     -0.452,
+     -4.909,
+     0.746,
+     7.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "pp_box-occlusion-07",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -1.477,
+    -5.511,
+    -6.4
+   ],
+   "objects": {
+    "bottle_a": [
+     -0.109,
+     -5.239,
+     0.746,
+     -35.0
+    ],
+    "box_a": [
+     -0.442,
+     -5.41,
+     0.746,
+     11.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "pp_box-occlusion-08",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -1.293,
+    -4.646,
+    12.8
+   ],
+   "objects": {
+    "stapler": [
+     -0.136,
+     -5.003,
+     0.746,
+     -13.0
+    ],
+    "carton": [
+     -0.369,
+     -4.771,
+     0.746,
+     -19.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "pp_box-occlusion-09",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -2.019,
+    -4.969,
+    -5.1
+   ],
+   "objects": {
+    "can": [
+     -0.299,
+     -4.745,
+     0.766,
+     -89.0
+    ],
+    "crate": [
+     -0.33,
+     -4.739,
+     0.746,
+     100.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "pp_box-occlusion-10",
+   "category": "occlusion",
+   "scene": "pp_box",
+   "robot": [
+    -1.671,
+    -4.782,
+    -10.9
+   ],
+   "objects": {
+    "vase": [
+     -0.036,
+     -4.544,
+     0.746,
+     0.0
+    ],
+    "carton": [
+     -0.437,
+     -4.482,
+     0.746,
+     8.0
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "doubledesk-occlusion-01",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -2.245,
+    -1.193,
+    -85.2
+   ],
+   "objects": {
+    "can": [
+     -2.478,
+     -3.394,
+     0.746,
+     119.0
+    ],
+    "box_a": [
+     -2.351,
+     -3.179,
+     0.746,
+     -97.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "doubledesk-occlusion-02",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -2.427,
+    -1.011,
+    80.8
+   ],
+   "objects": {
+    "bottle_a": [
+     -2.703,
+     0.154,
+     0.746,
+     36.0
+    ],
+    "carton": [
+     -2.546,
+     -0.205,
+     0.746,
+     104.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "doubledesk-occlusion-03",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -2.294,
+    -2.134,
+    -84.4
+   ],
+   "objects": {
+    "stapler": [
+     -2.513,
+     -3.436,
+     0.766,
+     -115.0
+    ],
+    "crate": [
+     -2.47,
+     -3.448,
+     0.746,
+     -99.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "doubledesk-occlusion-04",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -2.744,
+    -1.915,
+    91.8
+   ],
+   "objects": {
+    "vase": [
+     -2.766,
+     0.173,
+     0.746,
+     5.0
+    ],
+    "box_a": [
+     -2.678,
+     -0.111,
+     0.746,
+     90.0
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "doubledesk-occlusion-05",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -2.036,
+    -2.1,
+    -78.3
+   ],
+   "objects": {
+    "hammer_a": [
+     -2.346,
+     -3.256,
+     0.766,
+     -173.0
+    ],
+    "crate": [
+     -2.359,
+     -3.284,
+     0.746,
+     -104.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer."
+  },
+  {
+   "id": "doubledesk-occlusion-06",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -3.162,
+    -1.07,
+    78.3
+   ],
+   "objects": {
+    "can": [
+     -3.351,
+     0.175,
+     0.746,
+     28.0
+    ],
+    "vase": [
+     -3.224,
+     -0.222,
+     0.746,
+     99.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "doubledesk-occlusion-07",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -2.687,
+    -1.245,
+    -102.9
+   ],
+   "objects": {
+    "bottle_a": [
+     -2.104,
+     -3.398,
+     0.746,
+     74.0
+    ],
+    "box_a": [
+     -2.275,
+     -3.192,
+     0.746,
+     -75.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "doubledesk-occlusion-08",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -3.14,
+    -1.175,
+    91.4
+   ],
+   "objects": {
+    "stapler": [
+     -3.048,
+     0.174,
+     0.746,
+     38.0
+    ],
+    "carton": [
+     -3.209,
+     -0.149,
+     0.746,
+     85.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "doubledesk-occlusion-09",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -2.942,
+    -2.015,
+    -91.0
+   ],
+   "objects": {
+    "can": [
+     -3.013,
+     -3.281,
+     0.766,
+     -144.0
+    ],
+    "crate": [
+     -3.026,
+     -3.298,
+     0.746,
+     -3.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "doubledesk-occlusion-10",
+   "category": "occlusion",
+   "scene": "doubledesk",
+   "robot": [
+    -1.993,
+    -1.833,
+    87.5
+   ],
+   "objects": {
+    "vase": [
+     -2.161,
+     0.193,
+     0.746,
+     -62.0
+    ],
+    "carton": [
+     -2.069,
+     -0.211,
+     0.746,
+     94.0
+    ]
+   },
+   "target": "vase",
+   "instruction": "Pick up the vase."
+  },
+  {
+   "id": "pp_box-distractor-01",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.381,
+    -5.511,
+    -4.4
+   ],
+   "objects": {
+    "box_a": [
+     -0.361,
+     -5.412,
+     0.746,
+     -127.0
+    ],
+    "box_b": [
+     -0.329,
+     -5.782,
+     0.746,
+     167.0
+    ],
+    "can": [
+     -0.358,
+     -4.986,
+     0.746,
+     29.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box on the left."
+  },
+  {
+   "id": "pp_box-distractor-02",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.884,
+    -4.792,
+    -5.1
+   ],
+   "objects": {
+    "hammer_a": [
+     -0.255,
+     -4.696,
+     0.746,
+     6.0
+    ],
+    "hammer_b": [
+     -0.214,
+     -4.364,
+     0.746,
+     -11.0
+    ],
+    "vase": [
+     -0.144,
+     -5.044,
+     0.746,
+     164.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer on the right."
+  },
+  {
+   "id": "pp_box-distractor-03",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.311,
+    -5.451,
+    -12.7
+   ],
+   "objects": {
+    "bottle_a": [
+     -0.498,
+     -5.276,
+     0.746,
+     -44.0
+    ],
+    "bottle_b": [
+     -0.39,
+     -5.594,
+     0.746,
+     23.0
+    ],
+    "stapler": [
+     -0.146,
+     -5.735,
+     0.746,
+     -106.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle on the left."
+  },
+  {
+   "id": "pp_box-distractor-04",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.183,
+    -5.5,
+    3.6
+   ],
+   "objects": {
+    "box_a": [
+     -0.417,
+     -5.5,
+     0.746,
+     -155.0
+    ],
+    "box_b": [
+     -0.045,
+     -5.44,
+     0.746,
+     173.0
+    ],
+    "scissors": [
+     -0.228,
+     -5.927,
+     0.746,
+     -10.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box that is closer to you."
+  },
+  {
+   "id": "pp_box-distractor-05",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.183,
+    -4.435,
+    -11.4
+   ],
+   "objects": {
+    "hammer_a": [
+     -0.076,
+     -4.179,
+     0.746,
+     -119.0
+    ],
+    "hammer_b": [
+     -0.431,
+     -4.298,
+     0.746,
+     -0.0
+    ],
+    "can": [
+     -0.082,
+     -4.454,
+     0.746,
+     25.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer that is farther from you."
+  },
+  {
+   "id": "pp_box-distractor-06",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.447,
+    -4.841,
+    13.2
+   ],
+   "objects": {
+    "scissors": [
+     -0.387,
+     -5.069,
+     0.746,
+     -51.0
+    ],
+    "knife": [
+     -0.249,
+     -5.528,
+     0.746,
+     13.0
+    ],
+    "stapler": [
+     -0.105,
+     -4.599,
+     0.746,
+     -1.0
+    ],
+    "can": [
+     -0.196,
+     -4.813,
+     0.746,
+     68.0
+    ]
+   },
+   "target": "scissors",
+   "instruction": "Pick up the scissors."
+  },
+  {
+   "id": "pp_box-distractor-07",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.662,
+    -5.042,
+    7.6
+   ],
+   "objects": {
+    "can": [
+     -0.399,
+     -5.15,
+     0.746,
+     -125.0
+    ],
+    "bottle_a": [
+     -0.389,
+     -5.34,
+     0.746,
+     119.0
+    ],
+    "vase": [
+     -0.329,
+     -5.594,
+     0.746,
+     153.0
+    ],
+    "hammer_a": [
+     -0.451,
+     -4.939,
+     0.746,
+     112.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "pp_box-distractor-08",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.237,
+    -4.433,
+    1.4
+   ],
+   "objects": {
+    "stapler": [
+     -0.512,
+     -4.509,
+     0.746,
+     81.0
+    ],
+    "scissors": [
+     -0.007,
+     -4.979,
+     0.746,
+     -67.0
+    ],
+    "knife": [
+     -0.464,
+     -4.79,
+     0.746,
+     -73.0
+    ],
+    "box_a": [
+     -0.19,
+     -4.014,
+     0.746,
+     150.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "pp_box-distractor-09",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.937,
+    -4.8,
+    -2.4
+   ],
+   "objects": {
+    "knife": [
+     -0.359,
+     -4.668,
+     0.746,
+     48.0
+    ],
+    "scissors": [
+     -0.505,
+     -4.859,
+     0.746,
+     -45.0
+    ],
+    "hammer_a": [
+     -0.15,
+     -5.192,
+     0.746,
+     -98.0
+    ],
+    "bottle_a": [
+     -0.186,
+     -4.176,
+     0.746,
+     96.0
+    ]
+   },
+   "target": "knife",
+   "instruction": "Pick up the utility knife."
+  },
+  {
+   "id": "pp_box-distractor-10",
+   "category": "distractor",
+   "scene": "pp_box",
+   "robot": [
+    -1.648,
+    -5.665,
+    -3.6
+   ],
+   "objects": {
+    "bottle_a": [
+     -0.124,
+     -5.607,
+     0.746,
+     118.0
+    ],
+    "can": [
+     -0.058,
+     -6.098,
+     0.746,
+     162.0
+    ],
+    "vase": [
+     -0.051,
+     -5.358,
+     0.746,
+     129.0
+    ],
+    "stapler": [
+     -0.343,
+     -5.407,
+     0.746,
+     180.0
+    ],
+    "box_a": [
+     -0.278,
+     -5.812,
+     0.746,
+     3.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  },
+  {
+   "id": "doubledesk-distractor-01",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -1.59,
+    -1.867,
+    -84.1
+   ],
+   "objects": {
+    "box_a": [
+     -1.801,
+     -3.378,
+     0.746,
+     -54.0
+    ],
+    "box_b": [
+     -2.272,
+     -3.327,
+     0.746,
+     -131.0
+    ],
+    "can": [
+     -1.601,
+     -3.473,
+     0.746,
+     143.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box on the left."
+  },
+  {
+   "id": "doubledesk-distractor-02",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -2.9,
+    -1.117,
+    94.9
+   ],
+   "objects": {
+    "hammer_a": [
+     -2.722,
+     -0.009,
+     0.746,
+     83.0
+    ],
+    "hammer_b": [
+     -3.095,
+     0.112,
+     0.746,
+     116.0
+    ],
+    "vase": [
+     -2.43,
+     -0.086,
+     0.746,
+     15.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer on the right."
+  },
+  {
+   "id": "doubledesk-distractor-03",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -3.53,
+    -2.087,
+    -102.3
+   ],
+   "objects": {
+    "bottle_a": [
+     -3.201,
+     -3.159,
+     0.746,
+     158.0
+    ],
+    "bottle_b": [
+     -3.674,
+     -3.291,
+     0.746,
+     -33.0
+    ],
+    "stapler": [
+     -3.477,
+     -3.195,
+     0.746,
+     -81.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle on the left."
+  },
+  {
+   "id": "doubledesk-distractor-04",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -2.334,
+    -0.967,
+    80.5
+   ],
+   "objects": {
+    "box_a": [
+     -2.524,
+     -0.24,
+     0.746,
+     32.0
+    ],
+    "box_b": [
+     -2.61,
+     0.13,
+     0.746,
+     84.0
+    ],
+    "scissors": [
+     -3.043,
+     0.107,
+     0.746,
+     -132.0
+    ]
+   },
+   "target": "box_a",
+   "instruction": "Pick up the cardboard box that is closer to you."
+  },
+  {
+   "id": "doubledesk-distractor-05",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -2.45,
+    -2.123,
+    -100.8
+   ],
+   "objects": {
+    "hammer_a": [
+     -2.274,
+     -3.518,
+     0.746,
+     37.0
+    ],
+    "hammer_b": [
+     -2.252,
+     -3.096,
+     0.746,
+     17.0
+    ],
+    "can": [
+     -2.555,
+     -3.254,
+     0.746,
+     -4.0
+    ]
+   },
+   "target": "hammer_a",
+   "instruction": "Pick up the hammer that is farther from you."
+  },
+  {
+   "id": "doubledesk-distractor-06",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -3.03,
+    -1.163,
+    89.7
+   ],
+   "objects": {
+    "scissors": [
+     -3.031,
+     -0.023,
+     0.746,
+     72.0
+    ],
+    "knife": [
+     -3.476,
+     0.009,
+     0.746,
+     152.0
+    ],
+    "stapler": [
+     -2.568,
+     0.233,
+     0.746,
+     -85.0
+    ],
+    "can": [
+     -2.84,
+     0.177,
+     0.746,
+     79.0
+    ]
+   },
+   "target": "scissors",
+   "instruction": "Pick up the scissors."
+  },
+  {
+   "id": "doubledesk-distractor-07",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -3.55,
+    -1.938,
+    -92.7
+   ],
+   "objects": {
+    "can": [
+     -3.44,
+     -3.158,
+     0.746,
+     -104.0
+    ],
+    "bottle_a": [
+     -3.558,
+     -3.454,
+     0.746,
+     -91.0
+    ],
+    "vase": [
+     -2.972,
+     -3.461,
+     0.746,
+     -120.0
+    ],
+    "hammer_a": [
+     -2.958,
+     -3.097,
+     0.746,
+     -171.0
+    ]
+   },
+   "target": "can",
+   "instruction": "Pick up the can."
+  },
+  {
+   "id": "doubledesk-distractor-08",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -1.814,
+    -0.986,
+    85.6
+   ],
+   "objects": {
+    "stapler": [
+     -1.901,
+     -0.184,
+     0.746,
+     61.0
+    ],
+    "scissors": [
+     -1.631,
+     0.149,
+     0.746,
+     -104.0
+    ],
+    "knife": [
+     -2.445,
+     0.23,
+     0.746,
+     -144.0
+    ],
+    "box_a": [
+     -2.074,
+     0.017,
+     0.746,
+     42.0
+    ]
+   },
+   "target": "stapler",
+   "instruction": "Pick up the stapler."
+  },
+  {
+   "id": "doubledesk-distractor-09",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -2.478,
+    -2.422,
+    -78.5
+   ],
+   "objects": {
+    "knife": [
+     -2.698,
+     -3.293,
+     0.746,
+     123.0
+    ],
+    "scissors": [
+     -3.111,
+     -3.249,
+     0.746,
+     93.0
+    ],
+    "hammer_a": [
+     -2.166,
+     -3.245,
+     0.746,
+     164.0
+    ],
+    "bottle_a": [
+     -2.871,
+     -3.059,
+     0.746,
+     -115.0
+    ]
+   },
+   "target": "knife",
+   "instruction": "Pick up the utility knife."
+  },
+  {
+   "id": "doubledesk-distractor-10",
+   "category": "distractor",
+   "scene": "doubledesk",
+   "robot": [
+    -2.38,
+    -1.135,
+    84.0
+   ],
+   "objects": {
+    "bottle_a": [
+     -2.432,
+     -0.103,
+     0.746,
+     24.0
+    ],
+    "can": [
+     -2.019,
+     0.162,
+     0.746,
+     -101.0
+    ],
+    "vase": [
+     -2.248,
+     -0.166,
+     0.746,
+     -75.0
+    ],
+    "stapler": [
+     -1.927,
+     -0.106,
+     0.746,
+     112.0
+    ],
+    "box_a": [
+     -2.693,
+     -0.054,
+     0.746,
+     -14.0
+    ]
+   },
+   "target": "bottle_a",
+   "instruction": "Pick up the bottle."
+  }
+ ]
+}

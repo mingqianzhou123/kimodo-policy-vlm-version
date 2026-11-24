@@ -5,6 +5,12 @@ Reads finished runs only. For every saved plan, the 50-frame raw Kimodo output
 with the measured state at the same simulation time, 0.5, 1.0 and 1.5 s ahead.
 "Persistence" is the trivial predictor that assumes the body stays where it was
 measured at plan time; a prediction is only informative where it beats that.
+
+Plans are grouped by what the robot was doing when they were made: reaching and holding for the
+standing runs, walk / stop / reach for moving goals. A horizon is only a prediction where a
+condition covers it: the torso where the root is conditioned at that frame, a wrist up to its
+last conditioned frame. The ``covered`` columns keep only those; the plain wrist columns of a
+moving-goal run pool the conditioned hand only.
 """
 import argparse
 import json
@@ -20,8 +26,9 @@ from kimodo_vla.motion.g1_reference import rot6d_row_to_matrix
 from kimodo_vla.oracle.geometry import Frame, XmlFK, rotation_wxyz, angle_deg
 
 HORIZONS = (0., .5, 1., 1.5)
-ARRIVAL_S = 1.2  # OraclePolicy sets arrival = task start + 1.2 s
-SOURCES = ('kimodo', 'persistence')
+# "aligned" is Kimodo's prediction moved rigidly so that its frame zero sits on the measured root:
+# the predicted displacement from where the body is, without the offset the raw output starts with.
+SOURCES = ('kimodo', 'aligned', 'persistence')
 
 
 def decode_plan(features, fk, frame, motion_features):
@@ -71,8 +78,10 @@ def analyze_run(run, features, fk):
     run = Path(run)
     target = json.loads((run/'target.json').read_text())
     frame = Frame(target['origin'], target['heading'])
-    start = target['arrival_time']-ARRIVAL_S
     series = measured_series(run)
+    start = series['time'][0]  # the policy's clock starts at the first measured sample
+    moving = 'motion_goal' in target
+    sides = [('left', 'right').index(s) for s in target['active_sides']] if moving else [0, 1]
     rows = []
     for plan in (json.loads(x) for x in (run/'plans.jsonl').read_text().splitlines()):
         if round((plan['time']-start)*30) != plan['cut']:
@@ -92,30 +101,52 @@ def analyze_run(run, features, fk):
                 continue
             pred = {'root_pos': root_pos[k], 'root_rot': root_rot[k],
                     'wrist_pos': wrist_pos[k], 'wrist_rot': wrist_rot[k]}
+            offset = now['root_pos']-root_pos[0]
+            aligned = dict(pred, root_pos=root_pos[k]+offset, wrist_pos=wrist_pos[k]+offset)
+            hand_frames = sorted(set(plan['keyframes'])|set(plan['dense_hand_frames']))
+            reaching = plan['time'] < target['arrival_time']-1e-9
             rows.append({'run': run.name, 'plan': plan['plan'], 'plan_time': plan['time'], 'horizon_s': horizon,
-                         'constrained_frames': sorted(set(plan['keyframes'])|set(plan['dense_hand_frames'])),
-                         'reaching': plan['time']-start < ARRIVAL_S,
-                         'kimodo': errors(pred, actual), 'persistence': errors(now, actual)})
+                         'constrained_frames': hand_frames, 'reaching': reaching,
+                         'phase': plan['phase'] if moving else 'reaching' if reaching else 'holding',
+                         # The standing runs condition the root on every future frame (support "root").
+                         'root_covered': k in plan['root_frames'] if moving else k >= 1,
+                         'wrist_covered': bool(hand_frames) and 1 <= k <= hand_frames[-1], 'wrist_sides': sides,
+                         'kimodo': errors(pred, actual), 'aligned': errors(aligned, actual),
+                         'persistence': errors(now, actual)})
     return rows
 
 
 def summarize(rows):
-    """Mean, 90th percentile and maximum per phase and horizon; wrists pool both hands."""
+    """Mean, 90th percentile and maximum per phase and horizon; wrists pool the conditioned hands."""
     def stats(values):
         v = np.asarray(values, dtype=float)
+        if not v.size:
+            return None
         return {'mean': float(v.mean()), 'p90': float(np.percentile(v, 90)), 'max': float(v.max()), 'n': int(v.size)}
+
+    def phase(r):
+        return r.get('phase') or ('reaching' if r['reaching'] else 'holding')
+
+    def wrists(r, source, key):
+        return [r[source][key][i] for i in r.get('wrist_sides', range(len(r[source][key])))]
     table = {}
-    for phase, keep in (('all', lambda r: True), ('reaching', lambda r: r['reaching']),
-                        ('holding', lambda r: not r['reaching'])):
+    for name in ['all']+sorted({phase(r) for r in rows}, key=('reaching', 'holding', 'walk', 'stop', 'reach').index):
         for horizon in sorted({r['horizon_s'] for r in rows}):
-            chosen = [r for r in rows if r['horizon_s'] == horizon and keep(r)]
+            chosen = [r for r in rows if r['horizon_s'] == horizon and name in ('all', phase(r))]
             if chosen:
-                table[f'{phase}@{horizon}'] = {source: {
+                rooted = [r for r in chosen if r.get('root_covered', True)]
+                handed = [r for r in chosen if r.get('wrist_covered', True)]
+                table[f'{name}@{horizon}'] = {source: {
                     'root_pos_cm': stats([r[source]['root_pos_cm'] for r in chosen]),
                     'root_rot_deg': stats([r[source]['root_rot_deg'] for r in chosen]),
-                    'wrist_pos_cm': stats([x for r in chosen for x in r[source]['wrist_pos_cm']]),
-                    'wrist_rot_deg': stats([x for r in chosen for x in r[source]['wrist_rot_deg']])}
-                    for source in SOURCES}
+                    'wrist_pos_cm': stats([x for r in chosen for x in wrists(r, source, 'wrist_pos_cm')]),
+                    'wrist_rot_deg': stats([x for r in chosen for x in wrists(r, source, 'wrist_rot_deg')]),
+                    'covered': {
+                        'root_pos_cm': stats([r[source]['root_pos_cm'] for r in rooted]),
+                        'root_rot_deg': stats([r[source]['root_rot_deg'] for r in rooted]),
+                        'wrist_pos_cm': stats([x for r in handed for x in wrists(r, source, 'wrist_pos_cm')]),
+                        'wrist_rot_deg': stats([x for r in handed for x in wrists(r, source, 'wrist_rot_deg')])}}
+                    for source in SOURCES if source in chosen[0]}
     return table
 
 
@@ -129,13 +160,15 @@ def main():
     features, fk = KimodoFeatures(50.), XmlFK(G1_XML, G1_JOINT_NAMES)
     rows = [row for run in runs for row in analyze_run(run, features, fk)]
     table = summarize(rows)
-    cell = lambda s: f"{s['mean']:.2f}/{s['p90']:.2f}/{s['max']:.2f}"
+    cell = lambda s: '-' if s is None else f"{s['mean']:.2f}/{s['p90']:.2f}/{s['max']:.2f}"
     print(f'{len(runs)} runs, {len(rows)} plan-horizon pairs; each cell is mean/p90/max')
-    print(f"{'phase@horizon':<16}{'source':<12}{'root cm':>18}{'root deg':>18}{'wrist cm':>18}{'wrist deg':>20}{'plans':>7}")
+    print(f"{'phase@horizon':<16}{'source':<12}{'root cm':>18}{'root deg':>18}{'wrist cm':>18}{'wrist deg':>20}"
+          f"{'covered wrist cm':>20}{'plans':>7}")
     for key, entry in table.items():
         for source, m in entry.items():
             print(f"{key:<16}{source:<12}{cell(m['root_pos_cm']):>18}{cell(m['root_rot_deg']):>18}"
-                  f"{cell(m['wrist_pos_cm']):>18}{cell(m['wrist_rot_deg']):>20}{m['root_pos_cm']['n']:>7}")
+                  f"{cell(m['wrist_pos_cm']):>18}{cell(m['wrist_rot_deg']):>20}"
+                  f"{cell(m['covered']['wrist_pos_cm']):>20}{m['root_pos_cm']['n']:>7}")
     out = RUNS/args.suite/'prediction.json'
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({'runs': [r.name for r in runs], 'summary': table, 'rows': rows}, indent=1))
