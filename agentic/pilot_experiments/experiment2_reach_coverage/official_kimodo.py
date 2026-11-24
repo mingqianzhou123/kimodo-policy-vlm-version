@@ -55,7 +55,8 @@ class CachedText:
         missing = [t for t in texts if t.strip() and t.strip() not in self.table]
         if missing:
             raise KeyError(f'No cached embedding for {missing}')
-        feat = torch.cat([self.table[t.strip()] if t.strip() else torch.zeros(1, 4096) for t in texts])
+        # [B, 1, 4096] and one token each, as the official LLM2Vec wrapper returns
+        feat = torch.cat([self.table[t.strip()] if t.strip() else torch.zeros(1, 4096) for t in texts])[:, None]
         lengths = [1]*len(texts)
         return (feat[0], lengths[0]) if single else (feat, lengths)
 
