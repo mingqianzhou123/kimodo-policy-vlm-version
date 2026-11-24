@@ -4,12 +4,11 @@
 
 模型和算法在仓库根目录的 `kimodo_vla/` 里，和训练线共用同一份；本目录只放仿真接入、入口脚本、测试和实验记录。
 
-## 现在到哪了（2026-11-23）
+## 现在到哪了（2026-11-24）
 
 - 已能用指定帧的腕位置和朝向驱动 Kimodo，由 SONIC 执行。五个固定案例从稳定双支撑开始后，双腕实际位置相对参考和真值标记的严格达标数为 5/5，根部三维平均跟踪误差 0.810 cm，最大真值标记误差 2.445 cm。[记录](docs/settled-start-20261123.md)
-- Qwen3-VL-4B 的图像定位在九组彩色标记条件下跑通，左右平均误差 0.49 / 0.48 cm。自然物体还没测。[记录](docs/vlm-refinement-20261118.md)
-- 走路、单手到达和前倾（实验二）：按计划的线底座不可用。到达 18 点只用 Kimodo 0 个达标，加手臂 IK 1 个；向前 0.5 m 到位 2/5，侧步和后退 0/10；髋带动的前倾 30° 做得到。SONIC 不看根部位置。[记录](docs/exp2-reach-coverage-20261124.md)
-- 夹爪一直保持打开，还没有抓取成功率。
+- Qwen3-VL-4B 的图像定位在九组彩色标记条件下跑通，左右平均误差 0.49 / 0.48 cm。[记录](docs/vlm-refinement-20261118.md)
+- 三个前期实验（静态抓取、到达与动作覆盖、自然物体指点）已做完，问题、结论和各自的脚本都在 [pilot_experiments/](pilot_experiments/README.md)。一句话：指点不是瓶颈；底座对走路和全身到达不可用；站在台前抓箱子 30 个种子成功 17 个，没到 26 个的门槛。
 
 ## 每台机器配置一次
 
@@ -32,7 +31,7 @@ source agentic/env.local.sh
 
 ```bash
 # 测试（不需要权重和仿真器；缺少旧实验数据的几项会自动跳过）
-pytest agentic/tests -q
+pytest agentic/tests agentic/pilot_experiments -q
 
 # 跑五个案例（需要一张空闲 GPU）
 python agentic/scripts/run_settled_suite.py --gpu 1
@@ -40,6 +39,19 @@ python agentic/scripts/run_settled_suite.py --gpu 1
 # 汇总并和旧结果对比
 python agentic/scripts/report_settled.py --suite settled-20261123-r1
 ```
+
+箱子抓取（实验一）用同一个启动器，加 `--grasp-loop`：
+
+```bash
+# 一个回合：每轮锁存箱子位姿、等待、走近、到位合手、夹起，失败重试，成功即停
+python agentic/scripts/run_oracle.py --run-id <名字> --grasp-loop --seed 1000 --sim-gpu 2 --policy-gpu 2 --share-policy-sim-gpu
+
+# 一组种子（debug 或 heldout，见 configs/grasp-loop.json），多张卡并行，然后汇总
+python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group debug --tag <标签> --gpus 2 3 4
+python agentic/pilot_experiments/experiment1_blocking_grasp/report_grasp.py 'dbg-exp1-<标签>-*'
+```
+
+静态抓取门槛的结果（30 个预留种子成功 17 个，没到 26 个的门槛）和失败归因见 [实验一的记录](pilot_experiments/experiment1_blocking_grasp/README.md)。
 
 `run_oracle.py` 的默认值就是 11 月 17 日以来所有实验共用的后端。加上 `--settled-goal <目标文件>` 是上面那个结果的完整配置。更早的变体要显式写开关，例如 `--variant original --support-constraints none --hand-constraints keyframes --trajectory-projection none`；`offset` 和 `box` 两种模式必须这样写。
 
@@ -52,12 +64,13 @@ python agentic/scripts/report_settled.py --suite settled-20261123-r1
 | 位置 | 内容 |
 |---|---|
 | `arena/` | 接入仿真器的代码，在仿真进程内运行 |
-| `scripts/` | 入口和工具，见下表 |
+| `scripts/` | 各实验共用的入口和工具，见下表 |
 | `tests/` | 接口与几何检查，不替代真权重和仿真测试 |
-| `configs/` | 执行器与载荷对照用的参数 |
-| `docs/` | 每个阶段的实验记录 |
+| `configs/` | 执行器与载荷对照用的参数；箱子抓取的参数和种子分组（启动器和仿真钩子都读它） |
+| `docs/` | 11 月 17–23 日各阶段的实验记录 |
+| `pilot_experiments/` | 前期实验，一个实验一个文件夹：它的记录、专属脚本、专属配置和测试。实验计划 `experiments.json` 也在这里 |
 
-相关的包内模块：`kimodo_vla/oracle/`（目标、连续性、IK 投影、支撑约束）、`kimodo_vla/vlm/`（图像定位）、`kimodo_vla/model/sparse_conditions.py`、`kimodo_vla/model/native_policy.py`、`kimodo_vla/controllers/gripper_gate.py`。
+相关的包内模块：`kimodo_vla/oracle/`（目标、连续性、IK 投影、支撑约束、箱子抓取的回合逻辑 `grasp_policy.py`）、`kimodo_vla/vlm/`（图像定位）、`kimodo_vla/model/sparse_conditions.py`、`kimodo_vla/model/native_policy.py`、`kimodo_vla/controllers/gripper_gate.py`。
 
 ## 脚本
 
@@ -65,19 +78,17 @@ python agentic/scripts/report_settled.py --suite settled-20261123-r1
 |---|---|
 | `run_settled_suite.py` | **主入口**：对五个案例各调用一次 `run_oracle.py` |
 | `report_settled.py` | 汇总一组结果并和旧基线对比 |
-| `overview.py` | 生成实验进度页：按 `configs/experiments.json` 里的计划给每个实验算进度和成功率，每个实验目录可点开看误差曲线和视频。写到 `<实验输出>/overview/index.html`；加 `--serve 8765` 后在浏览器打开 `http://localhost:8765/overview/index.html`。页面模板是同名的 `overview.html` |
+| `overview.py` | 生成实验进度页：按 `pilot_experiments/experiments.json` 里的计划给每个实验算进度和成功率，每个实验目录可点开看误差曲线和视频。写到 `<实验输出>/overview/index.html`；加 `--serve 8765` 后在浏览器打开 `http://localhost:8765/overview/index.html`。页面模板是同名的 `overview.html` |
 | `run_oracle.py` | 启动器：起策略服务和仿真，检查 GPU，记录提交号、权重与源码哈希 |
 | `serve_oracle.py`、`serve_fixed_reference.py`、`serve_recorded_reference.py` | 三种参考来源的策略服务，由 `run_oracle.py` 启动 |
 | `*_sim_bootstrap.py` | 仿真进程的启动钩子，由 `run_oracle.py` 按开关选择 |
 | `analyze_root_dynamics.py`、`analyze_sonic_replay.py` | `report_settled.py` 用到的误差分解 |
-| `run_motion_suite.py` | 实验二的入口：按 `configs/exp2-motions.json` 里的组（向前、侧步、后退、前倾、18 点到达）逐个调用 `run_oracle.py --motion-goal` |
-| `analyze_motion.py` | 给走动 / 到达 / 前倾的运行打分：跌倒、完成比例、手腕误差（目标→参考、参考→实际）、前倾角；`--markdown` 生成记录里的表 |
-| `rollout_kimodo.py` | 不开仿真，只让 Kimodo 把一个目标连续生成出来，半分钟看步态；`--against <运行>` 给出 3 s、5 s 的连续预测偏差 |
-| `analyze_prediction.py` | 只读已有运行：把每次规划里 Kimodo 的原始预测和 0.5 / 1.0 / 1.5 s 后的实测状态对比，并给出“假设身体不动”的对照。写到 `<实验输出>/<组名>/prediction.json` |
 | `prepare_vlm_model.py`、`cache_vlm_motion_text.py` | 一次性准备：下载 Qwen 权重、缓存运动短语的文本向量 |
 | `paths.py` | 所有位置的唯一来源 |
 
-Qwen 定位本身是包内的两个可执行模块：`python -m kimodo_vla.vlm.infer_points` 和 `python -m kimodo_vla.vlm.infer_refined`。任务指令的文本向量用仓库根目录的 `scripts/cache_text_embeddings.py`。
+只属于某一个前期实验的脚本不在这张表里，见 [pilot_experiments/](pilot_experiments/README.md)。
+
+红蓝标记的 Qwen 定位是包内的两个可执行模块：`python -m kimodo_vla.vlm.infer_points` 和 `python -m kimodo_vla.vlm.infer_refined`。自然物体的指点用 `kimodo_vla/vlm/pointing.py`（提示词、输出格式、单次与两尺度两种做法）、`backends.py`（三个后端）和 `pointing_eval.py`（真值几何与打分）。任务指令的文本向量用仓库根目录的 `scripts/cache_text_embeddings.py`。
 
 ## 历史
 

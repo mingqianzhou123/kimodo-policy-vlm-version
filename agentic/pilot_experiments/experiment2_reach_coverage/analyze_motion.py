@@ -19,6 +19,8 @@ from pathlib import Path
 
 import numpy as np
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import RUNS, G1_XML
 from kimodo_vla.core.types import G1_JOINT_NAMES
 from kimodo_vla.oracle.geometry import XmlFK, rotation_wxyz, angle_deg

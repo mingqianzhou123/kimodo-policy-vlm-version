@@ -1,7 +1,7 @@
 """Build one page: how far each planned experiment is, and every run's numbers, curves and video.
 
 The plan (experiments, their steps and which run names count toward each step) is
-agentic/configs/experiments.json. Runs are read from RUNS; the page is written to RUNS/overview/.
+agentic/pilot_experiments/experiments.json. Runs are read from RUNS; the page is written to RUNS/overview/.
 """
 import argparse
 import fnmatch
@@ -172,6 +172,10 @@ def describe(run, out):
     episodes = episodes if isinstance(episodes, list) and episodes else None
     episode = read(run/'episode.json') or {}
     success = episode.get('success')
+    grasp = read(run/'grasp-result.json')
+    if isinstance(grasp, dict) and isinstance(grasp.get('success'), bool):
+        # Grasp runs are judged by the physical criterion; Arena's own verdict is about the shelf.
+        success = grasp['success']
     if meta.get('success_rate_evaluation') is False:  # the run never tried the task, so its "failure" is not a result
         wins = None
     elif episodes and all(isinstance(e, dict) and isinstance(e.get('success'), bool) for e in episodes):
@@ -314,7 +318,7 @@ class Ranged(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--plan', type=Path, default=AGENTIC/'configs/experiments.json')
+    p.add_argument('--plan', type=Path, default=AGENTIC/'pilot_experiments/experiments.json')
     p.add_argument('--serve', type=int, metavar='PORT', help='after building, serve the page on this local port')
     args = p.parse_args()
     out = RUNS/'overview'

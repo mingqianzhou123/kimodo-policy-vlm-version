@@ -36,6 +36,8 @@ p.add_argument('--text-cfg',type=float,default=2.)
 p.add_argument('--root-constraints',choices=['dense','sparse','none'],default='dense')
 p.add_argument('--history-frames',type=int,default=100)
 p.add_argument('--lead-segment')
+p.add_argument('--grasp-loop',help='Grasp loop configuration (JSON); selects the blocking box grasp policy')
+p.add_argument('--latch-delay-steps',type=int,default=75)
 p.add_argument('--vlm-model')
 p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
 p.add_argument('--vlm-python',default=sys.executable)
@@ -52,6 +54,11 @@ elif a.motion_goal:
     extra = dict(motion_goal=a.motion_goal, noise_seed=a.noise_seed, walk_steps=a.walk_steps, arm_ik=a.arm_ik,
                  text=a.text, text_cfg=a.text_cfg, root_constraints=a.root_constraints,
                  history_frames=a.history_frames, lead_segment=a.lead_segment)
+elif a.grasp_loop:
+    import json
+    from kimodo_vla.oracle.grasp_policy import BoxGraspPolicy
+    policy_class = BoxGraspPolicy
+    extra = dict(config=json.loads(Path(a.grasp_loop).read_text())['policy'], latch_delay_steps=a.latch_delay_steps)
 elif a.vlm_model:
     from kimodo_vla.vlm.policy import VisualTargetPolicy
     if a.mode!='hold' or a.trajectory_projection!='ik-hold':raise ValueError('Visual mode requires the standing IK-hold backend')

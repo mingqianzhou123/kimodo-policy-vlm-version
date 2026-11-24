@@ -1,0 +1,395 @@
+"""Gate, judge, attribution and geometry of the blocking box grasp; no weights or simulator."""
+import json
+from pathlib import Path
+
+import numpy as np
+import pytest
+from scipy.spatial.transform import Rotation
+
+from arena.grasp_judge import Attempt, Criteria, GraspJudge, summarize
+from arena.grasp_loop import GraspLoop, up_z
+from arena.grasp_scene import hand_side, split_forces
+from kimodo_vla.controllers.gripper_gate import SynchronizedGripperGate
+from kimodo_vla.core.types import G1_JOINT_NAMES
+from kimodo_vla.model.features import G1_XML_PATH, KimodoFeatures
+from kimodo_vla.oracle.geometry import SIDES, XmlFK
+from kimodo_vla.oracle.grasp_policy import (BoxGraspPolicy, WristPath, clip_profile, face_yaw, graspable, half_width,
+                                             stance, waypoints)
+import overview
+from report_grasp import summarize as summarize_runs
+from run_oracle import parse_args
+
+CONFIG = json.loads((Path(__file__).resolve().parents[2]/'configs/grasp-loop.json').read_text())
+CFG = CONFIG['policy']
+BOX = [-.46, -4.6, .85]   # centre of mass; the asset origin is on the bottom face
+EYE = np.eye(3)
+TARGETS = [[0., .2, 1.], [0., -.2, 1.]]
+HELD = dict(left_n=1., right_n=1., robot_other_n=0., external_n=0.)
+RESTING = dict(left_n=0., right_n=0., robot_other_n=0., external_n=.49)
+
+
+def quat(yaw_deg):
+    x, y, z, w = Rotation.from_euler('z', yaw_deg, degrees=True).as_quat()
+    return [w, x, y, z]
+
+
+def tick(gate, t, left=TARGETS[0], right=TARGETS[1], speeds=(0., 0.)):
+    return gate.update(now_s=t, observation_time_s=t, positions=[left, right],
+                       rotations=[EYE, EYE], speeds_mps=list(speeds))
+
+
+def test_both_hands_close_on_the_same_tick_only_after_both_arrived():
+    gate = SynchronizedGripperGate()
+    assert gate.submit('round-0', TARGETS, [EYE, EYE], 5.)
+    assert not gate.submit('round-0', TARGETS, [EYE, EYE], 5.)   # a replan does not rearm it
+    far = [0., -.4, 1.]
+    for t in np.arange(0, .3, .02):                              # left has arrived, right has not
+        assert not tick(gate, t, right=far)
+    assert gate.gates[0].status == 'fired' and gate.gates[1].status == 'pending' and not gate.closed
+    states = [tick(gate, t) for t in np.arange(.3, .5, .02)]
+    assert states.index(True) == 5 and gate.fired_at == pytest.approx(.4)   # right needs its own dwell
+
+
+def test_a_hand_that_leaves_while_waiting_has_to_arrive_again():
+    gate = SynchronizedGripperGate()
+    gate.submit('round-0', TARGETS, [EYE, EYE], 5.)
+    far = [0., -.4, 1.]
+    for t in np.arange(0, .2, .02):
+        tick(gate, t, right=far)
+    tick(gate, .2, left=[0., .4, 1.], right=far)                 # left drifts out before right arrives
+    assert gate.gates[0].status == 'pending'
+    assert not any(tick(gate, t, left=[0., .4, 1.]) for t in np.arange(.22, .5, .02))
+    assert [tick(gate, t) for t in np.arange(.5, .64, .02)][-1]
+
+
+def test_deadline_keeps_the_hands_open_and_release_reopens_them():
+    gate = SynchronizedGripperGate()
+    gate.submit('round-0', TARGETS, [EYE, EYE], .1)
+    assert not any(tick(gate, t, right=[0., -.4, 1.]) for t in np.arange(0, .3, .02))
+    assert gate.status == 'timed_out'
+    gate.release()
+    gate.submit('round-1', TARGETS, [EYE, EYE], 5.)
+    assert [tick(gate, t) for t in np.arange(.3, .5, .02)][-1]
+    gate.release()
+    assert not gate.closed and not tick(gate, .5)
+
+
+def test_success_needs_height_grip_and_no_support_for_half_a_second():
+    judge = GraspJudge(.85)
+    times = np.arange(0, 1.2, .02)
+    assert not any(judge.update(t, .85 + .099, HELD) for t in times)                    # 1 mm short
+    assert not any(judge.update(t, 1., {**HELD, 'external_n': .2}) for t in times + 2)   # still supported
+    assert not any(judge.update(t, 1., {**HELD, 'right_n': 0.}) for t in times + 4)      # one hand only
+    run = [judge.update(6 + t, 1., HELD if round(t, 2) != .3 else RESTING) for t in times]
+    assert run.index(True) == 16 + 25 and judge.success_time == pytest.approx(6.82)      # the gap restarts the clock
+
+
+def attempt(rows, **kwargs):
+    a = Attempt(0, 0., tuple(BOX), .85, **kwargs)
+    for i, (height, forces, extra) in enumerate(rows):
+        a.update(i*.02, [BOX[0] + extra.get('dx', 0.), BOX[1], height], extra.get('up', 1.), forces, extra.get('closed', False))
+    a.close(len(rows)*.02)
+    return a
+
+
+def test_attempt_labels_follow_what_happened_to_the_box():
+    rest = (.85, RESTING, {})
+    touch = (.85, {**RESTING, 'left_n': .3}, {})
+    held = (.90, HELD, {'closed': True})
+    fallen = (.85, RESTING, {'up': .3})
+    assert attempt([rest]*20).label == 'no_contact'
+    assert attempt([rest]*5 + [touch]*5 + [rest]*5).label == 'touched_not_held'
+    assert attempt([touch]*3 + [held]*4 + [rest]*10).label == 'touched_not_held'     # too brief to be a hold
+    slipped = attempt([touch]*3 + [held]*10 + [rest]*10)
+    assert slipped.label == 'slipped' and slipped.events['held'] == pytest.approx(.06)
+    assert slipped.events['slipped'] == pytest.approx(.26) and slipped.events['closed'] == pytest.approx(.06)
+    assert attempt([touch]*3 + [held]*10).label == 'held_at_cutoff'
+    assert attempt([touch]*3 + [fallen]*5).label == 'knocked_over'
+    assert attempt([touch]*3 + [(.85, RESTING, {'dx': .12})]*3).label == 'knocked_over'
+    assert attempt([touch]*3 + [held]*10 + [fallen]*10).label == 'slipped'            # dropped, not knocked over
+
+
+def test_summary_reports_contact_and_slip_counts():
+    rows = [attempt([(.85, RESTING, {})]*5), attempt([(.90, HELD, {})]*10 + [(.85, RESTING, {})]*10)]
+    s = summarize(rows, None, None, 0.)
+    assert (s['attempt_count'], s['touched_attempts'], s['held_attempts'], s['slipped_attempts']) == (2, 1, 1, 1)
+    assert not s['success'] and s['attempts_to_success'] is None and not s['first_attempt_success']
+
+
+def test_contact_forces_are_split_by_hand_and_everything_that_is_not_the_robot():
+    names = ['left_hand_palm_link', 'left_hand_index_1_link', 'right_hand_thumb_2_link', 'left_elbow_link',
+             'right_wrist_yaw_link', 'right_hand_camera_base_link', 'right_wrist_pitch_link', 'torso_link']
+    assert [hand_side(n) for n in names] == ['left', 'left', 'right', None, 'right', 'right', None, None]
+    matrix = np.array([[0, -1., 0], [0, -.5, 0], [0, 2., 0], [.2, 0, 0], [0, 1., 0], [0, 0, 0], [0, 0, 0], [0, 0, .01]])
+    forces = split_forces(matrix.sum(0) + [0, 0, .49], matrix, names)
+    assert forces.pop('bodies') == {'left_hand_palm_link': 1., 'left_hand_index_1_link': .5, 'right_hand_thumb_2_link': 2.,
+                                    'left_elbow_link': .2, 'right_wrist_yaw_link': 1.}
+    assert forces == pytest.approx(dict(left_n=1.5, right_n=3., robot_other_n=.2 + 5e-4, external_n=.49), abs=1e-3)
+    with pytest.raises(ValueError):
+        split_forces(np.zeros(3), matrix[:2], names)
+
+
+def test_grasp_loop_closes_judges_and_stops(tmp_path):
+    stopped = []
+    loop = GraspLoop(tmp_path, CONFIG, stop=lambda: stopped.append(True), post_success_steps=2)
+    w = waypoints(BOX, quat(0), [-.84, -4.6], CFG)
+    def sample(t, wrists, height=.85):
+        return {'time': t, 'wrist_pos': wrists.tolist(), 'wrist_rot': w['rotation'].tolist(),
+                'wrist_velocity': [[0.]*3]*2, 'box_com': [BOX[0], BOX[1], height], 'box_quat': quat(0)}
+    info = {'round': 0, 'phase': 'advance', 'latch_time': 0., 'latched_box_pos': BOX, 'hands': 'open', 'event': None}
+    loop.on_plan(info, sample(0., w['pre']))
+    assert not loop.before_step(sample(0., w['pre']))                # nothing is armed yet
+    loop.after_step(sample(.02, w['pre']), RESTING)
+    event = {'id': 'round-0', 'positions': w['pre'].tolist(), 'rotations': w['rotation'].tolist(), 'deadline': 3.}
+    loop.on_plan({**info, 'hands': 'gate', 'event': event}, sample(.02, w['via']))
+    assert not loop.before_step(sample(.03, w['via']))               # still on the way in
+    closed = [loop.before_step(sample(t, w['pre'])) for t in np.arange(.04, .3, .02)]
+    assert closed.index(True) == 5
+    for t in np.arange(.3, 1.2, .02):
+        loop.after_step(sample(t, w['lift'], 1.), HELD)
+    result = json.loads((tmp_path/'grasp-result.json').read_text())
+    assert result['success'] and result['attempts'][0]['label'] == 'success' and stopped
+    assert result['completion_s'] == pytest.approx(.3 + .5, abs=.021) and result['first_attempt_success']
+    loop.on_plan({**info, 'round': 1, 'phase': 'wait', 'event': None}, sample(1.2, w['pre']))
+    assert not loop.closed and len(loop.attempts) == 2               # a new round opens the hands
+
+
+def test_up_axis_of_a_tipped_box():
+    assert up_z(quat(40)) == pytest.approx(1.)
+    x, y, z, w = Rotation.from_euler('x', 60, degrees=True).as_quat()
+    assert up_z([w, x, y, z]) == pytest.approx(.5)
+
+
+@pytest.mark.parametrize('yaw', [0, 20, -45, 44])
+def test_waypoints_open_past_the_thumbs_and_press_fists_on_the_widest_line(yaw):
+    w = waypoints(BOX, quat(yaw), [-.89, -4.6], CFG)
+    angle = np.radians(yaw)
+    extent = .105 * (abs(np.cos(angle)) + abs(np.sin(angle)))
+    pitch = np.radians(CFG['wrist_pitch_down_deg'])
+    lateral = lambda wrists: abs(wrists[:, 1] - BOX[1])
+    assert np.all(lateral(w['pre']) - CFG['palm_offset_m'] >= extent + .03)       # the fingers pass the widest line
+    thumb_x = w['pre'][0, 0] + CFG['thumb_forward_m'] - BOX[0]
+    assert np.all(lateral(w['pre']) - CFG['thumb_reach_m'] >= half_width(angle, .105, thumb_x) + .03)   # the thumb too
+    assert np.all(lateral(w['pre']) <= extent + .12)                              # and no wider than the old opening
+    fist = lateral(w['squeeze']) - CFG['fist_offset_m']                            # surface of a closed hand
+    np.testing.assert_allclose(fist, .105 - CFG['squeeze_m'])                      # presses a squared-up box
+    contact = w['squeeze'][:, 0] + CFG['fist_centre_m'] * np.cos(pitch)
+    beyond = {0: 0., 20: CFG['grip_forward_m'] / 3, -45: CFG['grip_forward_m'], 44: CFG['grip_forward_m']}[yaw]
+    np.testing.assert_allclose(contact, BOX[0] + beyond)                           # past the widest line if turned
+    np.testing.assert_allclose(w['squeeze'][:, 2] - CFG['fist_centre_m'] * np.sin(pitch), BOX[2] + CFG['grip_height_m'])
+    assert w['squeeze'][0, 1] > BOX[1] > w['squeeze'][1, 1]
+    np.testing.assert_allclose(w['lift'][:, 2] - w['squeeze'][:, 2], CFG['lift_m'])
+    assert np.all(w['via'][:, 0] <= -.89 + CFG['via_forward_m'] + 1e-9) and np.all(w['via'][:, 2] > w['pre'][:, 2])
+    assert w['rotation'][0] @ [1, 0, 0] == pytest.approx([np.cos(pitch), 0, -np.sin(pitch)])
+    fingertip = w['via'][:, 0] + .2 * (w['via_rotation'][0] @ [1, 0, 0])[0]       # fingers stay down on the way up
+    assert np.all(fingertip <= -.89 + CFG['via_forward_m'] + .2 * np.cos(np.radians(CFG['via_pitch_down_deg'])) + 1e-9)
+    assert CFG['via_pitch_down_deg'] >= CFG['wrist_pitch_down_deg']
+
+
+def test_half_width_of_a_turned_box():
+    assert half_width(0., .105, .05) == pytest.approx(.105) and half_width(0., .105, .2) == 0.
+    diamond = np.radians(45)
+    assert half_width(diamond, .105, 0.) == pytest.approx(.105 * np.sqrt(2))
+    assert half_width(diamond, .105, -.05) == pytest.approx(.105 * np.sqrt(2) - .05)
+    assert half_width(np.radians(-20), .105, .03) == pytest.approx(half_width(np.radians(20), .105, -.03))
+
+
+def test_face_yaw_stance_and_graspable_region():
+    assert face_yaw(quat(100)) == pytest.approx(np.radians(10))
+    assert face_yaw(quat(-50)) == pytest.approx(np.radians(40))
+    reach = lambda box_x: waypoints([box_x, -4.6, .85], quat(40), [-2., -4.6], CFG)['pre'][0, 0] - stance([box_x, -4.6, .85], CFG)[0]
+    assert reach(-.58) == pytest.approx(CFG['stance_reach_m']) and reach(-.55) == pytest.approx(CFG['stance_reach_m'])
+    deep = stance([-.40, -4.6, .85], CFG)                            # cannot follow a deep box onto the table
+    assert deep[0] == pytest.approx(CFG['table_edge_x_m'] - CFG['stance_clearance_m']) and reach(-.40) > CFG['stance_reach_m']
+    assert stance(BOX, CFG)[1] == -4.6
+    assert graspable(BOX, quat(30), CFG)
+    assert not graspable([BOX[0], BOX[1], .105], quat(0), CFG)       # on the floor
+    assert not graspable([.1, BOX[1], .85], quat(0), CFG)           # pushed out of reach
+    x, y, z, w = Rotation.from_euler('y', 90, degrees=True).as_quat()
+    assert not graspable(BOX, [w, x, y, z], CFG)                     # on its side
+
+
+def test_clip_profile_stops_at_the_goal_or_keeps_a_steady_pace():
+    arriving = clip_profile(.5, True, stop_frame=40)
+    assert arriving[0] == 0 and arriving[40:] == pytest.approx(.5) and np.all(np.diff(arriving) >= 0)
+    assert np.diff(arriving)[[0, 39]] == pytest.approx(0., abs=1e-3)       # leaves and arrives at rest
+    passing = clip_profile(.8, False)
+    speed = np.diff(passing)
+    assert passing[0] == 0 and passing[-1] == pytest.approx(.8) and np.all(speed >= 0)
+    assert speed[20:] == pytest.approx(speed[-1]) and speed[0] < .1 * speed[-1]   # eases in, then steady
+
+
+def test_wrist_path_is_continuous_and_holds_between_and_after_pieces():
+    start = np.zeros((2, 3))
+    tilt = np.stack([Rotation.from_euler('y', 25, degrees=True).as_matrix()]*2)
+    path = WristPath(1., start, np.stack([EYE, EYE]))
+    assert path.to(start + [.2, 0, 0], tilt, 1.) == 2.
+    assert path.to(start + [.2, 0, .1], tilt, .5, start=3.) == 3.5
+    np.testing.assert_allclose(path(1.5)[0], start + [.1, 0, 0])
+    assert np.degrees(np.linalg.norm(Rotation.from_matrix(path(1.5)[1][0]).as_rotvec())) == pytest.approx(12.5)
+    np.testing.assert_allclose(path(2.7)[0], start + [.2, 0, 0])     # waiting for the delayed piece
+    np.testing.assert_allclose(path(9.)[0], start + [.2, 0, .1])
+    assert (path.piece_end(1.2), path.piece_end(2.), path.piece_end(9.)) == (2., 3., 3.5)
+
+
+def test_grasp_loop_run_defaults():
+    a = parse_args(['--run-id', 'x', '--grasp-loop', '--seed', '3004'])
+    assert (a.steps, a.seed, a.latch_delay_steps, a.dynamics_profile) == (1450, 3004, 75, 'actuator')
+    assert not a.actuator_audit and not a.visual_markers
+    assert parse_args(['--run-id', 'x']).seed == 1000
+
+
+def test_debug_and_heldout_seeds_do_not_overlap():
+    seeds = CONFIG['seeds']
+    assert len(seeds['heldout']) == 30 and not set(seeds['debug']) & set(seeds['heldout'])
+
+
+def test_report_counts_episodes_and_attempts_with_the_plan_denominators():
+    episode = lambda labels, termination: {'success': termination == 'success', 'termination': termination,
+        'first_attempt_success': labels[0] == 'success', 'attempt_count': len(labels), 'completion_s': 9.5,
+        'attempts_to_success': labels.index('success') + 1 if 'success' in labels else None,
+        'attempts': [{'label': x, 'touched': x != 'no_contact', 'held': x in ('success', 'slipped', 'held_at_cutoff')}
+                     for x in labels]}
+    s = summarize_runs([episode(['success'], 'success'), episode(['slipped', 'success'], 'success'),
+                        episode(['no_contact', 'touched_not_held'], 'timeout'), episode(['knocked_over'], 'fall')])
+    assert (s['episodes'], s['successes'], s['first_attempt_successes'], s['attempts']) == (4, 2, 1, 6)
+    assert s['terminations'] == {'success': 2, 'timeout': 1, 'fall': 1}
+    assert s['contact_rate'] == pytest.approx(5/6) and s['slip_rate'] == pytest.approx(1/3)
+    assert s['attempts_to_success'] == [1, 2]
+    assert summarize_runs([])['success_rate'] is None
+
+
+def test_progress_page_scores_a_grasp_run_by_the_physical_verdict(tmp_path):
+    run = tmp_path/'exp1-static-x-s3000'
+    run.mkdir()
+    (run/'run.json').write_text(json.dumps({'status': 'completed', 'success_rate_evaluation': True}))
+    (run/'episode.json').write_text(json.dumps({'success': False, 'seed': 3000}))
+    (run/'grasp-result.json').write_text(json.dumps({'success': True}))
+    assert overview.describe(run, tmp_path/'overview')['wins'] == 1
+
+
+def scripted_policy(tmp_path, delay=75):
+    """The round logic without weights: everything except the two calls into the diffusion model."""
+    policy = BoxGraspPolicy.__new__(BoxGraspPolicy)
+    policy.cfg, policy.latch_delay, policy.run, policy.mode = CFG, delay, tmp_path, 'hold'
+    policy.features, policy.fk = KimodoFeatures(50.), XmlFK(G1_XML_PATH, G1_JOINT_NAMES)
+    names = policy.features.representation.skeleton.bone_order_names
+    policy.ids = [[names.index(f'{s}_{j}_skel') for j in ('wrist_yaw', 'hand_roll')] for s in SIDES]
+    policy.reset(1000)
+    return policy
+
+
+def standing_sample(policy, time, box, closed=False, root_xy=None):
+    root = np.array([*(stance(BOX, CFG) if root_xy is None else root_xy), .78])
+    joints = np.zeros(29)
+    feet = ['left_ankle_roll_link', 'right_ankle_roll_link']
+    wrists, wrist_rot = policy.fk(joints, root, EYE)
+    foot, foot_rot = policy.fk(joints, root, EYE, body_names=feet)
+    return {'time': time, 'root_pos': root.tolist(), 'root_quat': [1., 0, 0, 0], 'joints': joints.tolist(),
+            'reference_root_pos': root.tolist(), 'reference_root_quat': [1., 0, 0, 0], 'reference_joints': joints.tolist(),
+            'wrist_pos': wrists.tolist(), 'wrist_rot': wrist_rot.tolist(), 'foot_pos': foot.tolist(),
+            'foot_rot': foot_rot.tolist(), 'box_com': list(box), 'box_quat': quat(10), 'box_pos': list(box),
+            'gripper_command': [int(closed)] * 2}
+
+
+def run_until(policy, start, phase, box, closed=False, limit=10.):
+    """Step the round logic at 50 Hz until it enters ``phase``; returns that time."""
+    for step in range(1, int(limit * 50)):
+        time = start + step * .02
+        policy.advance([standing_sample(policy, time, box, closed)])
+        if policy.round.phase == phase:
+            return time
+    raise AssertionError(f'never reached {phase}, stuck in {policy.round.phase}')
+
+
+def test_a_round_latches_the_box_once_waits_and_follows_the_measured_hands(tmp_path):
+    policy = scripted_policy(tmp_path)
+    policy.begin_episode(standing_sample(policy, 0., BOX))
+    moved = [BOX[0] + .2, BOX[1] - .3, BOX[2]]                       # the box moves right after the latch
+    start = run_until(policy, 0., 'raise', moved)
+    assert start == pytest.approx(75 * .02) and policy.round.box_pos == BOX
+    np.testing.assert_allclose(policy.way['squeeze'].mean(0)[1], BOX[1])      # still aiming at the latched pose
+    advance = run_until(policy, start, 'advance', moved)
+    assert advance == pytest.approx(start + CFG['raise_s'])
+    info = policy.grasp_info()
+    assert info['hands'] == 'gate' and info['event']['id'] == 'round-0' and info['latched_box_pos'] == BOX
+    assert info['event']['positions'] == policy.way['pre'].tolist()           # the hands close beside the box
+    assert info['event']['deadline'] == pytest.approx(advance + CFG['advance_s'] + CFG['gate_timeout_s'])
+    policy.advance([standing_sample(policy, advance + CFG['advance_s'] + .1, moved)])
+    assert policy.round.phase == 'advance'                           # open hands: nothing is squeezed yet
+    np.testing.assert_allclose(policy.path(advance + 9.)[0], policy.way['pre'])
+    grip = run_until(policy, advance + CFG['advance_s'] + .1, 'grip', moved, closed=True)
+    squeeze = run_until(policy, grip, 'squeeze', moved, closed=True)
+    lift = run_until(policy, squeeze, 'lift', moved, closed=True)
+    hold = run_until(policy, lift, 'hold', moved, closed=True)
+    assert squeeze == pytest.approx(grip + CFG['grip_s'])            # the fingers get time to close first
+    assert lift == pytest.approx(squeeze + CFG['squeeze_s'] + CFG['press_s']) and hold == pytest.approx(lift + CFG['lift_s'])
+    np.testing.assert_allclose(policy.path(lift)[0], policy.way['squeeze'])
+    np.testing.assert_allclose(policy.path(hold + 1)[0], policy.way['lift'])
+    release = run_until(policy, hold, 'release', moved, closed=True)
+    assert release == pytest.approx(hold + CFG['hold_s'], abs=.021) and policy.grasp_info()['hands'] == 'open'
+    again = run_until(policy, release, 'wait', moved)
+    assert policy.round.index == 1 and policy.round.box_pos == moved and policy.round.latch_time == pytest.approx(again)
+    rows = [json.loads(line) for line in (tmp_path/'rounds.jsonl').read_text().splitlines()]
+    assert [r['phase'] for r in rows if r['round'] == 0] == ['wait', 'raise', 'advance', 'grip', 'squeeze', 'lift', 'hold', 'release']
+
+
+def test_a_gate_that_never_fires_releases_and_starts_over(tmp_path):
+    policy = scripted_policy(tmp_path, delay=0)
+    policy.begin_episode(standing_sample(policy, 0., BOX))
+    advance = run_until(policy, 0., 'advance', BOX)
+    release = run_until(policy, advance, 'release', BOX)
+    assert release == pytest.approx(policy.round.event['deadline'], abs=.021)
+    assert policy.round.notes['release_reason'] == 'gate_timeout'
+    run_until(policy, release, 'wait', BOX)
+    assert policy.round.index == 1
+
+
+def test_too_close_to_the_table_is_not_a_stance(tmp_path):
+    policy = scripted_policy(tmp_path, delay=0)
+    goal = stance(BOX, CFG) + [CFG['walk_lead_m'], 0]
+    policy.begin_episode(standing_sample(policy, 0., BOX))
+    policy.walk = {'goal': goal, 'clips': 1, 'stopped': True}
+    assert policy.at_stance(standing_sample(policy, .02, BOX, root_xy=goal + [.01, .03]))
+    edge = CFG['table_edge_x_m']
+    close = [edge - CFG['stance_min_clearance_m'] + .01, goal[1]]
+    assert np.linalg.norm(np.subtract(close, goal)) <= CFG['stance_tolerance_m']     # near enough, but
+    assert not policy.at_stance(standing_sample(policy, .02, BOX, root_xy=close))    # the hands would catch the edge
+    assert not policy.at_stance(standing_sample(policy, .02, BOX, root_xy=goal + [-.2, 0]))
+
+
+def test_far_from_the_stance_walks_and_an_unreachable_box_waits(tmp_path):
+    policy = scripted_policy(tmp_path, delay=0)
+    far = standing_sample(policy, 0., BOX, root_xy=[-1.58, -5.0])
+    policy.begin_episode(far)
+    policy.advance([dict(far, time=.02)])
+    assert policy.round.phase == 'walk' and policy.walk['clips'] == 0
+    np.testing.assert_allclose(policy.walk['goal'], stance(BOX, CFG) + [CFG['walk_lead_m'], 0])
+    floor = [BOX[0], BOX[1], .105]
+    policy = scripted_policy(tmp_path/'floor', delay=0)
+    (tmp_path/'floor').mkdir()
+    policy.begin_episode(standing_sample(policy, 0., floor))
+    assert not policy.round.graspable
+    run_until(policy, 0., 'idle', floor)
+    run_until(policy, .02, 'wait', floor)
+    assert policy.round.index == 1
+
+
+def test_wrists_that_stop_short_beside_the_box_get_a_bounded_correction(tmp_path):
+    policy = scripted_policy(tmp_path, delay=0)
+    policy.begin_episode(standing_sample(policy, 0., BOX))
+    advance = run_until(policy, 0., 'advance', BOX)
+    arrived = advance + CFG['advance_s']
+    short = lambda time: dict(standing_sample(policy, time, BOX), wrist_pos=(policy.way['pre'] - [.06, 0, 0]).tolist())
+    policy.correct(short(arrived - .2))
+    assert not policy.bias.any()                                     # still travelling: lag is not an error
+    policy.correct(short(arrived))
+    np.testing.assert_allclose(policy.bias, CFG['reach_feedback_gain'] * np.array([[.06, 0, 0]] * 2))
+    np.testing.assert_allclose(policy.goal(arrived)[0], policy.way['pre'] + policy.bias)
+    for step in range(1, 9):
+        policy.correct(short(arrived + .5 * step))
+    np.testing.assert_allclose(np.linalg.norm(policy.bias, axis=1), CFG['reach_feedback_max_m'])
+    policy.round.phase = 'squeeze'
+    before = policy.bias.copy()
+    policy.correct(short(arrived + 5.))
+    np.testing.assert_allclose(policy.bias, before)                  # pressing on the box is not a shortfall

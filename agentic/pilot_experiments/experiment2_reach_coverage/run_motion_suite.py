@@ -1,6 +1,6 @@
 """Run one group of experiment two's moving goals: every goal of the group, once per seed.
 
-Groups, goals, seeds and the start position are in agentic/configs/exp2-motions.json. Each run is
+Groups, goals, seeds and the start position are in exp2-motions.json beside this script. Each run is
 named <group prefix>-<date>-<suffix>-<goal>-s<seed>; its goal file is written beside the runs,
 under <runs>/<group prefix>-<date>-<suffix>/goals/. Runs are spread over the given GPUs, one at a
 time per GPU; to run two at once on a GPU name it twice and add ``--gpu-min-free-mib 16384``. Finished runs are skipped, so an interrupted suite can simply be started again.
@@ -15,10 +15,11 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import AGENTIC as ROOT, RUNS
 from kimodo_vla.oracle.locomotion import episode_seconds, load_goal
 
-CONFIG = ROOT/'configs/exp2-motions.json'
+CONFIG = Path(__file__).with_name('exp2-motions.json')
 
 
 def reach_goals(grid):

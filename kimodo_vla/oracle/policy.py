@@ -64,9 +64,12 @@ class OraclePolicy:
         self.start_time = None
         return {'status': 'ok'}
 
-    def initialize(self, sample):
+    def initialize(self, sample, heading=None):
         root = np.asarray(sample['root_pos'])
-        heading = yaw_matrix(float(yaw_of(rotation_wxyz(sample['root_quat']))))
+        # Arena decodes root rotations relative to the episode's first heading. A caller that
+        # re-anchors mid-episode passes that heading; by default this sample defines it.
+        if heading is None:
+            heading = yaw_matrix(float(yaw_of(rotation_wxyz(sample['root_quat']))))
         self.frame = Frame(root, heading)
         self.start_time = sample['time']
         pose = self.features.codec.decode_joint_configuration_pose(

@@ -3,3 +3,6 @@
 export KVLA_SIM_CACHE=        # required: directory holding envs/, sources/, sim-assets/
 export KVLA_CHECKPOINTS=      # optional: model weights; default <repo>/checkpoints
 export KVLA_AGENTIC_RUNS=     # optional: experiment outputs; default agentic/runs. Use persistent storage.
+# Only for the hosted models in pilot_experiments/experiment3_pointing/run_pointing.py. Fill these in env.local.sh, never in a tracked file.
+export OPENAI_API_KEY=
+export GEMINI_API_KEY=

@@ -13,7 +13,7 @@ after its walk began. That is Kimodo's prediction over several chained plans (te
 for 5 s), next to "the body stays where it was".
 
 ``--sweep CONFIG`` measures the gait Kimodo generates under different ways of using it (text,
-root constraints, history, plan length, guidance, speed; ``agentic/configs/walk-attribution.json``),
+root constraints, history, plan length, guidance, speed; ``walk-attribution.json`` in this folder),
 each walking direction and seed once with a perfect tracker, and writes one table next to the
 demonstrations' gait (``walk_attribution.py mine``). The model is loaded once.
 """
@@ -25,6 +25,8 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import CHECKPOINTS, RUNS, sim_cache
 from analyze_motion import gait
 from kimodo_vla.oracle.geometry import angle_deg, rotation_wxyz
@@ -202,7 +204,7 @@ def main():
     p.add_argument('--constraint-cfg', type=float, default=2.)
     p.add_argument('--joint-speed', type=float, default=4.)
     p.add_argument('--seconds', type=float, help='default: the goal\'s longest possible episode')
-    p.add_argument('--sweep', help='sweep config (agentic/configs/walk-attribution.json): gait under each way of using Kimodo')
+    p.add_argument('--sweep', help='sweep config (walk-attribution.json in this folder): gait under each way of using Kimodo')
     p.add_argument('--only', nargs='*', help='with --sweep: these conditions only')
     p.add_argument('--directions', nargs='*', help='with --sweep: these directions only')
     p.add_argument('--text-cache', help='with --sweep: the phrase embeddings (default <KVLA_SIM_CACHE>/text-eval)')

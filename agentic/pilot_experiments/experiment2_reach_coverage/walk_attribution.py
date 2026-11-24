@@ -2,7 +2,7 @@
 
 Test one gives SONIC walking references that did not come from Kimodo (segments of the recorded
 Arena SONIC demonstrations) and measures how much of each it walks. Test two
-(``rollout_kimodo.py --sweep``) measures the gait Kimodo generates under different uses, next to
+(``rollout_kimodo.py --sweep walk-attribution.json``, both in this folder) measures the gait Kimodo generates under different uses, next to
 the demonstrations' gait measured here. Subcommands:
 
   mine   find directional walking windows in the demonstrations, pick segments, write one
@@ -37,6 +37,7 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'scripts'))  # agentic/scripts: paths.py and the launcher
 from paths import AGENTIC as ROOT, RUNS
 from kimodo_vla.oracle import demo_walks as dw
 
@@ -430,7 +431,7 @@ def main():
     c.add_argument('pattern')
     c.add_argument('--markdown', action='store_true')
     x = sub.add_parser('cross')
-    x.add_argument('--config', default=str(ROOT/'configs/walk-attribution.json'))
+    x.add_argument('--config', default=str(Path(__file__).with_name('walk-attribution.json')))
     x.add_argument('--conditions', nargs='+', required=True)
     x.add_argument('--directions', nargs='*')
     x.add_argument('--repeats', type=int, default=5)
