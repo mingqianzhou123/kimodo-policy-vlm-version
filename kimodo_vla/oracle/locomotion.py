@@ -63,7 +63,11 @@ no text, the root ground path and heading on every frame, up to 100 history fram
                     rotations, the rest of the canvas free but for the phase's own conditions; no
                     longer history. Walk and stop canvases run ``segment_seconds`` past now, reach
                     and lean canvases 49 frames. Saved plan features start at now. ``text='auto'`` gives the walk the phrase of its
-                    direction (``WALK_TEXTS``) and the other phases no text.
+                    direction (``WALK_TEXTS``) and the other phases no text; ``text_until_m`` drops
+                    the phrase once the goal is that close (it otherwise marches on the spot).
+  approach_gain     walk and stop paths aim at here + gain x (goal - here): the tracker covers only
+                    part of each commanded displacement (about half for SONIC), so gain > 1 closes
+                    the last centimetres; 1 (the default) aims at the goal.
   walk_clips        a gait-cycle library (``clip_legs``): the walk is looped recorded strides chosen
                     from the measured position, Kimodo is not called until the walk has stopped
                     (the reach, if any, is Kimodo's as before); there is no separate stop plan
@@ -322,10 +326,12 @@ class LocomotionPolicy(OraclePolicy):
     root_constraints, history_frames, lead = 'dense', 100, None
     clips, clip_walker = None, None
     generator_mode, segment_frames, segment_steps, transition_frames, walk_text = 'policy', CANVAS, 50, 5, None
+    approach_gain, text_until_m = 1., 0.
 
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
                  root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None,
-                 generator='policy', segment_seconds=4., segment_steps=100, transition_frames=5, **kwargs):
+                 generator='policy', segment_seconds=4., segment_steps=100, transition_frames=5, approach_gain=1.,
+                 text_until_m=0., **kwargs):
         # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
         # are solved for the path pose; legs and trunk stay as Kimodo generated them.
         self.arm_ik = bool(arm_ik)
@@ -338,6 +344,9 @@ class LocomotionPolicy(OraclePolicy):
                 raise ValueError('transition_frames must be 1-30')
         if text == 'auto' and generator != 'native':
             raise ValueError("text='auto' needs the native generator")
+        self.approach_gain, self.text_until_m = float(approach_gain), float(text_until_m)
+        if not 1. <= self.approach_gain <= 4. or self.text_until_m < 0:
+            raise ValueError('approach_gain in [1, 4]; text_until_m >= 0')
         if generator in ('segment', 'native'):
             self.segment_frames, self.segment_steps = int(round(segment_seconds*30)), int(segment_steps)
             shortest = 1. if generator == 'native' else 2.
@@ -527,6 +536,13 @@ class LocomotionPolicy(OraclePolicy):
     def save_target(self):
         (self.run/'target.json').write_text(json.dumps(self.target_info, indent=2))
 
+    def walk_text_on(self, phase, obs):
+        """The walk phrase conditions this plan: walking, and (with ``text_until_m``) still that far from the goal."""
+        if phase != 'walk' or self.text_feat is None:
+            return False
+        return float(np.linalg.norm(self.root_end-self.measured_xz(obs))) > self.text_until_m or bool(
+            self.goal['root'].get('yaw_deg'))
+
     def measured_xz(self, obs):
         return self.frame.points(obs['root_pos'])[[0, 2]]
 
@@ -640,6 +656,10 @@ class LocomotionPolicy(OraclePolicy):
             target = self.root_end
             if phase == 'stop' and self.phases[-1].get('walk_timed_out'):
                 target = here  # stopped short: stand where the body is
+            elif self.approach_gain != 1.:
+                # The tracker covers only part of a commanded displacement; aim past the goal by
+                # (gain - 1) times what is left so that the body itself ends nearer it.
+                target = here+self.approach_gain*(target-here)
             path = ground_path(here, target, self.speed_toward(target), self.goal['root']['speed_m_s'], frames=canvas)
         heading = None   # experiment two: the start heading on every frame
         if phase == 'walk' and (self.lead is not None or self.goal['root'].get('yaw_deg')):
@@ -743,7 +763,7 @@ class LocomotionPolicy(OraclePolicy):
             v, m, heading, origin = transition_condition(self.model.representation, features, canvas-1, transition=n,
                                                          values=values[1:], mask=mask[1:])
             feats, _ = sample_segment(self.model, v, m, first_heading=heading,
-                text_feat=self.text_feat if phase == 'walk' else None, text_weight=self.text_cfg,
+                text_feat=self.text_feat if self.walk_text_on(phase, obs) else None, text_weight=self.text_cfg,
                 constraint_weight=self.constraint_cfg, steps=self.segment_steps, generator=generator)
             feats = feats.cpu().clone()
             feats[:, self.root_slot] += origin[0]
@@ -839,7 +859,8 @@ class LocomotionPolicy(OraclePolicy):
                   'hand_constraints': 'continuous', 'history_source': 'reference',
                   'history_condition_frames': n if native else int(hist_mask.any(-1).sum()),
                   'transition_frames': n if native else None,
-                  'text': (self.walk_text or self.text) if not native or phase == 'walk' else None,
+                  'text': ((self.walk_text or self.text) if self.walk_text_on(phase, obs) else None) if native else self.text,
+                  'approach_gain': self.approach_gain,
                   'text_cfg': self.text_cfg if self.text else None,
                   'root_constraints': self.root_constraints if phase == 'walk' else 'dense',
                   'inference_s': elapsed, 'constraint_cfg': self.constraint_cfg,

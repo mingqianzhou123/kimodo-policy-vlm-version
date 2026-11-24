@@ -198,3 +198,13 @@ def test_native_generator_continues_the_sent_reference_over_a_few_frames(tmp_pat
         lo.LocomotionPolicy.__init__(reach, motion_goal=WALK, text='auto')            # 'auto' is native only
     with pytest.raises(ValueError):
         lo.LocomotionPolicy.__init__(reach, motion_goal=WALK, generator='native', transition_frames=0)
+
+
+@pytest.mark.parametrize('gain', [1., 2.])
+def test_approach_gain_aims_past_the_goal_by_what_is_left(tmp_path, gain):
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'near', 'root': {'xy': [.1, 0.]}})
+    policy.approach_gain = gain
+    follow(policy, start, 1.2)
+    walk = policy.model.calls[0]
+    path = walk['values'][:, [policy.root_slot, policy.root_slot+2]].numpy()
+    assert np.linalg.norm(path[-1]-path[0]) == pytest.approx(.1*gain, abs=2e-3)

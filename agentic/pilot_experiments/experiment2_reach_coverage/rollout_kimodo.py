@@ -176,7 +176,8 @@ def sweep(args):
                     root_constraints=use['root_constraints'], history_frames=use['history_frames'],
                     lead_segment=lead, model=model, generator=use.get('generator', 'policy'),
                     segment_seconds=use.get('segment_seconds', 4.), segment_steps=use.get('segment_steps', 100),
-                    transition_frames=use.get('transition_frames', 5))
+                    transition_frames=use.get('transition_frames', 5), approach_gain=use.get('approach_gain', 1.),
+                    text_until_m=use.get('text_until_m', 0.))
                 lead_s = 0. if lead is None else (len(json.loads(lead.read_text())['actions'])+50)/50
                 rows = follow(policy, start, .7+lead_s+cfg['seconds']+.1)
                 result = {'condition': name, 'direction': direction, 'seed': seed, 'use': use, 'speed': speed,
