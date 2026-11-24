@@ -104,7 +104,9 @@ def lead_through_window(segment_path, out):
     """A copy of a recorded segment whose lead-in runs to the end of its directional window."""
     segment = json.loads(Path(segment_path).read_text())
     end = int(segment['window'][1])
-    segment['actions'], segment['window'] = segment['actions'][:end+2], [end, end+1]
+    actions = segment['actions'][:end+1]
+    actions.append([0., 0.]+actions[-1][2:])     # the window's last pose once more, so the window can end there
+    segment['actions'], segment['window'] = actions, [end, end+1]
     out.write_text(json.dumps(segment))
     return out
 
@@ -150,10 +152,8 @@ def sweep(args):
             continue
         use = {**cfg['base'], **change}
         for direction in cfg['directions']:
-            speed = use['speed'][direction] if isinstance(use['speed'], dict) else use['speed']
-            if direction == 'turn':
-                speed = use.get('turn_rate', cfg['base']['turn_rate'])
-                speed = speed[direction] if isinstance(speed, dict) else speed
+            rate = use['turn_rate'] if direction == 'turn' else use['speed']
+            speed = rate[direction] if isinstance(rate, dict) else rate
             for i, seed in enumerate(cfg['seeds']):
                 run = out/f'{name}-{direction}-s{seed}'
                 run.mkdir()

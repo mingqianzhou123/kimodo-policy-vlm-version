@@ -151,3 +151,14 @@ def test_leg_displacement_removes_what_planted_feet_skate():
     skating = planted.copy()
     skating[..., 0] += .2*t[:, None]                          # both planted feet slide forward at 0.2 m/s
     np.testing.assert_allclose(dw.leg_displacement(skating, root), [.3*t[-1], 0.], atol=1e-9)
+
+
+def test_lead_through_window_ends_on_the_windows_last_pose(tmp_path):
+    from rollout_kimodo import lead_through_window
+    a = np.random.default_rng(0).normal(size=(300, 40))
+    a[:, 3:9] = np.eye(3)[:, :2].reshape(6)
+    src = tmp_path/'s.json'
+    src.write_text(json.dumps({'name': 's', 'direction': 'left', 'window': [170, 299], 'actions': a.tolist(), 'source': {}}))
+    seg = dw.load_segment(lead_through_window(src, tmp_path/'lead.json'))
+    assert seg['window'] == [299, 300] and len(seg['actions']) == 301
+    np.testing.assert_allclose(seg['actions'][300][2:], a[299, 2:]) and np.testing.assert_allclose(seg['actions'][300][:2], 0.)

@@ -315,7 +315,7 @@ def score_cross(args):
 def sweep_table(args):
     rows = []
     for run_id in args.sweep:
-        rows += json.loads((RUNS/run_id/'sweep.json').read_text())
+        rows += [json.loads(f.read_text()) for f in sorted((RUNS/run_id).glob('*/result.json'))]
     baselines = {Path(d).name: json.loads((Path(d)/'segments.json').read_text())['baseline'] for d in args.baseline}
     order = list(dict.fromkeys(r['condition'] for r in rows))
     table = {}
