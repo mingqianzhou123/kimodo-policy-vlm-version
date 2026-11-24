@@ -38,6 +38,20 @@ part may be left out. A third kind of goal stands still and leans the trunk forw
 
 Its end pose is the start pose with the trunk pitched forward and the feet where they were, led by
 the waist joint or, with "by": "hips", by the pelvis; Kimodo generates the way there.
+
+A root goal may also turn on the spot: ``{"xy": [0, 0], "yaw_deg": 90, "yaw_rate_deg_s": 45}``
+conditions the heading to turn toward 90 degrees left of where it faced when the walk began.
+
+Ways of using Kimodo while walking, all off by default (the default is experiment two's setting:
+no text, the root ground path and heading on every frame, up to 100 history frames, 0.5 s plans):
+
+  text              a phrase key of the text cache; guidance is then Kimodo's separated CFG with
+                    text weight ``text_cfg`` and constraint weight ``constraint_cfg``
+  root_constraints  'dense' (every frame), 'sparse' (frames 15, 30, 49) or 'none'
+  history_frames    how many consumed-reference frames condition each plan (1 = only the present)
+  lead_segment      a recorded walking segment (``demo_walks``) played open loop before the walk,
+                    so the walk's history is real walking; the goal is then relative to where the
+                    body is and faces when the lead-in ends
 """
 import json
 import time
@@ -53,8 +67,10 @@ from kimodo_vla.model.planner import _episode_noise_seed
 from kimodo_vla.model.sparse_conditions import hand_keyframe
 from kimodo_vla.motion.g1_reference import _interpolate_motion, rot6d_row_to_matrix
 from .continuity import blend_reference, bounded_hinge_trajectory
+from .demo_walks import Timeline, load_segment
 from .geometry import BASIS, SIDES, angle_deg, rotation_wxyz
 from .hand_path import execution_frames
+from kimodo_vla.model.native_policy import ConstraintGuidance, SeparatedGuidance
 from .policy import OraclePolicy
 from .support import condition_support
 
@@ -67,7 +83,14 @@ LEAN_FROM = 40     # a lean plan is the leaned pose from this frame on
 LEAN_STEPS = 80    # control steps executed from the lean plan
 NOT_YET = 1e6      # arrival time, in seconds from the start, until the final phase begins
 ARM_IK_WITHIN_M = .25  # with arm_ik, the arm is solved for the wrist over the last 25 cm of its path
+SPARSE_FRAMES = (15, 30, 49)  # root_constraints='sparse': one waypoint every 0.5 s
+ROOT_CONSTRAINTS = ('dense', 'sparse', 'none')
 ARM_JOINTS = ('shoulder_pitch', 'shoulder_roll', 'shoulder_yaw', 'elbow', 'wrist_roll', 'wrist_pitch', 'wrist_yaw')
+
+
+def step_of(obs, start_time):
+    """Control step of a sample, counted from the episode start."""
+    return int(round((obs['time']-start_time)*50))
 
 
 def ease(u):
@@ -106,9 +129,14 @@ def load_goal(source):
         root = dict(goal['root'])
         xy = np.asarray(root.pop('xy'), dtype=float)
         speed, tolerance = float(root.pop('speed_m_s', .35)), float(root.pop('tolerance_m', .05))
+        yaw, rate = float(root.pop('yaw_deg', 0.)), float(root.pop('yaw_rate_deg_s', 45.))
         if root or xy.shape != (2,) or not np.isfinite(xy).all() or not .05 <= speed <= 1.5 or tolerance <= 0:
             raise ValueError('root needs xy [forward, left]; optional speed_m_s in [0.05, 1.5] and tolerance_m > 0')
+        if not abs(yaw) <= 180 or not 5 <= rate <= 180 or (yaw and np.linalg.norm(xy) > 0):
+            raise ValueError('A turn (yaw_deg up to 180, yaw_rate_deg_s in [5, 180]) is on the spot: xy must be [0, 0]')
         out['root'] = {'xy': xy.tolist(), 'speed_m_s': speed, 'tolerance_m': tolerance}
+        if yaw:
+            out['root'].update(yaw_deg=yaw, yaw_rate_deg_s=rate)
     if 'hand' in goal:
         hand = dict(goal['hand'])
         side = hand.pop('side')
@@ -137,12 +165,18 @@ def walk_allowance(goal):
     The path asks for ``speed_m_s``, but the tracker turns the generated steps into far less
     ground than that (0.07 m/s measured on the first forward walk).
     """
+    if goal['root'].get('yaw_deg'):
+        return abs(goal['root']['yaw_deg'])/10.+5.   # turns: 10 degrees per second
     return float(np.linalg.norm(goal['root']['xy']))/.05+5.
 
 
-def episode_seconds(goal, hold=2.):
-    """Longest an episode of this goal can need: every phase at its allowance, then ``hold`` seconds."""
+def episode_seconds(goal, hold=2., lead_s=0.):
+    """Longest an episode of this goal can need: every phase at its allowance, then ``hold`` seconds.
+
+    ``lead_s``: the length of a recorded lead-in (blend included) played before the walk."""
     total = READY_S+.2  # the first plan is made at 0.6 s; keep the full hold after the last phase
+    if lead_s:
+        total += lead_s
     if 'root' in goal:
         total += walk_allowance(goal)+2*1.6  # the walk can overrun by one plan, then the stop plan
     if 'hand' in goal:
@@ -254,7 +288,12 @@ def refine_arm(fk, side, joints, previous, roots, rotations, wrists, wrist_rotat
 
 
 class LocomotionPolicy(OraclePolicy):
-    def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, **kwargs):
+    # Ways of using Kimodo (module docstring); class defaults are experiment two's setting.
+    text, text_cfg, text_feat = None, 2., None
+    root_constraints, history_frames, lead = 'dense', 100, None
+
+    def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
+                 root_constraints='dense', history_frames=100, lead_segment=None, model=None, **kwargs):
         # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
         # are solved for the path pose; legs and trunk stay as Kimodo generated them.
         self.arm_ik = bool(arm_ik)
@@ -263,7 +302,26 @@ class LocomotionPolicy(OraclePolicy):
         self.goal = load_goal(motion_goal)
         self.walk_steps = int(walk_steps)
         self.noise_seed = noise_seed  # repeats of one goal differ only in Kimodo's sampling noise
+        if root_constraints not in ROOT_CONSTRAINTS or not 1 <= int(history_frames) <= 100 or text_cfg < 0:
+            raise ValueError('root_constraints must be dense, sparse or none; history_frames 1 to 100; text_cfg >= 0')
+        self.root_constraints, self.history_frames = root_constraints, int(history_frames)
+        self.lead = None if lead_segment is None else load_segment(lead_segment)
+        if self.lead is not None and 'root' not in self.goal:
+            raise ValueError('A recorded lead-in comes before a walk')
+        self.shared_model = model      # a loaded model to reuse (offline sweeps), else OraclePolicy loads one
         super().__init__(*args, **kwargs)
+        self.text, self.text_cfg = text, float(text_cfg)
+        guided = isinstance(self.model.denoiser, (ConstraintGuidance, SeparatedGuidance))
+        inner = self.model.denoiser.model if guided else self.model.denoiser
+        if text is None:
+            self.text_feat = None
+            if self.shared_model is not None:   # a reused model may still carry another policy's guidance
+                self.model.denoiser = ConstraintGuidance(inner, self.constraint_cfg)
+        else:
+            if text not in self.texts:
+                raise ValueError(f'No text embedding {text!r} in the text cache')
+            self.text_feat = self.texts[text].float()
+            self.model.denoiser = SeparatedGuidance(inner, self.text_cfg, self.constraint_cfg)
         if (self.mode != 'hold' or self.variant != 'bounded' or self.support_constraints != 'none'
                 or self.trajectory_projection != 'none'):
             raise ValueError('Moving goals use the bounded handoff with no standing support and no IK repair')
@@ -272,6 +330,8 @@ class LocomotionPolicy(OraclePolicy):
         self.phase, self.phases, self.jumps = 'ready', [], []
         self.hand_start = self.hand_begin = self.stance_xz = self.walk_begin = None
         self.stop_sent = self.lean_sent = False
+        self.lead_timeline = self.lead_begin = self.lead_end_step = None
+        self.walk_yaw = 0.
         status = super().reset(seed)
         if self.noise_seed is not None:
             self.seed = int(self.noise_seed)
@@ -322,6 +382,70 @@ class LocomotionPolicy(OraclePolicy):
         self.target_info.update(info)
         self.save_target()
 
+    def measured_yaw(self, obs):
+        """Heading of the measured root in the start frame, degrees, left positive."""
+        rotation = self.frame.heading.T @ rotation_wxyz(obs['root_quat'])
+        return float(np.degrees(np.arctan2(rotation[1, 0], rotation[0, 0])))
+
+    def yaw_remaining(self, obs):
+        """Degrees still to turn (0 for goals without a turn)."""
+        if not self.goal.get('root', {}).get('yaw_deg'):
+            return 0.
+        return (self.walk_yaw+self.goal['root']['yaw_deg']-self.measured_yaw(obs)+180.) % 360.-180.
+
+    def heading_features(self, yaw_deg):
+        """Kimodo heading features [N, 2] of the standing pose turned ``yaw_deg`` (start frame, left positive)."""
+        yaw = np.radians(np.atleast_1d(np.asarray(yaw_deg, dtype=float)))
+        tilt = self.frame.heading.T @ self.initial_rotation
+        tilt = Rotation.from_euler('z', -np.arctan2(tilt[1, 0], tilt[0, 0])).as_matrix() @ tilt
+        rotations = np.stack([Rotation.from_euler('z', y).as_matrix() @ tilt for y in yaw])
+        pose = self.features.codec.decode_joint_configuration_pose(np.tile(self.initial_joints, (len(yaw), 1)),
+            np.tile(self.frame.points([self.initial_root]) @ BASIS, (len(yaw), 1)),
+            root_rotation_matrices=rotations, joint_names=G1_JOINT_NAMES)
+        return self.features.features(pose['local_rot_mats'], pose['root_positions'])[:, self.heading_slice]
+
+    def lead_chunk(self, obs):
+        """The next commands of the recorded lead-in, ending exactly where its window begins."""
+        if self.lead_timeline is None:
+            self.lead_timeline = Timeline(self.lead, obs, settle_s=0.)
+            self.lead_yaw = self.measured_yaw(obs)
+            self.lead_begin = step_of(obs, self.start_time)
+            self.lead_end_step = self.lead_begin+self.lead_timeline.window[0]
+            self.target_info['lead'] = {'segment': self.lead['name'], 'begin_time': obs['time'],
+                                        'end_time': self.start_time+self.lead_end_step/50,
+                                        'window_begin': int(self.lead['window'][0])}
+            self.save_target()
+        index = step_of(obs, self.start_time)-self.lead_begin
+        size = min(25, self.lead_timeline.window[0]-index)
+        actions = self.lead_timeline.actions[index:index+size].copy()
+        # The timeline's rotations are relative to the heading measured when the lead-in began; Arena
+        # wants them relative to the episode's first heading.
+        began = Rotation.from_euler('z', np.radians(self.lead_yaw)).as_matrix()
+        relative = np.einsum('ij,tjk->tik', began, rot6d_row_to_matrix(torch.from_numpy(actions[:, 3:9])).numpy())
+        actions[:, 3:9] = relative[:, :, :2].reshape(len(actions), 6)
+        # Log in the walk plans' format, the root integrated from where the body is now.
+        rotation = self.frame.heading @ relative
+        root, rows = np.array(obs['root_pos'], dtype=float), []
+        for i, (a, r) in enumerate(zip(actions, rotation)):
+            step = r @ np.array([a[0], a[1], 0.])
+            root = np.array([root[0]+step[0], root[1]+step[1], a[2]])
+            wrist = self.fk(a[9:38], root, r)[0]
+            feet = self.fk(a[9:38], root, r, body_names=self.foot_names)[0]
+            rows.append({'plan': self.plan_index, 'action_index': i, 'time': obs['time']+(i+1)/50, 'phase': 'lead',
+                         'raw_projected_wrist': wrist.tolist(), 'sent_wrist': wrist.tolist(),
+                         'raw_joints': a[9:38].tolist(), 'sent_joints': a[9:38].tolist(),
+                         'raw_root_world': root.tolist(), 'sent_root_world': root.tolist(),
+                         'raw_root_rotation_world': r.tolist(), 'sent_root_rotation_world': r.tolist(),
+                         'raw_feet': feet.tolist(), 'sent_feet': feet.tolist()})
+        with (self.run/'commands.jsonl').open('a') as f:
+            f.write(''.join(json.dumps(x)+'\n' for x in rows))
+        with (self.run/'plans.jsonl').open('a') as f:
+            f.write(json.dumps({'plan': self.plan_index, 'time': obs['time'], 'phase': 'lead', 'sent_steps': size,
+                                'lead_index': int(index), 'model_called': False, 'inference_s': 0.,
+                                'root_path_error_m': 0.})+'\n')
+        self.plan_index += 1
+        return {'action_chunk': actions.tolist(), 'oracle_target': self.target_info}
+
     def save_target(self):
         (self.run/'target.json').write_text(json.dumps(self.target_info, indent=2))
 
@@ -336,6 +460,14 @@ class LocomotionPolicy(OraclePolicy):
         self.phases.append(dict(phase=phase, time=obs['time'], elapsed_s=t, root_remaining_m=remaining, **details))
         if phase == 'walk':
             self.walk_begin = t
+            self.walk_yaw = self.measured_yaw(obs)
+            if self.lead is not None:
+                # The goal is relative to where the body is and faces when the recorded lead-in ends.
+                here = np.asarray(obs['root_pos'], dtype=float)
+                turn = Rotation.from_euler('z', np.radians(self.walk_yaw)).as_matrix()
+                forward, left = self.goal['root']['xy']
+                self.root_end = self.frame.points(here+self.frame.heading @ turn @ np.array([forward, left, 0.]))[[0, 2]]
+                self.target_info['root_goal_world'] = self.frame.world([self.root_end[0], 0., self.root_end[1]])[:2].tolist()
         elif phase == 'lean':
             self.stance_xz = self.measured_xz(obs)
         elif phase == 'reach':
@@ -355,12 +487,19 @@ class LocomotionPolicy(OraclePolicy):
         """The phase of the plan about to be made."""
         t = obs['time']-self.start_time
         if self.phase == 'ready' and t >= READY_S-1e-9:
-            self.enter('walk' if 'root' in self.goal else 'lean' if 'lean' in self.goal else 'reach', obs)
+            if self.lead is not None:
+                self.enter('lead', obs)
+            else:
+                self.enter('walk' if 'root' in self.goal else 'lean' if 'lean' in self.goal else 'reach', obs)
+        if self.phase == 'lead' and step_of(obs, self.start_time) >= self.lead_end_step:
+            self.enter('walk', obs)
         if self.phase == 'walk':
             remaining = float(np.linalg.norm(self.root_end-self.measured_xz(obs)))
+            yaw_left = abs(self.yaw_remaining(obs))
             late = t-self.walk_begin >= walk_allowance(self.goal)
-            if remaining <= self.goal['root']['tolerance_m'] or late:
-                self.enter('stop', obs, walk_timed_out=bool(late and remaining > self.goal['root']['tolerance_m']))
+            done = remaining <= self.goal['root']['tolerance_m'] and yaw_left <= 5.
+            if done or late:
+                self.enter('stop', obs, walk_timed_out=bool(late and not done))
         elif self.phase == 'stop' and self.stop_sent:
             self.enter('reach' if 'hand' in self.goal else 'hold', obs)
         elif self.phase == 'lean' and self.lean_sent:
@@ -418,13 +557,26 @@ class LocomotionPolicy(OraclePolicy):
             if phase == 'stop' and self.phases[-1].get('walk_timed_out'):
                 target = here  # stopped short: stand where the body is
             path = ground_path(here, target, self.speed_toward(target), self.goal['root']['speed_m_s'])
-        for k in range(1, CANVAS):
+        heading = None   # experiment two: the start heading on every frame
+        if phase == 'walk' and (self.lead is not None or self.goal['root'].get('yaw_deg')):
+            now, left = self.measured_yaw(obs), self.yaw_remaining(obs)
+            turned = np.sign(left)*np.minimum(abs(left), self.goal['root'].get('yaw_rate_deg_s', 0.)*np.arange(CANVAS)/30)
+            heading = self.heading_features(now+turned)
+        elif phase == 'stop' and (self.lead is not None or self.goal['root'].get('yaw_deg')):
+            heading = self.heading_features(np.full(CANVAS, self.measured_yaw(obs)))
+        frames = range(1, CANVAS)
+        if phase == 'walk' and self.root_constraints != 'dense':
+            frames = SPARSE_FRAMES if self.root_constraints == 'sparse' else ()
+        for k in frames:
             values[k, self.root_slot], values[k, self.root_slot+2] = float(path[k, 0]), float(path[k, 1])
             mask[k, self.root_slot] = mask[k, self.root_slot+2] = True
-            values[k, self.heading_slice], mask[k, self.heading_slice] = self.standing_features[self.heading_slice], True
+            values[k, self.heading_slice] = self.standing_features[self.heading_slice] if heading is None else heading[k]
+            mask[k, self.heading_slice] = True
         if phase == 'stop':
             standing = self.standing_features.clone()
             standing[self.root_slot], standing[self.root_slot+2] = float(path[-1, 0]), float(path[-1, 1])
+            if heading is not None:
+                standing[self.heading_slice] = heading[-1]
             values[STAND_FROM:], mask[STAND_FROM:] = standing, True
         keyframes, dense = [], []
         if phase == 'lean':
@@ -476,6 +628,8 @@ class LocomotionPolicy(OraclePolicy):
         phase = self.advance(obs)
         if phase in ('ready', 'hold'):
             return self.hold_chunk(obs)
+        if phase == 'lead':
+            return self.lead_chunk(obs)
         sent = {'reach': REACH_STEPS, 'lean': LEAN_STEPS, 'stop': STOP_STEPS}.get(phase, self.walk_steps)
         # Every plan starts from where the body is. In a reach the conditions stay on the stance it
         # began with; without this the reference's root wandered 0.3 m from the body over a reach,
@@ -484,7 +638,7 @@ class LocomotionPolicy(OraclePolicy):
         shift = self.anchor(obs)
         cut = round(t*30)
         features = self.reference_features()
-        hist = features[:-1][-100:]
+        hist = features[:-1][-self.history_frames:]
         hist_mask = torch.ones_like(hist, dtype=torch.bool)
         values, mask, path, keyframes, dense = self.conditions(phase, obs, step, cut)
         # Frame zero is now: its pose is known, its velocities and contacts are left to the model.
@@ -492,7 +646,8 @@ class LocomotionPolicy(OraclePolicy):
         generator = torch.Generator(device=self.model.device).manual_seed(_episode_noise_seed(self.seed, self.plan_index))
         begin = time.perf_counter()
         output = self.model.predict_future(str(request['task']).strip(), torch.zeros(1, 3, 1, 1), hist,
-            history_feature_mask=hist_mask, text_feat=torch.zeros(1, 4096).to(self.model.device),
+            history_feature_mask=hist_mask,
+            text_feat=(torch.zeros(1, 4096) if self.text_feat is None else self.text_feat).to(self.model.device),
             future_condition=values, future_condition_mask=mask,
             diffusion_steps=self.steps, generator=generator)
         elapsed = time.perf_counter()-begin
@@ -566,6 +721,8 @@ class LocomotionPolicy(OraclePolicy):
                   'pose_frames': list(range({'stop': STAND_FROM, 'lean': LEAN_FROM}.get(phase, CANVAS), CANVAS)),
                   'hand_constraints': 'continuous', 'history_source': 'reference',
                   'history_condition_frames': int(hist_mask.any(-1).sum()),
+                  'text': self.text, 'text_cfg': self.text_cfg if self.text else None,
+                  'root_constraints': self.root_constraints if phase == 'walk' else 'dense',
                   'inference_s': elapsed, 'constraint_cfg': self.constraint_cfg, 'diffusion_steps': self.steps,
                   'variant': self.variant, 'handoff_seconds': self.handoff_seconds,
                   'joint_speed_rad_s': self.joint_speed, 'support_constraints': 'none', 'trajectory_projection': 'none',

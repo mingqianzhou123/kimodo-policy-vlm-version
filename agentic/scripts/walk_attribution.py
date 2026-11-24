@@ -19,6 +19,7 @@ Segment files go to ``--out``; runs to the usual runs directory as ``<tag>-<segm
 """
 import argparse
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -155,7 +156,7 @@ def suite(args):
         segments = [p for p in segments if any(p.stem.startswith(o) for o in args.only)]
     queue, lock = list(segments), threading.Lock()
 
-    def worker(gpu):
+    def worker(gpu, slot):
         while True:
             with lock:
                 if not queue:
@@ -172,13 +173,14 @@ def suite(args):
             if args.gpu_min_free_mib:
                 cmd += ['--gpu-min-free-mib', str(args.gpu_min_free_mib)]
             began = time.time()
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            env = dict(os.environ, KVLA_DDS_DOMAIN=str(args.dds_domain+slot))  # in-process DDS only
+            result = subprocess.run(cmd, capture_output=True, text=True, env=env)
             print(f'{run_id} on GPU {gpu}: exit {result.returncode} in {time.time()-began:.0f} s', flush=True)
             if result.returncode:
                 print(result.stderr[-1500:], flush=True)
     threads = []
     for i, gpu in enumerate(args.gpus):
-        threads.append(threading.Thread(target=worker, args=(gpu,)))
+        threads.append(threading.Thread(target=worker, args=(gpu, i)))
         threads[-1].start()
         time.sleep(args.stagger)
     for t in threads:
@@ -252,6 +254,7 @@ def main():
     s.add_argument('--only', nargs='*', help='segment name prefixes to run')
     s.add_argument('--gpu-min-free-mib', type=int)
     s.add_argument('--stagger', type=float, default=20., help='seconds between starting workers')
+    s.add_argument('--dds-domain', type=int, default=20, help='first DDS domain; worker k uses this plus k')
     c = sub.add_parser('score')
     c.add_argument('pattern')
     c.add_argument('--markdown', action='store_true')

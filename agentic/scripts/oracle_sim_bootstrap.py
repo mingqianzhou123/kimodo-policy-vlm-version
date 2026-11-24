@@ -20,7 +20,8 @@ def cuda_session(path, *args, providers=None, **kwargs):
 
 
 ort.InferenceSession = cuda_session
-ChannelFactoryInitialize(1, "lo")
+# Domain 1 holds about ten simulators per host; KVLA_DDS_DOMAIN gives concurrent runs their own.
+ChannelFactoryInitialize(int(os.environ.get("KVLA_DDS_DOMAIN", "1")), "lo")
 assert warp.__version__ == "1.9.0", warp.__version__
 warp.init()
 from isaacsim import SimulationApp

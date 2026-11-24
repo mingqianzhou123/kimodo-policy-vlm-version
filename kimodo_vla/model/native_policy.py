@@ -35,6 +35,29 @@ class ConstraintGuidance(nn.Module):
         return unconditional + self.weight * (conditional - unconditional)
 
 
+class SeparatedGuidance(nn.Module):
+    """Kimodo's separated CFG: text and constraints guided apart, each against the empty condition.
+
+    out = u + w_text (text only - u) + w_constraint (constraints only - u), where u has neither
+    the text nor the motion mask (history included, as in ``ConstraintGuidance``). With
+    ``text_weight`` 0 this is ``ConstraintGuidance``. Reference: NVIDIA Kimodo docs, cfg.html.
+    """
+    def __init__(self, model, text_weight=2., constraint_weight=2.):
+        super().__init__()
+        self.model, self.text_weight, self.constraint_weight = model, float(text_weight), float(constraint_weight)
+
+    def forward(self, **kwargs):
+        empty = dict(kwargs, motion_mask=torch.zeros_like(kwargs['motion_mask']))
+        no_text = dict(text_feat=torch.zeros_like(kwargs['text_feat']),
+                       text_feat_pad_mask=torch.zeros_like(kwargs['text_feat_pad_mask']))
+        constraints = self.model(**{**kwargs, **no_text})
+        unconditional = self.model(**{**empty, **no_text})
+        out = unconditional + self.constraint_weight * (constraints - unconditional)
+        if self.text_weight:
+            out = out + self.text_weight * (self.model(**empty) - unconditional)
+        return out
+
+
 class NativeKimodoPolicy(KimodoPolicy):
     def __init__(self, checkpoint: str | Path, constraint_cfg=None):
         nn.Module.__init__(self)
