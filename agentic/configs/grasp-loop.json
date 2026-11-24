@@ -189,8 +189,18 @@
    "first_seed": 7000
   },
   "_region_rule": "A map cell stands for the square of half a grid step around its point. For each stance distance take the rectangle of whole cells with the most cells whose episodes, both yaws pooled, succeed at >= 90%; ties: higher rate, wider lateral span, nearer stance. Pulling each outer edge in by half a grid step leaves the span between the outermost measured points. Code: report_grasp.py --pick-region.",
-  "region": null,
-  "stance_extra_m": null,
+  "region": {
+   "depth_m": [
+    0.12,
+    0.2
+   ],
+   "lateral_m": [
+    -0.1,
+    0.0
+   ],
+   "_from": "exp1-map-20261124-m1-* (commit c954487) by report_grasp.py --pick-region: 11 of 12 episodes in the rectangle; fixed 2026-11-24, not to be changed"
+  },
+  "stance_extra_m": 0.05,
   "max_yaw_deg": 45,
   "speeds_mps": [
    0.03,
