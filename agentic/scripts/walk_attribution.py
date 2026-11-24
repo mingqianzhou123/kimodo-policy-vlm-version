@@ -351,6 +351,8 @@ def sweep_table(args):
 def score(args):
     rows = []
     for run in sorted(RUNS.glob(args.pattern)):
+        if not (run/'run.json').is_file():
+            continue                     # the summary files share the runs' prefix
         manifest = json.loads((run/'run.json').read_text())
         if manifest.get('status') != 'completed' or not manifest.get('demo_segment'):
             continue
