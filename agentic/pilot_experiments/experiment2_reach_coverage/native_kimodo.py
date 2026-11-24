@@ -86,7 +86,7 @@ def stitched(rep, fx):
 
 
 def decoded_joints(rep, feats):
-    return rep.inverse(torch.as_tensor(feats).float()[None], is_normalized=False, return_numpy=False)['posed_joints'][0]
+    return ss.decode(rep, feats)['posed_joints']
 
 
 def replay(model, fx):
@@ -116,7 +116,7 @@ def compare(model, fx):
     rep = model.representation
     raws, seq = replay(model, fx)
     out = {'case': fx['meta']['name']}
-    out['raw_max_abs_normalized'] = max(float((rep.normalize(r) - rep.normalize(torch.from_numpy(fx[f'raw{i}']))).abs().max())
+    out['raw_max_abs_normalized'] = max(float((rep.normalize(r.to(model.device)) - rep.normalize(torch.from_numpy(fx[f'raw{i}']).to(model.device))).abs().max())
                                         for i, r in enumerate(raws))
     ours, theirs = decoded_joints(rep, seq), torch.from_numpy(fx['posed_joints'])
     out['joints_max_abs_m'] = float((ours - theirs).abs().max())

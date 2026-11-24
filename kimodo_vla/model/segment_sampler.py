@@ -87,6 +87,17 @@ def sample_segment(model, values, mask, *, first_heading=0., text_feat=None, tex
     return rep.unnormalize(x.float())[0], decoded
 
 
+def _device(rep):
+    parents = getattr(rep.skeleton, 'joint_parents', None)
+    return parents.device if torch.is_tensor(parents) else torch.device('cpu')
+
+
+def decode(rep, features):
+    """Unnormalized features [T, D] -> the representation's decoded dict of [T, ...] tensors on the CPU."""
+    out = rep.inverse(torch.as_tensor(features).float()[None].to(_device(rep)), is_normalized=False, return_numpy=False)
+    return {k: v[0].cpu() if torch.is_tensor(v) and v.ndim >= 2 else v for k, v in out.items()}
+
+
 def empty_condition(rep, frames):
     """Zero values and an all-False mask for ``frames`` frames."""
     values = torch.zeros(frames, rep.motion_rep_dim)
@@ -155,10 +166,10 @@ def transition_condition(rep, previous, frames, *, transition=TRANSITION_FRAMES,
     if not 1 <= transition <= len(previous):
         raise ValueError('need 1 <= transition <= len(previous)')
     latest = torch.as_tensor(previous)[-transition:].float().cpu()
-    last = rep.inverse(latest[None], is_normalized=False, return_numpy=False)
-    root_xz = last['smooth_root_pos'][0][:, [0, 2]]
+    last = decode(rep, latest)
+    root_xz = last['smooth_root_pos'][:, [0, 2]]
     v, m = empty_condition(rep, transition+frames)
-    body_condition(rep, v, m, torch.arange(transition), last['posed_joints'][0], last['global_rot_mats'][0], root_xz,
+    body_condition(rep, v, m, torch.arange(transition), last['posed_joints'], last['global_rot_mats'], root_xz,
                    end_effector_rotation_joints(rep.skeleton))
     if values is not None:
         v[transition:], m[transition:] = torch.as_tensor(values).float().cpu(), torch.as_tensor(mask).cpu()
@@ -166,7 +177,7 @@ def transition_condition(rep, previous, frames, *, transition=TRANSITION_FRAMES,
     s = rep.slice_dict['smooth_root_pos'].start
     v[:, s] -= origin[0]
     v[:, s+2] -= origin[1]
-    heading = float(compute_heading_angle(last['posed_joints'], rep.skeleton)[0, 0])
+    heading = float(compute_heading_angle(last['posed_joints'][None], rep.skeleton)[0, 0])
     return v.masked_fill(~m, 0), m, heading, origin
 
 
