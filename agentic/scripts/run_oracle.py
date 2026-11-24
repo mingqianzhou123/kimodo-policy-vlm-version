@@ -37,7 +37,9 @@ def parse_args(argv=None):
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
     p.add_argument('--root-anchor',choices=['reference','generated'],default='reference')
-    p.add_argument('--reference-source',choices=['kimodo','fixed','replay'],default='kimodo')
+    p.add_argument('--reference-source',choices=['kimodo','fixed','replay','demo'],default='kimodo',
+        help='demo: replay a walking segment that did not come from Kimodo (kimodo_vla/oracle/demo_walks.py); needs --demo-segment and --start-xy')
+    p.add_argument('--demo-segment',type=Path,help='With --reference-source demo: the segment file to replay')
     p.add_argument('--settled-goal',type=Path,help='Start from stable double support, keeping archived hand goals in world coordinates; '
         'implies --visual-markers --actuator-audit --dynamics-profile actuator')
     p.add_argument('--replay-fixture',type=Path)
@@ -75,6 +77,8 @@ def parse_args(argv=None):
     if a.motion_goal:
         a.support_constraints,a.hand_constraints,a.trajectory_projection='none','keyframes','none'
         a.dynamics_profile=a.dynamics_profile or 'actuator'
+    if a.reference_source=='demo':
+        a.dynamics_profile=a.dynamics_profile or 'actuator'  # the same aligned actuators as experiment two
     return a
 
 
@@ -84,7 +88,14 @@ def main():
     a.text_cache=a.text_cache or CACHE/'text-eval'
     run=RUNS/a.run_id
     replay=a.reference_source=='replay'
-    fixed=a.reference_source in ('fixed','replay')
+    demo=a.reference_source=='demo'
+    fixed=a.reference_source in ('fixed','replay','demo')
+    if demo != (a.demo_segment is not None):
+        raise ValueError('The demo source needs --demo-segment, and --demo-segment needs the demo source')
+    if demo and (not a.start_xy or a.motion_goal or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision
+                 or a.visual_markers or a.actuator_audit or a.dynamics_profile!='actuator' or a.mode!='hold'):
+        raise ValueError('Demo replays start on the open floor (--start-xy) with aligned actuators and nothing else')
+    if demo and not a.demo_segment.is_file():raise FileNotFoundError(a.demo_segment)
     if a.settled_goal:
         if (fixed or a.vlm_model or a.root_support or a.capture_vision or not a.visual_markers
                 or a.camera!='front_camera' or a.mode!='hold' or a.trajectory_projection!='ik-hold' or not a.actuator_audit
@@ -96,10 +107,10 @@ def main():
                 or a.actuator_audit or a.mode!='hold' or a.variant!='bounded' or a.dynamics_profile!='actuator'):
             raise ValueError('Moving goals run live on the bounded handoff with aligned actuators and nothing else')
         if not a.motion_goal.is_file():raise FileNotFoundError(a.motion_goal)
-    elif a.start_xy or a.noise_seed is not None or a.arm_ik:raise ValueError('--start-xy, --noise-seed and --arm-ik need --motion-goal')
+    elif (a.start_xy and not demo) or a.noise_seed is not None or a.arm_ik:raise ValueError('--start-xy, --noise-seed and --arm-ik need --motion-goal')
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
-    if a.dynamics_profile and not a.motion_goal and not ((replay or a.settled_goal) and a.actuator_audit):
+    if a.dynamics_profile and not a.motion_goal and not demo and not ((replay or a.settled_goal) and a.actuator_audit):
         raise ValueError('Dynamics interventions require audited immutable replay')
     if a.root_support and not (a.actuator_audit and replay and a.dynamics_profile in ('actuator','actuator-load')):
         raise ValueError('Root diagnostics require fixed reference and aligned actuators')
@@ -113,7 +124,7 @@ def main():
             raise ValueError('Replay scene must match the archived marker/camera configuration')
     if a.vlm_model and (fixed or a.mode!='hold' or a.trajectory_projection!='ik-hold' or not a.visual_markers):
         raise ValueError('First VLM experiment requires visual markers and the standing IK-hold backend')
-    if fixed and a.mode not in ('hold','reach'):
+    if fixed and a.mode not in ('hold','reach'):  # a demo replay is logged as 'hold'
         raise ValueError('Fixed reference supports hold/reach only')
     if run.resolve().parent != RUNS.resolve() or (not fixed and a.sim_gpu==a.policy_gpu and not a.share_policy_sim_gpu):
         raise ValueError('Invalid run ID or GPU assignment')
@@ -174,6 +185,8 @@ def main():
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
                    '--run',str(run),'--mode',a.mode,'--port',str(port)]
+    if demo:
+        policycmd+=['--demo-segment',str(a.demo_segment.resolve())]
     if replay:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_recorded_reference.py'),
                    '--run',str(run),'--fixture',str(a.replay_fixture.resolve()),'--port',str(port)]
@@ -187,10 +200,10 @@ def main():
     episode={'seed':1000,'episode_seed':1000,'repeat_idx':0,'episode_index':0,'max_steps':a.steps,
         'result_json':str(run/'episode.json'),'success_video_dir':str(run/'videos'),
         'failure_video_dir':str(run/'videos'),'recording_save_dir':str(run/'recordings'),'video_fps':30,
-        'post_termination_record_steps':0,'model_label':('replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
-        'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
+        'post_termination_record_steps':0,'model_label':('demo-' if demo else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
+        'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(a.demo_segment.resolve()) if demo else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
-    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
+    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal or demo else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
         '--task','Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','--env_config_yaml',
@@ -226,6 +239,8 @@ def main():
         motion_goal=json.loads(a.motion_goal.read_text()),motion_goal_sha256=sha(a.motion_goal),
         start_xy=a.start_xy,noise_seed=a.noise_seed,walk_steps=a.walk_steps,
         arm_ik=a.arm_ik)
+    if demo:record.update(experiment='DEMO-REPLAY',oracle=False,target_source='demo_segment',
+        demo_segment=str(a.demo_segment.resolve()),demo_segment_sha256=sha(a.demo_segment),start_xy=a.start_xy)
     record['arena_sha256']={f:sha(arena/f) for f in (
         'action_provider/action_provider_sonic.py','action_provider/vla_robot_current_local_runtime_v3.py',
         'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')}

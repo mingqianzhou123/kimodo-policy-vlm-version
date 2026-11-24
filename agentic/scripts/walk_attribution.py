@@ -1,0 +1,249 @@
+"""Who is responsible for the poor walking: how we use Kimodo, Kimodo itself, or SONIC?
+
+Test one gives SONIC walking references that did not come from Kimodo (segments of the recorded
+Arena SONIC demonstrations) and measures how much of each it walks. Test two
+(``rollout_kimodo.py --sweep``) measures the gait Kimodo generates under different uses, next to
+the demonstrations' gait measured here. Subcommands:
+
+  mine   find directional walking windows in the demonstrations, pick segments, write one
+         reference file per segment and the demonstrations' gait numbers:
+             walk_attribution.py mine --data <HumanoidArena_dataset_v3_1 copy> --out <segments dir>
+  suite  replay every segment in the simulator from experiment two's open-floor start:
+             walk_attribution.py suite --segments <dir> --tag <tag> --gpus 0 6 7 0 6 7
+  score  score finished replays (completion, sideways and heading drift, falls, measured gait):
+             walk_attribution.py score '<run prefix>*' [--markdown]
+
+Segment files go to ``--out``; runs to the usual runs directory as ``<tag>-<segment>``.
+"""
+import argparse
+import json
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import numpy as np
+
+from paths import AGENTIC as ROOT, RUNS
+from kimodo_vla.oracle import demo_walks as dw
+
+TASKS = ('HOI_double_desk', 'HOI_football', 'HOI_grap_cup', 'HOI_pp_box', 'HSI_boxing',
+         'HSI_open_door', 'HSI_sit_sofa', 'HSI_vision_navi')
+PER_DIRECTION = {'forward': 8, 'backward': 8, 'left': 5, 'right': 5, 'turn': 8}
+LEAD_S = (3.4, 5.)     # lead-in before the window: at least Kimodo's history, started where the root is slowest
+START_XY = (-4., -4.)  # experiment two's open-floor start
+
+
+def candidates(data):
+    from kimodo_vla.benchmarks.arena import demos
+    out = []
+    for task in TASKS:
+        directory = demos.dataset_dir(Path(data), task, 'sonic')
+        if not directory.is_dir():
+            print(f'{task}: not in {data}, skipped', flush=True)
+            continue
+        _, episodes = demos.read_dataset(directory)
+        for episode in episodes:
+            _, actions = demos.read_episode(episode)
+            for w in dw.find_windows(actions, lead_s=LEAD_S[0]):
+                summary = dw.window_summary(actions, w['begin'], w['end'])
+                if dw.classify(summary['displacement_m'], summary['yaw_deg'], summary['seconds']) != w['direction']:
+                    w['end'] = w['begin']+100      # the merged window curves: keep its first 2 s
+                    summary = dw.window_summary(actions, w['begin'], w['end'])
+                    if dw.classify(summary['displacement_m'], summary['yaw_deg'], 2.) != w['direction']:
+                        continue
+                d = np.array(summary['displacement_m'])
+                purity = (abs(summary['yaw_deg']) if w['direction'] == 'turn'
+                          else float(abs(d @ {'forward': [1, 0], 'backward': [-1, 0], 'left': [0, 1],
+                                              'right': [0, -1]}[w['direction']]))/summary['distance_m'])
+                out.append(dict(w, task=task, episode=episode.index, summary=summary, purity=purity,
+                                actions=actions))
+    return out
+
+
+def pick(found):
+    """Per direction: purest and longest first, one window per episode, tasks taken in turn."""
+    chosen = []
+    for direction, n in PER_DIRECTION.items():
+        pool = sorted([c for c in found if c['direction'] == direction],
+                      key=lambda c: (-round(c['purity'], 2), -c['summary']['seconds']))
+        by_task, used = {}, set()
+        for c in pool:
+            if (c['task'], c['episode']) not in used:
+                by_task.setdefault(c['task'], []).append(c)
+                used.add((c['task'], c['episode']))
+        while len([c for c in chosen if c['direction'] == direction]) < n and any(by_task.values()):
+            for task in sorted(by_task):
+                if by_task[task] and len([c for c in chosen if c['direction'] == direction]) < n:
+                    chosen.append(by_task[task].pop(0))
+    return chosen
+
+
+def lead_start(actions, begin):
+    """The slowest frame (root ground speed) between LEAD_S[1] and LEAD_S[0] before the window."""
+    root = dw.integrate_root(actions)
+    lo, hi = max(0, begin-int(LEAD_S[1]*dw.RATE)), begin-int(LEAD_S[0]*dw.RATE)
+    speed = dw.RATE*np.linalg.norm(np.diff(root[:, :2], axis=0), axis=1)
+    return int(lo+np.argmin(speed[lo:hi+1])), float(speed[lo:hi+1].min())
+
+
+def mine(args):
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=False)
+    found = candidates(args.data)
+    counts = {d: sum(c['direction'] == d for c in found) for d in dw.DIRECTIONS}
+    print('candidate windows (one episode can give several):', counts, flush=True)
+    fk = dw.g1_fk()
+    rows = []
+    for c in pick(found):
+        a = c['actions']
+        start, speed = lead_start(a, c['begin'])
+        name = f"{c['direction']}-{c['task'].lower()}-e{c['episode']:03d}-f{c['begin']}"
+        segment = {'name': name, 'direction': c['direction'], 'source': {
+                       'dataset': 'WilliamWang16/HumanoidArena_dataset_v3_1@ca04c2d5', 'task': c['task'],
+                       'tracker': 'sonic', 'episode': c['episode'], 'frames': [start, c['end']]},
+                   'window': [c['begin']-start, c['end']-start], 'lead_start_speed_m_s': speed,
+                   'actions': a[start:c['end']+1].tolist()}
+        (out/f'{name}.json').write_text(json.dumps(segment))
+        feet = dw.reference_feet(a[c['begin']:c['end']+1], fk)
+        rows.append({'name': name, 'direction': c['direction'], 'task': c['task'], 'episode': c['episode'],
+                     'window': c['summary'], 'lead_s': (c['begin']-start)/dw.RATE, 'lead_start_speed_m_s': speed,
+                     'gait': dw.stepping(feet)})
+        print(name, f"{c['summary']['speed_m_s']:.2f} m/s, yaw {c['summary']['yaw_deg']:.0f} deg, "
+                    f"slide {rows[-1]['gait']['slide_m_s']:.3f} m/s, both moving {rows[-1]['gait']['both_moving']:.2f}", flush=True)
+    summary = {'candidates': counts, 'segments': rows, 'baseline': baseline(rows)}
+    (out/'segments.json').write_text(json.dumps(summary, indent=1))
+    print(json.dumps(summary['baseline'], indent=1))
+
+
+GAIT_KEYS = ('slide_m_s', 'slide_p90_m_s', 'both_moving', 'step_length_m', 'cadence_hz')
+
+
+def baseline(rows):
+    """Median and range of each gait number, per direction, over the chosen windows."""
+    out = {}
+    for direction in dw.DIRECTIONS:
+        group = [r for r in rows if r['direction'] == direction]
+        if not group:
+            continue
+        out[direction] = {'windows': len(group),
+                          'speed_m_s': float(np.median([r['window']['speed_m_s'] for r in group])),
+                          'yaw_rate_deg_s': float(np.median([abs(r['window']['yaw_rate_deg_s']) for r in group]))}
+        for key in GAIT_KEYS:
+            values = [r['gait'][key] for r in group if r['gait'][key] is not None]
+            out[direction][key] = [float(np.median(values)), float(min(values)), float(max(values))] if values else None
+    return out
+
+
+def suite(args):
+    segments = sorted(p for p in Path(args.segments).glob('*.json') if p.name != 'segments.json')
+    if args.only:
+        segments = [p for p in segments if any(p.stem.startswith(o) for o in args.only)]
+    queue, lock = list(segments), threading.Lock()
+
+    def worker(gpu):
+        while True:
+            with lock:
+                if not queue:
+                    return
+                path = queue.pop(0)
+            run_id = f'{args.tag}-{path.stem}'
+            if (RUNS/run_id/'execution.jsonl').is_file() and json.loads((RUNS/run_id/'run.json').read_text()).get('status') == 'completed':
+                continue
+            segment = dw.load_segment(path)
+            steps = int(round((dw.BLEND_S+dw.SETTLE_S)*dw.RATE))+len(segment['actions'])+50
+            cmd = [sys.executable, str(ROOT/'scripts/run_oracle.py'), '--run-id', run_id, '--reference-source', 'demo',
+                   '--demo-segment', str(path), '--start-xy', *map(str, START_XY), '--sim-gpu', str(gpu),
+                   '--steps', str(steps)]
+            if args.gpu_min_free_mib:
+                cmd += ['--gpu-min-free-mib', str(args.gpu_min_free_mib)]
+            began = time.time()
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            print(f'{run_id} on GPU {gpu}: exit {result.returncode} in {time.time()-began:.0f} s', flush=True)
+            if result.returncode:
+                print(result.stderr[-1500:], flush=True)
+    threads = []
+    for i, gpu in enumerate(args.gpus):
+        threads.append(threading.Thread(target=worker, args=(gpu,)))
+        threads[-1].start()
+        time.sleep(args.stagger)
+    for t in threads:
+        t.join()
+
+
+def score(args):
+    rows = []
+    for run in sorted(RUNS.glob(args.pattern)):
+        manifest = json.loads((run/'run.json').read_text())
+        if manifest.get('status') != 'completed' or not manifest.get('demo_segment'):
+            continue
+        segment = dw.load_segment(manifest['demo_segment'])
+        steps = [json.loads(x) for x in (run/'execution.jsonl').read_text().splitlines() if x.strip()]
+        result = dw.score_run(steps, json.loads((run/'target.json').read_text()), segment)
+        result.update(run=run.name, segment=segment['name'], source=segment['source'])
+        (run/'demo-result.json').write_text(json.dumps(result, indent=1))
+        rows.append(result)
+    summary = summarize(rows)
+    name = args.pattern.rstrip('*').rstrip('-')
+    (RUNS/f'{name}-demo-summary.json').write_text(json.dumps({'runs': rows, 'summary': summary}, indent=1))
+    if args.markdown:
+        print(markdown(summary))
+    else:
+        print(json.dumps(summary, indent=1))
+
+
+def summarize(rows):
+    out = {}
+    for direction in dw.DIRECTIONS:
+        group = [r for r in rows if r.get('complete') and r['direction'] == direction]
+        if not group:
+            continue
+        completion = [r['completion'] for r in group]
+        s = {'runs': len(group), 'fell': sum(r['fell'] for r in group),
+             'completion_median': float(np.median(completion)), 'completion_range': [min(completion), max(completion)],
+             'at_least_half': sum(c >= .5 for c in completion), 'at_least_80': sum(c >= .8 for c in completion),
+             'heading_drift_deg_median': float(np.median([r['heading_drift_deg'] for r in group])),
+             'reference_speed_m_s': float(np.median([r['reference']['speed_m_s'] for r in group]))}
+        key = 'drift_cm' if direction == 'turn' else 'lateral_cm'
+        s[key+'_median'] = float(np.median([r[key] for r in group]))
+        for k in GAIT_KEYS:
+            values = [r['gait_actual'][k] for r in group if r['gait_actual'][k] is not None]
+            s['actual_'+k] = float(np.median(values)) if values else None
+        out[direction] = s
+    return out
+
+
+def markdown(summary):
+    lines = ['| 方向 | 次数 | 跌倒 | 完成比例 中位数（范围） | ≥50% | ≥80% | 横向 / 位移漂移 cm | 朝向漂移 ° | 参考速度 m/s |',
+             '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
+    for d, s in summary.items():
+        drift = s.get('lateral_cm_median', s.get('drift_cm_median'))
+        lines.append(f"| {d} | {s['runs']} | {s['fell']} | {100*s['completion_median']:.0f}% "
+                     f"({100*s['completion_range'][0]:.0f}% 到 {100*s['completion_range'][1]:.0f}%) | {s['at_least_half']} | "
+                     f"{s['at_least_80']} | {drift:.0f} | {s['heading_drift_deg_median']:.0f} | {s['reference_speed_m_s']:.2f} |")
+    return '\n'.join(lines)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest='command', required=True)
+    m = sub.add_parser('mine')
+    m.add_argument('--data', required=True)
+    m.add_argument('--out', required=True)
+    s = sub.add_parser('suite')
+    s.add_argument('--segments', required=True)
+    s.add_argument('--tag', required=True)
+    s.add_argument('--gpus', type=int, nargs='+', required=True, help='a GPU named twice runs two replays on it at once')
+    s.add_argument('--only', nargs='*', help='segment name prefixes to run')
+    s.add_argument('--gpu-min-free-mib', type=int)
+    s.add_argument('--stagger', type=float, default=20., help='seconds between starting workers')
+    c = sub.add_parser('score')
+    c.add_argument('pattern')
+    c.add_argument('--markdown', action='store_true')
+    args = p.parse_args()
+    {'mine': mine, 'suite': suite, 'score': score}[args.command](args)
+
+
+if __name__ == '__main__':
+    main()
