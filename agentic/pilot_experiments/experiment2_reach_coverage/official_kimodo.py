@@ -123,6 +123,87 @@ def compare_port(args, model):
     print(json.dumps(rows))
 
 
+def make_fixtures(args, model):
+    """Small official outputs for the regression test (native_kimodo.py check / test_native_kimodo.py).
+
+    Three cases from the official ``Kimodo.__call__``: text only as ``generate.py`` runs it (multi-prompt
+    path, one 5 s prompt); text plus a root ground path and heading (official ``Root2DConstraintSet``,
+    0.35 m/s forward); two prompts stitched with 5 transition frames. Noise per denoising run is drawn
+    on the CPU from ``torch.Generator().manual_seed(seed)`` and fed to the official sampler in place of
+    its ``torch.randn``. Saved: each run's raw output and constraints (unnormalized), the decoded
+    joints of the final motion, the text embeddings.
+    """
+    from contextlib import contextmanager
+    from kimodo.constraints import Root2DConstraintSet
+    text = CachedText(args.text_cache)
+    out = Path(args.make_fixtures)
+    out.mkdir(parents=True, exist_ok=True)
+    rep = model.motion_rep
+
+    @contextmanager
+    def recorded(seed):
+        calls, real_randn, real_generate = [], torch.randn, model._generate
+        g = torch.Generator().manual_seed(seed)
+
+        def randn(*shape, **kw):
+            shape = tuple(shape[0]) if len(shape) == 1 and not isinstance(shape[0], int) else shape
+            return real_randn(shape, generator=g).to(kw.get('device', 'cpu'))
+
+        def generate(*a, **kw):
+            torch.randn = randn
+            try:
+                result = real_generate(*a, **kw)
+            finally:
+                torch.randn = real_randn
+            calls.append({'raw': rep.unnormalize(result)[0].float().cpu(), 'mask': kw.get('motion_mask'),
+                          'observed': kw.get('observed_motion'), 'heading': kw.get('first_heading_angle')})
+            return result
+        model._generate = generate
+        try:
+            yield calls
+        finally:
+            model._generate = real_generate
+
+    def save(name, seed, prompts, frames, calls, motion, extra):
+        z = {'meta': json.dumps({'name': name, 'seed': seed, 'prompts': prompts, 'frames': frames, 'steps': args.steps,
+                                 'cfg': [2., 2.], 'transition': 5, **extra}),
+             'posed_joints': np.asarray(motion['posed_joints'], dtype=np.float32).reshape(-1, *np.shape(motion['posed_joints'])[-2:])}
+        for i, (c, prompt) in enumerate(zip(calls, prompts)):
+            z[f'raw{i}'] = c['raw'].numpy().astype(np.float32)
+            z[f'text{i}'] = text.table[prompt].numpy().astype(np.float32)
+            z[f'heading{i}'] = np.float32(float(c['heading'].reshape(-1)[0]))
+            if c['mask'] is not None and bool(c['mask'].bool().any()):
+                m = c['mask'][0].bool().cpu().numpy()
+                v = rep.unnormalize(c['observed'][0].float()).cpu().numpy()
+                z[f'cond{i}_shape'] = np.array(m.shape)
+                z[f'cond{i}_mask'] = np.packbits(m.reshape(-1))
+                z[f'cond{i}_values'] = v[m].astype(np.float32)
+        np.savez_compressed(out/f'{name}.npz', **z)
+        print(name, {k: v.shape for k, v in z.items() if hasattr(v, 'shape')}, (out/f'{name}.npz').stat().st_size, flush=True)
+
+    fwd, turn = PROMPTS['forward'][1], PROMPTS['turn'][1]
+    seed = args.seeds[0]
+    with recorded(seed) as calls:
+        m = model([fwd], [150], num_denoising_steps=args.steps, num_samples=1, multi_prompt=True,
+                  num_transition_frames=5, post_processing=False, return_numpy=True, progress_bar=lambda x: x)
+    save('text-forward', seed, [fwd], [150], calls, m, {})
+    n = 150
+    t = np.arange(n)/model.fps
+    dist = np.where(t < .35, .5*t**2, .5*.35**2+.35*(t-.35))
+    xz = np.outer(dist, (0., 1.))
+    c = Root2DConstraintSet(model.skeleton, torch.arange(n, device='cuda'), torch.tensor(xz, dtype=torch.float32, device='cuda'),
+                            global_root_heading=torch.tensor(np.tile([1., 0.], (n, 1)), dtype=torch.float32, device='cuda'))
+    with recorded(seed+1) as calls:
+        m = model([fwd], [n], num_denoising_steps=args.steps, num_samples=1, constraint_lst=[c], cfg_weight=[2., 2.],
+                  post_processing=False, return_numpy=True, progress_bar=lambda x: x)
+    save('path-forward', seed+1, [fwd], [n], calls, m,
+         {'root_path': {'xz': xz.tolist(), 'heading': [0.]*n}})
+    with recorded(seed+2) as calls:
+        m = model([fwd, turn], [60, 60], num_denoising_steps=args.steps, num_samples=1, multi_prompt=True,
+                  num_transition_frames=5, post_processing=False, return_numpy=True, progress_bar=lambda x: x)
+    save('two-prompts', seed+2, [fwd, turn], [60, 60], calls, m, {})
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--kimodo-src', required=True)
@@ -135,6 +216,8 @@ def main():
     p.add_argument('--directions', nargs='+', default=list(PROMPTS))
     p.add_argument('--compare-port', action='store_true',
                    help='instead: check that kimodo_vla.model.segment_sampler reproduces the official sampler (same seed)')
+    p.add_argument('--make-fixtures', metavar='DIR',
+                   help='instead: write the official regression fixtures for native_kimodo.py to DIR')
     p.add_argument('--variant', default='official', choices=['official', 'single', 'steps-50', 'path-text', 'path-notext',
                                                                'short', 'history', 'history-path-notext'])
     args = p.parse_args()
@@ -154,6 +237,8 @@ def main():
         raise SystemExit(f'Unexpected joint order in {converter.xml_path}: {names}')
     if args.compare_port:
         return compare_port(args, model)
+    if args.make_fixtures:
+        return make_fixtures(args, model)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=False)
     frames = int(args.seconds*model.fps)
