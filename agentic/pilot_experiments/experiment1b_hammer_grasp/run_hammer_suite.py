@@ -66,8 +66,10 @@ def jobs_for(args, config):
     stand, out = config['stand'], []
     shared = ['--gpu-min-free-mib', '16384'] if args.per_gpu > 1 else []
     if args.group == 'map':
-        from arena.hammer_layout import cell_name, map_cells
+        from arena.hammer_layout import cell_name, map_cells, placeable
         for i, cell in enumerate(map_cells(config)):
+            if not placeable(cell, config):
+                continue   # part of the hammer would hang over the table edge: not a placement
             values = [cell[k] for k in ('depth', 'lateral', 'yaw', 'extra')]
             out.append((f'exp1b-map-{args.tag}-{cell_name(cell)}', stand['map']['first_seed'] + i,
                         ['--hammer-at', *map(str, values), *shared]))

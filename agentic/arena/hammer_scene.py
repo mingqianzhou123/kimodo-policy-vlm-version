@@ -119,6 +119,8 @@ def load_layout():
     near = min(np.asarray([[x, y] for x in (rect[0][0], rect[1][0]) for y in (rect[0][1], rect[1][1])]) @ forward)
     if abs(near - np.asarray(cfg['scene']['table_edge_point_m']) @ forward) > .01:
         raise ValueError(f'The table near edge ({near}) differs from the configuration')
+    if not np.allclose(rect, cfg['scene']['table_rect_m'], atol=.01):
+        raise ValueError(f'The table top {rect} differs from the configuration')
     if not supported(layout['hammer_pos'], layout['hammer_yaw_rad'], cfg, rect):
         raise ValueError(f'Hammer placement not fully over the table: {layout}')
     layout['spec'] = spec

@@ -8,7 +8,7 @@ from scipy.spatial.transform import Rotation
 
 from arena.grasp_judge import Criteria
 from arena.hammer_layout import (LinearMotion, axes, cell_name, displaced, footprint, hammer_pose, heading_matrix,
-                                 map_cells, place, supported, yaw_quat)
+                                 map_cells, place, placeable, supported, yaw_quat)
 from arena.hammer_loop import HammerAttempt, HammerGraspLoop, HammerJudge, yaw_of_quat
 from kimodo_vla.oracle.hammer_policy import grasp_pose, grasp_rotation, handle_frame, handle_yaw_deg
 from run_hammer_suite import jobs_for
@@ -91,7 +91,13 @@ def test_support_check_uses_the_whole_hammer():
     assert supported(lay['hammer_pos'], lay['hammer_yaw_rad'], TEST, table)
     near = place(.03, -.2, 0, 0, TEST)         # the hammer is 12 cm wide across: 3 cm leaves it over the edge
     assert not supported(near['hammer_pos'], near['hammer_yaw_rad'], TEST, table)
-    assert len(footprint(lay['hammer_pos'], 0., TEST)) == 4
+    assert len(footprint(lay['hammer_pos'], 0., TEST)) == 8
+
+
+def test_map_cells_whose_hammer_overhangs_the_edge_are_not_placeable():
+    cfg = {**TEST, 'scene': {**SCENE, 'table_rect_m': [[-4.0, -3.4], [-1.5, -2.9]]}}
+    assert placeable(dict(depth=.13, lateral=-.2, yaw=0, extra=0), cfg)
+    assert not placeable(dict(depth=.05, lateral=-.2, yaw=20, extra=0), cfg)   # the head swings over the edge
 
 
 def test_injected_displacements_are_along_across_and_about_the_grip_point():

@@ -94,19 +94,26 @@ def in_region(seed, config):
 
 
 def footprint(hammer_xyz, yaw, config):
-    """World (x, y) corners of the hammer's local bounding rectangle."""
-    (x0, y0), (x1, y1) = np.asarray(config['scene']['hammer_local_bounds_m'])[:, :2]
+    """World (x, y) corners of the hammer's outline from above: the handle and the head, each a
+    rectangle in the hammer's own frame (``hammer_footprint_local_m``)."""
     c, s = np.cos(yaw), np.sin(yaw)
-    corners = np.array([[x0, y0], [x0, y1], [x1, y0], [x1, y1]])
+    corners = np.array([[a, b] for (x0, y0), (x1, y1) in config['scene']['hammer_footprint_local_m']
+                        for a in (x0, x1) for b in (y0, y1)])
     return corners @ np.array([[c, s], [-s, c]]) + np.asarray(hammer_xyz[:2])
 
 
-def supported(hammer_xyz, yaw, config, table, margin=.01):
-    """Every corner of the hammer lies over the table top, ``margin`` inside its edges."""
+def supported(hammer_xyz, yaw, config, table, margin=0.):
+    """Every corner of the hammer's outline lies over the table top, ``margin`` inside its edges."""
     (x0, y0), (x1, y1) = table
     pts = footprint(hammer_xyz, yaw, config)
     return bool(np.all((pts[:, 0] >= x0 + margin) & (pts[:, 0] <= x1 - margin)
                        & (pts[:, 1] >= y0 + margin) & (pts[:, 1] <= y1 - margin)))
+
+
+def placeable(cell, config):
+    """Whether a map cell puts the whole hammer over the table (the table rectangle is in the config)."""
+    lay = place(cell['depth'], cell['lateral'], cell['yaw'], cell['extra'], config)
+    return supported(lay['hammer_pos'], lay['hammer_yaw_rad'], config, config['scene']['table_rect_m'])
 
 
 def displaced(root_xyz, yaw, grip_xyz, axis, along=0., across=0., turn_deg=0.):
