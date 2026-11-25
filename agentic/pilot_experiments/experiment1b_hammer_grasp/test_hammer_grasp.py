@@ -206,3 +206,35 @@ def test_a_partial_closing_amount_stops_between_open_and_fist(tmp_path):
     loop.gate.closed = True
     loop.command_hands(apply)
     assert calls[-1] == (False, True) and loop.provider._right_hand_target == pytest.approx(np.full(7, 1.2))
+
+
+def test_tolerance_is_where_the_rate_falls_to_half_of_the_zero_level():
+    from analyze_hammer import half_point, predicted
+    pts = [(-10., 20, 0), (-5., 20, 10), (0., 20, 18), (5., 20, 16), (10., 20, 12)]
+    assert half_point(pts, -1) == pytest.approx(-5 - 5 * (.5 - .45) / .5)    # half of 90% is reached between -5 and -10
+    assert half_point(pts, +1) is None                      # still above half at the largest tested level
+    curves = {'along': pts, 'across': [(-2., 10, 5), (0., 10, 10), (2., 10, 10)], 'turn': [(0., 10, 10), (20., 10, 5)]}
+    assert predicted(curves, 0., 0., 0.) == pytest.approx(.9)
+    assert predicted(curves, -5., -1., 10.) == pytest.approx(.5 * .75 * .75)
+
+
+def test_failure_sides_follow_the_box_definition():
+    from analyze_hammer import failure_class
+    assert failure_class({'label': 'no_contact', 'events': {}}) == 'body: no contact'
+    assert failure_class({'label': 'knocked_over', 'events': {}}) == 'body: knocked before closing'
+    assert failure_class({'label': 'knocked_over', 'events': {'closed': 1.}}) == 'object: knocked after closing'
+    assert failure_class({'label': 'touched_not_held', 'events': {'closed': 1.}}) == 'object: closed, not held'
+
+
+def test_step_two_groups_are_paired_on_the_first_twenty_region_seeds():
+    class A:
+        group, tag, per_gpu, seeds, auto_gpus = 'inject', 't', 1, None, 2
+    jobs = jobs_for(A, CONFIG)
+    seeds = CONFIG['seeds']['region'][:20]
+    assert len(jobs) == 3 * 4 * 20 and sorted({j[1] for j in jobs}) == seeds
+    assert any(j[0].startswith('exp1b-inj-along-10-t-') and j[2][2:5] == ['-0.1', '0', '0'] for j in jobs)
+    assert any(j[0].startswith('exp1b-inj-turn+40-t-') and j[2][2:5] == ['0', '0', '40'] for j in jobs)
+    A.group = 'motion'
+    jobs = jobs_for(A, CONFIG)
+    assert len(jobs) == 2 * 2 * 20 and {j[0].split('-t-')[0] for j in jobs} == {
+        'exp1b-move003-d75', 'exp1b-move003-d194', 'exp1b-move010-d75', 'exp1b-move010-d194'}

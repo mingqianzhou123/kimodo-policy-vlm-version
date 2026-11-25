@@ -88,7 +88,8 @@ def jobs_for(args, config):
             out.append((f'exp1b-map-{args.tag}-{cell_name(cell)}', stand['map']['first_seed'] + i,
                         ['--hammer-at', *map(str, values), *shared]))
         return out
-    seeds = args.seeds or config['seeds']['region']
+    seeds = args.seeds or (config['seeds']['region'] if args.group == 'region'
+                           else config['seeds']['region'][:config['stand']['step_two_seeds']])
     if not set(seeds) <= set(config['seeds']['region']):
         raise SystemExit('Seeds outside the region group')
     if args.group == 'region':
