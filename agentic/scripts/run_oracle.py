@@ -70,6 +70,8 @@ def parse_args(argv=None):
         'its right; default from the region seed')
     p.add_argument('--start-timeout-s',type=float,help='Kill the simulator if it has not begun settling after this many '
         'seconds (a start-up hang); off by default')
+    p.add_argument('--sim-cache-seed',type=Path,help='Copy this folder (a finished run\'s runtime/cache) into the new '
+        'run\'s simulator cache before start, so that DoubleDesk textures are not rebuilt; off by default')
     p.add_argument('--diffusion-steps',type=int,default=50)
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
@@ -306,6 +308,8 @@ def main():
         'KVLA_RENDER_GPU':str(a.sim_gpu),'ACCEPT_EULA':'Y','OMNI_KIT_ACCEPT_EULA':'YES',
         'CYCLONEDDS_HOME':str(CACHE/'cyclonedds-0.10.2')}
     simenv['LD_LIBRARY_PATH']=str(CACHE/'system-libs/usr/lib/x86_64-linux-gnu')+':'+env.get('LD_LIBRARY_PATH','')
+    if a.sim_cache_seed:
+        shutil.copytree(a.sim_cache_seed,runtime/'cache',ignore=shutil.ignore_patterns('*.lock'))
     for key,folder in [('XDG_CACHE_HOME','cache'),('XDG_DATA_HOME','data'),('XDG_CONFIG_HOME','config'),('CUDA_CACHE_PATH','cuda')]:
         simenv[key]=str(runtime/folder)
     episode={'seed':a.seed,'episode_seed':a.seed,'repeat_idx':0,'episode_index':0,'max_steps':a.steps,

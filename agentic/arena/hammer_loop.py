@@ -86,7 +86,7 @@ class HammerGraspLoop:
         f = math.radians(scene['facing_deg'])
         self.forward, self.left = np.array([math.cos(f), math.sin(f)]), np.array([-math.sin(f), math.cos(f)])
         self.edge = np.asarray(scene['table_edge_point_m'], dtype=float)
-        self.judge = self.info = self.clock_start = self.target = None
+        self.judge = self.info = self.clock_start = self.target = self.target_rotation = None
         self.attempts, self.post_success = [], post_success_steps
         self.steps = (run / 'grasp-steps.jsonl').open('a', buffering=1)
         self.layout = layout or {}
@@ -131,6 +131,7 @@ class HammerGraspLoop:
             if self.gate.submit(GripperEvent(f"{e['id']}:right", True, tuple(map(float, e['positions'][1])),
                                              tuple(tuple(map(float, row)) for row in e['rotations'][1]), float(e['deadline']))):
                 self.target = np.asarray(e['positions'][1])
+                self.target_rotation = np.asarray(e['rotations'][1])
         self.info = info
 
     # ---- perturbations of the first round ------------------------------------------------
@@ -178,6 +179,8 @@ class HammerGraspLoop:
             if phase == 'advance' and self.target is not None and not self.gate.closed:
                 n['wrist_gap_m'] = float(np.linalg.norm(np.asarray(sample['wrist_pos'][1]) - self.target))
                 n['wrist_gap_vec_m'] = (np.asarray(sample['wrist_pos'][1]) - self.target).tolist()
+                cos = (np.trace(self.target_rotation.T @ np.asarray(sample['wrist_rot'][1])) - 1) / 2
+                n['wrist_angle_rad'] = float(np.arccos(np.clip(cos, -1., 1.)))
                 n.update(reach_time=now, reach_box_pos=list(com), reach_box_yaw_rad=yaw_of_quat(sample['box_quat']))
         if self.gate.closed and 'close_box_pos' not in n:
             latched = np.asarray(a.latched_box_pos)
