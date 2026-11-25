@@ -172,7 +172,7 @@ python $D/analyze_wide.py plot 'exp1-wide-*-20261125-[rd]1-s*' --out wide.svg
 ## 数据在哪
 
 - 开发机 `KVLA_AGENTIC_RUNS` 下的运行目录。每个有 `grasp-result.json`、`layout.json`、`rounds.jsonl`、`grasp-steps.jsonl`、`execution.jsonl`、视频，以及每一轮走路的 `walk-r<轮>/`（`plans.jsonl`、`commands.jsonl`、每次规划的 `plan-*.npz`）。
-- 备份：开发机持久盘 `/mnt/cfs/d5bvk6/personal/mingqianzhou/kvla-exp1-wide-range/`（`runs/` 是 270 个正式运行和 14 个调试运行，`scratch/` 是分析输出、批次日志和图，`backup-done.txt` 是核对结果）。
+- 备份：开发机持久盘 `/mnt/cfs/d5bvk6/personal/mingqianzhou/kvla-exp1-wide-range/`（`runs/` 是 270 个正式运行和 16 个调试运行，`scratch/` 是分析输出、批次日志和图，`backup-done.txt` 是核对结果：2026-11-25 19:06 北京时间，17041 个文件两边一致，每个 `grasp-result.json` 逐字节相同）。
 
 （下面是开跑前写定的东西。）
 
