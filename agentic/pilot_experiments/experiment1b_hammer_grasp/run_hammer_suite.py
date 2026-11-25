@@ -18,6 +18,7 @@ import argparse
 import json
 from pathlib import Path
 import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -53,7 +54,7 @@ def free_gpu(lock, need_mib=17500, among=None):
 
 def live(name):
     """Whether a launcher for this run is still running (e.g. left by a previous suite process)."""
-    return subprocess.run(['pgrep', '-f', f'--run-id {name} '], stdout=subprocess.DEVNULL).returncode == 0
+    return subprocess.run(['pgrep', '-f', '--', re.escape(f'--run-id {name} ')], stdout=subprocess.DEVNULL).returncode == 0
 
 
 def work(gpu, jobs, args, lock):
