@@ -1,0 +1,359 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="950" viewBox="0 0 860 950" font-family="PingFang SC, Heiti SC, Noto Sans CJK SC, sans-serif">
+<rect width="860" height="950" fill="white"/>
+<text x="20" y="30" font-size="18" font-weight="bold">站着不动的台前工作区：100 格各 1 个回合，成功 38 个</text>
+<text x="20" y="54" font-size="12" fill="#444">绿 成功 · 红 失败且伸手时骨盆后退 ≥15 cm · 橙 其他失败。小字：第一轮骨盆后退 cm。虚线框：按事先定好的规则划出的区域</text>
+<text x="70" y="93" font-size="14" font-weight="bold">现行站位（离台面约 17–22 cm）· 偏转 0°</text>
+<rect x="200" y="107" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="230.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="230.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="264" y="107" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 20</text>
+<rect x="328" y="107" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="358.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="358.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 11</text>
+<rect x="136" y="107" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="166.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="166.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="72" y="107" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="102.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="102.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="200" y="171" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="230.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="230.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="264" y="171" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 22</text>
+<rect x="328" y="171" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="358.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="358.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 21</text>
+<rect x="136" y="171" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="166.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="166.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 1</text>
+<rect x="72" y="171" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="102.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">滑落</text>
+<text x="102.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="200" y="235" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="230.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="230.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 22</text>
+<rect x="264" y="235" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 30</text>
+<rect x="328" y="235" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="358.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="358.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 24</text>
+<rect x="136" y="235" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="166.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="166.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 27</text>
+<rect x="72" y="235" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="102.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="102.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="200" y="299" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="230.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="230.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 27</text>
+<rect x="264" y="299" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 39</text>
+<rect x="328" y="299" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="358.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="358.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 28</text>
+<rect x="136" y="299" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="166.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="166.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 28</text>
+<rect x="72" y="299" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="102.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="102.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="200" y="363" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="230.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="230.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 30</text>
+<rect x="264" y="363" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 49</text>
+<rect x="328" y="363" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="358.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="358.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 34</text>
+<rect x="136" y="363" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="166.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="166.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 29</text>
+<rect x="72" y="363" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="102.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="102.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 5</text>
+<text x="102.0" y="441" font-size="11" text-anchor="middle">-20</text>
+<text x="166.0" y="441" font-size="11" text-anchor="middle">-10</text>
+<text x="230.0" y="441" font-size="11" text-anchor="middle">+0</text>
+<text x="294.0" y="441" font-size="11" text-anchor="middle">+10</text>
+<text x="358.0" y="441" font-size="11" text-anchor="middle">+20</text>
+<text x="230.0" y="459" font-size="11" text-anchor="middle" fill="#444">左右偏移 cm（+ = 机器人左侧）</text>
+<text x="62" y="141.0" font-size="11" text-anchor="end">8</text>
+<text x="62" y="205.0" font-size="11" text-anchor="end">12</text>
+<text x="62" y="269.0" font-size="11" text-anchor="end">16</text>
+<text x="62" y="333.0" font-size="11" text-anchor="end">20</text>
+<text x="62" y="397.0" font-size="11" text-anchor="end">24</text>
+<text x="32" y="265.0" font-size="11" fill="#444" transform="rotate(-90 32 265.0)" text-anchor="middle">箱子中心离台面近边 cm</text>
+<text x="480" y="93" font-size="14" font-weight="bold">现行站位 · 偏转 40°</text>
+<rect x="610" y="107" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="674" y="107" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="704.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="704.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="738" y="107" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="768.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="768.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 18</text>
+<rect x="546" y="107" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="576.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="576.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="482" y="107" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="512.0" y="135.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="512.0" y="153.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="610" y="171" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="674" y="171" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="704.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="704.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="738" y="171" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="768.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="768.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 23</text>
+<rect x="546" y="171" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="576.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="576.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 28</text>
+<rect x="482" y="171" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="512.0" y="199.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="512.0" y="217.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="610" y="235" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="674" y="235" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="704.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">滑落</text>
+<text x="704.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="738" y="235" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="768.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="768.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 27</text>
+<rect x="546" y="235" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="576.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="576.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 30</text>
+<rect x="482" y="235" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="512.0" y="263.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="512.0" y="281.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="610" y="299" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="674" y="299" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="704.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="704.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 26</text>
+<rect x="738" y="299" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="768.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="768.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 31</text>
+<rect x="546" y="299" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="576.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="576.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 27</text>
+<rect x="482" y="299" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="512.0" y="327.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="512.0" y="345.0" font-size="11" fill="white" text-anchor="middle">后退 6</text>
+<rect x="610" y="363" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="674" y="363" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="704.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="704.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 28</text>
+<rect x="738" y="363" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="768.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="768.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 37</text>
+<rect x="546" y="363" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="576.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="576.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 29</text>
+<rect x="482" y="363" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="512.0" y="391.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="512.0" y="409.0" font-size="11" fill="white" text-anchor="middle">后退 8</text>
+<text x="512.0" y="441" font-size="11" text-anchor="middle">-20</text>
+<text x="576.0" y="441" font-size="11" text-anchor="middle">-10</text>
+<text x="640.0" y="441" font-size="11" text-anchor="middle">+0</text>
+<text x="704.0" y="441" font-size="11" text-anchor="middle">+10</text>
+<text x="768.0" y="441" font-size="11" text-anchor="middle">+20</text>
+<text x="640.0" y="459" font-size="11" text-anchor="middle" fill="#444">左右偏移 cm（+ = 机器人左侧）</text>
+<text x="472" y="141.0" font-size="11" text-anchor="end">8</text>
+<text x="472" y="205.0" font-size="11" text-anchor="end">12</text>
+<text x="472" y="269.0" font-size="11" text-anchor="end">16</text>
+<text x="472" y="333.0" font-size="11" text-anchor="end">20</text>
+<text x="472" y="397.0" font-size="11" text-anchor="end">24</text>
+<text x="442" y="265.0" font-size="11" fill="#444" transform="rotate(-90 442 265.0)" text-anchor="middle">箱子中心离台面近边 cm</text>
+<text x="70" y="523" font-size="14" font-weight="bold">再退 5 cm（约 21–27 cm）· 偏转 0°</text>
+<rect x="200" y="537" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="230.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="230.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="264" y="537" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="294.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">滑落</text>
+<text x="294.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 1</text>
+<rect x="328" y="537" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="358.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="358.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 6</text>
+<rect x="136" y="537" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="166.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">滑落</text>
+<text x="166.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="72" y="537" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="102.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰倒</text>
+<text x="102.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="200" y="601" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="230.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="230.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="264" y="601" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 23</text>
+<rect x="328" y="601" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="358.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="358.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 19</text>
+<rect x="136" y="601" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="166.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="166.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 2</text>
+<rect x="72" y="601" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="102.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰倒</text>
+<text x="102.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="200" y="665" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="230.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="230.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="264" y="665" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 25</text>
+<rect x="328" y="665" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="358.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="358.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 21</text>
+<rect x="136" y="665" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="166.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">滑落</text>
+<text x="166.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="72" y="665" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="102.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰倒</text>
+<text x="102.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="200" y="729" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="230.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="230.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="264" y="729" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 23</text>
+<rect x="328" y="729" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="358.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="358.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 26</text>
+<rect x="136" y="729" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="166.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="166.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="72" y="729" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="102.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰倒</text>
+<text x="102.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 5</text>
+<rect x="200" y="793" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="230.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="230.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="264" y="793" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="294.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="294.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 26</text>
+<rect x="328" y="793" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="358.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰倒</text>
+<text x="358.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 28</text>
+<rect x="136" y="793" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="166.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="166.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="72" y="793" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="102.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="102.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 7</text>
+<text x="102.0" y="871" font-size="11" text-anchor="middle">-20</text>
+<text x="166.0" y="871" font-size="11" text-anchor="middle">-10</text>
+<text x="230.0" y="871" font-size="11" text-anchor="middle">+0</text>
+<text x="294.0" y="871" font-size="11" text-anchor="middle">+10</text>
+<text x="358.0" y="871" font-size="11" text-anchor="middle">+20</text>
+<text x="230.0" y="889" font-size="11" text-anchor="middle" fill="#444">左右偏移 cm（+ = 机器人左侧）</text>
+<text x="62" y="571.0" font-size="11" text-anchor="end">8</text>
+<text x="62" y="635.0" font-size="11" text-anchor="end">12</text>
+<text x="62" y="699.0" font-size="11" text-anchor="end">16</text>
+<text x="62" y="763.0" font-size="11" text-anchor="end">20</text>
+<text x="62" y="827.0" font-size="11" text-anchor="end">24</text>
+<text x="32" y="695.0" font-size="11" fill="#444" transform="rotate(-90 32 695.0)" text-anchor="middle">箱子中心离台面近边 cm</text>
+<rect x="166.0" y="631.0" width="64" height="128" fill="none" stroke="black" stroke-width="3" stroke-dasharray="7,5"/>
+<text x="480" y="523" font-size="14" font-weight="bold">再退 5 cm · 偏转 40°</text>
+<rect x="610" y="537" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="674" y="537" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="704.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="704.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="738" y="537" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="768.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="768.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 6</text>
+<rect x="546" y="537" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="576.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="576.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="482" y="537" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="512.0" y="565.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="512.0" y="583.0" font-size="11" fill="white" text-anchor="middle">后退 5</text>
+<rect x="610" y="601" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="674" y="601" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="704.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="704.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="738" y="601" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="768.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="768.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 6</text>
+<rect x="546" y="601" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="576.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="576.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="482" y="601" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="512.0" y="629.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰倒</text>
+<text x="512.0" y="647.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="610" y="665" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="674" y="665" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="704.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="704.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="738" y="665" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="768.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="768.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 26</text>
+<rect x="546" y="665" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="576.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="576.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 3</text>
+<rect x="482" y="665" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="512.0" y="693.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="512.0" y="711.0" font-size="11" fill="white" text-anchor="middle">后退 8</text>
+<rect x="610" y="729" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 5</text>
+<rect x="674" y="729" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="704.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="704.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 5</text>
+<rect x="738" y="729" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="768.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="768.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 28</text>
+<rect x="546" y="729" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="576.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="576.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 4</text>
+<rect x="482" y="729" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="512.0" y="757.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="512.0" y="775.0" font-size="11" fill="white" text-anchor="middle">后退 7</text>
+<rect x="610" y="793" width="60" height="60" rx="4" fill="#3a8f5c"/>
+<text x="640.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">成功</text>
+<text x="640.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 6</text>
+<rect x="674" y="793" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="704.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="704.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 25</text>
+<rect x="738" y="793" width="60" height="60" rx="4" fill="#c4553a"/>
+<text x="768.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">没碰到</text>
+<text x="768.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 31</text>
+<rect x="546" y="793" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="576.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰未夹</text>
+<text x="576.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 6</text>
+<rect x="482" y="793" width="60" height="60" rx="4" fill="#e0a040"/>
+<text x="512.0" y="821.0" font-size="13" fill="white" text-anchor="middle" font-weight="bold">碰倒</text>
+<text x="512.0" y="839.0" font-size="11" fill="white" text-anchor="middle">后退 6</text>
+<text x="512.0" y="871" font-size="11" text-anchor="middle">-20</text>
+<text x="576.0" y="871" font-size="11" text-anchor="middle">-10</text>
+<text x="640.0" y="871" font-size="11" text-anchor="middle">+0</text>
+<text x="704.0" y="871" font-size="11" text-anchor="middle">+10</text>
+<text x="768.0" y="871" font-size="11" text-anchor="middle">+20</text>
+<text x="640.0" y="889" font-size="11" text-anchor="middle" fill="#444">左右偏移 cm（+ = 机器人左侧）</text>
+<text x="472" y="571.0" font-size="11" text-anchor="end">8</text>
+<text x="472" y="635.0" font-size="11" text-anchor="end">12</text>
+<text x="472" y="699.0" font-size="11" text-anchor="end">16</text>
+<text x="472" y="763.0" font-size="11" text-anchor="end">20</text>
+<text x="472" y="827.0" font-size="11" text-anchor="end">24</text>
+<text x="442" y="695.0" font-size="11" fill="#444" transform="rotate(-90 442 695.0)" text-anchor="middle">箱子中心离台面近边 cm</text>
+<rect x="576.0" y="631.0" width="64" height="128" fill="none" stroke="black" stroke-width="3" stroke-dasharray="7,5"/>
+</svg>

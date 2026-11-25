@@ -20,6 +20,12 @@ def cuda_session(path, *args, providers=None, **kwargs):
 
 
 ort.InferenceSession = cuda_session
+# Every simulator joins DDS domain 1 on the loopback. Cyclone's default leaves room for ten
+# participants per machine, so a box running more simulators than that refused new ones at
+# start ("create domain error"). Nothing reads another simulator's topics; only the limit changes.
+import unitree_sdk2py.core.channel as _channel
+_channel.ChannelConfigHasInterface = _channel.ChannelConfigHasInterface.replace(
+    '<Domain Id="any">', '<Domain Id="any"><Discovery><MaxAutoParticipantIndex>100</MaxAutoParticipantIndex></Discovery>', 1)
 # Domain 1 holds about ten simulators per host; KVLA_DDS_DOMAIN gives concurrent runs their own.
 ChannelFactoryInitialize(int(os.environ.get("KVLA_DDS_DOMAIN", "1")), "lo")
 assert warp.__version__ == "1.9.0", warp.__version__

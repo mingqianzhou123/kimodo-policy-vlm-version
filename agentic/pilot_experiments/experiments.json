@@ -27,15 +27,21 @@
       "success": "指定物体的质心比初始静止高度高至少 10 cm，并连续 0.5 s 保持夹持且脱离支撑面。",
       "stop": "静态调试和验收合计最多两天；两天内夹箱没过线，转到 DoubleDesk 右手抓锤子，重新做静态验收。",
       "judgment": "各动态条件都达到静态成功率的 80%：主要损失的是速度。某档比静态低 25 个百分点以上：查锁存误差、首次接触和滑落。短延迟（1.5 s）和长延迟（闭源实测中位数）分开判定。",
+      "conclusion": "站着不挪步、箱子在 10 cm 区域内：静态 28/30（短延迟）、27/30（GPT、Gemini 延迟）。往复 0.03 / 0.10 m/s：短延迟 20/30、23/30，GPT 27/30、26/30，Gemini 23/30、22/30。成功全在第一轮，第一轮失败 45 个（移动条件 39 个）一个没救回。短延迟 0.03 档比静态低 26.7 个百分点，失败是合手时箱子已偏 3–7 cm、拳头把它碰倒：问题 A 成立（勉强）；其余移动条件主要损失速度。成败只看合手时箱子离锁存位置多远（第一轮：左右 3 cm 内 92%，5 cm 以上 45%），延迟和速度只通过往复相位起作用。",
+      "confidence": "每格 30 次，只有一格越过 25 个百分点线且只多 1.7 个点。区域只有 10 cm 宽，延迟和往复周期混叠，结论只对厘米级位移成立。记录：pilot_experiments/experiment1_blocking_grasp/stance-dynamic-20261125.md",
+      "changed": "2026-11-25 用户决定修改动态部分：机器人全程站在台前不挪步，箱子只在划定区域内（左右 10 cm）往复；只做 0.03 和 0.10 m/s，0.30 m/s 不做（10 cm 的线段上和 0.10 一样只是来回抖）；延迟三档 75 / 194 / 383 步（本地 Qwen、GPT、Gemini 实测中位数）；中途换目标不做（两个物体相距 50 cm，站着不挪步够不到）。短延迟静态基线就是区域验收那一组。",
       "steps": [
         {"name": "静态抓取验收（预留 30 个种子，26 个成功才进动态）", "runs": "exp1-static-*", "planned": 30},
-        {"name": "短延迟 · 桌面往复 0.03 m/s", "runs": "exp1-move003-*", "planned": 30},
-        {"name": "短延迟 · 桌面往复 0.10 m/s", "runs": "exp1-move010-*", "planned": 30},
-        {"name": "短延迟 · 桌面往复 0.30 m/s", "runs": "exp1-move030-*", "planned": 30},
-        {"name": "短延迟 · 中途换目标", "runs": "exp1-switch-*", "planned": 30},
-        {"name": "长延迟 · 静态", "runs": "exp1-long-static-*", "planned": 30},
-        {"name": "长延迟 · 桌面往复 0.10 m/s", "runs": "exp1-long-move010-*", "planned": 30},
-        {"name": "长延迟 · 中途换目标", "runs": "exp1-long-switch-*", "planned": 30}
+        {"name": "站着不动 · 台前工作区地图（100 格）", "runs": "exp1-map-*", "planned": 100},
+        {"name": "站着不动 · 区域内静态验收（新 30 个种子，26 个成功才进动态）", "runs": "exp1-region-*", "planned": 30},
+        {"name": "短延迟（75 步，本地 Qwen）· 往复 0.03 m/s", "runs": "exp1-move003-*", "planned": 30},
+        {"name": "短延迟 · 往复 0.10 m/s", "runs": "exp1-move010-*", "planned": 30},
+        {"name": "GPT 延迟（194 步）· 静态", "runs": "exp1-long-static-*", "planned": 30},
+        {"name": "GPT 延迟 · 往复 0.03 m/s", "runs": "exp1-long-move003-*", "planned": 30},
+        {"name": "GPT 延迟 · 往复 0.10 m/s", "runs": "exp1-long-move010-*", "planned": 30},
+        {"name": "Gemini 延迟（383 步）· 静态", "runs": "exp1-xlong-static-*", "planned": 30},
+        {"name": "Gemini 延迟 · 往复 0.03 m/s", "runs": "exp1-xlong-move003-*", "planned": 30},
+        {"name": "Gemini 延迟 · 往复 0.10 m/s", "runs": "exp1-xlong-move010-*", "planned": 30}
       ]
     },
     {

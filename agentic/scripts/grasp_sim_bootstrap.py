@@ -3,7 +3,7 @@ import os
 import runpy
 from pathlib import Path
 from arena import oracle_bridge
-from arena.grasp_scene import install_grasp_scene, place_at_stance
+from arena.grasp_scene import install_grasp_scene, place_at_stance, place_layout
 from arena.settled_start import install
 
 original = oracle_bridge.install_oracle_bridge
@@ -11,8 +11,9 @@ original = oracle_bridge.install_oracle_bridge
 
 def install_all():
     install_grasp_scene()
-    install(original, markers=False, audit=False,
-            before=place_at_stance if os.environ.get('GRASP_START_AT_STANCE') == '1' else None)
+    before = (place_layout if os.environ.get('GRASP_LAYOUT') else
+              place_at_stance if os.environ.get('GRASP_START_AT_STANCE') == '1' else None)
+    install(original, markers=False, audit=False, before=before)
 
 
 oracle_bridge.install_oracle_bridge = install_all

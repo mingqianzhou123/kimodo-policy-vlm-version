@@ -41,6 +41,15 @@ def parse_args(argv=None):
     p.add_argument('--latch-delay-steps',type=int,default=75,help='Control steps each round waits after latching the box pose')
     p.add_argument('--start-at-stance',action='store_true',help='Diagnostic for --grasp-loop: start the robot at the grasp '
         'stance instead of the task position, so an attempt needs no walking')
+    p.add_argument('--stand-still',action='store_true',help='Grasp loop: the robot starts at the stance for the placed box '
+        'and never walks; every round reaches from where it stands. Needs --box-at or --box-in-region')
+    p.add_argument('--box-at',type=float,nargs=4,metavar=('DEPTH_M','LATERAL_M','YAW_DEG','EXTRA_M'),
+        help='Workspace map cell: box centre this far behind the table edge and to the robot\'s left, turned, '
+             'with the robot this much further back than the stance rule')
+    p.add_argument('--box-in-region',action='store_true',help='Box at a seeded place inside the region fixed in '
+        'configs/grasp-loop.json, robot at the configured stance distance')
+    p.add_argument('--box-speed',type=float,default=0.,help='With --box-in-region: drive the box back and forth '
+        'across the region at this speed (m/s) from the first latch until a hand touches it')
     p.add_argument('--diffusion-steps',type=int,default=50)
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
@@ -93,6 +102,12 @@ def parse_args(argv=None):
         help='Explicitly allow existing GPU users if at least this much memory is free (minimum 16384 MiB)')
     a=p.parse_args(argv)
     a.steps=a.steps or (1450 if a.grasp_loop else 400)
+    if bool(a.box_at or a.box_in_region) != a.stand_still or (a.box_at and a.box_in_region):
+        raise ValueError('--stand-still goes with exactly one of --box-at and --box-in-region')
+    if a.stand_still and (not a.grasp_loop or a.start_at_stance):
+        raise ValueError('--stand-still belongs to the grasp loop and replaces --start-at-stance')
+    if a.box_speed and not a.box_in_region or a.box_speed<0:
+        raise ValueError('--box-speed needs --box-in-region and a non-negative speed')
     if a.grasp_loop:
         a.dynamics_profile=a.dynamics_profile or 'actuator'
     if a.settled_goal:
@@ -190,6 +205,13 @@ def main():
     if a.start_at_stance:
         if not a.grasp_loop:raise ValueError('--start-at-stance belongs to the grasp loop')
         env['GRASP_START_AT_STANCE']='1'
+    layout=None
+    if a.box_at:
+        d,l,y,e=a.box_at
+        layout={'cell':{'depth':d,'lateral':l,'yaw':y,'extra':e}}
+    elif a.box_in_region:
+        layout={'region_seed':a.seed,'speed_mps':a.box_speed}
+    if layout:env['GRASP_LAYOUT']=json.dumps(layout)
     if a.root_support:env['SONIC_ROOT_SUPPORT']=a.root_support
     if a.settled_goal:
         for key in ('VLM_CAPTURE','SONIC_ROOT_SUPPORT'):
@@ -226,6 +248,7 @@ def main():
         if a.open_loop:policycmd+=['--open-loop']
     if a.grasp_loop:
         policycmd+=['--grasp-loop',str(ROOT/'configs/grasp-loop.json'),'--latch-delay-steps',str(a.latch_delay_steps)]
+        if a.stand_still:policycmd.append('--stand-still')
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -272,6 +295,7 @@ def main():
         'policy_command':policycmd,'gpu_uuids':uuids,'started_unix':time.time(),
         'grasp_attempted':a.grasp_loop,'success_rate_evaluation':a.grasp_loop,'seed':a.seed,
         'latch_delay_steps':a.latch_delay_steps if a.grasp_loop else None,'start_at_stance':a.start_at_stance,
+        'stand_still':a.stand_still,'layout_request':layout,
         'git_commit':commit,'git_dirty':dirty,
         # Keys keep the pre-merge layout so runs stay comparable with those before 2026-11-23.
         'source_sha256':{str(p.relative_to(base)):sha(p) for base,directory in ((REPO,'kimodo_vla'),(ROOT,'arena'),(ROOT,'scripts'),(ROOT,'pilot_experiments'))
@@ -342,6 +366,7 @@ def main():
                     episode_result['video_path']=str(video.rename(video.with_name(video.stem.rsplit('__',1)[0]+'__grasp_success.mp4')))
                 result.update(termination='success' if result['success'] else episode_result['failure_reason'],
                     seed=a.seed,latch_delay_steps=a.latch_delay_steps,start_at_stance=a.start_at_stance,
+                    stand_still=a.stand_still,
                     episode_steps=episode_result['episode_steps'],
                     max_steps=a.steps,video_path=episode_result.get('video_path'),
                     arena={k:episode_result.get(k) for k in ('success','failure_reason','final_reward','max_reward')})

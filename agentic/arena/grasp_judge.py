@@ -69,6 +69,8 @@ class Attempt:
     events: dict = field(default_factory=dict)
     end_time: float | None = None
     holding: bool = False
+    notes: dict = field(default_factory=dict)   # reach and box-motion measurements, see GraspLoop
+    shove_from: tuple | None = None   # where a pushed box is measured from; the latch unless a drive let go later
 
     def __post_init__(self):
         self._grip = Sustained(self.criteria.grip_s)
@@ -77,8 +79,12 @@ class Attempt:
     def _mark(self, name, time):
         self.events.setdefault(name, time)
 
-    def update(self, time, box_pos, box_up_z, forces, hands_closed, success=False):
-        """Feed one control step. ``box_up_z`` is the world-z component of the box's own up axis."""
+    def update(self, time, box_pos, box_up_z, forces, hands_closed, success=False, driven=False):
+        """Feed one control step. ``box_up_z`` is the world-z component of the box's own up axis.
+
+        While a script drives the box it moves by itself, so how far it is from the latch says
+        nothing about being pushed; only tipping and falling count then.
+        """
         c = self.criteria
         for side in ('left', 'right'):
             if forces[side + '_n'] >= c.hand_force_n:
@@ -101,7 +107,8 @@ class Attempt:
             self._mark('success', time)
         if not self.holding:
             tilt = math.degrees(math.acos(max(-1., min(1., box_up_z))))
-            shove = float(np.linalg.norm(np.asarray(box_pos[:2]) - np.asarray(self.latched_box_pos[:2])))
+            origin = self.latched_box_pos if self.shove_from is None else self.shove_from
+            shove = 0. if driven else float(np.linalg.norm(np.asarray(box_pos[:2]) - np.asarray(origin[:2])))
             if tilt > c.tilt_deg or shove > c.shove_m or self.rest_height - box_pos[2] > c.drop_m:
                 self._mark('knocked_over', time)
 
@@ -126,7 +133,8 @@ class Attempt:
     def summary(self):
         return {'attempt': self.index, 'label': self.label, 'start_time': self.start_time,
                 'end_time': self.end_time, 'latched_box_pos': list(self.latched_box_pos),
-                'touched': self.touched, 'held': 'held' in self.events, 'events': dict(self.events)}
+                'touched': self.touched, 'held': 'held' in self.events, 'events': dict(self.events),
+                **({'notes': dict(self.notes)} if self.notes else {})}
 
 
 def summarize(attempts, termination, success_time, clock_start):

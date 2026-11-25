@@ -1,12 +1,21 @@
 """Run the blocking box grasp over one seed group, one episode per run folder, several GPUs at once.
 
     python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group heldout --tag 20261124-r1 --gpus 2 3 4
+    python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group map --tag 20261124-m1 --gpus 2 3 4 5
+    python agentic/pilot_experiments/experiment1_blocking_grasp/run_grasp_suite.py --group region --tag 20261125-r1 --gpus 2 3 4 5 --speed 0.10
 
 Run folders are named <prefix>-<tag>-s<seed>: exp1-static for the held-out seeds from the task
 start (the acceptance run), exp1-stance for the same seeds with ``--start-at-stance`` (the
-diagnostic without walking), dbg-exp1 for the debug seeds. A run that ends without an episode
-verdict (the simulator crashed or hung) is moved to <runs>/infra-failed/ and tried again, so
-that only episodes that were actually played count.
+diagnostic without walking), dbg-exp1 for the debug seeds.
+
+The robot never walks in the last two groups. ``map`` runs one episode per workspace map cell
+(configs/grasp-loop.json, stand.map) as exp1-map-<tag>-<cell>. ``region`` runs the region seeds
+with the box placed inside the fixed region: exp1-region (static, the acceptance run),
+exp1-move003 / exp1-move010 (moving), and with the long delays (194 / 383 steps)
+exp1-long-* / exp1-xlong-* static, move003 and move010.
+
+A run that ends without an episode verdict (the simulator crashed or hung) is moved to
+<runs>/infra-failed/ and tried again, so that only episodes that were actually played count.
 """
 import argparse
 import json
@@ -29,13 +38,13 @@ def verdict(run):
         return None
 
 
-def work(gpu, seeds, args, lock):
+def work(gpu, jobs, args, lock):
     while True:
         try:
-            seed = seeds.get_nowait()
+            name, seed, extra = jobs.get_nowait()
         except queue.Empty:
             return
-        run = RUNS/f'{args.prefix}-{args.tag}-s{seed}'
+        run = RUNS/name
         for attempt in range(args.tries):
             if verdict(run):
                 break
@@ -44,7 +53,7 @@ def work(gpu, seeds, args, lock):
                 failed.parent.mkdir(exist_ok=True)
                 shutil.move(run, failed)
             command = [sys.executable, 'scripts/run_oracle.py', '--run-id', run.name, '--grasp-loop', '--seed', str(seed),
-                       '--sim-gpu', str(gpu), '--policy-gpu', str(gpu), '--share-policy-sim-gpu', *args.extra]
+                       '--sim-gpu', str(gpu), '--policy-gpu', str(gpu), '--share-policy-sim-gpu', *extra, *args.extra]
             with (RUNS/f'{run.name}.launch.log').open('a') as log:
                 done = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
             with lock:
@@ -52,16 +61,69 @@ def work(gpu, seeds, args, lock):
             time.sleep(20)  # the launcher refuses a GPU that has not released its memory yet
 
 
+def region_prefix(speed, delay, config):
+    """Fixed run names of the region conditions; anything else is not part of the plan.
+
+    exp1-region is the short-delay static run (the acceptance run, also the short-delay baseline);
+    long = 194 steps (GPT median), xlong = 383 steps (Gemini median).
+    """
+    stand = config['stand']
+    delays = {75: 'exp1-', stand['long_delay_steps']: 'exp1-long-', stand['xlong_delay_steps']: 'exp1-xlong-'}
+    if delay not in delays or speed not in [0.] + stand['speeds_mps']:
+        raise SystemExit(f'No planned condition with speed {speed} m/s and delay {delay} steps')
+    if speed == 0.:
+        return 'exp1-region' if delay == 75 else delays[delay] + 'static'
+    return delays[delay] + f'move{int(round(speed * 100)):03d}'
+
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--group', choices=['debug', 'heldout'], required=True)
+    p.add_argument('--group', choices=['debug', 'heldout', 'map', 'region'], required=True)
     p.add_argument('--tag', required=True, help='Names this evaluation, e.g. 20261124-r1')
     p.add_argument('--gpus', type=int, nargs='+', required=True)
     p.add_argument('--prefix', help='Only for debug seeds; the default is dbg-exp1')
     p.add_argument('--seeds', type=int, nargs='+', help='Subset of the group')
     p.add_argument('--tries', type=int, default=3)
+    p.add_argument('--speed', type=float, default=0., help='Region group: box speed in m/s')
+    p.add_argument('--latch-delay-steps', type=int, default=75, help='Region group: steps each round waits')
+    p.add_argument('--per-gpu', type=int, default=1, help='Episodes run side by side on each GPU')
+    p.add_argument('--conditions', nargs='+', metavar='SPEED:DELAY', help='Region group: several conditions in one '
+                   'queue, run in the order given, e.g. 0:194 0.03:194 0.1:194; replaces --speed and --latch-delay-steps')
     args, args.extra = p.parse_known_args()
-    group = json.loads((ROOT/'configs/grasp-loop.json').read_text())['seeds'][args.group]
+    config = json.loads((ROOT/'configs/grasp-loop.json').read_text())
+    jobs, lock = queue.Queue(), threading.Lock()
+    shared = ['--gpu-min-free-mib', '16384'] if args.per_gpu > 1 else []
+    delay = ['--latch-delay-steps', str(args.latch_delay_steps)]
+    if args.group in ('map', 'region'):
+        if args.prefix or args.seeds and args.group == 'map' or '--start-at-stance' in args.extra:
+            raise SystemExit('Map and region runs have fixed names and start where they are placed')
+        if args.group == 'map':
+            from arena.box_layout import cell_name, map_cells
+            for i, cell in enumerate(map_cells(config)):
+                values = [cell[k] for k in ('depth', 'lateral', 'yaw', 'extra')]
+                jobs.put((f'exp1-map-{args.tag}-{cell_name(cell)}', config['stand']['map']['first_seed'] + i,
+                          ['--stand-still', '--box-at', *map(str, values), *delay, *shared]))
+        else:
+            group = config['seeds']['region']
+            if not set(args.seeds or group) <= set(group):
+                raise SystemExit('Seeds outside the region group')
+            conditions = ([tuple(map(float, c.split(':'))) for c in args.conditions] if args.conditions
+                          else [(args.speed, args.latch_delay_steps)])
+            for speed, steps in conditions:
+                prefix = region_prefix(speed, int(steps), config)
+                for seed in args.seeds or group:
+                    jobs.put((f'{prefix}-{args.tag}-s{seed}', seed, ['--stand-still', '--box-in-region',
+                              '--box-speed', str(speed), '--latch-delay-steps', str(int(steps)), *shared]))
+        workers = [threading.Thread(target=work, args=(gpu, jobs, args, lock))
+                   for _ in range(args.per_gpu) for gpu in args.gpus]
+        for i, worker in enumerate(workers):
+            if i == len(args.gpus):
+                time.sleep(90)   # two simulators starting on one GPU at once can lose the device
+            worker.start()
+        for worker in workers:
+            worker.join()
+        raise SystemExit(0)
+    group = config['seeds'][args.group]
     chosen = args.seeds or group
     if not set(chosen) <= set(group):
         raise SystemExit(f'Seeds outside the {args.group} group')
@@ -72,10 +134,9 @@ if __name__ == '__main__':
     elif (args.prefix or '').startswith('exp1-'):
         raise SystemExit('exp1-* names are reserved for the held-out seeds')
     args.prefix = args.prefix or 'dbg-exp1'
-    seeds, lock = queue.Queue(), threading.Lock()
     for seed in chosen:
-        seeds.put(seed)
-    workers = [threading.Thread(target=work, args=(gpu, seeds, args, lock)) for gpu in args.gpus]
+        jobs.put((f'{args.prefix}-{args.tag}-s{seed}', seed, delay))
+    workers = [threading.Thread(target=work, args=(gpu, jobs, args, lock)) for gpu in args.gpus]
     for worker in workers:
         worker.start()
     for worker in workers:

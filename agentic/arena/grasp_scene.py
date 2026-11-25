@@ -117,3 +117,67 @@ def place_at_stance(env):
     robot.write_root_pose_to_sim(state[:, :7])
     robot.write_root_velocity_to_sim(state[:, 7:])
     (Path(os.environ['ORACLE_RUN']) / 'start-at-stance.json').write_text(json.dumps({'root_xy': goal.tolist()}))
+
+
+def load_layout():
+    """The placement asked for through GRASP_LAYOUT, resolved once and kept in the run folder.
+
+    GRASP_LAYOUT is JSON: either a map cell {"cell": {depth, lateral, yaw, extra}} or a seeded
+    placement in the fixed region {"region_seed": N, "speed_mps": V}. None when it is not set.
+    """
+    spec = os.environ.get('GRASP_LAYOUT')
+    if not spec:
+        return None
+    from arena.box_layout import in_region, place, supported
+    run = Path(os.environ['ORACLE_RUN'])
+    saved = run / 'layout.json'
+    if saved.is_file():
+        return json.loads(saved.read_text())
+    config = json.loads((Path(__file__).resolve().parents[1] / 'configs/grasp-loop.json').read_text())
+    spec = json.loads(spec)
+    if 'cell' in spec:
+        c = spec['cell']
+        layout = place(c['depth'], c['lateral'], c['yaw'], c['extra'], config)
+    else:
+        layout = {**in_region(spec['region_seed'], config), 'speed_mps': float(spec.get('speed_mps', 0.))}
+    table = next(c for c in json.loads((run / 'grasp-scene.json').read_text())['colliders_near_box']
+                 if 'PackingTable' in c['path'])
+    corners = [[table['min'][0], table['min'][1]], [table['max'][0], table['max'][1]]]
+    ends = [layout['box_xy'][1]] + layout.get('segment_y', [])
+    if not all(supported([layout['box_xy'][0], y], layout['yaw_deg'], config['scene']['box_half_m'], corners) for y in ends):
+        raise ValueError(f'Box placement not fully over the table: {layout}')
+    layout['spec'] = spec
+    saved.write_text(json.dumps(layout, indent=1))
+    return layout
+
+
+def place_layout(env):
+    """Put the box and the robot where the layout says, before the robot settles."""
+    from scipy.spatial.transform import Rotation
+    layout = load_layout()
+    box = env.scene['box']
+    state = box.data.root_state_w.clone()
+    state[0, 0], state[0, 1] = layout['box_xy']
+    x, y, z, w = Rotation.from_euler('z', layout['yaw_deg'], degrees=True).as_quat()
+    state[0, 3:7] = state.new_tensor([w, x, y, z])
+    state[0, 7:] = 0.
+    box.write_root_pose_to_sim(state[:, :7])
+    box.write_root_velocity_to_sim(state[:, 7:])
+    robot = env.scene['robot']
+    state = robot.data.root_state_w.clone()
+    state[0, 0], state[0, 1] = layout['robot_xy']
+    state[0, 7:] = 0.
+    robot.write_root_pose_to_sim(state[:, :7])
+    robot.write_root_velocity_to_sim(state[:, 7:])
+
+
+def drive_box(env, rest, y, vy):
+    """Impose the driven box pose for the coming control step: ``rest`` is its pose [7] when the
+    drive started (x, height and orientation stay), y and the y-velocity come from the drive."""
+    box = env.scene['box']
+    pose = rest.clone()
+    pose[0, 1] = float(y)
+    velocity = pose.new_zeros((1, 6))
+    velocity[0, 1] = float(vy)
+    box.write_root_pose_to_sim(pose)
+    box.write_root_velocity_to_sim(velocity)

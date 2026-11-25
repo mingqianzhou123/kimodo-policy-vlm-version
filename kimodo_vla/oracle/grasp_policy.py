@@ -176,11 +176,13 @@ class Round:
 
 
 class BoxGraspPolicy(OraclePolicy):
-    def __init__(self, *args, config, latch_delay_steps=75, **kwargs):
+    def __init__(self, *args, config, latch_delay_steps=75, stand_still=False, **kwargs):
         self.cfg = json.loads(open(config).read()) if not isinstance(config, dict) else config
         if latch_delay_steps < 0:
             raise ValueError('Latch delay cannot be negative')
         self.latch_delay = int(latch_delay_steps)
+        # Off by default. On, the robot never walks: every round reaches from where it stands.
+        self.stand_still = bool(stand_still)
         super().__init__(*args, **kwargs)
         if self.mode != 'hold' or self.trajectory_projection != 'ik-hold' or self.variant != 'bounded':
             raise ValueError('The grasp loop needs the bounded standing IK-hold backend')
@@ -436,6 +438,10 @@ class BoxGraspPolicy(OraclePolicy):
         if r.phase == 'wait' and now >= r.latch_time + self.latch_delay/50 - 1e-6:
             if not r.graspable:
                 return self.enter('idle', now)
+            if self.stand_still:
+                r.notes['stand_still'] = True
+                self.anchor(obs)
+                return self.enter('raise', now)
             # Walks end short of where they aim more often than past it, so they aim a little
             # further; the wrists are planned from wherever the robot actually stops.
             lead = self.episode_heading @ [c['walk_lead_m'], 0, 0]
