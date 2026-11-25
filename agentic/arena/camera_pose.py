@@ -84,5 +84,7 @@ class LiveCamera:
         rgb = out['rgb'][0].detach().cpu().numpy()[..., :3]
         depth = out['distance_to_image_plane'][0].detach().cpu().numpy().squeeze(-1)
         position, rotation = self.pose()
+        data = self.camera.data
         return {'rgb': rgb, 'depth': depth, 'K': self.K, 'camera_position': position, 'camera_rotation': rotation,
-                'link': self.link_name}
+                'link': self.link_name, 'camera_position_usd': data.pos_w[0].detach().cpu().numpy(),
+                'camera_rotation_usd': self.rotation_wxyz(data.quat_w_ros[0].detach().cpu().numpy())}

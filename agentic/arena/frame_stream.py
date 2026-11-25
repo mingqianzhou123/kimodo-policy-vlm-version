@@ -43,7 +43,8 @@ class FrameStream:
         f = self.camera.frame()
         ms = int(round(sample['time'] * 1000))
         np.savez(self.out/f'{ms:06d}.npz', rgb=f['rgb'].astype(np.uint8), depth=f['depth'].astype(np.float32), K=f['K'],
-                 camera_position=f['camera_position'], camera_rotation=f['camera_rotation'], time=sample['time'])
+                 camera_position=f['camera_position'], camera_rotation=f['camera_rotation'], time=sample['time'],
+                 camera_position_usd=f['camera_position_usd'], camera_rotation_usd=f['camera_rotation_usd'])
         if not self.queried:
             points = box_points(sample['box_com'], sample['box_quat'], self.half)
             uv, depth = project(points, f['camera_position'], f['camera_rotation'], f['K'])
