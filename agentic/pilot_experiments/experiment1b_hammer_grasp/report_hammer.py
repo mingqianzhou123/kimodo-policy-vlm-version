@@ -119,6 +119,45 @@ def pick_region(results, config, rate=.9):
     return None if best is None else best[1]
 
 
+def plot_map(results, config, path):
+    """One panel per stance and handle yaw: depth against lateral, coloured by outcome."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from arena.hammer_layout import placeable
+    m = config['stand']['map']
+    cells = grid(results)
+    fig, axes = plt.subplots(len(m['stance_extra_m']), len(m['yaw_deg']), figsize=(3.2 * len(m['yaw_deg']), 3.2 * len(m['stance_extra_m'])),
+                             squeeze=False, sharex=True, sharey=True)
+    colour = {'first': '#2e7d32', 'later': '#a5d6a7', 'fail': '#e57373', 'none': '#bdbdbd', 'missing': '#ffffff'}
+    for i, extra in enumerate(m['stance_extra_m']):
+        for j, yaw in enumerate(m['yaw_deg']):
+            ax, got = axes[i][j], cells.get((round(extra, 3), round(yaw)), {})
+            for d in m['depth_m']:
+                for l in m['lateral_m']:
+                    key = (round(d, 3), round(l, 3))
+                    if not placeable(dict(depth=d, lateral=l, yaw=yaw, extra=extra), config):
+                        state, text = 'none', 'n/a'
+                    elif key not in got:
+                        state, text = 'missing', '?'
+                    else:
+                        ok, f = got[key]
+                        state = 'first' if f['label'] == 'success' else 'later' if ok else 'fail'
+                        text = {'first': '1st', 'later': 'retry'}.get(state, f['class'].replace('_', ' ')[:11])
+                    ax.add_patch(plt.Rectangle((l * 100 - 5, d * 100 - 2.5), 10, 5, color=colour[state], ec='white'))
+                    ax.text(l * 100, d * 100, text, ha='center', va='center', fontsize=7)
+            ax.set_xlim(min(m['lateral_m']) * 100 - 5, max(m['lateral_m']) * 100 + 5)
+            ax.set_ylim(max(m['depth_m']) * 100 + 2.5, min(m['depth_m']) * 100 - 2.5)
+            ax.set_title(f'stance +{extra * 100:.0f} cm, handle {yaw:+d} deg', fontsize=9)
+            if i == len(m['stance_extra_m']) - 1:
+                ax.set_xlabel('grip point lateral, cm (- = robot right)')
+            if j == 0:
+                ax.set_ylabel('grip point behind edge, cm')
+    fig.suptitle('Hammer reach map: dark = first round, light = later round, red = failed (first-round class), grey = hammer off the table')
+    fig.tight_layout()
+    fig.savefig(path)
+
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('pattern')
@@ -126,6 +165,7 @@ if __name__ == '__main__':
     p.add_argument('--map', action='store_true', help='Success grid per map cell and first-round attribution')
     p.add_argument('--rounds', action='store_true', help='Every round with its reach and hammer-motion notes')
     p.add_argument('--pick-region', action='store_true', help='Apply the region rule to a finished map and print it')
+    p.add_argument('--svg', type=Path, help='With --map: also draw the map to this file')
     a = p.parse_args()
     results, unfinished = load(a.pattern)
     fmt = lambda v, k=100: '  -' if v is None else f'{v * k:4.0f}'
@@ -134,6 +174,9 @@ if __name__ == '__main__':
         raise SystemExit(0)
     summary = summarize(results)
     summary['first_round_classes'] = dict(Counter(first(r)['class'] for r in results))
+    if a.map and a.svg:
+        sys.path.insert(0, str(AGENTIC))
+        plot_map(results, json.loads((AGENTIC/'configs/hammer-grasp.json').read_text()), a.svg)
     if a.map:
         for (extra, yaw), cells in sorted(grid(results).items()):
             depths = sorted({d for d, _ in cells}); laterals = sorted({l for _, l in cells})
