@@ -3,6 +3,7 @@
     python analyze_wide.py static 'exp1-wide-static-20261125-r1-*'        # step one: gate, first-round attribution, crossed feet
     python analyze_wide.py dynamic 'exp1-wide-*-20261125-d1-*'           # step two: displacement curve, time split, labels, verdict
     python analyze_wide.py rounds 'dbg-exp1w-*'                           # one line per round
+    python analyze_wide.py plot 'exp1-wide-*-20261125-d1-*' --out wide.svg  # displacement curve and time split
 
 Every definition used here was written into the record before the acceptance and the moving
 runs were looked at (section "事先写定的判定和分析口径").
@@ -337,12 +338,62 @@ def dynamic(pattern):
                   'box_rel_lateral_m', 'box_depth_m'])
 
 
+# Stand-still version (stance-dynamic-20261125.md), all rounds of its six moving conditions:
+# lateral displacement bin (cm) -> (rounds, successes), for the same plot.
+STAND = {(0, 3): (126, 105), (3, 5): (36, 22), (5, 8): (33, 14)}
+
+
+def plot(pattern, out):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    runs = load(pattern)
+    every = [x for r in runs for x in rounds(r)]
+    moving = [x for x in every if x['speed'] > 0 and 'disp_lateral_m' in x]
+    fig, (left, right) = plt.subplots(1, 2, figsize=(12, 4.5))
+    for sel, name, marker in ((moving, 'all rounds', 'o'), ([x for x in moving if x['round'] == 0], 'first rounds', 's')):
+        b = bins([x['disp_lateral_m'] for x in sel])
+        xs, ys, ns = [], [], []
+        for i in range(len(DISP_BINS_CM) - 1):
+            group = [x for x, j in zip(sel, b) if j == i]
+            if group:
+                hi = min(DISP_BINS_CM[i + 1], 120)
+                xs.append((DISP_BINS_CM[i] + hi) / 2)
+                ys.append(100 * sum(x['label'] == 'success' for x in group) / len(group))
+                ns.append(len(group))
+        left.plot(xs, ys, marker=marker, label=f'wide, {name}')
+        for x, y, n in zip(xs, ys, ns):
+            left.annotate(str(n), (x, y), textcoords='offset points', xytext=(4, 4), fontsize=8)
+    left.plot([(a + b) / 2 for a, b in STAND], [100 * s / n for n, s in STAND.values()], marker='^', ls='--',
+              label='standing still (11-25), all rounds')
+    left.set_xscale('symlog', linthresh=10)
+    left.set_xlabel('box lateral displacement from the latched pose when the hands closed (cm)')
+    left.set_ylabel('rounds that succeeded (%)')
+    left.set_ylim(-5, 105)
+    left.legend(fontsize=8)
+    keys = sorted({(x['speed'], int(round(x['delay_s'] * 50))) for x in every if 'wait_s' in x}, key=lambda k: (k[1], k[0]))
+    firsts = [x for x in every if x['round'] == 0 and 'wait_s' in x]
+    bottom = np.zeros(len(keys))
+    for part in ('wait_s', 'walk_s', 'reach_s'):
+        h = [np.median([x[part] for x in firsts if (x['speed'], int(round(x['delay_s'] * 50))) == k]) for k in keys]
+        right.bar(range(len(keys)), h, bottom=bottom, label=part[:-2])
+        bottom += h
+    right.set_xticks(range(len(keys)), [f'{d} steps\n{v} m/s' for v, d in keys], fontsize=7)
+    right.set_ylabel('first round: latch to hands closing (s, medians)')
+    right.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out)
+
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('what', choices=['static', 'dynamic', 'rounds'])
+    p.add_argument('what', choices=['static', 'dynamic', 'rounds', 'plot'])
     p.add_argument('pattern')
+    p.add_argument('--out', default='wide.svg')
     a = p.parse_args()
-    if a.what == 'static':
+    if a.what == 'plot':
+        plot(a.pattern, a.out)
+    elif a.what == 'static':
         static(a.pattern)
     elif a.what == 'dynamic':
         dynamic(a.pattern)
