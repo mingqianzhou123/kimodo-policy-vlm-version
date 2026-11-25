@@ -28,7 +28,9 @@ BACKOFF_M = .15            # pelvis backed off this far: the reach could not arr
 FALL_HEIGHT_M = .5         # pelvis below this: fallen
 UPDATE_WINDOW_S = .1       # steps this close to an update count as "around the update"
 BINS_CM = (0, 1, 2, 3, 5, 8, 1000)
-LABELS = ('backed_off', 'delay_beyond_limit', 'stale_target', 'stale_by_replan', 'hands_lag',
+TRACKER_LABELS = ('tracker_lost', 'tracker_background', 'tracker_drift')
+SEEDS = tuple(range(6000, 6030))
+LABELS = TRACKER_LABELS + ('backed_off', 'delay_beyond_limit', 'stale_target', 'stale_by_replan', 'hands_lag',
           'moving_at_close', 'other')
 
 
@@ -54,6 +56,8 @@ def condition(run, result):
     manifest = json.loads((run/'run.json').read_text())
     update = manifest.get('target_update') or 'blocking'
     delay = 'jitter' if manifest.get('latency_samples') else int(result['latch_delay_steps'])
+    if (manifest.get('perception') or 'truth') == 'tracker':
+        update = 'tracker'      # anchored, with the box from the online tracker (part two)
     return update, delay, float((result.get('layout') or {}).get('speed_mps', 0.))
 
 
@@ -137,6 +141,33 @@ def label(first, attempt_count, success):
     return 'other'
 
 
+def tracker_at_close(run, at, steps, half=.105):
+    """The tracker's estimate in force at the close and how far it was from the truth."""
+    rows = [r for r in jsonl(run/'tracker.jsonl') if 'com' in r and r['now'] <= at + 1e-4]
+    if not rows:
+        return None
+    r = rows[-1]
+    truth = steps.box_at(r['now'])
+    top_z = r['points'][0][2] if r.get('points') else float('nan')
+    true_top = steps.box_at(r.get('frame_time', r['now']))[2] + half
+    return {'status': r['status'], 'lateral_error_m': float(r['com'][1] - truth[1]),
+            'planar_error_m': float(np.linalg.norm(np.subtract(r['com'][:2], truth[:2]))),
+            'background': bool(not np.isfinite(top_z) or abs(top_z - true_top) > TOLERANCE_M)}
+
+
+def tracker_label(close):
+    """Part two's three labels, checked before part one's."""
+    if close is None:
+        return None
+    if close['status'] != 'tracked':
+        return 'tracker_lost'
+    if close['background']:
+        return 'tracker_background'
+    if abs(close['lateral_error_m']) > TOLERANCE_M:
+        return 'tracker_drift'
+    return None
+
+
 def smoothness(run, start, end, updates):
     """Largest step of the consumed reference joints and wrist speed peak between start and end,
     around target updates and elsewhere."""
@@ -173,11 +204,14 @@ def episode(run, result):
     start, last = result['clock_start'], result['last_time']
     calls = (int((last - start) // .5) + 1 if update == 'fixed' else 1 if update == 'anchored' else len(rows))
     raise_time = phases[0].get('raise')
-    return {'run': run.name, 'seed': result['seed'], 'update': update, 'delay': delay, 'speed': speed,
+    close = tracker_at_close(run, first['at'], steps) if update == 'tracker' and first.get('at') is not None else None
+    fail = label(first, len(rows), result['success'])
+    return {'tracker_close': close, 'label': (tracker_label(close) or fail) if fail else None,
+            'run': run.name, 'seed': result['seed'], 'update': update, 'delay': delay, 'speed': speed,
             'success': bool(result['success']), 'first_success': bool(result['first_attempt_success']),
             'completion_s': result['completion_s'], 'fell': bool(roots) and min(roots) < FALL_HEIGHT_M,
             'attempts': len(rows), 'calls': calls, 'updates': len(changes),
-            'label': label(first, len(rows), result['success']), 'rounds': rows,
+            'rounds': rows,
             'smoothness': smoothness(run, raise_time, first['at'], [c for c in changes if c >= raise_time])
             if raise_time is not None and first.get('at') else None}
 
@@ -211,6 +245,54 @@ def cells(eps):
             'falls': sum(r['fell'] for r in rows), 'calls_mean': round(float(np.mean([r['calls'] for r in rows])), 1),
             'updates_mean': round(float(np.mean([r['updates'] for r in rows])), 1),
             'labels': dict(Counter(r['label'] for r in rows if r['label']))}
+    return out
+
+
+def coverage(eps, seeds=SEEDS):
+    """Each cell must hold exactly one finished episode per seed."""
+    table = defaultdict(list)
+    for e in eps:
+        table[(e['update'], str(e['delay']), e['speed'])].append(e['seed'])
+    out = {}
+    for (u, d, v), got in sorted(table.items()):
+        counts = Counter(got)
+        out[f'{u} {d} {v}'] = {'n': len(got), 'missing': sorted(set(seeds) - set(got)),
+                               'twice': sorted(s for s, c in counts.items() if c > 1),
+                               'outside': sorted(set(got) - set(seeds))}
+    return out
+
+
+def part_two(eps):
+    """Tracker against simulator truth (anchored) and against fixed, on the same seeds, per speed."""
+    by = {(e['update'], e['delay'], e['speed'], e['seed']): e for e in eps}
+    track = [e for e in eps if e['update'] == 'tracker']
+    out = {'cells': {}, 'by_speed': {}}
+    for v in sorted({e['speed'] for e in track}):
+        mine = [e for e in track if e['speed'] == v]
+        pair = lambda u: [by[(u, e['delay'], v, e['seed'])] for e in mine if (u, e['delay'], v, e['seed']) in by]
+        truth, fixed = pair('anchored'), pair('fixed')
+        gap, over_fixed = rate(truth) - rate(mine), rate(mine) - rate(fixed)
+        out['by_speed'][f'{v} m/s'] = {'tracker': f"{sum(e['success'] for e in mine)}/{len(mine)}",
+            'truth_same_seeds': f"{sum(e['success'] for e in truth)}/{len(truth)}",
+            'fixed_same_seeds': f"{sum(e['success'] for e in fixed)}/{len(fixed)}",
+            'truth_minus_tracker_pp': round(100 * gap, 1), 'tracker_minus_fixed_pp': round(100 * over_fixed, 1),
+            'verdict': 'perception does not change part one' if gap < .25 else 'perception is the new bottleneck',
+            'core_finding_with_tracker': bool(over_fixed >= .25),
+            'labels': dict(Counter(e['label'] for e in mine if e['label']))}
+    for e in track:
+        c = e['tracker_close']
+        key = f"{e['delay']} {e['speed']}"
+        cell = out['cells'].setdefault(key, {'n': 0, 'success': 0, 'close_lateral_cm': [], 'not_tracked': 0, 'background': 0})
+        cell['n'] += 1
+        cell['success'] += e['success']
+        if c:
+            cell['close_lateral_cm'].append(round(100 * c['lateral_error_m'], 2))
+            cell['not_tracked'] += c['status'] != 'tracked'
+            cell['background'] += c['background']
+    for cell in out['cells'].values():
+        v = np.abs(cell.pop('close_lateral_cm'))
+        cell['close_lateral_abs_median_cm'] = round(float(np.median(v)), 2) if len(v) else None
+        cell['close_lateral_over_3cm'] = int((v > 3).sum())
     return out
 
 
@@ -275,6 +357,9 @@ def motion_cost(eps):
 
 
 def report(eps):
+    coverage_ = coverage(eps)
+    part2 = part_two(eps)
+    eps = [e for e in eps if e['update'] != 'tracker']
     fixed_eps = [e for e in eps if e['delay'] != 'jitter']
     by_update = defaultdict(Counter)
     for e in fixed_eps:
@@ -285,7 +370,7 @@ def report(eps):
         r = e['rounds'][0] if e['rounds'] else {}
         if r.get('at') is not None:
             ages[(e['update'], e['delay'])].append(r['age_s'])
-    return {'cells': cells(eps), 'judgment': judgment(fixed_eps), 'curve': curve(fixed_eps),
+    return {'coverage': coverage_, 'part_two': part2, 'cells': cells(eps), 'judgment': judgment(fixed_eps), 'curve': curve(fixed_eps),
             'labels_by_update': {k: dict(v) for k, v in by_update.items()},
             'age_at_close_median_s': {f'{u} {d}': round(float(np.median(v)), 2) for (u, d), v in sorted(ages.items())},
             'motion': motion_cost(eps),

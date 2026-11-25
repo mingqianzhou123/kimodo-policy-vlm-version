@@ -231,3 +231,27 @@ def test_tracker_flag_needs_the_anchored_target():
     with pytest.raises(ValueError):
         parse_args(['--run-id', 'x', '--grasp-loop', '--stand-still', '--box-in-region', '--target-update', 'fixed',
                     '--perception', 'tracker'])
+
+
+def test_tracker_labels_come_before_part_one_labels():
+    close = lambda **k: {'status': 'tracked', 'background': False, 'lateral_error_m': .01, **k}
+    assert an.tracker_label(None) is None and an.tracker_label(close()) is None
+    assert an.tracker_label(close(status='lost')) == 'tracker_lost'
+    assert an.tracker_label(close(background=True)) == 'tracker_background'
+    assert an.tracker_label(close(lateral_error_m=-.04)) == 'tracker_drift'
+
+
+def test_coverage_finds_missing_and_doubled_seeds():
+    eps = [{'update': 'fixed', 'delay': 194, 'speed': .1, 'seed': s} for s in [*range(6000, 6029), 6003]]
+    got = an.coverage(eps)['fixed 194 0.1']
+    assert got == {'n': 30, 'missing': [6029], 'twice': [6003], 'outside': []}
+
+
+def test_part_two_pairs_the_tracker_with_truth_on_the_same_seeds():
+    ep = lambda u, s, ok: {'update': u, 'delay': 194, 'speed': .1, 'seed': s, 'success': ok, 'label': None if ok else 'other',
+                           'tracker_close': {'status': 'tracked', 'background': False, 'lateral_error_m': .01}}
+    eps = [ep('tracker', s, s < 6010) for s in range(6000, 6030)] + [ep('anchored', s, s < 6025) for s in range(6000, 6030)] \
+        + [ep('fixed', s, s < 6005) for s in range(6000, 6030)]
+    got = an.part_two(eps)['by_speed']['0.1 m/s']
+    assert got['truth_minus_tracker_pp'] == 50.0 and got['verdict'] == 'perception is the new bottleneck'
+    assert got['tracker_minus_fixed_pp'] == pytest.approx(16.7, abs=.1) and not got['core_finding_with_tracker']
