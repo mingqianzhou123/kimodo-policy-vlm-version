@@ -45,8 +45,10 @@ p.add_argument('--open-loop',action='store_true')
 p.add_argument('--segment-seconds',type=float,default=4.)
 p.add_argument('--segment-steps',type=int,default=100)
 p.add_argument('--grasp-loop',help='Grasp loop configuration (JSON); selects the blocking box grasp policy')
+p.add_argument('--grasp-task',choices=['box','hammer'],default='box',help='Grasp loop: the box, or the one-handed DoubleDesk hammer')
 p.add_argument('--latch-delay-steps',type=int,default=75)
 p.add_argument('--stand-still',action='store_true',help='Grasp loop: never walk, reach from where the robot stands')
+p.add_argument('--native-walk',action='store_true',help='Grasp loop: walk the official Kimodo way (settings: the configuration\'s wide section)')
 p.add_argument('--target-update',choices=['blocking','fixed','anchored'],default='blocking',
                help='Grasp loop: when the reach target is refreshed (kimodo_vla/oracle/async_grasp.py)')
 p.add_argument('--latency-samples',help='Grasp loop: JSON list of measured call latencies in seconds to draw delays from')
@@ -77,8 +79,12 @@ elif a.grasp_loop:
     import json
     from kimodo_vla.oracle.grasp_policy import BoxGraspPolicy
     policy_class = BoxGraspPolicy
-    extra = dict(config=json.loads(Path(a.grasp_loop).read_text())['policy'], latch_delay_steps=a.latch_delay_steps,
-                 stand_still=a.stand_still)
+    if a.grasp_task == 'hammer':
+        from kimodo_vla.oracle.hammer_policy import HammerGraspPolicy
+        policy_class = HammerGraspPolicy
+    grasp_config = json.loads(Path(a.grasp_loop).read_text())
+    extra = dict(config=grasp_config['policy'], latch_delay_steps=a.latch_delay_steps,
+                 stand_still=a.stand_still, native_walk=grasp_config['wide'] if a.native_walk else None)
     if a.target_update != 'blocking' or a.latency_samples:
         from kimodo_vla.oracle.async_grasp import AsyncBoxGraspPolicy, load_latencies
         policy_class = AsyncBoxGraspPolicy

@@ -1,0 +1,255 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="510" font-family="sans-serif" font-size="10">
+<rect width="100%" height="100%" fill="white"/>
+<text x="10" y="18" font-size="13">锤子站着不挪步的够得着范围（exp1b-map-20261125-m1，88 格，每格一个回合）</text>
+<text x="10" y="36" font-size="10">深绿：第一轮成功；浅绿：重试后成功；红：失败（字是第一轮手腕朝向差，度）；灰：锤头会伸出桌沿，不跑。粗框：按事先规则划出的区域</text>
+<text x="70" y="62">站位 +0 cm，锤柄 -20°</text>
+<rect x="70.0" y="70.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="88.8" y="89.2" text-anchor="middle" fill="white">1</text>
+<rect x="107.5" y="70.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="126.2" y="89.2" text-anchor="middle" fill="white">1</text>
+<rect x="145.0" y="70.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="163.8" y="89.2" text-anchor="middle" fill="black">26°</text>
+<rect x="182.5" y="70.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="201.2" y="89.2" text-anchor="middle" fill="black">42°</text>
+<rect x="70.0" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="88.8" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="107.5" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="126.2" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="145.0" y="102.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="163.8" y="121.8" text-anchor="middle" fill="black">24°</text>
+<rect x="182.5" y="102.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="201.2" y="121.8" text-anchor="middle" fill="black">40°</text>
+<rect x="70.0" y="135.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="88.8" y="154.2" text-anchor="middle" fill="white">1</text>
+<rect x="107.5" y="135.0" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="126.2" y="154.2" text-anchor="middle" fill="black">r2</text>
+<rect x="145.0" y="135.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="163.8" y="154.2" text-anchor="middle" fill="black">23°</text>
+<rect x="182.5" y="135.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="201.2" y="154.2" text-anchor="middle" fill="black">36°</text>
+<rect x="70.0" y="167.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="88.8" y="186.8" text-anchor="middle" fill="white">1</text>
+<rect x="107.5" y="167.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="126.2" y="186.8" text-anchor="middle" fill="black">17°</text>
+<rect x="145.0" y="167.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="163.8" y="186.8" text-anchor="middle" fill="black">26°</text>
+<rect x="182.5" y="167.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="201.2" y="186.8" text-anchor="middle" fill="black">37°</text>
+<text x="88.8" y="213" text-anchor="middle">-30</text>
+<text x="126.2" y="213" text-anchor="middle">-20</text>
+<text x="163.8" y="213" text-anchor="middle">-10</text>
+<text x="201.2" y="213" text-anchor="middle">0</text>
+<text x="66" y="89.2" text-anchor="end">10</text>
+<text x="66" y="121.8" text-anchor="end">15</text>
+<text x="66" y="154.2" text-anchor="end">20</text>
+<text x="66" y="186.8" text-anchor="end">25</text>
+<text x="260" y="62">站位 +0 cm，锤柄 +0°</text>
+<rect x="260.0" y="70.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="278.8" y="89.2" text-anchor="middle" fill="black">9°</text>
+<rect x="297.5" y="70.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="316.2" y="89.2" text-anchor="middle" fill="white">1</text>
+<rect x="335.0" y="70.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="353.8" y="89.2" text-anchor="middle" fill="white">1</text>
+<rect x="372.5" y="70.0" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="391.2" y="89.2" text-anchor="middle" fill="black">r3</text>
+<rect x="260.0" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="278.8" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="297.5" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="316.2" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="335.0" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="353.8" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="372.5" y="102.5" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="391.2" y="121.8" text-anchor="middle" fill="black">r2</text>
+<rect x="260.0" y="135.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="278.8" y="154.2" text-anchor="middle" fill="white">1</text>
+<rect x="297.5" y="135.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="316.2" y="154.2" text-anchor="middle" fill="white">1</text>
+<rect x="335.0" y="135.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="353.8" y="154.2" text-anchor="middle" fill="white">1</text>
+<rect x="372.5" y="135.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="391.2" y="154.2" text-anchor="middle" fill="black">25°</text>
+<rect x="260.0" y="167.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="278.8" y="186.8" text-anchor="middle" fill="white">1</text>
+<rect x="297.5" y="167.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="316.2" y="186.8" text-anchor="middle" fill="white">1</text>
+<rect x="335.0" y="167.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="353.8" y="186.8" text-anchor="middle" fill="white">1</text>
+<rect x="372.5" y="167.5" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="391.2" y="186.8" text-anchor="middle" fill="black">r2</text>
+<text x="278.8" y="213" text-anchor="middle">-30</text>
+<text x="316.2" y="213" text-anchor="middle">-20</text>
+<text x="353.8" y="213" text-anchor="middle">-10</text>
+<text x="391.2" y="213" text-anchor="middle">0</text>
+<text x="256" y="89.2" text-anchor="end">10</text>
+<text x="256" y="121.8" text-anchor="end">15</text>
+<text x="256" y="154.2" text-anchor="end">20</text>
+<text x="256" y="186.8" text-anchor="end">25</text>
+<text x="450" y="62">站位 +0 cm，锤柄 +20°</text>
+<rect x="450.0" y="70.0" width="37.5" height="32.5" fill="#d0d0d0" stroke="white"/>
+<text x="468.8" y="89.2" text-anchor="middle" fill="black">n/a</text>
+<rect x="487.5" y="70.0" width="37.5" height="32.5" fill="#d0d0d0" stroke="white"/>
+<text x="506.2" y="89.2" text-anchor="middle" fill="black">n/a</text>
+<rect x="525.0" y="70.0" width="37.5" height="32.5" fill="#d0d0d0" stroke="white"/>
+<text x="543.8" y="89.2" text-anchor="middle" fill="black">n/a</text>
+<rect x="562.5" y="70.0" width="37.5" height="32.5" fill="#d0d0d0" stroke="white"/>
+<text x="581.2" y="89.2" text-anchor="middle" fill="black">n/a</text>
+<rect x="450.0" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="468.8" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="487.5" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="506.2" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="525.0" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="543.8" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="562.5" y="102.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="581.2" y="121.8" text-anchor="middle" fill="white">1</text>
+<rect x="450.0" y="135.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="468.8" y="154.2" text-anchor="middle" fill="black">18°</text>
+<rect x="487.5" y="135.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="506.2" y="154.2" text-anchor="middle" fill="white">1</text>
+<rect x="525.0" y="135.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="543.8" y="154.2" text-anchor="middle" fill="white">1</text>
+<rect x="562.5" y="135.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="581.2" y="154.2" text-anchor="middle" fill="white">1</text>
+<rect x="450.0" y="167.5" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="468.8" y="186.8" text-anchor="middle" fill="black">r3</text>
+<rect x="487.5" y="167.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="506.2" y="186.8" text-anchor="middle" fill="white">1</text>
+<rect x="525.0" y="167.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="543.8" y="186.8" text-anchor="middle" fill="white">1</text>
+<rect x="562.5" y="167.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="581.2" y="186.8" text-anchor="middle" fill="white">1</text>
+<text x="468.8" y="213" text-anchor="middle">-30</text>
+<text x="506.2" y="213" text-anchor="middle">-20</text>
+<text x="543.8" y="213" text-anchor="middle">-10</text>
+<text x="581.2" y="213" text-anchor="middle">0</text>
+<text x="446" y="89.2" text-anchor="end">10</text>
+<text x="446" y="121.8" text-anchor="end">15</text>
+<text x="446" y="154.2" text-anchor="end">20</text>
+<text x="446" y="186.8" text-anchor="end">25</text>
+<text x="70" y="252">站位 +5 cm，锤柄 -20°</text>
+<rect x="70.0" y="260.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="88.8" y="279.2" text-anchor="middle" fill="white">1</text>
+<rect x="107.5" y="260.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="126.2" y="279.2" text-anchor="middle" fill="white">1</text>
+<rect x="145.0" y="260.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="163.8" y="279.2" text-anchor="middle" fill="black">24°</text>
+<rect x="182.5" y="260.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="201.2" y="279.2" text-anchor="middle" fill="black">37°</text>
+<rect x="70.0" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="88.8" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="107.5" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="126.2" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="145.0" y="292.5" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="163.8" y="311.8" text-anchor="middle" fill="black">r3</text>
+<rect x="182.5" y="292.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="201.2" y="311.8" text-anchor="middle" fill="black">37°</text>
+<rect x="70.0" y="325.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="88.8" y="344.2" text-anchor="middle" fill="white">1</text>
+<rect x="107.5" y="325.0" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="126.2" y="344.2" text-anchor="middle" fill="black">r2</text>
+<rect x="145.0" y="325.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="163.8" y="344.2" text-anchor="middle" fill="black">25°</text>
+<rect x="182.5" y="325.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="201.2" y="344.2" text-anchor="middle" fill="black">36°</text>
+<rect x="70.0" y="357.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="88.8" y="376.8" text-anchor="middle" fill="white">1</text>
+<rect x="107.5" y="357.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="126.2" y="376.8" text-anchor="middle" fill="white">1</text>
+<rect x="145.0" y="357.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="163.8" y="376.8" text-anchor="middle" fill="black">18°</text>
+<rect x="182.5" y="357.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="201.2" y="376.8" text-anchor="middle" fill="black">28°</text>
+<text x="88.8" y="403" text-anchor="middle">-30</text>
+<text x="126.2" y="403" text-anchor="middle">-20</text>
+<text x="163.8" y="403" text-anchor="middle">-10</text>
+<text x="201.2" y="403" text-anchor="middle">0</text>
+<text x="66" y="279.2" text-anchor="end">10</text>
+<text x="66" y="311.8" text-anchor="end">15</text>
+<text x="66" y="344.2" text-anchor="end">20</text>
+<text x="66" y="376.8" text-anchor="end">25</text>
+<rect x="70.0" y="292.5" width="112.5" height="65.0" fill="none" stroke="black" stroke-width="2.5"/>
+<text x="260" y="252">站位 +5 cm，锤柄 +0°</text>
+<rect x="260.0" y="260.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="278.8" y="279.2" text-anchor="middle" fill="white">1</text>
+<rect x="297.5" y="260.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="316.2" y="279.2" text-anchor="middle" fill="white">1</text>
+<rect x="335.0" y="260.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="353.8" y="279.2" text-anchor="middle" fill="white">1</text>
+<rect x="372.5" y="260.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="391.2" y="279.2" text-anchor="middle" fill="black">24°</text>
+<rect x="260.0" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="278.8" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="297.5" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="316.2" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="335.0" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="353.8" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="372.5" y="292.5" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="391.2" y="311.8" text-anchor="middle" fill="black">r3</text>
+<rect x="260.0" y="325.0" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="278.8" y="344.2" text-anchor="middle" fill="black">r2</text>
+<rect x="297.5" y="325.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="316.2" y="344.2" text-anchor="middle" fill="white">1</text>
+<rect x="335.0" y="325.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="353.8" y="344.2" text-anchor="middle" fill="white">1</text>
+<rect x="372.5" y="325.0" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="391.2" y="344.2" text-anchor="middle" fill="black">24°</text>
+<rect x="260.0" y="357.5" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="278.8" y="376.8" text-anchor="middle" fill="black">r2</text>
+<rect x="297.5" y="357.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="316.2" y="376.8" text-anchor="middle" fill="white">1</text>
+<rect x="335.0" y="357.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="353.8" y="376.8" text-anchor="middle" fill="white">1</text>
+<rect x="372.5" y="357.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="391.2" y="376.8" text-anchor="middle" fill="black">17°</text>
+<text x="278.8" y="403" text-anchor="middle">-30</text>
+<text x="316.2" y="403" text-anchor="middle">-20</text>
+<text x="353.8" y="403" text-anchor="middle">-10</text>
+<text x="391.2" y="403" text-anchor="middle">0</text>
+<text x="256" y="279.2" text-anchor="end">10</text>
+<text x="256" y="311.8" text-anchor="end">15</text>
+<text x="256" y="344.2" text-anchor="end">20</text>
+<text x="256" y="376.8" text-anchor="end">25</text>
+<rect x="260.0" y="292.5" width="112.5" height="65.0" fill="none" stroke="black" stroke-width="2.5"/>
+<text x="450" y="252">站位 +5 cm，锤柄 +20°</text>
+<rect x="450.0" y="260.0" width="37.5" height="32.5" fill="#d0d0d0" stroke="white"/>
+<text x="468.8" y="279.2" text-anchor="middle" fill="black">n/a</text>
+<rect x="487.5" y="260.0" width="37.5" height="32.5" fill="#d0d0d0" stroke="white"/>
+<text x="506.2" y="279.2" text-anchor="middle" fill="black">n/a</text>
+<rect x="525.0" y="260.0" width="37.5" height="32.5" fill="#d0d0d0" stroke="white"/>
+<text x="543.8" y="279.2" text-anchor="middle" fill="black">n/a</text>
+<rect x="562.5" y="260.0" width="37.5" height="32.5" fill="#d0d0d0" stroke="white"/>
+<text x="581.2" y="279.2" text-anchor="middle" fill="black">n/a</text>
+<rect x="450.0" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="468.8" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="487.5" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="506.2" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="525.0" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="543.8" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="562.5" y="292.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="581.2" y="311.8" text-anchor="middle" fill="white">1</text>
+<rect x="450.0" y="325.0" width="37.5" height="32.5" fill="#a5d6a7" stroke="white"/>
+<text x="468.8" y="344.2" text-anchor="middle" fill="black">r2</text>
+<rect x="487.5" y="325.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="506.2" y="344.2" text-anchor="middle" fill="white">1</text>
+<rect x="525.0" y="325.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="543.8" y="344.2" text-anchor="middle" fill="white">1</text>
+<rect x="562.5" y="325.0" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="581.2" y="344.2" text-anchor="middle" fill="white">1</text>
+<rect x="450.0" y="357.5" width="37.5" height="32.5" fill="#e57373" stroke="white"/>
+<text x="468.8" y="376.8" text-anchor="middle" fill="black">28°</text>
+<rect x="487.5" y="357.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="506.2" y="376.8" text-anchor="middle" fill="white">1</text>
+<rect x="525.0" y="357.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="543.8" y="376.8" text-anchor="middle" fill="white">1</text>
+<rect x="562.5" y="357.5" width="37.5" height="32.5" fill="#2e7d32" stroke="white"/>
+<text x="581.2" y="376.8" text-anchor="middle" fill="white">1</text>
+<text x="468.8" y="403" text-anchor="middle">-30</text>
+<text x="506.2" y="403" text-anchor="middle">-20</text>
+<text x="543.8" y="403" text-anchor="middle">-10</text>
+<text x="581.2" y="403" text-anchor="middle">0</text>
+<text x="446" y="279.2" text-anchor="end">10</text>
+<text x="446" y="311.8" text-anchor="end">15</text>
+<text x="446" y="344.2" text-anchor="end">20</text>
+<text x="446" y="376.8" text-anchor="end">25</text>
+<rect x="450.0" y="292.5" width="112.5" height="65.0" fill="none" stroke="black" stroke-width="2.5"/>
+<text x="70" y="455">横轴：握点在机器人根部左右（cm，负是右侧）；纵轴：握点离桌沿（cm）</text>
+</svg>

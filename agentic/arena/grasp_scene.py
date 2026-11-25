@@ -122,13 +122,15 @@ def place_at_stance(env):
 def load_layout():
     """The placement asked for through GRASP_LAYOUT, resolved once and kept in the run folder.
 
-    GRASP_LAYOUT is JSON: either a map cell {"cell": {depth, lateral, yaw, extra}} or a seeded
-    placement in the fixed region {"region_seed": N, "speed_mps": V}. None when it is not set.
+    GRASP_LAYOUT is JSON: either a map cell {"cell": {depth, lateral, yaw, extra}}, a seeded
+    placement in the fixed region {"region_seed": N, "speed_mps": V}, or a seeded placement over the
+    wide range with the robot left at the task's start {"wide_seed": N, "speed_mps": V}. None when
+    it is not set.
     """
     spec = os.environ.get('GRASP_LAYOUT')
     if not spec:
         return None
-    from arena.box_layout import in_region, place, supported
+    from arena.box_layout import in_region, place, supported, wide
     run = Path(os.environ['ORACLE_RUN'])
     saved = run / 'layout.json'
     if saved.is_file():
@@ -138,6 +140,8 @@ def load_layout():
     if 'cell' in spec:
         c = spec['cell']
         layout = place(c['depth'], c['lateral'], c['yaw'], c['extra'], config)
+    elif 'wide_seed' in spec:
+        layout = {**wide(spec['wide_seed'], config), 'speed_mps': float(spec.get('speed_mps', 0.))}
     else:
         layout = {**in_region(spec['region_seed'], config), 'speed_mps': float(spec.get('speed_mps', 0.))}
     table = next(c for c in json.loads((run / 'grasp-scene.json').read_text())['colliders_near_box']
@@ -163,6 +167,8 @@ def place_layout(env):
     state[0, 7:] = 0.
     box.write_root_pose_to_sim(state[:, :7])
     box.write_root_velocity_to_sim(state[:, 7:])
+    if layout['robot_xy'] is None:   # wide placements: the robot starts where the task puts it
+        return
     robot = env.scene['robot']
     state = robot.data.root_state_w.clone()
     state[0, 0], state[0, 1] = layout['robot_xy']
