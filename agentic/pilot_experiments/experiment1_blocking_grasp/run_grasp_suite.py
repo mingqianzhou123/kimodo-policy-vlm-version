@@ -50,7 +50,8 @@ def work(gpu, jobs, args, lock):
         except queue.Empty:
             return
         run = RUNS/name
-        for attempt in range(args.tries):
+        attempt = refused = 0
+        while attempt < args.tries:
             if verdict(run):
                 break
             if run.exists():
@@ -63,6 +64,13 @@ def work(gpu, jobs, args, lock):
                 done = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
             with lock:
                 print(f'seed {seed} gpu {gpu} try {attempt+1}: exit {done.returncode}, {verdict(run) or "no verdict"}', flush=True)
+            if done.returncode and not run.exists() and refused < args.refusals:
+                # The launcher refused the GPU before anything started (too little free memory, often
+                # while a neighbour is starting up): wait and ask again without using up a try.
+                refused += 1
+                time.sleep(60)
+                continue
+            attempt += 1
             time.sleep(20)  # the launcher refuses a GPU that has not released its memory yet
 
 
@@ -99,6 +107,7 @@ if __name__ == '__main__':
     p.add_argument('--prefix', help='Only for debug seeds; the default is dbg-exp1')
     p.add_argument('--seeds', type=int, nargs='+', help='Subset of the group')
     p.add_argument('--tries', type=int, default=3)
+    p.add_argument('--refusals', type=int, default=30, help='Launcher refusals (nothing started) waited out per run')
     p.add_argument('--speed', type=float, default=0., help='Region group: box speed in m/s')
     p.add_argument('--latch-delay-steps', type=int, default=75, help='Region group: steps each round waits')
     p.add_argument('--per-gpu', type=int, default=1, help='Episodes run side by side on each GPU')
