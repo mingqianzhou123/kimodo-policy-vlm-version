@@ -48,7 +48,9 @@ def finished(patterns):
                 result = json.loads((run/'grasp-result.json').read_text())
             except (OSError, ValueError):
                 continue
-            if result.get('termination'):
+            # the launcher adds the seed and the condition when it closes the run; a run stopped
+            # after the episode's outcome was written but before that is not counted as finished
+            if result.get('termination') and 'seed' in result:
                 yield run, result
 
 

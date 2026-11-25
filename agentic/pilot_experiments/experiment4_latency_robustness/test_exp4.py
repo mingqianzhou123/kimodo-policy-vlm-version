@@ -255,3 +255,12 @@ def test_part_two_pairs_the_tracker_with_truth_on_the_same_seeds():
     got = an.part_two(eps)['by_speed']['0.1 m/s']
     assert got['truth_minus_tracker_pp'] == 50.0 and got['verdict'] == 'perception is the new bottleneck'
     assert got['tracker_minus_fixed_pp'] == pytest.approx(16.7, abs=.1) and not got['core_finding_with_tracker']
+
+
+def test_only_closed_runs_count_as_finished(tmp_path, monkeypatch):
+    for name, result in [('a', {'termination': 'success', 'seed': 6000}), ('b', {'termination': 'success'}),
+                         ('c', {'termination': None, 'seed': 6001})]:
+        (tmp_path/name).mkdir()
+        (tmp_path/name/'grasp-result.json').write_text(json.dumps(result))
+    monkeypatch.setattr(an, 'RUNS', tmp_path)
+    assert [run.name for run, _ in an.finished(['*'])] == ['a']
