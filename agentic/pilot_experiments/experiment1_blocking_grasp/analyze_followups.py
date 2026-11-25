@@ -8,6 +8,10 @@ beforehand in stance-dynamic-20261125.md).
 proprio  can the robot's own signals tell a hold from a failed one right after the hands close
 retry    how often a failed first round is recovered, and whether the failed round wrecked the scene
 age      how old the latched target is when the hands close, where that time goes, and success by it
+phase    whether delay and speed act only through how far the box moved by the time the hands close
+failures which failures are the body's (never got there) and which are the box's reaction
+contacts how much the box's motion right after the first touch varies among similar touches
+predict  how well a simple model says where the box is after a round, against "it stays put"
 """
 import argparse
 from collections import Counter, defaultdict
@@ -266,13 +270,244 @@ def age(pattern):
             'mean_split_s': {k: mean(k, rows) for k in ('wait_s', 'reach_s', 'gate_s', 'age_s')}, 'rows': rows}
 
 
+# ---- four: do delay and speed act only through the phase of the back-and-forth? ----------
+
+def steps_of(run):
+    return [json.loads(l) for l in (run/'grasp-steps.jsonl').read_text().splitlines()]
+
+
+def fit_logistic(x, y, iterations=50):
+    """Maximum-likelihood logistic regression by Newton steps; returns weights and log-likelihood."""
+    x = np.c_[np.ones(len(x)), x]
+    w = np.zeros(x.shape[1])
+    for _ in range(iterations):
+        p = 1 / (1 + np.exp(-np.clip(x @ w, -30, 30)))
+        hessian = x.T @ (x * (p * (1 - p))[:, None]) + 1e-6 * np.eye(x.shape[1])
+        w += np.linalg.solve(hessian, x.T @ (y - p))
+    p = np.clip(1 / (1 + np.exp(-np.clip(x @ w, -30, 30))), 1e-12, 1 - 1e-12)
+    return w, float((y * np.log(p) + (1 - y) * np.log(1 - p)).sum())
+
+
+def phase(pattern):
+    from arena.box_layout import BoxMotion
+    from scipy.stats import chi2, pearsonr
+    rows = []
+    for run, result in runs(pattern):
+        lay = result.get('layout') or {}
+        if not lay.get('speed_mps'):
+            continue
+        a = result['attempts'][0]
+        n = a.get('notes', {})
+        at = n.get('close_time', n.get('reach_time'))
+        if at is None:
+            continue
+        steps = steps_of(run)
+        start_y = next(r['box_com'][1] for r in steps if r['time'] >= result['clock_start'] - 1e-6)
+        motion = BoxMotion(lay['segment_y'], lay['speed_mps'], start_y, lay['direction'])
+        t0, t1 = a['start_time'] - result['clock_start'], at - result['clock_start']
+        box = n.get('close_box_pos', n.get('reach_box_pos'))
+        rows.append({'run': run.name, 'success': a['label'] == 'success', 'delay_steps': result['latch_delay_steps'],
+                     'speed': lay['speed_mps'], 'elapsed_s': t1 - t0,
+                     'phase': (lay['speed_mps'] * (t1 - t0) / (2 * motion.length)) % 1,
+                     'scripted_cm': abs(motion.position(t1) - motion.position(t0)) * 100,
+                     'measured_cm': abs(box[1] - a['latched_box_pos'][1]) * 100})
+    y = np.array([r['success'] for r in rows], float)
+    d = np.array([[r['measured_cm']] for r in rows])
+    cond = np.array([[r['delay_steps'] == 194, r['delay_steps'] == 383, r['speed'] > .05] for r in rows], float)
+    _, ll0 = fit_logistic(np.zeros((len(rows), 0)), y)
+    w1, ll1 = fit_logistic(d, y)
+    w2, ll2 = fit_logistic(np.c_[d, cond], y)
+    _, ll3 = fit_logistic(cond, y)
+    p_disp, p_cond = float(chi2.sf(2 * (ll1 - ll0), 1)), float(chi2.sf(2 * (ll2 - ll1), 3))
+    p_disp_given_cond = float(chi2.sf(2 * (ll2 - ll3), 1))
+    by = defaultdict(list)
+    for r in rows:
+        by[(r['delay_steps'], r['speed'])].append(r)
+    conditions = {f'{k[0]} steps, {k[1]} m/s': {
+        'rounds': len(v), 'successes': int(sum(r['success'] for r in v)),
+        'elapsed_s': round(float(np.mean([r['elapsed_s'] for r in v])), 2),
+        'phase_mean': round(float(np.mean([r['phase'] for r in v])), 2),
+        'scripted_cm_mean': round(float(np.mean([r['scripted_cm'] for r in v])), 2),
+        'measured_cm_mean': round(float(np.mean([r['measured_cm'] for r in v])), 2)} for k, v in sorted(by.items())}
+    strata = {}
+    for low, high in ((0, 3), (3, 5), (5, 20)):
+        inside = [r for r in rows if low <= r['measured_cm'] < high]
+        strata[f'{low}-{high} cm'] = {f'{k[0]}/{k[1]}': f"{sum(r['success'] for r in v if low <= r['measured_cm'] < high)}"
+                                      f"/{sum(low <= r['measured_cm'] < high for r in v)}" for k, v in sorted(by.items())}
+        strata[f'{low}-{high} cm']['all'] = f"{sum(r['success'] for r in inside)}/{len(inside)}"
+    return {'rounds': len(rows), 'by_condition': conditions, 'success_by_measured_lateral_and_condition': strata,
+            'displacement_coefficient_per_cm': round(float(w1[1]), 3),
+            'p_displacement_alone': p_disp, 'p_delay_and_speed_beyond_displacement': p_cond,
+            'p_displacement_beyond_delay_and_speed': p_disp_given_cond,
+            'scripted_vs_measured_r': round(float(pearsonr([r['scripted_cm'] for r in rows], [r['measured_cm'] for r in rows])[0]), 3),
+            'verdict': 'only through displacement' if p_cond > .05 and p_disp < .01 else 'delay or speed matter beyond displacement',
+            'rows': rows}
+
+
+# ---- five: which side of the robot-box pair failed ------------------------------------------
+
+def failures(pattern):
+    rows = []
+    for run, result in runs(pattern):
+        times = round_times(run)
+        for a in result['attempts']:
+            if a['label'] == 'success' or 'raise' not in times.get(a['attempt'], {}):
+                continue                      # only rounds that reached for the box
+            e = a['events']
+            closed = 'closed' in e
+            if a['label'] == 'no_contact':
+                kind = 'body: no contact'
+            elif a['label'] == 'touched_not_held':
+                kind = 'object: closed, not held' if closed else 'body: grazed, hands never closed'
+            elif a['label'] == 'knocked_over':
+                kind = ('object: knocked over after closing' if closed and e['knocked_over'] >= e['closed']
+                        else 'body: knocked over before closing')
+            else:
+                kind = 'object: slipped' if a['label'] == 'slipped' else 'object: held at cutoff'
+            rows.append({'run': run.name, 'round': a['attempt'], 'kind': kind})
+    count = Counter(r['kind'] for r in rows)
+    obj = sum(v for k, v in count.items() if k.startswith('object'))
+    share = None if not rows else obj / len(rows)
+    return {'failed_rounds': len(rows), 'kinds': dict(count), 'object_share': share,
+            'verdict': None if share is None else 'needed' if share >= .5 else 'not the main problem' if share <= .25 else 'partly',
+            'rows': rows}
+
+
+# ---- six: what the box does right after the first touch -------------------------------------
+
+def contacts(pattern, window_s=.5, floor=.05):
+    rows = []
+    for run, result in runs(pattern):
+        steps = steps_of(run)
+        seen = set()
+        for k in range(1, len(steps)):
+            s = steps[k]
+            if s['round'] in seen:
+                continue
+            left, right, other = s['left_n'] >= floor, s['right_n'] >= floor, s['robot_other_n'] >= floor
+            if not (left or right or other):
+                continue
+            seen.add(s['round'])
+            later = next((x for x in steps[k:] if x['time'] >= s['time'] + window_s - 1e-6), None)
+            if later is None:
+                continue
+            part = 'both hands' if left and right else 'left hand' if left else 'right hand' if right else 'body'
+            hand = [0, 1] if part in ('both hands', 'body') else [0] if left else [1]
+            dt = s['time'] - steps[k - 1]['time']
+            wrist_v = (np.asarray(s['wrist_pos'])[hand] - np.asarray(steps[k - 1]['wrist_pos'])[hand]).mean(0) / dt
+            box_v = (np.asarray(s['box_com']) - np.asarray(steps[k - 1]['box_com'])) / dt
+            rel = wrist_v - box_v
+            offset = float(np.abs(np.asarray(s['wrist_pos'])[hand, 1] - s['box_com'][1]).min())
+            rows.append({'run': run.name, 'round': s['round'], 'part': part, 'rel_speed': float(np.linalg.norm(rel[:2])),
+                         'rel_lateral_mps': float(rel[1]), 'rel_forward_mps': float(rel[0]),
+                         'inside': offset < .125,
+                         'moved_cm': float(np.linalg.norm(np.subtract(later['box_com'][:2], s['box_com'][:2]))) * 100,
+                         'turned_deg': abs((yaw_deg(later['box_quat']) - yaw_deg(s['box_quat']) + 180) % 360 - 180)})
+    if not rows:
+        return {'contacts': 0}
+    cuts = np.quantile([r['rel_speed'] for r in rows], [1 / 3, 2 / 3])
+    for r in rows:
+        r['speed_bin'] = int(np.searchsorted(cuts, r['rel_speed']))
+    groups = group(rows, lambda r: (r['part'], r['speed_bin'], r['inside']))
+    out = {'contacts': len(rows), 'speed_cuts_mps': [round(float(c), 3) for c in cuts], 'note': 'box mass 0.05 kg'}
+    for key in ('moved_cm', 'turned_deg'):
+        total = float(np.std([r[key] for r in rows]))
+        within = sum(len(g) * float(np.std([r[key] for r in g])) for g in groups.values()) / len(rows)
+        ratio = within / total if total > 0 else None
+        out[key] = {'overall_mean': round(float(np.mean([r[key] for r in rows])), 2), 'overall_sd': round(total, 2),
+                    'within_group_sd': round(within, 2), 'ratio': None if ratio is None else round(ratio, 3),
+                    'verdict': None if ratio is None else 'spread is large: needs prediction' if ratio >= .75
+                    else 'simple rules suffice' if ratio <= .5 else 'partly'}
+    out['groups'] = {str(k): {'n': len(g), 'moved_cm_mean': round(float(np.mean([r['moved_cm'] for r in g])), 2),
+                              'moved_cm_sd': round(float(np.std([r['moved_cm'] for r in g])), 2),
+                              'turned_deg_sd': round(float(np.std([r['turned_deg'] for r in g])), 2)}
+                     for k, g in sorted(groups.items(), key=lambda kv: str(kv[0]))}
+    out['rows'] = rows
+    return out
+
+
+# ---- seven: can a simple model say where the box ends up after a round ------------------------
+
+def predict_rows(pattern):
+    rows = []
+    for run, result in runs(pattern):
+        times = round_times(run)
+        attempts = result['attempts']
+        lay = result.get('layout') or {}
+        steps = None
+        for i, a in enumerate(attempts):
+            t = times.get(a['attempt'], {})
+            if a['label'] == 'success' or 'raise' not in t:
+                continue
+            notes = json_round_notes(run, a['attempt'])
+            if 'anchor_root' not in notes or 'wrist_targets' not in notes:
+                continue
+            start = np.asarray(a['latched_box_pos'][:2])
+            if i + 1 < len(attempts):
+                end = np.asarray(attempts[i + 1]['latched_box_pos'][:2])
+            else:
+                steps = steps or steps_of(run)
+                end = np.asarray(steps[-1]['box_com'][:2])
+            steps = steps or steps_of(run)
+            k = next((j for j, x in enumerate(steps) if x['time'] >= a['start_time'] - 1e-6), 0)
+            nxt = steps[min(k + 1, len(steps) - 1)]
+            vel = (np.asarray(nxt['box_com'][:2]) - np.asarray(steps[k]['box_com'][:2])) / max(nxt['time'] - steps[k]['time'], 1e-6)
+            root = np.asarray(notes['anchor_root'][:2])
+            pre, squeeze = np.asarray(notes['wrist_targets']['pre']), np.asarray(notes['wrist_targets']['squeeze'])
+            closed = 'closed' in a['events']
+            x = [*(start - root), yaw_deg(times[a['attempt']]['box_quat']) / 45, *vel,
+                 *(pre[:, :2] - start).ravel(), *(squeeze[:, :2] - start).ravel(),
+                 float(closed), (a['events']['closed'] - a['start_time']) if closed else 0., float(lay.get('speed_mps', 0.))]
+            rows.append({'run': run.name, 'seed': result['seed'], 'round': a['attempt'], 'x': x,
+                         'delta_cm': ((end - start) * 100).tolist()})
+    return rows
+
+
+def json_round_notes(run, index):
+    notes = {}
+    for line in (run/'rounds.jsonl').read_text().splitlines():
+        row = json.loads(line)
+        if row['round'] == index:
+            notes.update(row)
+    return notes
+
+
+def predictability(pattern, l2=1., k=5):
+    rows = predict_rows(pattern)
+    train = [r for r in rows if r['seed'] % 2 == 0]
+    test = [r for r in rows if r['seed'] % 2 == 1]
+    if not train or not test:
+        return {'rounds': len(rows)}
+    xtr, xte = np.array([r['x'] for r in train]), np.array([r['x'] for r in test])
+    ytr, yte = np.array([r['delta_cm'] for r in train]), np.array([r['delta_cm'] for r in test])
+    mean, std = xtr.mean(0), xtr.std(0) + 1e-9
+    ztr, zte = (xtr - mean) / std, (xte - mean) / std
+    a = np.c_[np.ones(len(ztr)), ztr]
+    w = np.linalg.solve(a.T @ a + l2 * np.diag([0] + [1] * ztr.shape[1]), a.T @ ytr)
+    ridge = np.c_[np.ones(len(zte)), zte] @ w
+    dist = np.linalg.norm(zte[:, None] - ztr[None], axis=2)
+    knn = ytr[np.argsort(dist, axis=1)[:, :k]].mean(1)
+    err = lambda pred: float(np.linalg.norm(pred - yte, axis=1).mean())
+    base = float(np.linalg.norm(yte, axis=1).mean())
+    best = min(err(ridge), err(knn))
+    gain = 1 - best / base if base > 0 else None
+    median_moved = float(np.median(np.linalg.norm(yte, axis=1)))
+    return {'rounds': len(rows), 'train': len(train), 'test': len(test),
+            'test_mean_moved_cm': round(base, 2), 'test_median_moved_cm': round(median_moved, 2),
+            'error_cm': {'box stays put': round(base, 2), 'ridge': round(err(ridge), 2), f'{k}-nearest': round(err(knn), 2)},
+            'best_reduction': None if gain is None else round(gain, 3),
+            'verdict': None if gain is None else 'predictable with a simple model' if gain >= .5
+            else 'not predictable with a simple model' if gain <= .2 else 'partly predictable'}
+
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('analysis', choices=['proprio', 'retry', 'age'])
+    p.add_argument('analysis', choices=['proprio', 'retry', 'age', 'phase', 'failures', 'contacts', 'predict'])
     p.add_argument('pattern')
     p.add_argument('--rows', action='store_true', help='Also print every row')
     a = p.parse_args()
-    out = {'proprio': proprio, 'retry': retry, 'age': age}[a.analysis](a.pattern)
+    out = {'proprio': proprio, 'retry': retry, 'age': age, 'phase': phase, 'failures': failures,
+           'contacts': contacts, 'predict': predictability}[a.analysis](a.pattern)
     if not a.rows:
         for key in ('episodes', 'rows'):
             out.pop(key, None) if isinstance(out, dict) else None
