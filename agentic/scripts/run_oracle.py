@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -20,6 +21,10 @@ import time
 import urllib.request
 
 from paths import AGENTIC as ROOT, CHECKPOINTS, REPO, RUNS, sim_cache
+
+TASKS={'pp_box':('Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','tasks/common_test_config/base_test/pp_box_sonic_test.yaml'),
+       'doubledesk':('Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody','tasks/common_test_config/base_test/doubledesk_sonic_test.yaml')}
+
 
 def sha(p):
     with p.open('rb') as f:
@@ -50,6 +55,21 @@ def parse_args(argv=None):
         'configs/grasp-loop.json, robot at the configured stance distance')
     p.add_argument('--box-speed',type=float,default=0.,help='With --box-in-region: drive the box back and forth '
         'across the region at this speed (m/s) from the first latch until a hand touches it')
+    p.add_argument('--task',choices=['pp_box','doubledesk'],default='pp_box',help='Grasp loop task: the two-handed box '
+        '(pp_box) or the one-handed hammer on DoubleDesk (experiment 1b; needs --stand-still and a --hammer-* placement)')
+    p.add_argument('--hammer-at',type=float,nargs=4,metavar=('DEPTH_M','LATERAL_M','YAW_DEG','EXTRA_M'),
+        help='DoubleDesk reach-map cell: grip point this far behind the table edge and to the robot\'s left, handle '
+             'turned from the robot\'s left (head towards the robot positive), robot this much further back than the stance rule')
+    p.add_argument('--hammer-in-region',action='store_true',help='DoubleDesk: hammer at a seeded place inside the region '
+        'fixed in configs/hammer-grasp.json')
+    p.add_argument('--inject',type=float,nargs=3,metavar=('ALONG_M','ACROSS_M','TURN_DEG'),help='DoubleDesk: one step after '
+        'the first latch move the hammer this much along / across its handle and turn it about the grip point')
+    p.add_argument('--hammer-speed',type=float,default=0.,help='DoubleDesk: drive the hammer along the table edge at this '
+        'speed (m/s) from the first latch until something touches it')
+    p.add_argument('--hammer-direction',type=int,choices=[-1,1],help='With --hammer-speed: +1 to the robot\'s left, -1 to '
+        'its right; default from the region seed')
+    p.add_argument('--start-timeout-s',type=float,help='Kill the simulator if it has not begun settling after this many '
+        'seconds (a start-up hang); off by default')
     p.add_argument('--diffusion-steps',type=int,default=50)
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
@@ -102,8 +122,18 @@ def parse_args(argv=None):
         help='Explicitly allow existing GPU users if at least this much memory is free (minimum 16384 MiB)')
     a=p.parse_args(argv)
     a.steps=a.steps or (1450 if a.grasp_loop else 400)
-    if bool(a.box_at or a.box_in_region) != a.stand_still or (a.box_at and a.box_in_region):
-        raise ValueError('--stand-still goes with exactly one of --box-at and --box-in-region')
+    hammer=a.task=='doubledesk'
+    placements=[bool(a.box_at),a.box_in_region] if not hammer else [bool(a.hammer_at),a.hammer_in_region]
+    if (a.hammer_at or a.hammer_in_region or a.inject or a.hammer_speed or a.hammer_direction) and not hammer:
+        raise ValueError('--hammer-*, --inject and --hammer-speed belong to --task doubledesk')
+    if hammer and (not a.grasp_loop or not a.stand_still or a.box_at or a.box_in_region or a.box_speed):
+        raise ValueError('--task doubledesk runs the grasp loop standing still with a --hammer-* placement')
+    if hammer and (a.hammer_speed<0 or (a.hammer_speed and a.inject) or (a.hammer_direction and not a.hammer_speed)
+                   or (a.hammer_speed and not a.hammer_direction and not a.hammer_in_region)):
+        raise ValueError('--hammer-speed is non-negative, excludes --inject, and needs a direction outside the region')
+    if any(placements) != a.stand_still or all(placements):
+        raise ValueError('--stand-still goes with exactly one placement: --box-at or --box-in-region '
+                         '(--hammer-at or --hammer-in-region with --task doubledesk)')
     if a.stand_still and (not a.grasp_loop or a.start_at_stance):
         raise ValueError('--stand-still belongs to the grasp loop and replaces --start-at-stance')
     if a.box_speed and not a.box_in_region or a.box_speed<0:
@@ -123,6 +153,8 @@ def parse_args(argv=None):
 
 def main():
     a=parse_args()
+    hammer=a.task=='doubledesk'
+    grasp_config=ROOT/'configs'/('hammer-grasp.json' if hammer else 'grasp-loop.json')
     CACHE=sim_cache()
     a.text_cache=a.text_cache or CACHE/'text-eval'
     run=RUNS/a.run_id
@@ -202,6 +234,7 @@ def main():
     env.update(PYTHONUNBUFFERED='1',OMP_NUM_THREADS='4',ORACLE_RUN=str(run))
     if a.dynamics_profile:env['SONIC_DYNAMICS_PROFILE']=a.dynamics_profile
     if a.grasp_loop:env['GRASP_LOOP']='1'
+    if hammer:env['GRASP_TASK']='hammer'
     if a.start_at_stance:
         if not a.grasp_loop:raise ValueError('--start-at-stance belongs to the grasp loop')
         env['GRASP_START_AT_STANCE']='1'
@@ -211,6 +244,15 @@ def main():
         layout={'cell':{'depth':d,'lateral':l,'yaw':y,'extra':e}}
     elif a.box_in_region:
         layout={'region_seed':a.seed,'speed_mps':a.box_speed}
+    if a.hammer_at:
+        d,l,y,e=a.hammer_at
+        layout={'cell':{'depth':d,'lateral':l,'yaw':y,'extra':e}}
+    elif a.hammer_in_region:
+        layout={'region_seed':a.seed}
+    if hammer and a.inject:
+        layout['inject']=dict(zip(('along_m','across_m','turn_deg'),a.inject))
+    if hammer and a.hammer_speed:
+        layout['motion']={'speed_mps':a.hammer_speed,'direction':a.hammer_direction}
     if layout:env['GRASP_LAYOUT']=json.dumps(layout)
     if a.root_support:env['SONIC_ROOT_SUPPORT']=a.root_support
     if a.settled_goal:
@@ -247,7 +289,8 @@ def main():
         if a.text_until_m:policycmd+=['--text-until-m',str(a.text_until_m)]
         if a.open_loop:policycmd+=['--open-loop']
     if a.grasp_loop:
-        policycmd+=['--grasp-loop',str(ROOT/'configs/grasp-loop.json'),'--latch-delay-steps',str(a.latch_delay_steps)]
+        policycmd+=['--grasp-loop',str(grasp_config),'--latch-delay-steps',str(a.latch_delay_steps)]
+        if hammer:policycmd+=['--grasp-task','hammer']
         if a.stand_still:policycmd.append('--stand-still')
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
@@ -271,11 +314,10 @@ def main():
         'post_termination_record_steps':0,'model_label':('demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
         'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(a.demo_segment.resolve()) if demo else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
-    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal or demo else 'grasp_sim_bootstrap.py' if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
+    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal or demo else ('hammer_sim_bootstrap.py' if hammer else 'grasp_sim_bootstrap.py') if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
-        '--task','Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','--env_config_yaml',
-        str(arena/'tasks/common_test_config/base_test/pp_box_sonic_test.yaml'),
+        '--task',TASKS[a.task][0],'--env_config_yaml',str(arena/TASKS[a.task][1]),
         '--seed',str(a.seed),'--episode_seed',str(a.seed),'--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
         '--lerobot_server_url',f'http://127.0.0.1:{port}','--lerobot_server_timeout','660' if a.vlm_model else '120','--step_log_every_n','50',
         '--sonic_encoder_path',str(CACHE/'sim-assets/sonic/model_encoder.onnx'),
@@ -319,10 +361,11 @@ def main():
     if demo:record.update(experiment='DEMO-REPLAY',oracle=False,target_source='demo_segment',
         demo_segment=str(a.demo_segment.resolve()),demo_segment_sha256=sha(a.demo_segment),start_xy=a.start_xy)
     if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',
-        grasp_config_sha256=sha(ROOT/'configs/grasp-loop.json'))
+        grasp_config_sha256=sha(grasp_config))
+    if hammer:record.update(experiment='HAMMER-GRASP-LOOP',task=a.task,env_config=TASKS[a.task][1])
     record['arena_sha256']={f:sha(arena/f) for f in (
         'action_provider/action_provider_sonic.py','action_provider/vla_robot_current_local_runtime_v3.py',
-        'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')}
+        'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')+((TASKS[a.task][1],) if hammer else ())}
     if replay:
         for key in ('tracker_sha256','arena_sha256'):
             if record[key] != fixture[key]:
@@ -347,7 +390,20 @@ def main():
                 except OSError:
                     time.sleep(1)
             record['status']='running'; manifest.write_text(json.dumps(record,indent=2))
-            sim=subprocess.run(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,timeout=max(1800,3*a.steps))
+            if a.start_timeout_s:
+                # DoubleDesk start-up sometimes deadlocks while loading materials, before anything runs.
+                proc=subprocess.Popen(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,start_new_session=True)
+                begun=time.monotonic()
+                while proc.poll() is None:
+                    waited=time.monotonic()-begun
+                    hung=waited>a.start_timeout_s and not (run/'settling.jsonl').exists()
+                    if hung or waited>max(1800,3*a.steps):
+                        os.killpg(proc.pid,signal.SIGKILL); proc.wait()
+                        raise RuntimeError('Simulator start-up hung' if hung else 'Simulator timed out')
+                    time.sleep(2)
+                sim=subprocess.CompletedProcess(simcmd,proc.returncode)
+            else:
+                sim=subprocess.run(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,timeout=max(1800,3*a.steps))
             record['sim_exit_code']=sim.returncode
             sim.check_returncode()
             if not (run/'execution.jsonl').is_file() or not (run/'plans.jsonl').is_file():
@@ -366,7 +422,7 @@ def main():
                     episode_result['video_path']=str(video.rename(video.with_name(video.stem.rsplit('__',1)[0]+'__grasp_success.mp4')))
                 result.update(termination='success' if result['success'] else episode_result['failure_reason'],
                     seed=a.seed,latch_delay_steps=a.latch_delay_steps,start_at_stance=a.start_at_stance,
-                    stand_still=a.stand_still,
+                    stand_still=a.stand_still,**({'task':a.task} if hammer else {}),
                     episode_steps=episode_result['episode_steps'],
                     max_steps=a.steps,video_path=episode_result.get('video_path'),
                     arena={k:episode_result.get(k) for k in ('success','failure_reason','final_reward','max_reward')})

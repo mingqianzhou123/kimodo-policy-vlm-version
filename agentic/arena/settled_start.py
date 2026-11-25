@@ -25,7 +25,7 @@ def stable(row):
             and max(row['foot_speed_m_s']) < .01)
 
 
-def settle(env, provider, warm_action, run, markers=True, before=None):
+def settle(env, provider, warm_action, run, markers=True, before=None, any_heading=False):
     if before is not None:
         before(env)
     data = env.scene['robot'].data
@@ -35,8 +35,17 @@ def settle(env, provider, warm_action, run, markers=True, before=None):
     sensor = env.scene.sensors['contact_forces']
     contacts = [list(sensor.body_names).index(n) for n in FEET]
     initial = array(data.root_state_w[0])
+    if any_heading:
+        # A start turned about the vertical (the DoubleDesk hammer table): upright, any heading.
+        # The action integrator is re-anchored at the placed pose, so that standing still means
+        # standing still there, facing that way.
+        if not np.isclose(initial[3]**2 + initial[6]**2, 1., atol=1e-6):
+            raise ValueError('Unexpected reset orientation: not upright')
+        quat, xy = provider._get_current_robot_root_pose_for_vla()
+        provider._lerobot_vla_runtime.reset(body_xy_world=xy, target_root_quat_wxyz=quat)
+        provider._vla_initial_robot_quat_wxyz = quat.copy()
     # All five archived cases start at identity heading and orientation.
-    if not np.allclose(initial[3:7], [1, 0, 0, 0], atol=1e-6):
+    elif not np.allclose(initial[3:7], [1, 0, 0, 0], atol=1e-6):
         raise ValueError('Unexpected reset orientation')
     hold = np.r_[0., 0., initial[2], np.eye(3)[:, :2].ravel(), array(data.joint_pos[0,joints]), 0., 0.]
     if markers:
@@ -74,8 +83,9 @@ def settle(env, provider, warm_action, run, markers=True, before=None):
     raise RuntimeError('Double support did not stabilize within 5 s')
 
 
-def install(install_bridge, *, markers=True, audit=True, before=None):
-    """The defaults are the 2026-11-23 reach configuration; the grasp loop needs neither extra."""
+def install(install_bridge, *, markers=True, audit=True, before=None, any_heading=False):
+    """The defaults are the 2026-11-23 reach configuration; the grasp loop needs neither extra.
+    ``any_heading`` lets ``before`` turn the robot about the vertical (off by default)."""
     factory = importlib.import_module('action_provider.create_action_provider')
     install_dynamics_override()
     aligned = factory.create_action_provider
@@ -99,7 +109,8 @@ def install(install_bridge, *, markers=True, audit=True, before=None):
         def act(current_env):
             nonlocal ready
             if not ready:
-                settle(current_env, provider, provider._settling_action, Path(os.environ['ORACLE_RUN']), markers, before)
+                settle(current_env, provider, provider._settling_action, Path(os.environ['ORACLE_RUN']), markers, before,
+                       any_heading)
                 ready = True
             return action(current_env)
 

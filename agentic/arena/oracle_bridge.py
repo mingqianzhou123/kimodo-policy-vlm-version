@@ -37,8 +37,19 @@ def install_oracle_bridge():
         run = Path(os.environ['ORACLE_RUN'])
         vision = None
         grasp = os.environ.get('GRASP_LOOP') == '1'
+        # GRASP_TASK=hammer: the one-handed DoubleDesk hammer grasp (arena/hammer_loop.py); unset, the box.
+        hammer = grasp and os.environ.get('GRASP_TASK') == 'hammer'
+        target_key = 'object_l' if hammer else 'box'
         loop = drive_rest = None
-        if grasp:
+        if hammer:
+            from arena.hammer_loop import HammerGraspLoop
+            from arena.hammer_scene import config as hammer_config, load_layout as hammer_layout, read_contact
+            loop = HammerGraspLoop(run, hammer_config(), stop=lambda: setattr(env.kvla_controller, 'is_running', False),
+                                   env=env, provider=provider, layout=hammer_layout())
+            apply_hands = provider._apply_hand_binary_targets
+            # The policy's hand channel is ignored: the right hand follows the gate, the left stays open.
+            provider._apply_hand_binary_targets = lambda left_closed, right_closed: apply_hands(*loop.hands())
+        elif grasp:
             from arena.grasp_loop import GraspLoop
             from arena.grasp_scene import drive_box, load_layout, read_contact
             config = json.loads((Path(__file__).resolve().parents[1]/'configs/grasp-loop.json').read_text())
@@ -59,7 +70,7 @@ def install_oracle_bridge():
             wp = data.body_pos_w[0, wrist_ids].detach().cpu().numpy()
             wq = data.body_quat_w[0, wrist_ids].detach().cpu().numpy()
             wr = np.stack([rotation_wxyz(q) for q in wq])
-            box = env.scene['box'].data.root_state_w[0].detach().cpu().numpy()
+            box = env.scene[target_key].data.root_state_w[0].detach().cpu().numpy()
             reference = getattr(provider, '_latest_pose_payload', None)
             reference_root = (np.asarray(reference['body_pos']).reshape(3)
                               if reference and 'body_pos' in reference else root[:3])
@@ -77,7 +88,7 @@ def install_oracle_bridge():
                 'foot_rot': [rotation_wxyz(q).tolist() for q in data.body_quat_w[0,foot_ids].detach().cpu().numpy()],
                 'wrist_velocity': data.body_lin_vel_w[0, wrist_ids].detach().cpu().numpy().tolist(),
                 'box_pos': box[:3].tolist(), 'box_quat': box[3:7].tolist(),
-                **({'box_com': env.scene['box'].data.root_com_pos_w[0].detach().cpu().numpy().tolist(),
+                **({'box_com': env.scene[target_key].data.root_com_pos_w[0].detach().cpu().numpy().tolist(),
                     # torque the actuators applied, canonical joint order (for the proprioceptive checks)
                     'applied_torque': data.applied_torque[0, joint_ids].detach().cpu().numpy().tolist()}
                    if grasp else {}),
@@ -120,7 +131,9 @@ def install_oracle_bridge():
 
         def act(current_env):
             nonlocal last_time, drive_rest
-            if loop is not None:
+            if hammer:
+                loop.act_on_scene(env, float(env.sim.current_time))
+            elif loop is not None:
                 drive = loop.drive(float(env.sim.current_time))
                 if drive is not None:
                     if drive_rest is None:
