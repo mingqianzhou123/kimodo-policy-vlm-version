@@ -98,7 +98,7 @@ def rounds(run):
         r = {'run': run['name'], 'seed': run['seed'], 'round': k, 'label': a['label'], 'speed': speed,
              'delay_s': res.get('latch_delay_steps', 75) / 50, 'latch': latch, 'wait_end': wait_end,
              'walk_end': p.get('settle'), 'anchor': anchor, 'close': close, 'reach_end': reach_end,
-             'walked': 'walk' in p, 'walk_plans': notes.get('walk_plans'), 'walk_timed_out': notes.get('walk_timed_out'),
+             'walked': 'walk' in p, 'idle': 'idle' in p, 'walk_plans': notes.get('walk_plans'), 'walk_timed_out': notes.get('walk_timed_out'),
              'stance_error_m': notes.get('stance_error_m'), 'clearance_m': n.get('anchor_clearance_m'),
              'lateral_m': n.get('anchor_lateral_m'), 'backoff_m': n.get('backoff_m'), 'wrist_gap_m': n.get('wrist_gap_m'),
              'turned': n.get('turned'), 'gate_fired': close is not None, 'drive_released_at': n.get('drive_released_at')}
@@ -362,6 +362,10 @@ def dynamic(pattern):
               f'{sum(r["result"]["success"] for r in done)}/{len(done)}; cut {cut}')
     print('\nretry rounds: did the hands end nearer the box than in the round before? (added after seeing data)')
     for key in sorted(by, key=lambda k: (k[1], k[0])):
+        all_rounds = [x for r in by[key] for x in rounds(r)]
+        idle = sum(x['idle'] for x in all_rounds if x['round'] > 0)
+        retries = sum(x['round'] > 0 for x in all_rounds)
+        print(f'{key}: retry rounds {retries}, of which idle (box toppled or off the table top, nothing tried) {idle}')
         steps_ = [c for r in by[key] for c in convergence(rounds(r))]
         if steps_:
             first_two = [c for c in steps_ if c[0] == 1]
