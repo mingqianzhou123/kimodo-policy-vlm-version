@@ -47,6 +47,9 @@ p.add_argument('--segment-steps',type=int,default=100)
 p.add_argument('--grasp-loop',help='Grasp loop configuration (JSON); selects the blocking box grasp policy')
 p.add_argument('--latch-delay-steps',type=int,default=75)
 p.add_argument('--stand-still',action='store_true',help='Grasp loop: never walk, reach from where the robot stands')
+p.add_argument('--target-update',choices=['blocking','fixed','anchored'],default='blocking',
+               help='Grasp loop: when the reach target is refreshed (kimodo_vla/oracle/async_grasp.py)')
+p.add_argument('--latency-samples',help='Grasp loop: JSON list of measured call latencies in seconds to draw delays from')
 p.add_argument('--vlm-model')
 p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
 p.add_argument('--vlm-python',default=sys.executable)
@@ -72,6 +75,11 @@ elif a.grasp_loop:
     policy_class = BoxGraspPolicy
     extra = dict(config=json.loads(Path(a.grasp_loop).read_text())['policy'], latch_delay_steps=a.latch_delay_steps,
                  stand_still=a.stand_still)
+    if a.target_update != 'blocking' or a.latency_samples:
+        from kimodo_vla.oracle.async_grasp import AsyncBoxGraspPolicy, load_latencies
+        policy_class = AsyncBoxGraspPolicy
+        extra.update(target_update=a.target_update,
+                     latency_samples=load_latencies(a.latency_samples) if a.latency_samples else None)
 elif a.vlm_model:
     from kimodo_vla.vlm.policy import VisualTargetPolicy
     if a.mode!='hold' or a.trajectory_projection!='ik-hold':raise ValueError('Visual mode requires the standing IK-hold backend')
