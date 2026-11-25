@@ -33,9 +33,14 @@ def rows_of(run):
         i = int(np.argmin(np.abs(t - r['now'])))
         error = np.asarray(r['com']) - box[i]
         top_z = r['points'][0][2] if r.get('points') else np.nan
+        raw = np.nan
+        if r.get('points') and r.get('frame_time') is not None:
+            # the newest tracked top point against the true top centre at that frame: tracking and depth only
+            j = int(np.argmin(np.abs(t - r['frame_time'])))
+            raw = 100 * float(np.linalg.norm(np.asarray(r['points'][0][:2]) - box[j][:2]))
         out.append({'now': r['now'], 'status': r['status'], 'age_s': r['now'] - r['used_time'],
                     'lateral_cm': 100 * float(error[1]), 'planar_cm': 100 * float(np.linalg.norm(error[:2])),
-                    'background': bool(abs(top_z - (box[i][2] + HALF)) > OFF_TOP_M),
+                    'raw_top_planar_cm': raw, 'background': bool(abs(top_z - (box[i][2] + HALF)) > OFF_TOP_M),
                     'visible': r.get('visible'), 'compute_s': r.get('compute_s'), 'tracked': r.get('tracked'),
                     'calls': r.get('calls')})
     return out
@@ -50,6 +55,7 @@ def summary(run):
     return {'run': run.name, 'estimates': len(rows), 'planar_median_cm': round(float(np.median(planar)), 2),
             'planar_max_cm': round(float(planar.max()), 2),
             'lateral_abs_median_cm': round(float(np.median([abs(r['lateral_cm']) for r in rows])), 2),
+            'raw_top_planar_median_cm': round(float(np.nanmedian([r['raw_top_planar_cm'] for r in rows])), 2),
             'status': {s: sum(r['status'] == s for r in rows) for s in {r['status'] for r in rows}},
             'background': sum(r['background'] for r in rows), 'age_median_s': round(float(np.median([r['age_s'] for r in rows])), 3),
             'tracker_fps': round(last['tracked'] / last['compute_s'], 1) if last.get('compute_s') else None,
