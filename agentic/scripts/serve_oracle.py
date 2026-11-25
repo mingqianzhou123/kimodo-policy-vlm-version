@@ -37,7 +37,11 @@ p.add_argument('--root-constraints',choices=['dense','sparse','none'],default='d
 p.add_argument('--history-frames',type=int,default=100)
 p.add_argument('--lead-segment')
 p.add_argument('--walk-clips')
-p.add_argument('--generator',choices=['policy','segment'],default='policy')
+p.add_argument('--generator',choices=['policy','segment','native'],default='policy')
+p.add_argument('--transition-frames',type=int,default=5)
+p.add_argument('--approach-gain',type=float,default=1.)
+p.add_argument('--text-until-m',type=float,default=0.)
+p.add_argument('--open-loop',action='store_true')
 p.add_argument('--segment-seconds',type=float,default=4.)
 p.add_argument('--segment-steps',type=int,default=100)
 p.add_argument('--grasp-loop',help='Grasp loop configuration (JSON); selects the blocking box grasp policy')
@@ -58,7 +62,9 @@ elif a.motion_goal:
     extra = dict(motion_goal=a.motion_goal, noise_seed=a.noise_seed, walk_steps=a.walk_steps, arm_ik=a.arm_ik,
                  text=a.text, text_cfg=a.text_cfg, root_constraints=a.root_constraints,
                  history_frames=a.history_frames, lead_segment=a.lead_segment, walk_clips=a.walk_clips,
-                 generator=a.generator, segment_seconds=a.segment_seconds, segment_steps=a.segment_steps)
+                 generator=a.generator, segment_seconds=a.segment_seconds, segment_steps=a.segment_steps,
+                 transition_frames=a.transition_frames, approach_gain=a.approach_gain, text_until_m=a.text_until_m,
+                 open_loop=a.open_loop)
 elif a.grasp_loop:
     import json
     from kimodo_vla.oracle.grasp_policy import BoxGraspPolicy

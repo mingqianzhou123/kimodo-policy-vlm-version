@@ -56,6 +56,21 @@ no text, the root ground path and heading on every frame, up to 100 history fram
                     default) or 'segment': walk and stop plans are whole segments of
                     ``segment_seconds`` sampled the official Kimodo way (``model.segment_sampler``),
                     the present only a frame-0 keyframe, ``segment_steps`` DDIM steps
+  generator='native'  every plan (walk, stop, reach, lean) is sampled the official Kimodo way and
+                    continues the reference already sent the way official multi-prompt generation
+                    continues a segment: its last ``transition_frames`` frames (ending now, already
+                    moved to where the body was measured) constrained in full plus hand and foot
+                    rotations, the rest of the canvas free but for the phase's own conditions; no
+                    longer history. Walk and stop canvases run ``segment_seconds`` past now, reach
+                    and lean canvases 49 frames. Saved plan features start at now. ``text='auto'`` gives the walk the phrase of its
+                    direction (``WALK_TEXTS``) and the other phases no text; ``text_until_m`` drops
+                    the phrase once the goal is that close (it otherwise marches on the spot).
+  open_loop         plans start from the reference's own position and heading instead of the
+                    measured ones (no anchoring): the reference carries out the command and the
+                    tracker's deviation is left in, to measure it (native generator only)
+  approach_gain     walk and stop paths aim at here + gain x (goal - here): the tracker covers only
+                    part of each commanded displacement (about half for SONIC), so gain > 1 closes
+                    the last centimetres; 1 (the default) aims at the goal.
   walk_clips        a gait-cycle library (``clip_legs``): the walk is looped recorded strides chosen
                     from the measured position, Kimodo is not called until the walk has stopped
                     (the reach, if any, is Kimodo's as before); there is no separate stop plan
@@ -74,7 +89,7 @@ from kimodo_vla.model.planner import _episode_noise_seed
 from kimodo_vla.model.sparse_conditions import hand_keyframe
 from kimodo_vla.motion.g1_reference import _interpolate_motion, rot6d_row_to_matrix
 from .continuity import blend_reference, bounded_hinge_trajectory
-from kimodo_vla.model.segment_sampler import sample_segment
+from kimodo_vla.model.segment_sampler import decode, sample_segment, transition_condition
 from .clip_legs import ClipWalker, load_library
 from .demo_walks import Timeline, load_segment
 from .geometry import BASIS, SIDES, angle_deg, rotation_wxyz
@@ -92,6 +107,8 @@ LEAN_FROM = 40     # a lean plan is the leaned pose from this frame on
 LEAN_STEPS = 80    # control steps executed from the lean plan
 NOT_YET = 1e6      # arrival time, in seconds from the start, until the final phase begins
 ARM_IK_WITHIN_M = .25  # with arm_ik, the arm is solved for the wrist over the last 25 cm of its path
+WALK_TEXTS = {'forward': 'walk_forward', 'backward': 'walk_backward', 'left': 'sidestep_left',
+              'right': 'sidestep_right', 'turn': 'turn_left_in_place'}  # text='auto' with the native generator
 SPARSE_FRAMES = (15, 30, 49)  # root_constraints='sparse': one waypoint every 0.5 s
 ROOT_CONSTRAINTS = ('dense', 'sparse', 'none')
 ARM_JOINTS = ('shoulder_pitch', 'shoulder_roll', 'shoulder_yaw', 'elbow', 'wrist_roll', 'wrist_pitch', 'wrist_yaw')
@@ -177,6 +194,24 @@ def walk_allowance(goal):
     if goal['root'].get('yaw_deg'):
         return abs(goal['root']['yaw_deg'])/10.+5.   # turns: 10 degrees per second
     return float(np.linalg.norm(goal['root']['xy']))/.05+5.
+
+
+def goal_direction(goal):
+    """'forward', 'backward', 'left', 'right' (the larger component of the root goal) or 'turn'."""
+    if goal['root'].get('yaw_deg'):
+        return 'turn'
+    forward, left = goal['root']['xy']
+    if abs(forward) >= abs(left):
+        return 'forward' if forward >= 0 else 'backward'
+    return 'left' if left > 0 else 'right'
+
+
+def open_loop_seconds(goal, hold=2.):
+    """Episode length for ``open_loop``: the reference walks the command at its speed (or turns at its
+    rate), with 2 s to spare, then the stop plan and ``hold`` seconds."""
+    root = goal['root']
+    walk = abs(root['yaw_deg'])/root['yaw_rate_deg_s'] if root.get('yaw_deg') else np.linalg.norm(root['xy'])/root['speed_m_s']
+    return READY_S+.2+walk+2.+2*1.6+hold
 
 
 def episode_seconds(goal, hold=2., lead_s=0.):
@@ -301,21 +336,35 @@ class LocomotionPolicy(OraclePolicy):
     text, text_cfg, text_feat = None, 2., None
     root_constraints, history_frames, lead = 'dense', 100, None
     clips, clip_walker = None, None
-    generator_mode, segment_frames, segment_steps = 'policy', CANVAS, 50
+    generator_mode, segment_frames, segment_steps, transition_frames, walk_text = 'policy', CANVAS, 50, 5, None
+    approach_gain, text_until_m, open_loop = 1., 0., False
 
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
                  root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None,
-                 generator='policy', segment_seconds=4., segment_steps=100, **kwargs):
+                 generator='policy', segment_seconds=4., segment_steps=100, transition_frames=5, approach_gain=1.,
+                 text_until_m=0., open_loop=False, **kwargs):
         # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
         # are solved for the path pose; legs and trunk stay as Kimodo generated them.
         self.arm_ik = bool(arm_ik)
-        if generator not in ('policy', 'segment'):
-            raise ValueError("generator must be 'policy' or 'segment'")
+        if generator not in ('policy', 'segment', 'native'):
+            raise ValueError("generator must be 'policy', 'segment' or 'native'")
         self.generator_mode = generator
-        if generator == 'segment':
+        if generator == 'native':
+            self.transition_frames = int(transition_frames)
+            if not 1 <= self.transition_frames <= 30:
+                raise ValueError('transition_frames must be 1-30')
+        if text == 'auto' and generator != 'native':
+            raise ValueError("text='auto' needs the native generator")
+        self.approach_gain, self.text_until_m, self.open_loop = float(approach_gain), float(text_until_m), bool(open_loop)
+        if self.open_loop and (generator != 'native' or approach_gain != 1.):
+            raise ValueError('open_loop is for the native generator without approach gain')
+        if not 1. <= self.approach_gain <= 4. or self.text_until_m < 0:
+            raise ValueError('approach_gain in [1, 4]; text_until_m >= 0')
+        if generator in ('segment', 'native'):
             self.segment_frames, self.segment_steps = int(round(segment_seconds*30)), int(segment_steps)
-            if not 2 <= segment_seconds <= 10 or not 25 <= walk_steps <= int((self.segment_frames-1)/.6):
-                raise ValueError('Segments of 2-10 s; execute at least 25 control steps and no more than the segment')
+            shortest = 1. if generator == 'native' else 2.
+            if not shortest <= segment_seconds <= 10 or not 25 <= walk_steps <= int((self.segment_frames-1)/.6):
+                raise ValueError(f'Segments of {shortest:g}-10 s; execute at least 25 control steps and no more than the segment')
         elif not 25 <= walk_steps <= 80:
             raise ValueError('A plan covers 1.63 s; execute between 25 and 80 control steps of a walking plan')
         self.goal = load_goal(motion_goal)
@@ -335,7 +384,12 @@ class LocomotionPolicy(OraclePolicy):
         self.text, self.text_cfg = text, float(text_cfg)
         guided = isinstance(self.model.denoiser, (ConstraintGuidance, SeparatedGuidance))
         inner = self.model.denoiser.model if guided else self.model.denoiser
-        if text is None:
+        if text == 'auto':
+            self.walk_text = WALK_TEXTS[goal_direction(self.goal)] if 'root' in self.goal else None
+            if self.walk_text is not None and self.walk_text not in self.texts:
+                raise ValueError(f'No text embedding {self.walk_text!r} in the text cache')
+            self.text_feat = None if self.walk_text is None else self.texts[self.walk_text].float()
+        elif text is None:
             self.text_feat = None
             if self.shared_model is not None:   # a reused model may still carry another policy's guidance
                 self.model.denoiser = ConstraintGuidance(inner, self.constraint_cfg)
@@ -406,8 +460,8 @@ class LocomotionPolicy(OraclePolicy):
         self.save_target()
 
     def measured_yaw(self, obs):
-        """Heading of the measured root in the start frame, degrees, left positive."""
-        rotation = self.frame.heading.T @ rotation_wxyz(obs['root_quat'])
+        """Heading of the measured root in the start frame, degrees, left positive (open loop: the reference's)."""
+        rotation = self.frame.heading.T @ rotation_wxyz(obs['reference_root_quat' if self.open_loop else 'root_quat'])
         return float(np.degrees(np.arctan2(rotation[1, 0], rotation[0, 0])))
 
     def yaw_remaining(self, obs):
@@ -419,6 +473,17 @@ class LocomotionPolicy(OraclePolicy):
         self.turned += (now-self.last_yaw+180.) % 360.-180.
         self.last_yaw = now
         return self.goal['root']['yaw_deg']-self.turned
+
+    def turned_standing(self, standing, heading):
+        """Standing features rotated about the vertical so their heading entries equal ``heading`` (cos, sin)."""
+        rep = self.model.representation
+        now = standing[self.heading_slice]
+        delta = float(torch.atan2(heading[1], heading[0])-torch.atan2(now[1], now[0]))
+        for angle in (delta, -delta):
+            turned = rep.rotate(standing[None, None].cpu(), torch.tensor([angle]))[0, 0].to(standing)
+            if torch.allclose(turned[self.heading_slice], torch.as_tensor(heading).to(standing), atol=1e-4):
+                return turned
+        raise RuntimeError('Could not turn the standing pose to the requested heading')
 
     def heading_features(self, yaw_deg):
         """Kimodo heading features [N, 2] of the standing pose turned ``yaw_deg`` (start frame, left positive)."""
@@ -495,8 +560,16 @@ class LocomotionPolicy(OraclePolicy):
     def save_target(self):
         (self.run/'target.json').write_text(json.dumps(self.target_info, indent=2))
 
+    def walk_text_on(self, phase, obs):
+        """The walk phrase conditions this plan: walking, and (with ``text_until_m``) still that far from the goal."""
+        if phase != 'walk' or self.text_feat is None:
+            return False
+        return float(np.linalg.norm(self.root_end-self.measured_xz(obs))) > self.text_until_m or bool(
+            self.goal['root'].get('yaw_deg'))
+
     def measured_xz(self, obs):
-        return self.frame.points(obs['root_pos'])[[0, 2]]
+        """Ground point the plans start from: the measured root (open loop: the reference's own root)."""
+        return self.frame.points(obs['reference_root_pos' if self.open_loop else 'root_pos'])[[0, 2]]
 
     def enter(self, phase, obs, **details):
         """Switch phase at a plan boundary and record when, where and why."""
@@ -565,6 +638,8 @@ class LocomotionPolicy(OraclePolicy):
         logged reference where the body is, and makes each plan continue from there.
         """
         shift = np.r_[np.asarray(obs['root_pos'])[:2]-np.asarray(obs['reference_root_pos'])[:2], 0.]
+        if self.open_loop:
+            shift[:] = 0.   # open loop: the reference keeps its own position; nothing is measured back in
         self.jumps.append((obs['time'], shift))
         return shift
 
@@ -608,6 +683,10 @@ class LocomotionPolicy(OraclePolicy):
             target = self.root_end
             if phase == 'stop' and self.phases[-1].get('walk_timed_out'):
                 target = here  # stopped short: stand where the body is
+            elif self.approach_gain != 1.:
+                # The tracker covers only part of a commanded displacement; aim past the goal by
+                # (gain - 1) times what is left so that the body itself ends nearer it.
+                target = here+self.approach_gain*(target-here)
             path = ground_path(here, target, self.speed_toward(target), self.goal['root']['speed_m_s'], frames=canvas)
         heading = None   # experiment two: the start heading on every frame
         if phase == 'walk' and (self.lead is not None or self.goal['root'].get('yaw_deg')):
@@ -626,6 +705,11 @@ class LocomotionPolicy(OraclePolicy):
             mask[k, self.heading_slice] = True
         if phase == 'stop':
             standing = self.standing_features.clone()
+            if heading is not None and self.generator_mode == 'native':
+                # The standing pose turned to the heading reached; without this the pose (joint
+                # positions and rotations, not only the heading entries) faces the start and the stop
+                # plan turns the body back. Only for the native generator: the other paths keep theirs.
+                standing = self.turned_standing(standing, heading[-1])
             standing[self.root_slot], standing[self.root_slot+2] = float(path[-1, 0]), float(path[-1, 1])
             if heading is not None:
                 standing[self.heading_slice] = heading[-1]
@@ -694,14 +778,33 @@ class LocomotionPolicy(OraclePolicy):
         features = self.reference_features()
         hist = features[:-1][-self.history_frames:]
         hist_mask = torch.ones_like(hist, dtype=torch.bool)
-        segment = self.generator_mode == 'segment' and phase in ('walk', 'stop')
-        canvas = self.segment_frames if segment else CANVAS
+        native = self.generator_mode == 'native'
+        segment = self.generator_mode in ('segment', 'native') and phase in ('walk', 'stop')
+        # A native walk or stop canvas is now plus segment_seconds after it (5 s reads a 5 s prediction).
+        canvas = self.segment_frames+native if segment else CANVAS
         values, mask, path, keyframes, dense = self.conditions(phase, obs, step, cut, canvas)
-        # Frame zero is now: its pose is known, its velocities and contacts are left to the model.
-        values[0, :self.pose_end], mask[0, :self.pose_end] = features[-1, :self.pose_end], True
+        if not native:
+            # Frame zero is now: its pose is known, its velocities and contacts are left to the model.
+            values[0, :self.pose_end], mask[0, :self.pose_end] = features[-1, :self.pose_end], True
         generator = torch.Generator(device=self.model.device).manual_seed(_episode_noise_seed(self.seed, self.plan_index))
         begin = time.perf_counter()
-        if segment:
+        if native:
+            # Official multi-prompt continuation of the reference sent so far (already where the body
+            # is): its last frames, ending now, in full; the plan's own conditions from now on.
+            n = min(self.transition_frames, len(features))
+            v, m, heading, origin = transition_condition(self.model.representation, features, canvas-1, transition=n,
+                                                         values=values[1:], mask=mask[1:])
+            feats, _ = sample_segment(self.model, v, m, first_heading=heading,
+                text_feat=self.text_feat if self.walk_text_on(phase, obs) else None, text_weight=self.text_cfg,
+                constraint_weight=self.constraint_cfg, steps=self.segment_steps, generator=generator)
+            feats = feats.cpu().clone()
+            feats[:, self.root_slot] += origin[0]
+            feats[:, self.root_slot+2] += origin[1]
+            decoded = decode(self.model.representation, feats[n-1:])   # frame 0 is now
+            output = {'local_rot_mats': decoded['local_rot_mats'], 'root_positions': decoded['root_positions'],
+                      'history_last_root_position': decoded['root_positions'][0].clone(), 'motion_features': feats[n-1:]}
+            hist_mask = torch.zeros(0, dtype=torch.bool)
+        elif segment:
             # The official way: the whole segment from noise, the present only as the frame-0 keyframe.
             cos_sin = features[-1, self.heading_slice]
             feats, decoded = sample_segment(self.model, values, mask, first_heading=float(torch.atan2(cos_sin[1], cos_sin[0])),
@@ -784,12 +887,16 @@ class LocomotionPolicy(OraclePolicy):
         record = {'plan': self.plan_index, 'time': obs['time'], 'cut': cut, 'phase': phase, 'sent_steps': sent,
                   'keyframes': keyframes, 'dense_hand_frames': dense, 'root_frames': list(range(1, canvas)),
                   'pose_frames': list(range({'stop': STAND_FROM, 'lean': LEAN_FROM}.get(phase, canvas), canvas)),
-                  'generator': 'segment' if segment else 'policy', 'canvas_frames': canvas,
+                  'generator': self.generator_mode if segment or native else 'policy', 'canvas_frames': canvas,
                   'hand_constraints': 'continuous', 'history_source': 'reference',
-                  'history_condition_frames': int(hist_mask.any(-1).sum()),
-                  'text': self.text, 'text_cfg': self.text_cfg if self.text else None,
+                  'history_condition_frames': n if native else int(hist_mask.any(-1).sum()),
+                  'transition_frames': n if native else None,
+                  'text': ((self.walk_text or self.text) if self.walk_text_on(phase, obs) else None) if native else self.text,
+                  'approach_gain': self.approach_gain,
+                  'text_cfg': self.text_cfg if self.text else None,
                   'root_constraints': self.root_constraints if phase == 'walk' else 'dense',
-                  'inference_s': elapsed, 'constraint_cfg': self.constraint_cfg, 'diffusion_steps': self.steps,
+                  'inference_s': elapsed, 'constraint_cfg': self.constraint_cfg,
+                  'diffusion_steps': self.segment_steps if segment or native else self.steps,
                   'variant': self.variant, 'handoff_seconds': self.handoff_seconds,
                   'joint_speed_rad_s': self.joint_speed, 'support_constraints': 'none', 'trajectory_projection': 'none',
                   'arm_ik_frames': 0 if arm_ik_left is None else int(np.isfinite(arm_ik_left).sum()),

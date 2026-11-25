@@ -60,7 +60,11 @@ def parse_args(argv=None):
     p.add_argument('--text-cfg',type=float,default=2.,help='With --text: the text guidance weight')
     p.add_argument('--root-constraints',choices=['dense','sparse','none'],default='dense',help='With --motion-goal: walking root path on every frame, every 0.5 s, or not at all')
     p.add_argument('--history-frames',type=int,default=100,help='With --motion-goal: consumed-reference frames conditioning each plan')
-    p.add_argument('--generator',choices=['policy','segment'],default='policy',help="With --motion-goal: 'segment' samples whole walking segments the official Kimodo way (kimodo_vla/model/segment_sampler.py) instead of the policy canvas")
+    p.add_argument('--generator',choices=['policy','segment','native'],default='policy',help="With --motion-goal: 'segment' samples whole walking segments the official Kimodo way (kimodo_vla/model/segment_sampler.py) instead of the policy canvas; 'native' makes every plan an official multi-prompt continuation of the sent reference (--transition-frames)")
+    p.add_argument('--transition-frames',type=int,default=5,help="With --generator native: frames of the sent reference each plan continues from")
+    p.add_argument('--approach-gain',type=float,default=1.,help='With --motion-goal: walk and stop paths aim at here + gain x (goal - here); the tracker covers only part of each step')
+    p.add_argument('--text-until-m',type=float,default=0.,help='With --text auto: drop the walking phrase once the goal is this close')
+    p.add_argument('--open-loop',action='store_true',help="With --generator native: plan from the reference's own position and heading, never the measured ones")
     p.add_argument('--segment-seconds',type=float,default=4.)
     p.add_argument('--segment-steps',type=int,default=100)
     p.add_argument('--walk-clips',type=Path,help='With --motion-goal: walk on looped recorded gait cycles from this library (kimodo_vla/oracle/clip_legs.py) instead of Kimodo')
@@ -216,6 +220,10 @@ def main():
         if a.lead_segment:policycmd+=['--lead-segment',str(a.lead_segment.resolve())]
         if a.walk_clips:policycmd+=['--walk-clips',str(a.walk_clips.resolve())]
         if a.generator!='policy':policycmd+=['--generator',a.generator,'--segment-seconds',str(a.segment_seconds),'--segment-steps',str(a.segment_steps)]
+        if a.generator=='native':policycmd+=['--transition-frames',str(a.transition_frames)]
+        if a.approach_gain!=1.:policycmd+=['--approach-gain',str(a.approach_gain)]
+        if a.text_until_m:policycmd+=['--text-until-m',str(a.text_until_m)]
+        if a.open_loop:policycmd+=['--open-loop']
     if a.grasp_loop:
         policycmd+=['--grasp-loop',str(ROOT/'configs/grasp-loop.json'),'--latch-delay-steps',str(a.latch_delay_steps)]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
@@ -280,8 +288,10 @@ def main():
         history_frames=a.history_frames,lead_segment=str(a.lead_segment) if a.lead_segment else None,
         lead_segment_sha256=sha(a.lead_segment) if a.lead_segment else None,
         walk_clips=str(a.walk_clips) if a.walk_clips else None,walk_clips_sha256=sha(a.walk_clips) if a.walk_clips else None,
-        generator=a.generator,segment_seconds=a.segment_seconds if a.generator=='segment' else None,
-        segment_steps=a.segment_steps if a.generator=='segment' else None)
+        generator=a.generator,segment_seconds=a.segment_seconds if a.generator!='policy' else None,
+        segment_steps=a.segment_steps if a.generator!='policy' else None,
+        transition_frames=a.transition_frames if a.generator=='native' else None,
+        approach_gain=a.approach_gain,text_until_m=a.text_until_m or None,open_loop=a.open_loop)
     if demo:record.update(experiment='DEMO-REPLAY',oracle=False,target_source='demo_segment',
         demo_segment=str(a.demo_segment.resolve()),demo_segment_sha256=sha(a.demo_segment),start_xy=a.start_xy)
     if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',

@@ -153,3 +153,110 @@ def test_segment_generator_plans_whole_segments_without_history(tmp_path, monkey
     with pytest.raises(ValueError):
         lo.LocomotionPolicy.__init__(lo.LocomotionPolicy.__new__(lo.LocomotionPolicy), motion_goal=WALK,
                                      generator='segment', segment_seconds=4., walk_steps=250)
+
+
+def test_native_generator_continues_the_sent_reference_over_a_few_frames(tmp_path, monkeypatch):
+    from kimodo_vla.oracle import locomotion as lo
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'fwd', 'root': {'xy': [.6, 0.]}})
+    policy.generator_mode, policy.segment_frames, policy.segment_steps = 'native', 90, 100
+    policy.transition_frames, policy.walk_steps = 5, 50
+    rep = policy.model.representation
+    slot, calls, stand_in = rep.slice_dict['smooth_root_pos'].start, [], policy.model
+    joints = rep.slice_dict['local_joints_positions']
+
+    def fake_sample(model, values, mask, *, first_heading, text_feat, text_weight, constraint_weight, steps, generator):
+        calls.append(dict(frames=len(values), mask=mask.clone(), values=values.clone(), heading=first_heading,
+                          text=text_feat))
+        r = stand_in.pose['root_positions'].repeat(len(values), 1)
+        known = mask[:, slot]
+        xz = values[:, [slot, slot+2]].clone()
+        for k in range(len(xz)):                              # hold the last conditioned ground point
+            if not known[k] and k:
+                xz[k] = xz[k-1]
+        r[:, 0], r[:, 2] = xz[:, 0], xz[:, 1]
+        local = stand_in.pose['local_rot_mats'].repeat(len(values), 1, 1, 1)
+        feats = stand_in.representation(local, r, to_normalize=False)
+        return (feats[0] if feats.ndim == 3 else feats), {}
+    monkeypatch.setattr(lo, 'sample_segment', fake_sample)
+    follow(policy, start, 6.)
+    assert calls and stand_in.calls == []                     # the history canvas is never used
+    plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
+    assert len(plans) == len(calls) and all(p['generator'] == 'native' and p['transition_frames'] == 5 for p in plans)
+    phases = [p['phase'] for p in plans]
+    assert 'walk' in phases and 'stop' in phases
+    for c, phase in zip(calls, phases):
+        body = c['mask'][:, joints].all(-1)
+        assert c['frames'] == 5+90 and body[:5].all()        # the five transition frames, in full
+        assert c['values'][0, slot] == 0. and c['values'][0, slot+2] == 0.   # moved to the ground origin
+        assert c['text'] is None                              # no text given
+        if phase == 'walk':
+            assert not body[5:].any() and c['mask'][5:, slot].all()   # then only the path, on every frame
+        else:                                                 # the stop plan ends in the standing pose
+            assert body[5+lo.STAND_FROM-1:].all()
+    reach = lo.LocomotionPolicy.__new__(lo.LocomotionPolicy)
+    with pytest.raises(ValueError):
+        lo.LocomotionPolicy.__init__(reach, motion_goal=WALK, text='auto')            # 'auto' is native only
+    with pytest.raises(ValueError):
+        lo.LocomotionPolicy.__init__(reach, motion_goal=WALK, generator='native', transition_frames=0)
+
+
+@pytest.mark.parametrize('gain', [1., 2.])
+def test_approach_gain_aims_past_the_goal_by_what_is_left(tmp_path, gain):
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'near', 'root': {'xy': [.1, 0.]}})
+    policy.approach_gain = gain
+    follow(policy, start, 1.2)
+    walk = policy.model.calls[0]
+    path = walk['values'][:, [policy.root_slot, policy.root_slot+2]].numpy()
+    assert np.linalg.norm(path[-1]-path[0]) == pytest.approx(.1*gain, abs=2e-3)
+
+
+@pytest.mark.parametrize('open_loop', [False, True])
+def test_open_loop_plans_from_the_reference_not_the_body(tmp_path, monkeypatch, open_loop):
+    """With a body that covers half of each step, open loop never moves the plans onto it.
+
+    (The stand-in tracker assumes each plan starts on the body, so the body's own end point is not checked.)"""
+    from kimodo_vla.oracle import locomotion as lo
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'fwd', 'root': {'xy': [.6, 0.]}})
+    policy.generator_mode, policy.segment_frames, policy.segment_steps = 'native', 90, 100
+    policy.transition_frames, policy.walk_steps, policy.open_loop = 5, 50, open_loop
+    rep, stand_in = policy.model.representation, policy.model
+    slot = rep.slice_dict['smooth_root_pos'].start
+
+    def fake_sample(model, values, mask, *, first_heading, text_feat, text_weight, constraint_weight, steps, generator):
+        r = stand_in.pose['root_positions'].repeat(len(values), 1)
+        xz = values[:, [slot, slot+2]].clone()
+        for k in range(1, len(xz)):
+            if not mask[k, slot]:
+                xz[k] = xz[k-1]
+        r[:, 0], r[:, 2] = xz[:, 0], xz[:, 1]
+        feats = stand_in.representation(stand_in.pose['local_rot_mats'].repeat(len(values), 1, 1, 1), r, to_normalize=False)
+        return (feats[0] if feats.ndim == 3 else feats), {}
+    monkeypatch.setattr(lo, 'sample_segment', fake_sample)
+    rows = follow(policy, start, 8., carry=.5)
+    plans = [json.loads(x) for x in (tmp_path/'plans.jsonl').read_text().splitlines()]
+    shifts = [p['anchor_shift_m'] for p in plans]
+    reference = rotation[:2, :2].T @ (np.array(rows[-1]['sent_root_world'][:2])-root[:2])
+    if open_loop:
+        assert max(shifts) == 0.                              # never moved onto the body
+        assert reference[0] == pytest.approx(.6, abs=.06)     # the reference carried out the command
+    else:
+        assert max(shifts) > .05                              # replanned from the body
+    with pytest.raises(ValueError):
+        lo.LocomotionPolicy.__init__(lo.LocomotionPolicy.__new__(lo.LocomotionPolicy), motion_goal=WALK, open_loop=True)
+
+
+def test_native_stop_after_a_turn_stands_facing_the_turned_heading(tmp_path):
+    from kimodo_vla.motion.feature_utils import compute_heading_angle
+    policy, start, rotation, root = make_policy(tmp_path, {'name': 'turn', 'root': {'xy': [0., 0.], 'yaw_deg': 90}})
+    policy.initialize(start)
+    rep = policy.model.representation
+    standing = policy.standing_features.clone()
+    target = policy.heading_features(90.)[0]
+    turned = policy.turned_standing(standing, target)
+    assert torch.allclose(turned[policy.heading_slice], target, atol=1e-4)
+    # the joints turned with it: the hip heading of the decoded pose is the target's
+    def hips(f):
+        return float(compute_heading_angle(rep.inverse(f[None, None], is_normalized=False)['posed_joints'], rep.skeleton)[0, 0])
+    want = float(torch.atan2(target[1], target[0]))
+    assert abs((hips(turned)-want+np.pi) % (2*np.pi)-np.pi) < np.radians(2)
+    assert abs((hips(standing)-want+np.pi) % (2*np.pi)-np.pi) > np.radians(80)
