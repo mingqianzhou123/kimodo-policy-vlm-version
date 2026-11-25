@@ -65,7 +65,7 @@ class Steps:
         self.wrist = np.array([r['wrist_pos'] for r in rows])
 
     def index(self, time):
-        return int(np.clip(np.searchsorted(self.t, time - 1e-6), 0, len(self.t) - 1))
+        return int(np.clip(np.searchsorted(self.t, time - 1e-4), 0, len(self.t) - 1))
 
     def box_at(self, time):
         return self.box[self.index(time)]
@@ -90,7 +90,7 @@ def targets(rounds_rows):
 def in_force(aims, time):
     chosen = aims[0]
     for aim in aims:
-        if aim[0] <= time + 1e-6:
+        if aim[0] <= time + 1e-4:
             chosen = aim
     return chosen
 

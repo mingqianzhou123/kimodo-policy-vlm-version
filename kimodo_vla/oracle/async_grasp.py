@@ -24,6 +24,7 @@ import numpy as np
 from .grasp_policy import BoxGraspPolicy, WristPath, graspable, waypoints
 
 UPDATES = ('blocking', 'fixed', 'anchored')
+CLOCK = 1e-4   # simulator times are float32-like; control steps are 20 ms apart
 
 
 def latency_draws(samples, seed, count=400):
@@ -38,14 +39,14 @@ class BoxLog:
         self.times, self.com, self.quat = [], [], []
 
     def add(self, sample):
-        if self.times and sample['time'] <= self.times[-1] + 1e-9:
+        if self.times and sample['time'] <= self.times[-1] + CLOCK:
             return
         self.times.append(float(sample['time']))
         self.com.append(list(sample['box_com']))
         self.quat.append(list(sample['box_quat']))
 
     def at(self, time):
-        i = int(np.searchsorted(self.times, float(time) + 1e-6)) - 1
+        i = int(np.searchsorted(self.times, float(time) + CLOCK)) - 1
         if i < 0:
             raise ValueError(f'No box pose measured by {time}')
         return self.times[i], self.com[i], self.quat[i]
@@ -97,16 +98,16 @@ class AsyncBoxGraspPolicy(BoxGraspPolicy):
         """(box centre, box quaternion, time the information is from), or None before any answer."""
         if self.target_update == 'fixed':
             k, best = 0, None
-            while self.episode_start + k * self.query_interval <= now + 1e-9:
+            while self.episode_start + k * self.query_interval <= now + CLOCK:
                 asked = self.episode_start + k * self.query_interval
-                if asked + self.latency(k) <= now + 1e-9:
+                if asked + self.latency(k) <= now + CLOCK:
                     best = asked
                 k += 1
             if best is None:
                 return None
             t, com, quat = self.boxes.at(best)
             return com, quat, t
-        if now < self.first_answer() - 1e-9:
+        if now < self.first_answer() - CLOCK:
             return None
         if self.perception is not None:
             return self.perception.estimate(now)

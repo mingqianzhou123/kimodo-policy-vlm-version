@@ -73,6 +73,8 @@ def test_fixed_aims_at_the_answer_one_delay_old(tmp_path):
     assert policy.round.notes['target_info_time'] == pytest.approx(1.5)        # asked at 1.5, answered at 3.0
     np.testing.assert_allclose(policy.round.box_pos, sliding(1.5), atol=1e-9)
     assert policy.belief(2.99)[2] == pytest.approx(1.0) and policy.belief(1.49) is None
+    policy.episode_start = 1.0000004                                 # simulator clocks drift in the last digits
+    assert policy.belief(2.5)[2] == pytest.approx(1.0)
 
 
 def test_blocking_mode_keeps_the_latched_pose(tmp_path):
