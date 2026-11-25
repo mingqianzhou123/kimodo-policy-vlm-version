@@ -14,6 +14,11 @@ with the box placed inside the fixed region: exp1-region (static, the acceptance
 exp1-move003 / exp1-move010 (moving), and with the long delays (194 / 383 steps)
 exp1-long-* / exp1-xlong-* static, move003 and move010.
 
+``wide`` (2026-11-26) walks again: the box anywhere over the wide range (configs/grasp-loop.json,
+wide), the robot from the task start, the official-way walk. Acceptance seeds run as
+exp1-wide-static (short delay, static), exp1-wide-move003 / -move010, exp1-wide-long-* and
+exp1-wide-xlong-*; ``--debug`` runs the wide debug seeds as dbg-exp1w-<tag>-s<seed> instead.
+
 A run that ends without an episode verdict (the simulator crashed or hung) is moved to
 <runs>/infra-failed/ and tried again, so that only episodes that were actually played count.
 """
@@ -76,9 +81,19 @@ def region_prefix(speed, delay, config):
     return delays[delay] + f'move{int(round(speed * 100)):03d}'
 
 
+def wide_prefix(speed, delay, config):
+    """Fixed run names of the wide conditions: the region names with 'wide-' after 'exp1-'."""
+    w = config['wide']
+    names = dict(zip(w['delays_steps'], ('exp1-wide-', 'exp1-wide-long-', 'exp1-wide-xlong-')))
+    if delay not in names or speed not in [0.] + w['speeds_mps']:
+        raise SystemExit(f'No planned wide condition with speed {speed} m/s and delay {delay} steps')
+    return names[delay] + ('static' if speed == 0. else f'move{int(round(speed * 100)):03d}')
+
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--group', choices=['debug', 'heldout', 'map', 'region'], required=True)
+    p.add_argument('--group', choices=['debug', 'heldout', 'map', 'region', 'wide'], required=True)
+    p.add_argument('--debug', action='store_true', help='Wide group: the wide debug seeds, named dbg-exp1w-<tag>-s<seed>')
     p.add_argument('--tag', required=True, help='Names this evaluation, e.g. 20261124-r1')
     p.add_argument('--gpus', type=int, nargs='+', required=True)
     p.add_argument('--prefix', help='Only for debug seeds; the default is dbg-exp1')
@@ -94,10 +109,27 @@ if __name__ == '__main__':
     jobs, lock = queue.Queue(), threading.Lock()
     shared = ['--gpu-min-free-mib', '16384'] if args.per_gpu > 1 else []
     delay = ['--latch-delay-steps', str(args.latch_delay_steps)]
-    if args.group in ('map', 'region'):
+    if args.group == 'wide':
+        w = config['wide']
+        group = w['seeds']['debug' if args.debug else 'accept']
+        if args.prefix or not set(args.seeds or group) <= set(group) or '--start-at-stance' in args.extra:
+            raise SystemExit('Wide runs have fixed names, their own seeds and start at the task position')
+        conditions = ([tuple(map(float, c.split(':'))) for c in args.conditions] if args.conditions
+                      else [(args.speed, args.latch_delay_steps)])
+        steps = ['--steps', str(w['episode_steps'])] if w.get('episode_steps') else []
+        for speed, delay in conditions:
+            prefix = wide_prefix(speed, int(delay), config)
+            if args.debug:
+                prefix = 'dbg-exp1w' + prefix[len('exp1-wide'):]
+            for seed in args.seeds or group:
+                jobs.put((f'{prefix}-{args.tag}-s{seed}', seed, ['--box-wide', '--native-walk', '--box-speed', str(speed),
+                          '--latch-delay-steps', str(int(delay)), *steps, *shared]))
+    if args.group in ('map', 'region', 'wide'):
         if args.prefix or args.seeds and args.group == 'map' or '--start-at-stance' in args.extra:
             raise SystemExit('Map and region runs have fixed names and start where they are placed')
-        if args.group == 'map':
+        if args.group == 'wide':
+            pass
+        elif args.group == 'map':
             from arena.box_layout import cell_name, map_cells
             for i, cell in enumerate(map_cells(config)):
                 values = [cell[k] for k in ('depth', 'lateral', 'yaw', 'extra')]

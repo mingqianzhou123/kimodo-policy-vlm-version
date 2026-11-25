@@ -209,5 +209,91 @@
   "long_delay_steps": 194,
   "_conditions": "Changed 2026-11-25 by the user's decision: speeds 0.03 and 0.10 m/s only (0.30 on a 10 cm segment only jitters like 0.10); delays 75 steps (local Qwen, 1.37 s), 194 (GPT-6.2 Astra median 3.88 s), 383 (Gemini 4 Argon median 7.66 s); every condition on the region seeds.",
   "xlong_delay_steps": 383
+ },
+ "wide": {
+  "_about": "The robot walks from the task's start every round (--box-wide --native-walk). The box is at a seeded place: depth (box centre behind the table's near edge) in the range validated standing still, world y over the task's own reset range, yaw within +-max_yaw_deg. The walk is the official-way Kimodo walk of experiment two (kimodo_vla/oracle/grasp_walk.py) to the stance rule moved back by stance_extra_m (validated standing still) and sideways so that the box ends box_lateral_m to the robot's left: -0.05 is the middle of the lateral span validated standing still (-0.10 to 0).",
+  "depth_m": [
+   0.12,
+   0.2
+  ],
+  "box_y_m": [
+   -5.63,
+   -3.92
+  ],
+  "_box_y": "Task reset range of the box (move_pickplace_box_g1_29dof_dex3_wholebody), 1.71 m; every yaw up to 45 degrees keeps the box fully over the table top (y from -6.237 to -3.763) at both ends.",
+  "max_yaw_deg": 45,
+  "stance_extra_m": 0.05,
+  "box_lateral_m": -0.05,
+  "walk": {
+   "_about": "Experiment two's native setting (native-generation-20261125.md): 1 s replans of 5 s segments, 5 transition frames, approach gain 2, no text, 100 DDIM steps, 0.35 m/s path, stop within 5 cm.",
+   "walk_steps": 50,
+   "segment_seconds": 5.0,
+   "segment_steps": 100,
+   "transition_frames": 5,
+   "approach_gain": 2.0,
+   "speed_m_s": 0.35,
+   "tolerance_m": 0.05
+  },
+  "segment_y_m": [
+   -5.63,
+   -3.92
+  ],
+  "speeds_mps": [
+   0.03,
+   0.1
+  ],
+  "delays_steps": [
+   75,
+   194,
+   383
+  ],
+  "seeds": {
+   "debug": [
+    1200,
+    1201,
+    1202,
+    1203,
+    1204,
+    1205,
+    1206,
+    1207,
+    1208,
+    1209,
+    1210,
+    1211
+   ],
+   "accept": [
+    8000,
+    8001,
+    8002,
+    8003,
+    8004,
+    8005,
+    8006,
+    8007,
+    8008,
+    8009,
+    8010,
+    8011,
+    8012,
+    8013,
+    8014,
+    8015,
+    8016,
+    8017,
+    8018,
+    8019,
+    8020,
+    8021,
+    8022,
+    8023,
+    8024,
+    8025,
+    8026,
+    8027,
+    8028,
+    8029
+   ]
+  }
  }
 }

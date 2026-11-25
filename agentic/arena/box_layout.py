@@ -51,6 +51,20 @@ def in_region(seed, config):
             'segment_y': [stand['robot_y_m'] + v for v in region['lateral_m']]}
 
 
+def wide(seed, config):
+    """A seeded placement over the wide range (configs/grasp-loop.json, ``wide``); the robot stays at
+    the task's start and walks. Drawn in the same order as ``in_region`` and independent of the
+    speed and the delay, so every condition gets the same box start, yaw and direction per seed."""
+    w = config['wide']
+    rng = np.random.default_rng(seed)
+    depth = rng.uniform(*w['depth_m'])
+    y = rng.uniform(*w['box_y_m'])
+    yaw = rng.uniform(-w['max_yaw_deg'], w['max_yaw_deg'])
+    direction = int(rng.choice([-1, 1]))
+    return {'depth_m': float(depth), 'yaw_deg': float(yaw), 'box_xy': [config['scene']['table_edge_x_m'] + depth, float(y)],
+            'robot_xy': None, 'direction': direction, 'segment_y': [float(v) for v in w['segment_y_m']]}
+
+
 def supported(box_xy, yaw_deg, half, table):
     """The centre of mass is over the table top and every corner stays above it sideways."""
     c, s = abs(np.cos(np.radians(yaw_deg))), abs(np.sin(np.radians(yaw_deg)))
