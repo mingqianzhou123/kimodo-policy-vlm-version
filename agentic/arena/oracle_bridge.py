@@ -48,7 +48,7 @@ def install_oracle_bridge():
                                    env=env, provider=provider, layout=hammer_layout())
             apply_hands = provider._apply_hand_binary_targets
             # The policy's hand channel is ignored: the right hand follows the gate, the left stays open.
-            provider._apply_hand_binary_targets = lambda left_closed, right_closed: apply_hands(*loop.hands())
+            provider._apply_hand_binary_targets = lambda left_closed, right_closed: loop.command_hands(apply_hands)
         elif grasp:
             from arena.grasp_loop import GraspLoop
             from arena.grasp_scene import drive_box, load_layout, read_contact

@@ -108,6 +108,16 @@ class HammerGraspLoop:
     def hands(self):
         return False, self.gate.closed
 
+    def command_hands(self, apply_hands):
+        """Set both hands' targets: left open, right from the gate. A closed right hand goes
+        ``close_amount`` of the way from Arena's open pose to its closed fist (1: the fist)."""
+        apply_hands(*self.hands())
+        amount = self.cfg['policy'].get('close_amount', 1.)
+        if self.gate.closed and amount != 1. and self.provider is not None:
+            opened = np.asarray(self.provider._get_hand_pose_from_binary('right', False))
+            fist = np.asarray(self.provider._get_hand_pose_from_binary('right', True))
+            self.provider._right_hand_target[:] = opened + amount * (fist - opened)
+
     def release(self):
         self.gate.cancel()
         self.gate.closed = False

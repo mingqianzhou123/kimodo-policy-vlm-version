@@ -28,6 +28,7 @@
   "gate_timeout_s": 2.5,
   "reach_feedback_gain": 0.7,
   "reach_feedback_max_m": 0.12,
+  "close_amount": 1.0,
   "grip_s": 0.5,
   "lift_m": 0.2,
   "lift_s": 1.5,
