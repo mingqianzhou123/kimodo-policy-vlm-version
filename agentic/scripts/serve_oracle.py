@@ -48,6 +48,7 @@ p.add_argument('--grasp-loop',help='Grasp loop configuration (JSON); selects the
 p.add_argument('--grasp-task',choices=['box','hammer'],default='box',help='Grasp loop: the box, or the one-handed DoubleDesk hammer')
 p.add_argument('--latch-delay-steps',type=int,default=75)
 p.add_argument('--stand-still',action='store_true',help='Grasp loop: never walk, reach from where the robot stands')
+p.add_argument('--native-walk',action='store_true',help='Grasp loop: walk the official Kimodo way (settings: the configuration\'s wide section)')
 p.add_argument('--vlm-model')
 p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
 p.add_argument('--vlm-python',default=sys.executable)
@@ -74,8 +75,9 @@ elif a.grasp_loop:
     if a.grasp_task == 'hammer':
         from kimodo_vla.oracle.hammer_policy import HammerGraspPolicy
         policy_class = HammerGraspPolicy
-    extra = dict(config=json.loads(Path(a.grasp_loop).read_text())['policy'], latch_delay_steps=a.latch_delay_steps,
-                 stand_still=a.stand_still)
+    grasp_config = json.loads(Path(a.grasp_loop).read_text())
+    extra = dict(config=grasp_config['policy'], latch_delay_steps=a.latch_delay_steps,
+                 stand_still=a.stand_still, native_walk=grasp_config['wide'] if a.native_walk else None)
 elif a.vlm_model:
     from kimodo_vla.vlm.policy import VisualTargetPolicy
     if a.mode!='hold' or a.trajectory_projection!='ik-hold':raise ValueError('Visual mode requires the standing IK-hold backend')
