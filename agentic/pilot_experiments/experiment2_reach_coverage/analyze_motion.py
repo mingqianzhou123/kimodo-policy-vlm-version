@@ -114,13 +114,16 @@ def analyze(run, fk=None):
         command = np.array(goal['root']['xy'], dtype=float)
         distance = float(np.linalg.norm(command))
         local = (root[:, :2]-np.array(start['root_pos'])[:2]) @ heading[:2, :2]
-        along = command/distance
-        yaw = np.degrees([np.arctan2(*(heading.T @ r)[[1, 0], 0]) for r in rotation])
-        out['root'] = {'commanded_m': distance, 'direction': along.tolist(),
-                       'completion': float(local[-1] @ along)/distance,
-                       'final_error_cm': 100*float(np.linalg.norm(local[-1]-command)),
-                       'sideways_cm': 100*float(abs(along[0]*local[-1, 1]-along[1]*local[-1, 0])),
+        yaw = np.degrees(np.unwrap([np.arctan2(*(heading.T @ r)[[1, 0], 0]) for r in rotation]))
+        out['root'] = {'commanded_m': distance, 'final_error_cm': 100*float(np.linalg.norm(local[-1]-command)),
                        'final_yaw_deg': float(yaw[-1]), 'max_abs_yaw_deg': float(abs(yaw).max())}
+        if distance > 0:
+            along = command/distance
+            out['root'].update(direction=along.tolist(), completion=float(local[-1] @ along)/distance,
+                               sideways_cm=100*float(abs(along[0]*local[-1, 1]-along[1]*local[-1, 0])))
+        if goal['root'].get('yaw_deg'):   # a turn on the spot: completion is of the angle, error is of the position
+            out['root'].update(completion=float(yaw[-1])/goal['root']['yaw_deg'],
+                               yaw_error_deg=float(yaw[-1]-goal['root']['yaw_deg']), sideways_cm=None)
     if target.get('active_sides'):
         i = ('left', 'right').index(target['active_sides'][0])
         wrist_goal = np.array(target['targets_world'])[i, 0]
@@ -156,9 +159,10 @@ def markdown(results):
         lines += ['| 运行 | 跌倒 | 完成比例 | 终点误差 cm | 横向偏移 cm | 最终偏航 ° | 走了多久 s | 超时 |', '|---|---|---:|---:|---:|---:|---:|---|']
         for r in walks:
             t, w = r['phase_times_s'], r['root']
-            walked = t['stop']-t['walk'] if 'stop' in t else None
+            ended = t.get('stop', t.get('hold'))   # walks on recorded cycles have no stop plan
+            walked = ended-t['walk'] if ended is not None and 'walk' in t else None
             lines.append(f"| {r['goal']}-s{r['seed']} | {'是' if r['fell'] else '否'} | {100*w['completion']:.0f}% | {w['final_error_cm']:.1f} | "
-                         f"{w['sideways_cm']:.1f} | {w['final_yaw_deg']:.1f} | {number(walked)} | {'是' if r['walk_timed_out'] or walked is None else '否'} |")
+                         f"{number(w['sideways_cm'])} | {w['final_yaw_deg']:.1f} | {number(walked)} | {'是' if r['walk_timed_out'] or walked is None else '否'} |")
     leans = [r for r in results if 'lean' in r]
     if leans:
         lines += ['', '| 运行 | 跌倒 | 要求 ° | 参考 ° | 实际（保持段均值）° | 实际峰值 ° | 腰关节 参考 / 实际 ° | 骨盆俯仰变化 ° |', '|---|---|---:|---:|---:|---:|---:|---:|']
@@ -200,7 +204,8 @@ def main():
                f"track={result['root_tracking_cm']['mean']:.1f}cm"
         if 'root' in result:
             r = result['root']
-            walked = result['phase_times_s'].get('stop', float('nan'))-result['phase_times_s'].get('walk', float('nan'))
+            t = result['phase_times_s']
+            walked = t.get('stop', t.get('hold', t.get('reach', float('nan'))))-t.get('walk', float('nan'))
             line += f" done={100*r['completion']:.0f}% end={r['final_error_cm']:.1f}cm yaw={r['final_yaw_deg']:.1f} walk={walked:.1f}s timeout={int(result['walk_timed_out'])}"
         g = result['gait']
         line += f" bothfeet ref/act={100*g['reference']['both_moving_share']:.0f}/{100*g['actual']['both_moving_share']:.0f}% feet ref/act={g['reference']['foot_travel_m']:.2f}/{g['actual']['foot_travel_m']:.2f}m"
