@@ -72,6 +72,13 @@
    "stance_extra_m": [0.0, 0.05],
    "first_seed": 9000
   },
+  "region": {
+   "depth_m": [0.15, 0.2],
+   "lateral_m": [-0.3, -0.1],
+   "yaw_deg": [-20, 20],
+   "stance_extra_m": 0.05,
+   "_from": "exp1b-map-20261125-m1-* by report_hammer.py --pick-region: 17 of 18 episodes in the rectangle; fixed 2026-11-25, not to be changed"
+  },
   "motion_max_travel_m": 0.5,
   "inject": {
    "_about": "Step two, fixed 2026-11-25 before any injection run: along the handle (m, + towards the head), across it (m, + away from the robot), turned about the grip point (deg, + counterclockwise from above). Zero level: the region acceptance runs on the same seeds.",
