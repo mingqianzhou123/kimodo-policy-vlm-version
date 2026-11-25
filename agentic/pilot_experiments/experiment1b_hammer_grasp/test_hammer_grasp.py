@@ -182,3 +182,21 @@ def test_launcher_task_switch_keeps_the_box_default():
                  '--hammer-speed', '.1', '--inject', '.01', '0', '0']):
         with pytest.raises(ValueError):
             parse_args(['--run-id', 'x', *bad])
+
+
+def test_a_partial_closing_amount_stops_between_open_and_fist(tmp_path):
+    class Provider:
+        _right_hand_target = np.zeros(7)
+        def _get_hand_pose_from_binary(self, side, closed):
+            return np.full(7, 2.) if closed else np.zeros(7)
+    cfg = {**TEST, 'policy': {**TEST['policy'], 'close_amount': .6}}
+    loop = HammerGraspLoop(tmp_path, cfg, stop=lambda: None, provider=Provider())
+    calls = []
+    def apply(left, right):
+        calls.append((left, right))
+        loop.provider._right_hand_target[:] = loop.provider._get_hand_pose_from_binary('right', right)
+    loop.command_hands(apply)
+    assert calls == [(False, False)] and loop.provider._right_hand_target == pytest.approx(np.zeros(7))
+    loop.gate.closed = True
+    loop.command_hands(apply)
+    assert calls[-1] == (False, True) and loop.provider._right_hand_target == pytest.approx(np.full(7, 1.2))
