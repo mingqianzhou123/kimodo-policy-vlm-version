@@ -142,10 +142,10 @@ def test_the_loop_closes_only_the_right_hand_on_its_own_arrival(tmp_path):
     assert loop.hands() == (False, False)
     for t in np.arange(0, .2, .02):
         loop.before_step(sample(t, target))
-    assert loop.hands() == (False, True)
+    assert loop.hands() == (False, True) and loop.gate.fired_at == pytest.approx(.1)
     info.update(hands='open', event=None, round=1)
     loop.on_plan(info, sample(.3, target))
-    assert loop.hands() == (False, False)
+    assert loop.hands() == (False, False) and loop.gate.fired_at is None
 
 
 def test_yaw_of_quat():

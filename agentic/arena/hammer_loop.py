@@ -81,6 +81,7 @@ class HammerGraspLoop:
         self.run, self.stop, self.env, self.provider = run, stop, env, provider
         self.cfg = config
         self.gate = ArrivalGripperGate(**config['gate'])
+        self.gate.fired_at = None   # read by the bridge, as on the two-handed gate
         self.criteria = Criteria(**config['criteria'])
         scene = config['scene']
         f = math.radians(scene['facing_deg'])
@@ -110,6 +111,7 @@ class HammerGraspLoop:
     def release(self):
         self.gate.cancel()
         self.gate.closed = False
+        self.gate.fired_at = None
 
     # ---- policy side ---------------------------------------------------------------------
     def on_plan(self, info, sample):
@@ -198,9 +200,12 @@ class HammerGraspLoop:
 
     def before_step(self, sample):
         """Decide the right-hand command for this control step from the wrist as measured now."""
-        return self.gate.update(now_s=sample['time'], observation_time_s=sample['time'],
-                                position=sample['wrist_pos'][1], rotation=sample['wrist_rot'][1],
-                                speed_mps=float(np.linalg.norm(sample['wrist_velocity'][1])))
+        closed = self.gate.update(now_s=sample['time'], observation_time_s=sample['time'],
+                                  position=sample['wrist_pos'][1], rotation=sample['wrist_rot'][1],
+                                  speed_mps=float(np.linalg.norm(sample['wrist_velocity'][1])))
+        if closed and self.gate.fired_at is None:
+            self.gate.fired_at = sample['time']
+        return closed
 
     def fingers(self):
         """Right finger joint positions, and the targets the hand is driven to, in FINGERS order."""
