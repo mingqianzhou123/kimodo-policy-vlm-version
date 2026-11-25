@@ -53,6 +53,12 @@ def install_oracle_bridge():
             provider._apply_hand_binary_targets = lambda left_closed, right_closed: apply_hands(
                 left_closed=loop.closed, right_closed=loop.closed)
 
+        stream = None
+        if grasp and os.environ.get('KVLA_FRAME_STREAM'):
+            # Experiment four, part two: head-camera frames for the online tracker (off by default).
+            from arena.frame_stream import FrameStream
+            stream = FrameStream(env, run, int(os.environ['KVLA_FRAME_STREAM']), config['scene']['box_half_m'])
+
         def sample():
             data = env.scene['robot'].data
             root = data.root_state_w[0].detach().cpu().numpy()
@@ -131,6 +137,8 @@ def install_oracle_bridge():
                 raise ValueError(f'Unexpected control timing {last_time} -> {before["time"]}')
             last_time = before['time']
             pending.append(before)
+            if stream is not None:
+                stream(before)
             if loop is not None:
                 loop.before_step(before)
             action = get_action(current_env)

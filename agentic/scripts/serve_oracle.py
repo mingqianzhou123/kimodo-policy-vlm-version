@@ -50,6 +50,10 @@ p.add_argument('--stand-still',action='store_true',help='Grasp loop: never walk,
 p.add_argument('--target-update',choices=['blocking','fixed','anchored'],default='blocking',
                help='Grasp loop: when the reach target is refreshed (kimodo_vla/oracle/async_grasp.py)')
 p.add_argument('--latency-samples',help='Grasp loop: JSON list of measured call latencies in seconds to draw delays from')
+p.add_argument('--perception',choices=['truth','tracker'],default='truth',
+               help="Grasp loop, anchored: where the box is now, from the simulator or from two tracked points")
+p.add_argument('--tracker-source',help='With --perception tracker: folder holding the co-tracker package')
+p.add_argument('--tracker-checkpoint',help='With --perception tracker: CoTracker3 online weights')
 p.add_argument('--vlm-model')
 p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
 p.add_argument('--vlm-python',default=sys.executable)
@@ -80,6 +84,12 @@ elif a.grasp_loop:
         policy_class = AsyncBoxGraspPolicy
         extra.update(target_update=a.target_update,
                      latency_samples=load_latencies(a.latency_samples) if a.latency_samples else None)
+    if a.perception == 'tracker':
+        if a.target_update != 'anchored':
+            raise ValueError('The tracker only replaces the anchored target')
+        sys.path.insert(0, a.tracker_source)
+        from kimodo_vla.vlm.box_tracker import BoxPointTracker
+        extra['perception'] = BoxPointTracker(a.run, extra['config']['box_half_m'], a.tracker_checkpoint)
 elif a.vlm_model:
     from kimodo_vla.vlm.policy import VisualTargetPolicy
     if a.mode!='hold' or a.trajectory_projection!='ik-hold':raise ValueError('Visual mode requires the standing IK-hold backend')

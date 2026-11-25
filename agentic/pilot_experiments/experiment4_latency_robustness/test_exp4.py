@@ -165,3 +165,69 @@ def test_failure_rules_follow_the_record():
 def test_the_target_in_force_is_the_last_aim_before_the_close():
     aims = [(0., [0, 0, 0], 0.), (1.5, [0, .1, 0], 1.5), (2., [0, .2, 0], 2.)]
     assert an.in_force(aims, 1.99)[1] == [0, .1, 0] and an.in_force(aims, 2.)[1] == [0, .2, 0]
+
+
+# ---- part two: camera pose, frame points and the tracker's geometry ---------------------------
+
+from scipy.spatial.transform import Rotation   # noqa: E402
+from arena.camera_pose import backproject, compose, mount, project, transform   # noqa: E402
+from arena.frame_stream import box_points   # noqa: E402
+from kimodo_vla.vlm.box_tracker import box_pose, depth_at, extrapolate   # noqa: E402
+from test_grasp_loop import quat   # noqa: E402
+
+K = np.array([[600., 0, 320], [0, 600., 240], [0, 0, 1]])
+
+
+def test_the_mount_carries_the_camera_with_its_link():
+    link0 = transform([1., 2., 1.2], Rotation.from_euler('z', 30, degrees=True).as_matrix())
+    camera0 = link0 @ transform([.1, 0., .05], Rotation.from_euler('xyz', [-100, 0, -90], degrees=True).as_matrix())
+    offset = mount(link0, camera0)
+    moved = Rotation.from_euler('zy', [45, 10], degrees=True).as_matrix()
+    position, rotation = compose([0., 1., 1.], moved, offset)
+    expected = transform([0., 1., 1.], moved) @ offset
+    np.testing.assert_allclose(position, expected[:3, 3]) and np.testing.assert_allclose(rotation, expected[:3, :3])
+
+
+def test_projection_and_backprojection_invert_each_other():
+    rotation = Rotation.from_euler('xyz', [-120, 0, -90], degrees=True).as_matrix()   # looking forward and down
+    position = np.array([-.9, -4.8, 1.3])
+    points = np.array([[-.45, -4.85, .96], [-.5, -4.75, .9]])
+    uv, depth = project(points, position, rotation, K)
+    assert (depth > 0).all()
+    np.testing.assert_allclose(backproject(uv, depth, position, rotation, K), points, atol=1e-9)
+
+
+@pytest.mark.parametrize('yaw', [-40, 0, 25])
+def test_the_two_box_points_give_back_the_box_pose(yaw):
+    com = [-.45, -4.83, .85]
+    top, edge = box_points(com, quat(yaw), .105)
+    assert top[2] == pytest.approx(.955) and np.linalg.norm(top - edge) == pytest.approx(.105)
+    estimate, q = box_pose(top, edge, .105)
+    np.testing.assert_allclose(estimate, com, atol=1e-12)
+    from kimodo_vla.oracle.grasp_policy import face_yaw
+    assert face_yaw(q) == pytest.approx(face_yaw(quat(yaw)))
+
+
+def test_depth_patch_ignores_holes_and_the_outside():
+    depth = np.full((10, 10), 2.)
+    depth[5, 5] = np.nan
+    np.testing.assert_allclose(depth_at(depth, [[5, 5], [0, 0]]), [2., 2.])
+    assert np.isnan(depth_at(depth, [[20, 3]])[0])
+
+
+def test_extrapolation_moves_points_with_their_fitted_velocity():
+    times = np.arange(6) * .04
+    points = np.stack([[[0., .1 * t, 0.], [1., .1 * t, 0.]] for t in times])
+    moved, velocity = extrapolate(times, points, times[-1] + .5, 6)
+    np.testing.assert_allclose(velocity[:, 1], .1) and np.testing.assert_allclose(moved[:, 1], .1 * (times[-1] + .5))
+    still, v = extrapolate(times[:1], points[:1], 3., 6)
+    np.testing.assert_allclose(still, points[0]) and not v.any()
+
+
+def test_tracker_flag_needs_the_anchored_target():
+    a = parse_args(['--run-id', 'x', '--grasp-loop', '--stand-still', '--box-in-region', '--target-update', 'anchored',
+                    '--perception', 'tracker'])
+    assert a.perception == 'tracker'
+    with pytest.raises(ValueError):
+        parse_args(['--run-id', 'x', '--grasp-loop', '--stand-still', '--box-in-region', '--target-update', 'fixed',
+                    '--perception', 'tracker'])

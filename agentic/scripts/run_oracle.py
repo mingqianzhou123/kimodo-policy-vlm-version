@@ -56,6 +56,9 @@ def parse_args(argv=None):
         'replan at where the box is now')
     p.add_argument('--latency-samples',type=Path,help='Grasp loop with --stand-still: draw each call\'s delay from these '
         'measured latencies (JSON list of seconds) instead of --latch-delay-steps')
+    p.add_argument('--perception',choices=['truth','tracker'],default='truth',help='With --target-update anchored: '
+        'tracker replaces the simulator\'s box pose by two points followed by CoTracker3 online in head-camera frames '
+        '(25 Hz, depth back-projection); the first pixels come from the simulator, standing in for one pointing answer')
     p.add_argument('--diffusion-steps',type=int,default=50)
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
@@ -114,6 +117,8 @@ def parse_args(argv=None):
         raise ValueError('--stand-still belongs to the grasp loop and replaces --start-at-stance')
     if a.box_speed and not a.box_in_region or a.box_speed<0:
         raise ValueError('--box-speed needs --box-in-region and a non-negative speed')
+    if a.perception!='truth' and a.target_update!='anchored':
+        raise ValueError('--perception tracker goes with --target-update anchored')
     if (a.target_update!='blocking' or a.latency_samples) and not a.stand_still:
         raise ValueError('--target-update and --latency-samples belong to the grasp loop with --stand-still')
     if a.grasp_loop:
@@ -259,6 +264,10 @@ def main():
         if a.stand_still:policycmd.append('--stand-still')
         if a.target_update!='blocking':policycmd+=['--target-update',a.target_update]
         if a.latency_samples:policycmd+=['--latency-samples',str(a.latency_samples.resolve())]
+        if a.perception=='tracker':
+            policycmd+=['--perception','tracker','--tracker-source',str(CACHE/'sources/co-tracker'),
+                        '--tracker-checkpoint',str(CACHE/'shared-weights/cotracker3/scaled_online.pth')]
+            env['KVLA_FRAME_STREAM']='2'
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -307,6 +316,7 @@ def main():
         'latch_delay_steps':a.latch_delay_steps if a.grasp_loop else None,'start_at_stance':a.start_at_stance,
         'stand_still':a.stand_still,'layout_request':layout,
         'target_update':a.target_update if a.grasp_loop else None,
+        'perception':a.perception if a.grasp_loop else None,
         'latency_samples':str(a.latency_samples.resolve()) if a.latency_samples else None,
         'latency_samples_sha256':sha(a.latency_samples) if a.latency_samples else None,
         'git_commit':commit,'git_dirty':dirty,
