@@ -193,3 +193,35 @@ def test_a_native_round_already_at_its_stance_does_not_walk(tmp_path):
     for step in range(1, 7):
         policy.advance([standing_sample(policy, step * .02, BOX, root_xy=here)])
     assert policy.round.phase == 'raise' and policy.round.notes['walk_skipped'] and policy.walker.calls == []
+
+
+# ---- the analysis rules written into the record before the data ------------------------------
+
+def test_first_round_causes_follow_the_written_order():
+    import analyze_wide as aw
+    base = dict(label='no_contact', gate_fired=False, clearance_m=.21, lateral_m=-.05, backoff_m=.03)
+    assert aw.first_round_cause(dict(base, label='success')) == 'success'
+    assert aw.first_round_cause(dict(base, gate_fired=True, clearance_m=.40)) == 'after_close'
+    assert aw.first_round_cause(dict(base, clearance_m=.15, backoff_m=.3)) == 'landing'     # landing comes first
+    assert aw.first_round_cause(dict(base, lateral_m=.02)) == 'landing'
+    assert aw.first_round_cause(dict(base, backoff_m=.2)) == 'backoff'
+    assert aw.first_round_cause(base) == 'other'
+    assert aw.landing_ok(dict(base, clearance_m=.27, lateral_m=-.105)) and not aw.landing_ok(dict(base, clearance_m=None))
+
+
+def test_out_of_reach_needs_a_walk_a_failure_and_the_box_outside_the_span():
+    import analyze_wide as aw
+    r = dict(label='no_contact', walked=True, box_rel_lateral_m=-.05, box_depth_m=.16)
+    assert not aw.out_of_reach(r)
+    assert aw.out_of_reach(dict(r, box_rel_lateral_m=-.30)) and aw.out_of_reach(dict(r, box_depth_m=.30))
+    assert not aw.out_of_reach(dict(r, box_rel_lateral_m=-.30, label='success'))
+    assert not aw.out_of_reach(dict(r, box_rel_lateral_m=-.30, walked=False))
+
+
+def test_displacement_bins_and_logistic_fit():
+    import analyze_wide as aw
+    assert aw.bins([0., .029, .03, .07, .2, .9]).tolist() == [0, 0, 1, 2, 4, 6]
+    x = np.r_[np.zeros(20), np.full(20, 10.)]
+    y = np.r_[np.ones(18), np.zeros(2), np.ones(4), np.zeros(16)]
+    w, ll = aw.logistic(x, y)
+    assert w[1] < 0 and 1 / (1 + np.exp(-w[0])) == pytest.approx(.9, abs=1e-6) and ll < 0

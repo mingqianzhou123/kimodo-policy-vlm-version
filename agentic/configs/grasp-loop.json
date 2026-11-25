@@ -294,6 +294,8 @@
     8028,
     8029
    ]
-  }
+  },
+  "episode_steps": 2500,
+  "_episode_steps": "Every wide condition, static and moving: the longest delay (383 steps) still fits two whole rounds with the walk (measured on the debug seeds), see wide-range-20261125.md"
  }
 }

@@ -20,9 +20,11 @@ from paths import AGENTIC as ROOT, RUNS
 
 CONFIG = json.loads((ROOT/'configs/grasp-loop.json').read_text())
 EDGE = CONFIG['scene']['table_edge_x_m']
-# The landing window: where the robot stood in the stand-still region acceptance (validated).
-CLEARANCE_M = (.21, .27)          # pelvis to the table edge after settling, rule stance + 5 cm
-LATERAL_M = (-.10, 0.)            # box centre to the robot's left (negative: to its right)
+# The landing window, from the stand-still measurements: pelvis to the table edge over both stance
+# rows of the workspace map (rule stance 17-22 cm, rule + 5 cm 21-27 cm after settling), and the box
+# inside the validated lateral span (-10 to 0 cm; measured -9.3 to +0.1 cm in the region runs).
+CLEARANCE_M = (.17, .27)
+LATERAL_M = (-.105, .005)         # box centre to the robot's left (negative: to its right)
 BACKOFF_M = .15                   # the pelvis backed away this far while the hands went out
 # Out of reach when the hands should be there: the validated region plus half a map step.
 REACH_LATERAL_M = (-.15, .05)
@@ -114,6 +116,12 @@ def rounds(run):
     return out
 
 
+def within_1450(run):
+    """Succeeded before the old 1450-step (29 s) limit would have ended the episode."""
+    r = run['result']
+    return bool(r['success'] and r['completion_s'] + r['clock_start'] <= 1450 * .02 + 1e-6)
+
+
 def landing_ok(r):
     return (r['clearance_m'] is not None and CLEARANCE_M[0] <= r['clearance_m'] <= CLEARANCE_M[1]
             and r['lateral_m'] is not None and LATERAL_M[0] <= r['lateral_m'] <= LATERAL_M[1])
@@ -184,6 +192,50 @@ def logistic(x, y):
     return w, float(np.sum(y * np.log(p) + (1 - y) * np.log(1 - p)))
 
 
+def lr_test(firsts):
+    """Success ~ lateral displacement, against + delay and speed levels (first rounds of moving
+    conditions): displacement coefficient per cm with its Wald p, and the likelihood-ratio p."""
+    from scipy.stats import chi2, norm
+    y = np.array([x['label'] == 'success' for x in firsts], dtype=float)
+    d = np.array([x['disp_lateral_m'] * 100 for x in firsts])
+    w, ll = logistic(d, y)
+    X = np.c_[np.ones(len(d)), d]
+    p = 1 / (1 + np.exp(-X @ w))
+    cov = np.linalg.inv(X.T @ (X * (p * (1 - p))[:, None]))
+    delays = sorted({x['delay_s'] for x in firsts})
+    speeds = sorted({x['speed'] for x in firsts})
+    extra = [[x['delay_s'] == v for v in delays[1:]] + [x['speed'] == v for v in speeds[1:]] for x in firsts]
+    w2, ll2 = logistic(np.c_[d, np.array(extra, dtype=float)], y)
+    df = len(delays) - 1 + len(speeds) - 1
+    return {'per_cm': float(w[1]), 'p_displacement': float(2 * norm.sf(abs(w[1]) / np.sqrt(cov[1, 1]))),
+            'p_conditions': float(chi2.sf(2 * (ll2 - ll), df)), 'n': len(y)}
+
+
+def wrecked(run, rows):
+    """Per round after the first: did the box move > 5 cm, turn > 20 degrees, topple or leave the wide
+    range between this latch and the one before (from the drive's release when it was driven)?"""
+    out, steps = [], run['steps']
+    w = CONFIG['wide']
+    released = run['result'].get('drive_released_at')
+    for prev, cur in zip(rows, rows[1:]):
+        t0 = prev['latch'] if released is None else max(prev['latch'], released)
+        if released is None and float(run['layout'].get('speed_mps') or 0.) > 0:
+            t0 = cur['latch']   # never touched: still driven, nothing to count
+        a, b = at(steps, t0), at(steps, cur['latch'])
+        yaw = lambda q: np.degrees(2 * np.arctan2(q[3], q[0]))
+        turn = abs((yaw(b['box_quat']) - yaw(a['box_quat']) + 180) % 360 - 180)
+        w_, x, y_, z = b['box_quat']
+        up = 1 - 2 * (x * x + y_ * y_)
+        depth = b['box'][0] - EDGE
+        out.append({'moved_m': float(np.linalg.norm(np.subtract(b['box'][:2], a['box'][:2]))), 'turn_deg': float(turn),
+                    'toppled': bool(up < np.cos(np.radians(30))),
+                    'outside': not (w['segment_y_m'][0] <= b['box'][1] <= w['segment_y_m'][1]
+                                    and w['depth_m'][0] <= depth <= w['depth_m'][1])})
+    for o in out:
+        o['wrecked'] = o['moved_m'] > .05 or o['turn_deg'] > 20 or o['toppled'] or o['outside']
+    return out
+
+
 def table(rows, keys):
     print('\t'.join(keys))
     for r in rows:
@@ -195,6 +247,7 @@ def static(pattern):
     first = [rounds(r)[0] for r in runs]
     success = sum(r['result']['success'] for r in runs)
     print(f'episodes {len(runs)}  success {success}  first-round success {sum(f["label"] == "success" for f in first)}')
+    print(f'success within 1450 steps (29 s): {sum(within_1450(r) for r in runs)}')
     causes = [first_round_cause(f) for f in first]
     print('first round:', {c: causes.count(c) for c in ('success', 'landing', 'backoff', 'after_close', 'other')})
     inside = [f for f in first if landing_ok(f)]
@@ -224,7 +277,8 @@ def dynamic(pattern):
         rs = by[key]
         done = [r['result']['completion_s'] for r in rs if r['result']['success']]
         print(f'{key}\t{len(rs)}\t{sum(r["result"]["success"] for r in rs)}\t'
-              f'{sum(r["result"]["first_attempt_success"] for r in rs)}\t{np.median(done) if done else None}')
+              f'{sum(r["result"]["first_attempt_success"] for r in rs)}\t{np.median(done) if done else None}\t'
+              f'within 1450 steps {sum(within_1450(r) for r in rs)}')
     moving = [x for x in every if x['speed'] > 0 and 'disp_m' in x]
     print('\nall rounds of moving conditions, by lateral displacement at close (or gate give-up)')
     for name, key in (('lateral', 'disp_lateral_m'), ('total', 'disp_m')):
@@ -249,6 +303,33 @@ def dynamic(pattern):
                 med = lambda k: float(np.median([x[k] for x in sel]))
                 print(f'{key}\t{med("wait_s"):.2f} / {med("walk_s"):.2f} / {med("reach_s"):.2f}\t'
                       f'{med("box_moved_wait_m"):.3f} / {med("box_moved_walk_m"):.3f} / {med("box_moved_reach_m"):.3f}')
+        print('logistic (first rounds of moving conditions):', lr_test(firsts))
+    print('\nverdict per delay (plan text): static, 80% line, moving rates')
+    for delay in sorted({k[1] for k in by}):
+        static_ = by.get((0., delay), [])
+        base = sum(r['result']['success'] for r in static_) / max(len(static_), 1)
+        cells = []
+        for speed in CONFIG['wide']['speeds_mps']:
+            rs = by.get((speed, delay), [])
+            rate = sum(r['result']['success'] for r in rs) / max(len(rs), 1)
+            word = 'speed only' if rate >= .8 * base else 'drop >= 25 pp' if base - rate >= .25 else 'between'
+            cells.append(f'{speed}: {rate:.3f} ({100 * (rate - base):+.1f} pp, {word})')
+        print(f'delay {delay}: static {base:.3f}, 80% {.8 * base:.3f}; ' + '; '.join(cells))
+    print('\nretries after a failed first round (moving and static):')
+    for key in sorted(by, key=lambda k: (k[1], k[0])):
+        failed = intact_n = intact_ok = wrecked_n = wrecked_ok = 0
+        for r in by[key]:
+            rows = rounds(r)
+            if rows[0]['label'] == 'success':
+                continue
+            failed += 1
+            w = wrecked(r, rows)
+            ok = r['result']['success']
+            if w and w[0]['wrecked']:
+                wrecked_n, wrecked_ok = wrecked_n + 1, wrecked_ok + ok
+            else:
+                intact_n, intact_ok = intact_n + 1, intact_ok + ok
+        print(f'{key}: first failed {failed}; scene intact {intact_n} (rescued {intact_ok}); wrecked {wrecked_n} (rescued {wrecked_ok})')
     print('\nround labels incl. out of reach:')
     for x in every:
         x['out_of_reach'] = out_of_reach(x)
