@@ -123,6 +123,7 @@ def plot_map(results, config, path):
     """One panel per stance and handle yaw: depth against lateral, coloured by outcome."""
     import matplotlib
     matplotlib.use('Agg')
+    matplotlib.rcParams['svg.fonttype'] = 'none'   # text stays text: a small file that diffs
     import matplotlib.pyplot as plt
     from arena.hammer_layout import placeable
     m = config['stand']['map']
