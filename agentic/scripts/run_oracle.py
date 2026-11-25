@@ -76,6 +76,15 @@ def parse_args(argv=None):
         'seconds (a start-up hang); off by default')
     p.add_argument('--sim-cache-seed',type=Path,help='Copy this folder (a finished run\'s runtime/cache) into the new '
         'run\'s simulator cache before start, so that DoubleDesk textures are not rebuilt; off by default')
+    p.add_argument('--target-update',choices=['blocking','fixed','anchored'],default='blocking',help='Grasp loop with '
+        '--stand-still (experiment four): blocking latches once per round; fixed re-aims every replan at the newest '
+        'answer of a model asked every 0.5 s, each answer one delay late; anchored waits one delay, then aims every '
+        'replan at where the box is now')
+    p.add_argument('--latency-samples',type=Path,help='Grasp loop with --stand-still: draw each call\'s delay from these '
+        'measured latencies (JSON list of seconds) instead of --latch-delay-steps')
+    p.add_argument('--perception',choices=['truth','tracker'],default='truth',help='With --target-update anchored: '
+        'tracker replaces the simulator\'s box pose by two points followed by CoTracker3 online in head-camera frames '
+        '(25 Hz, depth back-projection); the first pixels come from the simulator, standing in for one pointing answer')
     p.add_argument('--diffusion-steps',type=int,default=50)
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
@@ -146,6 +155,12 @@ def parse_args(argv=None):
         raise ValueError('--box-speed needs --box-in-region or --box-wide and a non-negative speed')
     if (a.box_wide or a.native_walk) and (not a.grasp_loop or a.stand_still or a.start_at_stance):
         raise ValueError('--box-wide and --native-walk belong to the grasp loop from the task start')
+    if hammer and (a.target_update!='blocking' or a.latency_samples):
+        raise ValueError('--target-update and --latency-samples are for the box (experiment four)')
+    if a.perception!='truth' and a.target_update!='anchored':
+        raise ValueError('--perception tracker goes with --target-update anchored')
+    if (a.target_update!='blocking' or a.latency_samples) and not a.stand_still:
+        raise ValueError('--target-update and --latency-samples belong to the grasp loop with --stand-still')
     if a.grasp_loop:
         a.dynamics_profile=a.dynamics_profile or 'actuator'
     if a.settled_goal:
@@ -303,6 +318,12 @@ def main():
         if hammer:policycmd+=['--grasp-task','hammer']
         if a.stand_still:policycmd.append('--stand-still')
         if a.native_walk:policycmd.append('--native-walk')
+        if a.target_update!='blocking':policycmd+=['--target-update',a.target_update]
+        if a.latency_samples:policycmd+=['--latency-samples',str(a.latency_samples.resolve())]
+        if a.perception=='tracker':
+            policycmd+=['--perception','tracker','--tracker-source',str(CACHE/'sources/co-tracker'),
+                        '--tracker-checkpoint',str(CACHE/'shared-weights/cotracker3/scaled_online.pth')]
+            env['KVLA_FRAME_STREAM']='2'
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -351,6 +372,10 @@ def main():
         'grasp_attempted':a.grasp_loop,'success_rate_evaluation':a.grasp_loop,'seed':a.seed,
         'latch_delay_steps':a.latch_delay_steps if a.grasp_loop else None,'start_at_stance':a.start_at_stance,
         'stand_still':a.stand_still,'layout_request':layout,'native_walk':a.native_walk,
+        'target_update':a.target_update if a.grasp_loop else None,
+        'perception':a.perception if a.grasp_loop else None,
+        'latency_samples':str(a.latency_samples.resolve()) if a.latency_samples else None,
+        'latency_samples_sha256':sha(a.latency_samples) if a.latency_samples else None,
         'git_commit':commit,'git_dirty':dirty,
         # Keys keep the pre-merge layout so runs stay comparable with those before 2026-11-23.
         'source_sha256':{str(p.relative_to(base)):sha(p) for base,directory in ((REPO,'kimodo_vla'),(ROOT,'arena'),(ROOT,'scripts'),(ROOT,'pilot_experiments'))
@@ -435,7 +460,8 @@ def main():
                     episode_result['video_path']=str(video.rename(video.with_name(video.stem.rsplit('__',1)[0]+'__grasp_success.mp4')))
                 result.update(termination='success' if result['success'] else episode_result['failure_reason'],
                     seed=a.seed,latch_delay_steps=a.latch_delay_steps,start_at_stance=a.start_at_stance,
-                    stand_still=a.stand_still,native_walk=a.native_walk,**({'task':a.task} if hammer else {}),
+                    stand_still=a.stand_still,native_walk=a.native_walk,target_update=a.target_update,
+                    latency_samples_sha256=record['latency_samples_sha256'],**({'task':a.task} if hammer else {}),
                     episode_steps=episode_result['episode_steps'],
                     max_steps=a.steps,video_path=episode_result.get('video_path'),
                     arena={k:episode_result.get(k) for k in ('success','failure_reason','final_reward','max_reward')})

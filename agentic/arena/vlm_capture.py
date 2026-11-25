@@ -22,8 +22,15 @@ def capture(env,run,camera_name='front_camera'):
     rgb=cpu(data.output['rgb'])[...,:3]
     depth=cpu(data.output['distance_to_image_plane']).squeeze(-1)
     path=Path(run)/'vlm-capture.npz'
+    # The pose IsaacLab reports stays at the spawn pose (read from USD, never written back by
+    # physics); the live one is the camera's link pose times its fixed mount (camera_pose.py).
+    live_position,live_rotation=cpu(data.pos_w),rotation_wxyz(cpu(data.quat_w_ros))
+    if '/Robot/' in str(getattr(camera.cfg,'prim_path','')):   # mounted on the robot (not the world camera or a test stand-in)
+        from arena.camera_pose import LiveCamera
+        live_position,live_rotation=LiveCamera(env,camera_name).pose()
     np.savez_compressed(path,rgb=rgb,depth=depth,K=cpu(data.intrinsic_matrices),
-        camera_position=cpu(data.pos_w),camera_rotation=rotation_wxyz(cpu(data.quat_w_ros)),
+        camera_position=live_position,camera_rotation=live_rotation,
+        camera_position_usd=cpu(data.pos_w),camera_rotation_usd=rotation_wxyz(cpu(data.quat_w_ros)),
         time=float(env.sim.current_time),camera_name=camera_name,
         depth_kind='distance_to_image_plane',camera_convention='ros_optical')
     return {'capture_path':str(path),'time':float(env.sim.current_time),'camera_name':camera_name}
