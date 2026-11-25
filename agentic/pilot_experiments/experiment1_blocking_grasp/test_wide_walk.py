@@ -225,3 +225,13 @@ def test_displacement_bins_and_logistic_fit():
     y = np.r_[np.ones(18), np.zeros(2), np.ones(4), np.zeros(16)]
     w, ll = aw.logistic(x, y)
     assert w[1] < 0 and 1 / (1 + np.exp(-w[0])) == pytest.approx(.9, abs=1e-6) and ll < 0
+
+
+def test_a_first_round_cut_by_the_limit_and_hands_closing_in():
+    import analyze_wide as aw
+    run = lambda success, attempts, rows: {'result': {'success': success, 'attempts': [{}] * attempts}, 'policy': rows}
+    walking = [{'round': 0, 'kind': 'latch', 'phase': 'wait'}, {'round': 0, 'kind': 'phase', 'phase': 'walk'}]
+    assert aw.first_round_cut(run(False, 1, walking)) == 'walk'
+    assert aw.first_round_cut(run(True, 1, walking)) is None and aw.first_round_cut(run(False, 2, walking)) is None
+    rows = [{'round': 0, 'hand_box_m': .5}, {'round': 1, 'hand_box_m': .3}, {'round': 2, 'hand_box_m': .4}, {'round': 3}]
+    assert aw.convergence(rows) == [(1, .5, .3, True), (2, .3, .4, False)]

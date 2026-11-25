@@ -52,6 +52,7 @@ def load(pattern):
                 row = json.loads(line)
                 b = row['before']
                 steps.append({'time': b['time'], 'root': b['root_pos'], 'feet': b['foot_pos'], 'box': b['box_com'],
+                              'wrists': b['wrist_pos'],
                               'box_quat': b['box_quat'], 'ref_feet': row.get('reference_foot_world'),
                               'phase': (row.get('grasp') or {}).get('phase'), 'round': (row.get('grasp') or {}).get('round')})
         walks = {}
@@ -111,8 +112,11 @@ def rounds(run):
             end = boxes[3]
             r.update(disp_lateral_m=float(abs(end[1] - latched[1])), disp_m=float(np.linalg.norm(end[:2] - latched[:2])),
                      scripted_m=speed * (reach_end - latch))
-            root = np.asarray(at(steps, reach_end)['root'])
-            r.update(box_rel_lateral_m=float(end[1] - root[1]), box_depth_m=float(end[0] - EDGE))
+            sample = at(steps, reach_end)
+            root = np.asarray(sample['root'])
+            hands = np.mean(np.asarray(sample['wrists'])[:, :2], axis=0)
+            r.update(box_rel_lateral_m=float(end[1] - root[1]), box_depth_m=float(end[0] - EDGE),
+                     hand_box_m=float(np.linalg.norm(hands - end[:2])))
         out.append(r)
     return out
 
@@ -237,6 +241,24 @@ def wrecked(run, rows):
     return out
 
 
+def first_round_cut(run):
+    """Added after part of the data was seen (2026-11-25, at the coordinating session's request):
+    the episode ran out of time before its first round finished (a timeout with a single round that
+    neither succeeded nor reached its release), and the phase it was in when the limit struck."""
+    res = run['result']
+    if res['success'] or len(res['attempts']) > 1:
+        return None
+    last = [r for r in run['policy'] if r['round'] == 0]   # a finished round would have started round 1
+    return last[-1]['phase'] if last else 'unknown'
+
+
+def convergence(rows):
+    """Added after part of the data was seen: per retry round, whether the two hands' midpoint ended
+    nearer the box (ground plane, at closing or at the gate's give-up) than in the round before."""
+    pairs = [(a, b) for a, b in zip(rows, rows[1:]) if 'hand_box_m' in a and 'hand_box_m' in b]
+    return [(b['round'], a['hand_box_m'], b['hand_box_m'], b['hand_box_m'] < a['hand_box_m']) for a, b in pairs]
+
+
 def table(rows, keys):
     print('\t'.join(keys))
     for r in rows:
@@ -331,11 +353,27 @@ def dynamic(pattern):
             else:
                 intact_n, intact_ok = intact_n + 1, intact_ok + ok
         print(f'{key}: first failed {failed}; scene intact {intact_n} (rescued {intact_ok}); wrecked {wrecked_n} (rescued {wrecked_ok})')
+    print('\nepisodes cut by the time limit before their first round finished (added after seeing data):')
+    for key in sorted(by, key=lambda k: (k[1], k[0])):
+        rs = by[key]
+        cut = [(r['seed'], first_round_cut(r)) for r in rs if first_round_cut(r) is not None]
+        done = [r for r in rs if first_round_cut(r) is None]
+        print(f'{key}: as run {sum(r["result"]["success"] for r in rs)}/{len(rs)}; first round finished '
+              f'{sum(r["result"]["success"] for r in done)}/{len(done)}; cut {cut}')
+    print('\nretry rounds: did the hands end nearer the box than in the round before? (added after seeing data)')
+    for key in sorted(by, key=lambda k: (k[1], k[0])):
+        steps_ = [c for r in by[key] for c in convergence(rounds(r))]
+        if steps_:
+            first_two = [c for c in steps_ if c[0] == 1]
+            print(f'{key}: retry rounds {len(steps_)}, nearer {sum(c[3] for c in steps_)}; round 1 vs 0 nearer '
+                  f'{sum(c[3] for c in first_two)}/{len(first_two)}; median hand-box distance by round '
+                  + str({k: round(float(np.median([c[2] for c in steps_ if c[0] == k])), 3)
+                         for k in sorted({c[0] for c in steps_})}))
     print('\nround labels incl. out of reach:')
     for x in every:
         x['out_of_reach'] = out_of_reach(x)
     table(every, ['run', 'round', 'label', 'out_of_reach', 'disp_lateral_m', 'disp_m', 'wait_s', 'walk_s', 'reach_s',
-                  'box_rel_lateral_m', 'box_depth_m'])
+                  'box_rel_lateral_m', 'box_depth_m', 'hand_box_m'])
 
 
 # Stand-still version (stance-dynamic-20261125.md), all rounds of its six moving conditions:
