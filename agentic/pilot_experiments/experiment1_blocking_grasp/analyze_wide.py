@@ -42,8 +42,8 @@ def load(pattern):
             result = json.loads((run/'grasp-result.json').read_text())
         except (OSError, ValueError):
             continue
-        if not result.get('termination'):
-            continue
+        if not result.get('termination') or 'max_steps' not in result:
+            continue   # still running: the launcher writes the episode's verdict and settings at the end
         layout = json.loads((run/'layout.json').read_text()) if (run/'layout.json').is_file() else {}
         policy = [json.loads(x) for x in (run/'rounds.jsonl').read_text().splitlines()]
         steps = []
