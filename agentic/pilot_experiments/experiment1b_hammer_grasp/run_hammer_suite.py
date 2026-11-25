@@ -37,16 +37,23 @@ def verdict(run):
         return None
 
 
-def free_gpu(lock, need_mib=17500):
-    """The GPU with the most free memory, once one has at least ``need_mib``; waits until then."""
+def free_gpu(lock, need_mib=17500, among=None):
+    """The GPU (of ``among``, default all) with the most free memory, once one has at least
+    ``need_mib``; waits until then."""
     while True:
         with lock:
             rows = subprocess.check_output(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,noheader,nounits'],
                                            text=True).split('\n')
-            free = sorted((int(m), int(i)) for i, m in (r.split(',') for r in rows if r.strip()))
+            free = sorted((int(m), int(i)) for i, m in (r.split(',') for r in rows if r.strip())
+                          if among is None or int(i) in among)
             if free and free[-1][0] >= need_mib:
                 return free[-1][1]
         time.sleep(30)
+
+
+def live(name):
+    """Whether a launcher for this run is still running (e.g. left by a previous suite process)."""
+    return subprocess.run(['pgrep', '-f', f'--run-id {name} '], stdout=subprocess.DEVNULL).returncode == 0
 
 
 def work(gpu, jobs, args, lock):
@@ -56,11 +63,15 @@ def work(gpu, jobs, args, lock):
         except queue.Empty:
             return
         run = RUNS/name
-        if args.auto_gpus:
-            gpu = free_gpu(lock)
+        while live(name):
+            time.sleep(30)
         for attempt in range(args.tries):
             if verdict(run):
                 break
+            if args.auto_gpus:
+                gpu = free_gpu(lock)
+            elif args.wait_free:
+                free_gpu(lock, among={gpu})
             if run.exists():
                 failed = RUNS/'infra-failed'/f'{run.name}-{int(time.time())}'
                 failed.parent.mkdir(exist_ok=True)
@@ -78,7 +89,8 @@ def work(gpu, jobs, args, lock):
 def jobs_for(args, config):
     """(run name, seed, launcher arguments) of every episode in the group, in a fixed order."""
     stand, out = config['stand'], []
-    shared = ['--gpu-min-free-mib', '16384'] if args.per_gpu > 1 or getattr(args, 'auto_gpus', None) else []
+    shared = (['--gpu-min-free-mib', '16384'] if args.per_gpu > 1 or getattr(args, 'auto_gpus', None)
+              or getattr(args, 'wait_free', False) else [])
     if args.group == 'map':
         from arena.hammer_layout import cell_name, map_cells, placeable
         for i, cell in enumerate(map_cells(config)):
@@ -123,6 +135,8 @@ if __name__ == '__main__':
     p.add_argument('--only', nargs='+', help='Run only the jobs whose names contain one of these strings')
     p.add_argument('--tries', type=int, default=3)
     p.add_argument('--per-gpu', type=int, default=1, help='Episodes run side by side on each GPU')
+    p.add_argument('--wait-free', action='store_true', help='With --gpus: before each launch wait until that GPU has '
+                   '17.5 GB free (list a GPU twice for two lanes on it)')
     p.add_argument('--dry-run', action='store_true', help='List the runs and stop')
     args, args.extra = p.parse_known_args()
     config = json.loads((ROOT/'configs/hammer-grasp.json').read_text())
