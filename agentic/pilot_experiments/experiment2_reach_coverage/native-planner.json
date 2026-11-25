@@ -1,0 +1,25 @@
+{
+ "note": "Step two of the native-generation work: chaining official-style plans (generator 'native') offline with a perfect tracker. One factor at a time from 'base': transition frames, how far each plan reaches, how much of it is executed before the next plan, text. rollout_kimodo.py --sweep native-planner.json; walk_attribution.py table --sweep <run id>.",
+ "start_from": "exp2-forward-20261124-r1-forward-050-s1000",
+ "seconds": 4.0,
+ "distance_m": 3.0,
+ "turn_deg": 180,
+ "seeds": [1000, 1001, 1002, 1003, 1004],
+ "directions": ["forward", "backward", "left", "right", "turn"],
+ "texts": {"forward": "walk_forward", "backward": "walk_backward", "left": "sidestep_left",
+           "right": "sidestep_right", "turn": "turn_left_in_place"},
+ "base": {"generator": "native", "transition_frames": 5, "segment_seconds": 5.0, "segment_steps": 100,
+          "walk_steps": 50, "text": true, "text_cfg": 2.0, "root_constraints": "dense", "history_frames": 100,
+          "constraint_cfg": 2.0, "speed": 0.35, "turn_rate": 45.0, "lead": null},
+ "conditions": {
+  "base": {},
+  "transition-1": {"transition_frames": 1},
+  "transition-10": {"transition_frames": 10},
+  "segment-2s": {"segment_seconds": 2.0},
+  "segment-3s": {"segment_seconds": 3.0},
+  "execute-0.5s": {"walk_steps": 25},
+  "execute-1.6s": {"walk_steps": 80},
+  "execute-whole": {"walk_steps": 240},
+  "no-text": {"text": false}
+ }
+}

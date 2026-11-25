@@ -43,7 +43,8 @@ class OraclePolicy:
         if trajectory_projection!='none' and hand_constraints!='continuous':
             raise ValueError('IK experiment requires continuous hand conditions')
         self.trajectory_projection=trajectory_projection
-        self.model = NativeKimodoPolicy(checkpoint,
+        shared = getattr(self, 'shared_model', None)  # a subclass may hand over a loaded model (offline sweeps)
+        self.model = shared if shared is not None else NativeKimodoPolicy(checkpoint,
             constraint_cfg=constraint_cfg if text_mode == 'none' else None).to(device).eval()
         self.text_mode, self.constraint_cfg = text_mode, constraint_cfg
         self.root_anchor = root_anchor

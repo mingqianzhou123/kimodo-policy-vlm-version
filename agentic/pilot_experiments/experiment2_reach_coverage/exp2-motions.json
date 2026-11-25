@@ -223,6 +223,506 @@
     "speed_m_s": 0.35,
     "reach_s": 1.5
    }
+  },
+  "clip-walk": {
+   "runs": "exp2-clipwalk",
+   "note": "Legs from LAFAN1 gait cycles (pass --walk-clips <library>); the seed picks the cycle variant (seed-1000). Goals as experiment two's, plus a 90 degree left turn; stop within 10 cm.",
+   "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+   ],
+   "goals": [
+    {
+     "name": "forward-050",
+     "root": {
+      "xy": [
+       0.5,
+       0.0
+      ],
+      "tolerance_m": 0.1
+     }
+    },
+    {
+     "name": "left-050",
+     "root": {
+      "xy": [
+       0.0,
+       0.5
+      ],
+      "tolerance_m": 0.1
+     }
+    },
+    {
+     "name": "right-050",
+     "root": {
+      "xy": [
+       0.0,
+       -0.5
+      ],
+      "tolerance_m": 0.1
+     }
+    },
+    {
+     "name": "backward-050",
+     "root": {
+      "xy": [
+       -0.5,
+       0.0
+      ],
+      "tolerance_m": 0.1
+     }
+    },
+    {
+     "name": "turn-090",
+     "root": {
+      "xy": [
+       0.0,
+       0.0
+      ],
+      "yaw_deg": 90,
+      "tolerance_m": 0.1
+     }
+    }
+   ]
+  },
+  "clip-reach": {
+   "runs": "exp2-clipreach",
+   "note": "Walk on LAFAN1 gait cycles (pass --walk-clips <library>), then experiment two's reach with arm IK (configuration two).",
+   "flags": [
+    "--arm-ik"
+   ],
+   "seeds": [
+    1000
+   ],
+   "reach_grid": {
+    "distances_m": [
+     1.0,
+     1.8
+    ],
+    "heights_m": [
+     0.95
+    ],
+    "lateral_m": -0.2,
+    "standoff_m": {
+     "0.95": 0.35
+    },
+    "approach_pitch_deg": {
+     "0.95": {
+      "level": 0,
+      "down": -40
+     }
+    },
+    "walk_threshold_m": 0.05,
+    "speed_m_s": 0.35,
+    "reach_s": 1.5
+   }
+  },
+  "native-forward": {
+   "runs": "exp2n-forward",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--approach-gain",
+    "2"
+   ],
+   "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+   ],
+   "goals": [
+    {
+     "name": "forward-050",
+     "root": {
+      "xy": [
+       0.5,
+       0.0
+      ]
+     }
+    }
+   ],
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
+  },
+  "native-sidestep": {
+   "runs": "exp2n-sidestep",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--approach-gain",
+    "2"
+   ],
+   "goals": [
+    {
+     "name": "left-050",
+     "root": {
+      "xy": [
+       0.0,
+       0.5
+      ]
+     },
+     "seeds": [
+      1000,
+      1001,
+      1002,
+      1003,
+      1004
+     ]
+    },
+    {
+     "name": "right-050",
+     "root": {
+      "xy": [
+       0.0,
+       -0.5
+      ]
+     },
+     "seeds": [
+      1005,
+      1006,
+      1007,
+      1008,
+      1009
+     ]
+    }
+   ],
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
+  },
+  "native-backward": {
+   "runs": "exp2n-backward",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--approach-gain",
+    "2"
+   ],
+   "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009
+   ],
+   "goals": [
+    {
+     "name": "back-050",
+     "root": {
+      "xy": [
+       -0.5,
+       0.0
+      ]
+     }
+    }
+   ],
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
+  },
+  "native-lean": {
+   "runs": "exp2n-lean",
+   "goals": [
+    {
+     "name": "lean-30-hips",
+     "lean": {
+      "pitch_deg": 30,
+      "by": "hips"
+     },
+     "seeds": [
+      1005,
+      1006,
+      1007,
+      1008,
+      1009
+     ]
+    }
+   ],
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--approach-gain",
+    "2"
+   ],
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'. Hips-led lean only."
+  },
+  "native-reach-kimodo": {
+   "runs": "exp2n-reach-kimodo",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--approach-gain",
+    "2"
+   ],
+   "seeds": [
+    1000
+   ],
+   "reach_grid": {
+    "distances_m": [
+     0.35,
+     1.0,
+     1.8
+    ],
+    "heights_m": [
+     0.55,
+     0.95,
+     1.35
+    ],
+    "lateral_m": -0.2,
+    "standoff_m": {
+     "0.55": 0.4,
+     "0.95": 0.35,
+     "1.35": 0.3
+    },
+    "approach_pitch_deg": {
+     "0.55": {
+      "level": 0,
+      "down": -40
+     },
+     "0.95": {
+      "level": 0,
+      "down": -40
+     },
+     "1.35": {
+      "level": 0,
+      "up": 30
+     }
+    },
+    "walk_threshold_m": 0.05,
+    "speed_m_s": 0.35,
+    "reach_s": 1.5
+   },
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
+  },
+  "native-reach-ik": {
+   "runs": "exp2n-reach-ik",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--approach-gain",
+    "2",
+    "--arm-ik"
+   ],
+   "seeds": [
+    1000
+   ],
+   "reach_grid": {
+    "distances_m": [
+     0.35,
+     1.0,
+     1.8
+    ],
+    "heights_m": [
+     0.55,
+     0.95,
+     1.35
+    ],
+    "lateral_m": -0.2,
+    "standoff_m": {
+     "0.55": 0.4,
+     "0.95": 0.35,
+     "1.35": 0.3
+    },
+    "approach_pitch_deg": {
+     "0.55": {
+      "level": 0,
+      "down": -40
+     },
+     "0.95": {
+      "level": 0,
+      "down": -40
+     },
+     "1.35": {
+      "level": 0,
+      "up": 30
+     }
+    },
+    "walk_threshold_m": 0.05,
+    "speed_m_s": 0.35,
+    "reach_s": 1.5
+   },
+   "note": "Native generator (official-style continuation, kimodo_vla/model/segment_sampler.py; no text, path aimed past the goal by what is left, approach gain 2): same goals and seeds as the group without 'native-'."
+  },
+  "deviation-open": {
+   "runs": "exp2dev-open",
+   "note": "Is the command deviation systematic or random (native-generation-20261125.md): the planner follows the reference's own position (--open-loop), so the executor's deviation stays in.",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--open-loop"
+   ],
+   "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+   ],
+   "command_grid": {
+    "directions": {
+     "fwd": 0,
+     "fl": 45,
+     "left": 90,
+     "bl": 135,
+     "back": 180,
+     "br": -135,
+     "right": -90,
+     "fr": -45
+    },
+    "distances_m": [
+     0.25,
+     0.5,
+     1.0,
+     1.5
+    ],
+    "turns_deg": [
+     45,
+     90,
+     180
+    ],
+    "speed_m_s": 0.35,
+    "turn_rate_deg_s": 45.0
+   }
+  },
+  "deviation-closed": {
+   "runs": "exp2dev-closed",
+   "note": "Closed-loop baseline for the deviation study: the same commands, the held-out seeds, experiment two's native closed-loop setting.",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--approach-gain",
+    "2"
+   ],
+   "seeds": [
+    1003,
+    1004
+   ],
+   "command_grid": {
+    "directions": {
+     "fwd": 0,
+     "fl": 45,
+     "left": 90,
+     "bl": 135,
+     "back": 180,
+     "br": -135,
+     "right": -90,
+     "fr": -45
+    },
+    "distances_m": [
+     0.25,
+     0.5,
+     1.0,
+     1.5
+    ],
+    "turns_deg": [
+     45,
+     90,
+     180
+    ],
+    "speed_m_s": 0.35,
+    "turn_rate_deg_s": 45.0
+   }
+  },
+  "deviation-comp": {
+   "runs": "exp2dev-comp",
+   "note": "Check of the per-direction coefficient compensation: open loop, each command multiplied by 1 / (the coefficient fitted on seeds 1000-1002 of deviation-open); held-out seeds. Goal names keep the uncompensated command.",
+   "flags": [
+    "--generator",
+    "native",
+    "--walk-steps",
+    "50",
+    "--segment-seconds",
+    "5",
+    "--transition-frames",
+    "5",
+    "--open-loop"
+   ],
+   "seeds": [
+    1003,
+    1004
+   ],
+   "command_grid": {
+    "directions": {
+     "fwd": 0,
+     "fl": 45,
+     "left": 90,
+     "bl": 135,
+     "back": 180,
+     "br": -135,
+     "right": -90,
+     "fr": -45
+    },
+    "distances_m": [
+     0.5,
+     1.0
+    ],
+    "turns_deg": [],
+    "speed_m_s": 0.35,
+    "turn_rate_deg_s": 45.0,
+    "scale": {
+     "back": 3.0189,
+     "bl": 1.9635,
+     "br": 2.921,
+     "fl": 1.4858,
+     "fr": 1.2285,
+     "fwd": 1.7999,
+     "left": 1.5759,
+     "right": 1.7015
+    }
+   }
   }
  }
 }

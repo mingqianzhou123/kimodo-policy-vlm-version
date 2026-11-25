@@ -54,7 +54,9 @@ def parse_args(argv=None):
     p.add_argument('--constraint-cfg',type=float,default=2.)
     p.add_argument('--text-mode',choices=['none','task'],default='none')
     p.add_argument('--root-anchor',choices=['reference','generated'],default='reference')
-    p.add_argument('--reference-source',choices=['kimodo','fixed','replay'],default='kimodo')
+    p.add_argument('--reference-source',choices=['kimodo','fixed','replay','demo'],default='kimodo',
+        help='demo: replay a walking segment that did not come from Kimodo (kimodo_vla/oracle/demo_walks.py); needs --demo-segment and --start-xy')
+    p.add_argument('--demo-segment',type=Path,help='With --reference-source demo: the segment file to replay')
     p.add_argument('--settled-goal',type=Path,help='Start from stable double support, keeping archived hand goals in world coordinates; '
         'implies --visual-markers --actuator-audit --dynamics-profile actuator')
     p.add_argument('--replay-fixture',type=Path)
@@ -63,6 +65,19 @@ def parse_args(argv=None):
     p.add_argument('--start-xy',type=float,nargs=2,metavar=('X','Y'),help='With --motion-goal: world position to start from instead of the task reset position')
     p.add_argument('--walk-steps',type=int,default=75,help='With --motion-goal: control steps executed from each 1.63 s walking plan before planning again')
     p.add_argument('--arm-ik',action='store_true',help='With --motion-goal: solve the reaching arm for the wrist over the last 25 cm of its path; legs and trunk stay as generated')
+    p.add_argument('--text',help='With --motion-goal: phrase key in --text-cache; Kimodo then uses separated text/constraint guidance')
+    p.add_argument('--text-cfg',type=float,default=2.,help='With --text: the text guidance weight')
+    p.add_argument('--root-constraints',choices=['dense','sparse','none'],default='dense',help='With --motion-goal: walking root path on every frame, every 0.5 s, or not at all')
+    p.add_argument('--history-frames',type=int,default=100,help='With --motion-goal: consumed-reference frames conditioning each plan')
+    p.add_argument('--generator',choices=['policy','segment','native'],default='policy',help="With --motion-goal: 'segment' samples whole walking segments the official Kimodo way (kimodo_vla/model/segment_sampler.py) instead of the policy canvas; 'native' makes every plan an official multi-prompt continuation of the sent reference (--transition-frames)")
+    p.add_argument('--transition-frames',type=int,default=5,help="With --generator native: frames of the sent reference each plan continues from")
+    p.add_argument('--approach-gain',type=float,default=1.,help='With --motion-goal: walk and stop paths aim at here + gain x (goal - here); the tracker covers only part of each step')
+    p.add_argument('--text-until-m',type=float,default=0.,help='With --text auto: drop the walking phrase once the goal is this close')
+    p.add_argument('--open-loop',action='store_true',help="With --generator native: plan from the reference's own position and heading, never the measured ones")
+    p.add_argument('--segment-seconds',type=float,default=4.)
+    p.add_argument('--segment-steps',type=int,default=100)
+    p.add_argument('--walk-clips',type=Path,help='With --motion-goal: walk on looped recorded gait cycles from this library (kimodo_vla/oracle/clip_legs.py) instead of Kimodo')
+    p.add_argument('--lead-segment',type=Path,help='With --motion-goal: recorded walking segment played before the walk (kimodo_vla/oracle/demo_walks.py)')
     p.add_argument('--noise-seed',type=int,help='With --motion-goal: seed of Kimodo\'s sampling noise, to repeat one goal with different motions')
     p.add_argument('--actuator-audit',action='store_true')
     p.add_argument('--dynamics-profile',choices=['sensor-load','actuator','actuator-load'])
@@ -101,6 +116,8 @@ def parse_args(argv=None):
     if a.motion_goal:
         a.support_constraints,a.hand_constraints,a.trajectory_projection='none','keyframes','none'
         a.dynamics_profile=a.dynamics_profile or 'actuator'
+    if a.reference_source=='demo':
+        a.dynamics_profile=a.dynamics_profile or 'actuator'  # the same aligned actuators as experiment two
     return a
 
 
@@ -110,7 +127,14 @@ def main():
     a.text_cache=a.text_cache or CACHE/'text-eval'
     run=RUNS/a.run_id
     replay=a.reference_source=='replay'
-    fixed=a.reference_source in ('fixed','replay')
+    demo=a.reference_source=='demo'
+    fixed=a.reference_source in ('fixed','replay','demo')
+    if demo != (a.demo_segment is not None):
+        raise ValueError('The demo source needs --demo-segment, and --demo-segment needs the demo source')
+    if demo and (not a.start_xy or a.motion_goal or a.grasp_loop or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision
+                 or a.visual_markers or a.actuator_audit or a.dynamics_profile!='actuator' or a.mode!='hold'):
+        raise ValueError('Demo replays start on the open floor (--start-xy) with aligned actuators and nothing else')
+    if demo and not a.demo_segment.is_file():raise FileNotFoundError(a.demo_segment)
     if a.settled_goal:
         if (fixed or a.vlm_model or a.root_support or a.capture_vision or not a.visual_markers
                 or a.camera!='front_camera' or a.mode!='hold' or a.trajectory_projection!='ik-hold' or not a.actuator_audit
@@ -122,14 +146,16 @@ def main():
                 or a.actuator_audit or a.mode!='hold' or a.variant!='bounded' or a.dynamics_profile!='actuator'):
             raise ValueError('Moving goals run live on the bounded handoff with aligned actuators and nothing else')
         if not a.motion_goal.is_file():raise FileNotFoundError(a.motion_goal)
-    elif a.start_xy or a.noise_seed is not None or a.arm_ik:raise ValueError('--start-xy, --noise-seed and --arm-ik need --motion-goal')
+    elif (a.start_xy and not demo) or a.noise_seed is not None or a.arm_ik:raise ValueError('--start-xy, --noise-seed and --arm-ik need --motion-goal')
+    if not a.motion_goal and (a.text or a.lead_segment or a.walk_clips or a.generator!='policy' or a.root_constraints!='dense' or a.history_frames!=100):
+        raise ValueError('--text, --root-constraints, --history-frames and --lead-segment need --motion-goal')
     if a.grasp_loop and (fixed or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision or a.visual_markers
             or a.actuator_audit or a.mode!='hold' or a.trajectory_projection!='ik-hold' or a.dynamics_profile!='actuator'
             or a.latch_delay_steps<0):
         raise ValueError('The grasp loop runs on the live IK-hold backend with aligned actuators and nothing else')
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
-    if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not ((replay or a.settled_goal) and a.actuator_audit):
+    if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not demo and not ((replay or a.settled_goal) and a.actuator_audit):
         raise ValueError('Dynamics interventions require audited immutable replay')
     if a.root_support and not (a.actuator_audit and replay and a.dynamics_profile in ('actuator','actuator-load')):
         raise ValueError('Root diagnostics require fixed reference and aligned actuators')
@@ -143,7 +169,7 @@ def main():
             raise ValueError('Replay scene must match the archived marker/camera configuration')
     if a.vlm_model and (fixed or a.mode!='hold' or a.trajectory_projection!='ik-hold' or not a.visual_markers):
         raise ValueError('First VLM experiment requires visual markers and the standing IK-hold backend')
-    if fixed and a.mode not in ('hold','reach'):
+    if fixed and a.mode not in ('hold','reach'):  # a demo replay is logged as 'hold'
         raise ValueError('Fixed reference supports hold/reach only')
     if run.resolve().parent != RUNS.resolve() or (not fixed and a.sim_gpu==a.policy_gpu and not a.share_policy_sim_gpu):
         raise ValueError('Invalid run ID or GPU assignment')
@@ -211,6 +237,15 @@ def main():
         policycmd+=['--motion-goal',str(a.motion_goal.resolve()),'--walk-steps',str(a.walk_steps)]
         if a.arm_ik:policycmd.append('--arm-ik')
         if a.noise_seed is not None:policycmd+=['--noise-seed',str(a.noise_seed)]
+        policycmd+=['--root-constraints',a.root_constraints,'--history-frames',str(a.history_frames)]
+        if a.text:policycmd+=['--text',a.text,'--text-cfg',str(a.text_cfg)]
+        if a.lead_segment:policycmd+=['--lead-segment',str(a.lead_segment.resolve())]
+        if a.walk_clips:policycmd+=['--walk-clips',str(a.walk_clips.resolve())]
+        if a.generator!='policy':policycmd+=['--generator',a.generator,'--segment-seconds',str(a.segment_seconds),'--segment-steps',str(a.segment_steps)]
+        if a.generator=='native':policycmd+=['--transition-frames',str(a.transition_frames)]
+        if a.approach_gain!=1.:policycmd+=['--approach-gain',str(a.approach_gain)]
+        if a.text_until_m:policycmd+=['--text-until-m',str(a.text_until_m)]
+        if a.open_loop:policycmd+=['--open-loop']
     if a.grasp_loop:
         policycmd+=['--grasp-loop',str(ROOT/'configs/grasp-loop.json'),'--latch-delay-steps',str(a.latch_delay_steps)]
         if a.stand_still:policycmd.append('--stand-still')
@@ -218,6 +253,8 @@ def main():
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
                    '--run',str(run),'--mode',a.mode,'--port',str(port)]
+    if demo:
+        policycmd+=['--demo-segment',str(a.demo_segment.resolve())]
     if replay:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_recorded_reference.py'),
                    '--run',str(run),'--fixture',str(a.replay_fixture.resolve()),'--port',str(port)]
@@ -231,10 +268,10 @@ def main():
     episode={'seed':a.seed,'episode_seed':a.seed,'repeat_idx':0,'episode_index':0,'max_steps':a.steps,
         'result_json':str(run/'episode.json'),'success_video_dir':str(run/'videos'),
         'failure_video_dir':str(run/'videos'),'recording_save_dir':str(run/'recordings'),'video_fps':30,
-        'post_termination_record_steps':0,'model_label':('grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
-        'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
+        'post_termination_record_steps':0,'model_label':('demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
+        'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(a.demo_segment.resolve()) if demo else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
-    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal else 'grasp_sim_bootstrap.py' if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
+    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal or demo else 'grasp_sim_bootstrap.py' if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
         '--task','Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','--env_config_yaml',
@@ -271,7 +308,16 @@ def main():
     if a.motion_goal:record.update(experiment='MOTION-GOAL',oracle=False,target_source='motion_goal',
         motion_goal=json.loads(a.motion_goal.read_text()),motion_goal_sha256=sha(a.motion_goal),
         start_xy=a.start_xy,noise_seed=a.noise_seed,walk_steps=a.walk_steps,
-        arm_ik=a.arm_ik)
+        arm_ik=a.arm_ik,text=a.text,text_cfg=a.text_cfg if a.text else None,root_constraints=a.root_constraints,
+        history_frames=a.history_frames,lead_segment=str(a.lead_segment) if a.lead_segment else None,
+        lead_segment_sha256=sha(a.lead_segment) if a.lead_segment else None,
+        walk_clips=str(a.walk_clips) if a.walk_clips else None,walk_clips_sha256=sha(a.walk_clips) if a.walk_clips else None,
+        generator=a.generator,segment_seconds=a.segment_seconds if a.generator!='policy' else None,
+        segment_steps=a.segment_steps if a.generator!='policy' else None,
+        transition_frames=a.transition_frames if a.generator=='native' else None,
+        approach_gain=a.approach_gain,text_until_m=a.text_until_m or None,open_loop=a.open_loop)
+    if demo:record.update(experiment='DEMO-REPLAY',oracle=False,target_source='demo_segment',
+        demo_segment=str(a.demo_segment.resolve()),demo_segment_sha256=sha(a.demo_segment),start_xy=a.start_xy)
     if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',
         grasp_config_sha256=sha(ROOT/'configs/grasp-loop.json'))
     record['arena_sha256']={f:sha(arena/f) for f in (

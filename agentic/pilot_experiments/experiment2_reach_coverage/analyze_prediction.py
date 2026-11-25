@@ -76,7 +76,7 @@ def errors(pred, actual):
             'wrist_rot_deg': [angle_deg(a, b) for a, b in zip(pred['wrist_rot'], actual['wrist_rot'])]}
 
 
-def analyze_run(run, features, fk):
+def analyze_run(run, features, fk, horizons=HORIZONS):
     run = Path(run)
     target = json.loads((run/'target.json').read_text())
     frame = Frame(target['origin'], target['heading'])
@@ -96,10 +96,10 @@ def analyze_run(run, features, fk):
         if saved > 1e-5:
             raise ValueError(f"{run.name} plan {plan['plan']}: decoded plan differs from the saved one by {saved:.2e} m")
         now = measured_at(series, plan['time'])
-        for horizon in HORIZONS:
+        for horizon in horizons:
             k = int(round(horizon*30))
             actual = measured_at(series, start+(plan['cut']+k)/30)
-            if actual is None:
+            if actual is None or k >= len(root_pos):     # past the record, or past this plan's canvas
                 continue
             pred = {'root_pos': root_pos[k], 'root_rot': root_rot[k],
                     'wrist_pos': wrist_pos[k], 'wrist_rot': wrist_rot[k]}
@@ -155,12 +155,15 @@ def summarize(rows):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--suite', default='settled-20261123-r1', help='every run named <suite>-<case> with saved plans')
+    p.add_argument('--horizons', type=float, nargs='+', default=list(HORIZONS),
+                   help='seconds ahead; a plan counts only for horizons its canvas reaches (native walks: up to 5 s)')
+    p.add_argument('--out', help='summary file name under <runs>/<suite>/ (default prediction.json)')
     args = p.parse_args()
     runs = sorted(r for r in RUNS.glob(args.suite+'-*') if (r/'plans.jsonl').exists())
     if not runs:
         raise SystemExit(f'No runs with saved plans under {RUNS} for {args.suite}')
     features, fk = KimodoFeatures(50.), XmlFK(G1_XML, G1_JOINT_NAMES)
-    rows = [row for run in runs for row in analyze_run(run, features, fk)]
+    rows = [row for run in runs for row in analyze_run(run, features, fk, args.horizons)]
     table = summarize(rows)
     cell = lambda s: '-' if s is None else f"{s['mean']:.2f}/{s['p90']:.2f}/{s['max']:.2f}"
     print(f'{len(runs)} runs, {len(rows)} plan-horizon pairs; each cell is mean/p90/max')
@@ -171,7 +174,7 @@ def main():
             print(f"{key:<16}{source:<12}{cell(m['root_pos_cm']):>18}{cell(m['root_rot_deg']):>18}"
                   f"{cell(m['wrist_pos_cm']):>18}{cell(m['wrist_rot_deg']):>20}"
                   f"{cell(m['covered']['wrist_pos_cm']):>20}{m['root_pos_cm']['n']:>7}")
-    out = RUNS/args.suite/'prediction.json'
+    out = RUNS/args.suite/(args.out or 'prediction.json')
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({'runs': [r.name for r in runs], 'summary': table, 'rows': rows}, indent=1))
     print(out)
