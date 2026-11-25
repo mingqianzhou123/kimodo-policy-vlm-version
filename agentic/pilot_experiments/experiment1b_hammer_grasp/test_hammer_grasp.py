@@ -221,6 +221,7 @@ def test_tolerance_is_where_the_rate_falls_to_half_of_the_zero_level():
 def test_failure_sides_follow_the_box_definition():
     from analyze_hammer import failure_class
     assert failure_class({'label': 'no_contact', 'events': {}}) == 'body: no contact'
+    assert failure_class({'label': 'no_contact', 'events': {'closed': 1.}}) == 'body: no contact'   # closed on air
     assert failure_class({'label': 'knocked_over', 'events': {}}) == 'body: knocked before closing'
     assert failure_class({'label': 'knocked_over', 'events': {'closed': 1.}}) == 'object: knocked after closing'
     assert failure_class({'label': 'touched_not_held', 'events': {'closed': 1.}}) == 'object: closed, not held'

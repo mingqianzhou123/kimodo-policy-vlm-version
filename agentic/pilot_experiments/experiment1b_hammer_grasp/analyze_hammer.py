@@ -229,6 +229,8 @@ def failure_class(a):
     Object side: the hand closed and then it was not held, slipped, or was knocked."""
     closed = 'closed' in a['events']
     label = a['label']
+    if label == 'no_contact':
+        return 'body: no contact'          # never touched it, whether or not the hand closed on air
     if not closed:
         return {'no_contact': 'body: no contact', 'knocked_over': 'body: knocked before closing'}.get(
             label, 'body: touched, hand never closed')
