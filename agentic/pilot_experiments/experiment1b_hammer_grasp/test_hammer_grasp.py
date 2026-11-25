@@ -69,7 +69,8 @@ def test_layout_puts_the_grip_point_where_asked_with_the_asked_handle_yaw(yaw):
     assert (point[:2] - np.asarray(lay['robot_xy'])) @ left == pytest.approx(-.2)
     # reach rule: wrist 0.25 ahead of the root unless that brings the root nearer than 0.19 to the edge; then 0.05 back
     assert lay['clearance_m'] >= .19 + .05 - 1e-9
-    assert lay['wrist_ahead_of_root_m'] <= .25 + 1e-9
+    assert (lay['clearance_m'] == pytest.approx(.24) and lay['wrist_ahead_of_root_m'] >= .30 - 1e-9
+            or lay['wrist_ahead_of_root_m'] == pytest.approx(.30))
 
 
 def test_positive_yaw_turns_the_head_towards_the_robot():

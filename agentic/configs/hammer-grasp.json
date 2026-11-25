@@ -1,15 +1,15 @@
 {
  "_about": "Blocking one-handed hammer grasp on DoubleDesk (experiment 1b). Robot stands still facing the hammer table; right hand only. Lengths in metres, times in seconds, angles in degrees.",
  "scene": {
-  "table_prim": "TBD",
-  "table_edge_point_m": [0.0, 0.0],
+  "table_prim": "/World/envs/env_0/Room/Lab/table_with_yellowbox_01/PackingTable_2/PackingTable_2/SM_CratePacking_Table_A1/SM_HeavyDutyPackingTable_C02_01",
+  "table_edge_point_m": [-2.75, -2.9294],
   "facing_deg": -90,
-  "table_top_z_m": 0.0,
-  "hammer_rest_z_m": 0.0,
+  "table_top_z_m": 0.7455,
+  "hammer_rest_z_m": 0.7605,
   "hammer_local_bounds_m": [[-0.0591, -0.1595, -0.0136], [0.0591, 0.1595, 0.0136]]
  },
  "policy": {
-  "table_edge_point_m": [0.0, 0.0],
+  "table_edge_point_m": [-2.75, -2.9294],
   "grip_point_local_m": [0.002, -0.03, 0.0],
   "wrist_pitch_down_deg": 40,
   "grip_in_hand_m": [0.15, 0.035],
@@ -18,7 +18,7 @@
   "approach_back_m": 0.0,
   "via_forward_m": -0.04,
   "via_raise_m": 0.05,
-  "graspable_height_m": [0.0, 0.0],
+  "graspable_height_m": [0.74, 0.8],
   "graspable_tilt_deg": 30,
   "graspable_depth_m": 0.4,
   "idle_s": 2.0,
