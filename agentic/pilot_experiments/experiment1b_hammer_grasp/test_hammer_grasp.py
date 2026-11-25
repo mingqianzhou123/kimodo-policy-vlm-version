@@ -166,7 +166,7 @@ def test_map_is_within_the_episode_budget_and_named_uniquely():
 
 def test_suite_names_and_arguments():
     class A:
-        group, tag, per_gpu, seeds = 'map', 't', 2, None
+        group, tag, per_gpu, seeds, auto_gpus = 'map', 't', 2, None, None
     jobs = jobs_for(A, CONFIG)
     assert jobs[0][0].startswith('exp1b-map-t-') and '--hammer-at' in jobs[0][2] and '--gpu-min-free-mib' in jobs[0][2]
     A.group = 'region'

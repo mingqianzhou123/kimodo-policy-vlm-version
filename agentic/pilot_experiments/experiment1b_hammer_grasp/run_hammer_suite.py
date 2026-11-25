@@ -37,6 +37,18 @@ def verdict(run):
         return None
 
 
+def free_gpu(lock, need_mib=17500):
+    """The GPU with the most free memory, once one has at least ``need_mib``; waits until then."""
+    while True:
+        with lock:
+            rows = subprocess.check_output(['nvidia-smi', '--query-gpu=index,memory.free', '--format=csv,noheader,nounits'],
+                                           text=True).split('\n')
+            free = sorted((int(m), int(i)) for i, m in (r.split(',') for r in rows if r.strip()))
+            if free and free[-1][0] >= need_mib:
+                return free[-1][1]
+        time.sleep(30)
+
+
 def work(gpu, jobs, args, lock):
     while True:
         try:
@@ -44,6 +56,8 @@ def work(gpu, jobs, args, lock):
         except queue.Empty:
             return
         run = RUNS/name
+        if args.auto_gpus:
+            gpu = free_gpu(lock)
         for attempt in range(args.tries):
             if verdict(run):
                 break
@@ -64,7 +78,7 @@ def work(gpu, jobs, args, lock):
 def jobs_for(args, config):
     """(run name, seed, launcher arguments) of every episode in the group, in a fixed order."""
     stand, out = config['stand'], []
-    shared = ['--gpu-min-free-mib', '16384'] if args.per_gpu > 1 else []
+    shared = ['--gpu-min-free-mib', '16384'] if args.per_gpu > 1 or getattr(args, 'auto_gpus', None) else []
     if args.group == 'map':
         from arena.hammer_layout import cell_name, map_cells, placeable
         for i, cell in enumerate(map_cells(config)):
@@ -101,7 +115,9 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--group', choices=['map', 'region', 'inject', 'motion'], required=True)
     p.add_argument('--tag', required=True, help='Names this evaluation, e.g. 20261125-m1')
-    p.add_argument('--gpus', type=int, nargs='+', required=True)
+    p.add_argument('--gpus', type=int, nargs='+', help='Fixed GPUs, one worker each (times --per-gpu)')
+    p.add_argument('--auto-gpus', type=int, help='This many workers; each run goes to the GPU with the most free memory '
+                   '(at least 17.5 GB), waiting until there is one')
     p.add_argument('--seeds', type=int, nargs='+', help='Subset of the region seeds')
     p.add_argument('--only', nargs='+', help='Run only the jobs whose names contain one of these strings')
     p.add_argument('--tries', type=int, default=3)
@@ -116,9 +132,12 @@ if __name__ == '__main__':
     jobs, lock = queue.Queue(), threading.Lock()
     for job in planned:
         jobs.put(job)
-    workers = [threading.Thread(target=work, args=(gpu, jobs, args, lock)) for _ in range(args.per_gpu) for gpu in args.gpus]
+    if bool(args.gpus) == bool(args.auto_gpus):
+        raise SystemExit('Give either --gpus or --auto-gpus')
+    gpus = args.gpus or [None] * args.auto_gpus
+    workers = [threading.Thread(target=work, args=(gpu, jobs, args, lock)) for _ in range(args.per_gpu) for gpu in gpus]
     for i, worker in enumerate(workers):
-        if i == len(args.gpus):
+        if i == len(gpus) or (args.auto_gpus and i):
             time.sleep(90)   # two simulators starting on one GPU at once can lose the device
         worker.start()
     for worker in workers:

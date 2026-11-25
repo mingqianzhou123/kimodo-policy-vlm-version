@@ -12,7 +12,7 @@
  },
  "policy": {
   "table_edge_point_m": [-2.75, -2.9294],
-  "grip_point_local_m": [0.002, -0.03, 0.0],
+  "grip_point_local_m": [0.002, 0.01, 0.0],
   "wrist_pitch_down_deg": 40,
   "grip_in_hand_m": [0.15, 0.035],
   "grip_height_m": 0.01,
@@ -30,7 +30,7 @@
   "gate_timeout_s": 2.5,
   "reach_feedback_gain": 0.7,
   "reach_feedback_max_m": 0.12,
-  "close_amount": 1.0,
+  "close_amount": 0.6,
   "grip_s": 0.5,
   "lift_m": 0.2,
   "lift_s": 1.5,
@@ -66,7 +66,7 @@
   "stance_reach_m": 0.25,
   "stance_clearance_m": 0.19,
   "map": {
-   "depth_m": [0.08, 0.13, 0.18, 0.23],
+   "depth_m": [0.1, 0.15, 0.2, 0.25],
    "lateral_m": [-0.3, -0.2, -0.1, 0.0],
    "yaw_deg": [-20, 0, 20],
    "stance_extra_m": [0.0, 0.05],
