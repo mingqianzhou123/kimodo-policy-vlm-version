@@ -292,6 +292,38 @@ def report(eps):
             'jitter': cells([e for e in eps if e['delay'] == 'jitter'])}
 
 
+def svg_curve(curve, title='首轮成功率 对 合手时目标偏差（左右，cm）'):
+    """The deviation curve as a small standalone SVG: one line per update mode, n under each point."""
+    colours = {'blocking': '#555555', 'fixed': '#d0802a', 'anchored': '#2a6fd0'}
+    names = {'blocking': '阻塞式', 'fixed': '异步固定坐标', 'anchored': '异步锚定更新'}
+    bins = list(next(iter(curve['by_update'].values())).keys())
+    W, H, L, B, T = 640, 360, 60, 300, 40
+    x = lambda i: L + 30 + i * (W - L - 60) / (len(bins) - 1)
+    y = lambda r: B - r * (B - T)
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" font-family="sans-serif" font-size="12">',
+           f'<text x="{L}" y="22" font-size="14">{title}</text>',
+           f'<line x1="{L}" y1="{B}" x2="{W - 20}" y2="{B}" stroke="#999"/><line x1="{L}" y1="{T}" x2="{L}" y2="{B}" stroke="#999"/>']
+    for r in (0, .25, .5, .75, 1):
+        out.append(f'<text x="{L - 8}" y="{y(r) + 4}" text-anchor="end">{int(r * 100)}%</text>'
+                   f'<line x1="{L}" y1="{y(r)}" x2="{W - 20}" y2="{y(r)}" stroke="#eee"/>')
+    for i, b in enumerate(bins):
+        out.append(f'<text x="{x(i)}" y="{B + 18}" text-anchor="middle">{b.replace("-1000", "+")}</text>')
+    for k, (u, row) in enumerate(curve['by_update'].items()):
+        pts = []
+        for i, b in enumerate(bins):
+            s, n = map(int, row[b].split('/'))
+            if n:
+                pts.append((x(i), y(s / n), n))
+        c = colours[u]
+        out.append(f'<polyline fill="none" stroke="{c}" stroke-width="2" points="{" ".join(f"{a:.1f},{b:.1f}" for a, b, _ in pts)}"/>')
+        for a, b, n in pts:
+            out.append(f'<circle cx="{a:.1f}" cy="{b:.1f}" r="4" fill="{c}"/>'
+                       f'<text x="{a:.1f}" y="{B + 32 + 12 * k}" text-anchor="middle" fill="{c}">{n}</text>')
+        out.append(f'<text x="{W - 150}" y="{T + 16 * k}" fill="{c}">{names[u]}</text>')
+    out.append(f'<text x="{L}" y="{H - 4}" fill="#777">点下的数字是轮数（三行依次为三种做法）</text></svg>')
+    return '\n'.join(out)
+
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='command', required=True)
@@ -300,10 +332,15 @@ if __name__ == '__main__':
     x.add_argument('patterns', nargs='+')
     r = sub.add_parser('report')
     r.add_argument('rows', type=Path)
+    g = sub.add_parser('svg')
+    g.add_argument('report', type=Path)
+    g.add_argument('out', type=Path)
     a = p.parse_args()
     if a.command == 'extract':
         rows = [episode(run, result) for run, result in finished(a.patterns)]
         a.out.write_text(json.dumps(rows))
         print(f'{len(rows)} episodes')
+    elif a.command == 'svg':
+        a.out.write_text(svg_curve(json.loads(a.report.read_text())['curve']))
     else:
         print(json.dumps(report(json.loads(a.rows.read_text())), indent=1))

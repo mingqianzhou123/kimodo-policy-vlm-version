@@ -51,10 +51,8 @@ class LiveCamera:
         from kimodo_vla.oracle.geometry import rotation_wxyz
         self.env, self.camera = env, env.scene[camera_name]
         robot = env.scene['robot']
-        stage = self.camera._sensor_prims[0].GetStage() if hasattr(self.camera, '_sensor_prims') else None
-        if stage is None:
-            import omni.usd
-            stage = omni.usd.get_context().get_stage()
+        import omni.usd
+        stage = omni.usd.get_context().get_stage()
         self.camera.cfg.update_latest_camera_pose = True
         self.camera.update(0., force_recompute=True)
         prim = stage.GetPrimAtPath(self.camera.cfg.prim_path.replace('env_.*', 'env_0'))
