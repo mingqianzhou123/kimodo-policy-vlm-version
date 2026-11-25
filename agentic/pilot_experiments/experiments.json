@@ -67,7 +67,10 @@
         {"name": "新路径 · 侧步 0.5 m", "runs": "exp2n-sidestep-*-r1-*", "planned": 10},
         {"name": "新路径 · 后退 0.5 m", "runs": "exp2n-backward-*-r1-*", "planned": 10},
         {"name": "新路径 · 前倾 30°（髋带动）", "runs": "exp2n-lean-*-r1-*", "planned": 5},
-        {"name": "新路径 · 预测偏差 0.5 / 1.0 / 1.5 / 3 / 5 s（走动运行）", "done": 1}
+        {"name": "新路径 · 预测偏差 0.5 / 1.0 / 1.5 / 3 / 5 s（走动运行）", "done": 1},
+        {"name": "偏差规律 · 开环指令（8 方向 × 4 距离 + 3 个转角，各 5 种子）", "runs": "exp2dev-open-*-r1-*", "planned": 175},
+        {"name": "偏差规律 · 闭环对照（同样指令，留出种子）", "runs": "exp2dev-closed-*-r1-*", "planned": 70},
+        {"name": "偏差规律 · 固定系数补偿实跑验证", "runs": "exp2dev-comp-*-r1-*", "planned": 32}
       ]
     },
     {
