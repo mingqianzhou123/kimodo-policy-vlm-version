@@ -41,7 +41,16 @@
         {"name": "GPT 延迟 · 往复 0.10 m/s", "runs": "exp1-long-move010-*", "planned": 30},
         {"name": "Gemini 延迟（383 步）· 静态", "runs": "exp1-xlong-static-*", "planned": 30},
         {"name": "Gemini 延迟 · 往复 0.03 m/s", "runs": "exp1-xlong-move003-*", "planned": 30},
-        {"name": "Gemini 延迟 · 往复 0.10 m/s", "runs": "exp1-xlong-move010-*", "planned": 30}
+        {"name": "Gemini 延迟 · 往复 0.10 m/s", "runs": "exp1-xlong-move010-*", "planned": 30},
+        {"name": "大范围 · 走过去 · 静态验收（新 30 个种子，26 个成功才进动态）", "runs": "exp1-wide-static-*", "planned": 30},
+        {"name": "大范围 · 短延迟 · 往复 0.03 m/s（1.7 m 线段）", "runs": "exp1-wide-move003-*", "planned": 30},
+        {"name": "大范围 · 短延迟 · 往复 0.10 m/s", "runs": "exp1-wide-move010-*", "planned": 30},
+        {"name": "大范围 · GPT 延迟 · 静态", "runs": "exp1-wide-long-static-*", "planned": 30},
+        {"name": "大范围 · GPT 延迟 · 往复 0.03 m/s", "runs": "exp1-wide-long-move003-*", "planned": 30},
+        {"name": "大范围 · GPT 延迟 · 往复 0.10 m/s", "runs": "exp1-wide-long-move010-*", "planned": 30},
+        {"name": "大范围 · Gemini 延迟 · 静态", "runs": "exp1-wide-xlong-static-*", "planned": 30},
+        {"name": "大范围 · Gemini 延迟 · 往复 0.03 m/s", "runs": "exp1-wide-xlong-move003-*", "planned": 30},
+        {"name": "大范围 · Gemini 延迟 · 往复 0.10 m/s", "runs": "exp1-wide-xlong-move010-*", "planned": 30}
       ]
     },
     {
