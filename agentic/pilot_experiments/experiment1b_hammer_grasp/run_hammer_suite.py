@@ -153,7 +153,7 @@ if __name__ == '__main__':
     gpus = args.gpus or [None] * args.auto_gpus
     workers = [threading.Thread(target=work, args=(gpu, jobs, args, lock)) for _ in range(args.per_gpu) for gpu in gpus]
     for i, worker in enumerate(workers):
-        if i == len(gpus) or (args.auto_gpus and i):
+        if i == len(gpus) or ((args.auto_gpus or args.wait_free) and i):
             time.sleep(90)   # two simulators starting on one GPU at once can lose the device
         worker.start()
     for worker in workers:
