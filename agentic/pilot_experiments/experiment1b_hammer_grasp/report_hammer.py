@@ -153,7 +153,8 @@ def plot_map(results, config, path):
                 ax.set_xlabel('grip point lateral, cm (- = robot right)')
             if j == 0:
                 ax.set_ylabel('grip point behind edge, cm')
-    fig.suptitle('Hammer reach map: dark = first round, light = later round, red = failed (first-round class), grey = hammer off the table')
+    fig.suptitle('Hammer reach map. Dark green: first round; light green: later round; red: failed (first-round class);\n'
+                 'grey: the hammer would hang over the table edge, not run', fontsize=9)
     fig.tight_layout()
     fig.savefig(path)
 
