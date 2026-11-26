@@ -65,11 +65,11 @@ def box_episode(**change):
     held = state([1.4, 0., .78], wrists={'left': [1.85, HALF+.04, .99], 'right': [1.85, -HALF-.04, .99]})
     place = {'wrists': {'left': {'position': [1.85, HALF+.04, .65+HALF+.04], 'rotation': eye},
                         'right': {'position': [1.85, -HALF-.04, .65+HALF+.04], 'rotation': eye}}}
-    commands = [command(0, 'walk', 0.6, 4., {'forward_m': .5}, {'root_xy': pelvis[:2]}),
+    commands = [command(0, 'walk', 0.6, 4., {'forward_m': .5}, {'root_xy': pelvis[:2]}, error={'root_xy_m': change.get('walk_error', .03)}),
                 command(1, 'hand_pose', 4., 6., {'hands': {}}, target, at, at, reach_error),
                 command(2, 'hand', 6., 6.6, {'left': 'close', 'right': 'close'}, {}, at, at),
                 command(3, 'hand_pose', 6.6, 8., {'hands': {}}, {}, at, at),
-                command(4, 'walk', 8., 12., {'forward_m': 1.}, {}, at, held),
+                command(4, 'walk', 8., 12., {'forward_m': 1.}, {}, at, held, {'root_xy_m': change.get('carry_error', .04)}),
                 command(5, 'hand_pose', 12., 14., {'hands': {}}, place, held, held,
                         {'left_wrist_m': .02, 'right_wrist_m': .02}),
                 command(6, 'hand', 14., 14.6, {'left': 'open', 'right': 'open'}, {}, held, held)]
@@ -87,7 +87,7 @@ def box_episode(**change):
              'objects': [{'name': 'box', 'position': [x, 0., z], 'yaw_deg': 0.}],
              'wrist_pos': [[x-.1, HALF+.04, hz+.04], [x-.1, -HALF-.04, hz+.04]],
              'other_contacts_n': change.get('contacts', {}) if change.get('contact_window', (4., 6.))[0] <= t <= change.get('contact_window', (4., 6.))[1] else {},
-             'arena_success': False}
+             'arena_success': bool(change.get('stays', True) and change.get('placed', True) and t >= 14.6)}
         steps.append(s)
     scene = {'objects': [{'name': 'box', 'kind': 'object', 'position': BOX, 'yaw_deg': 0., 'size': [.21]*3}, layer]}
     return commands, steps, scene
@@ -107,7 +107,7 @@ def test_box_all_checks_pass_on_the_reference_episode(tmp_path):
     v = verdict_box(tmp_path)
     assert v['link'] == 'unclassified' and v['reason'].startswith('every check passed')
     assert all(c['passed'] for c in v['checks'])
-    assert {c['phase'] for c in v['checks']} == {'grasp', 'place'}
+    assert {c['phase'] for c in v['checks']} == {'pick', 'place'}
     assert v['margins']['box_region_m'] > 0
 
 
@@ -121,8 +121,11 @@ NO_LIFT = {'lift': lambda t: 0., 'placed': False}   # a reach that went wrong do
     ({'reach_error': {'left_wrist_m': .15, 'left_wrist_deg': 5., 'right_wrist_m': .02, 'right_wrist_deg': 5.}, **NO_LIFT},
      3, 'left wrist arrived'),
     ({'lift': lambda t: 0.}, 4, 'box lifted after closing'),
+    ({'walk_error': .2, **NO_LIFT}, 3, 'pick: root arrived (last walk)'),
     ({'lift': lambda t: .1 if 7. <= t < 9. else 0., 'hands_up': lambda t: 0. if t < 7. else .1, 'placed': False},
-     5, 'kept the box until the hands opened')])
+     5, 'kept the box until the hands opened'),
+    ({'carry_error': .3}, 3, 'place: root arrived (last walk)'),
+    ({'stays': False}, 4, 'place: box stayed on the target after release')])
 def test_box_one_episode_per_link(tmp_path, change, link, check):
     v = verdict_box(tmp_path, **change)
     assert (v['link'], v['reason']) == (link, check)

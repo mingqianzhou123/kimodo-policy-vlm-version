@@ -17,6 +17,8 @@
 
  "wrist_arrival_m": {"value": 0.05, "status": "placeholder", "link": 3, "meaning": "Measured wrist position off the commanded one, at the end of the command."},
  "wrist_arrival_deg": {"value": 20, "status": "placeholder", "link": 3, "meaning": "Measured wrist orientation off the commanded one, at the end of the command."},
+ "root_arrival_m": {"value": 0.08, "status": "placeholder", "link": 3, "meaning": "P&PBox: measured root off the target of the last walk before a stage (pick or place), at its end."},
+ "yaw_arrival_deg": {"value": 10, "status": "placeholder", "link": 3, "meaning": "P&PBox: measured heading off the target of the last turn (or walk) before a stage, at its end."},
  "pelvis_arrival_m": {"value": 0.06, "status": "placeholder", "link": 3, "meaning": "Measured pelvis off the commanded pelvis target (ground distance, and height separately), at the end of the sit command."},
 
  "lifted_height_m": {"value": 0.05, "status": "placeholder", "link": 4, "meaning": "Box raised at least this much above where it rested at the start counts as lifted (the first batch's grasp success used 0.10 m)."},
@@ -24,6 +26,7 @@
  "support_window_s": {"value": 1.0, "status": "placeholder", "link": 4, "meaning": "Window after the sit command in which the seat must carry the hips."},
  "support_force_n": {"value": 50, "status": "placeholder", "link": 4, "meaning": "Median contact force on the pelvis and hip bodies over that window (Arena's own success check needs 5 N on one body)."},
 
+ "place_settle_s": {"value": 1.0, "status": "placeholder", "link": 4, "meaning": "P&PBox place stage: after the hands open, Arena's on-shelf check must hold at some moment within this window."},
  "dropped_drift_m": {"value": 0.08, "status": "placeholder", "link": 5, "meaning": "After lifting and before the hands open, the box's offset from the midpoint of the two wrists changing by more than this counts as lost (slipped or knocked out of the hands)."},
 
  "sit_height_max_m": {"value": 0.70, "status": "placeholder", "link": "attempt", "meaning": "A pelvis_height command at or below this height (or with behind_feet_m) is a sit attempt."},

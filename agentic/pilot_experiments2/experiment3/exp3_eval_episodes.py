@@ -16,7 +16,7 @@ from pathlib import Path
 
 TASK_NAMES = {'pp_box': 'Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody',
               'sit_sofa': 'Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody',
-              'vision_navi': 'Isaac-Move-VisionNavi-G129-Dex3-Wholebody'}
+              'vision_navi': 'Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody'}
 GROUP_SEEDS, REPEATS = (0, 1, 2), 20
 
 

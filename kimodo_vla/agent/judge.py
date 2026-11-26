@@ -25,8 +25,9 @@ body evidently got there)
 its value and threshold, so a reader can see why. A failed episode with no attempt, or one where
 every check passed, is 'unclassified' with the reason; the judge does not force it into a link.
 
-For P&PBox the placement on the shelf is judged with the same links (2: the box would not end
-over the target layer, 3: the wrists did not arrive), marked ``phase='place'``.
+P&PBox is judged in two stages, 'pick' and 'place' (plan v3, section 5): link 3 covers the root
+(the last walk or turn before the stage) as well as the wrists; in the place stage link 2 is a wrong
+placement target and link 4 is "released, but the box did not stay on the target".
 """
 import numpy as np
 
@@ -150,7 +151,7 @@ class Checks:
     def __init__(self):
         self.rows = []
 
-    def add(self, link, name, passed, value=None, threshold=None, time=None, phase='grasp', **extra):
+    def add(self, link, name, passed, value=None, threshold=None, time=None, phase='pick', **extra):
         self.rows.append({'link': link, 'check': name, 'passed': bool(passed), 'value': value, 'threshold': threshold,
                           'time': time, 'phase': phase, **extra})
         return passed
@@ -179,6 +180,24 @@ def grasp_attempts(commands):
 def wrist_in_box_frame(position, box_position, yaw_deg):
     f, l = to_frame(position, box_position, yaw_deg)
     return np.array([f, l, float(position[2]-box_position[2])])
+
+
+def last_move(commands, before, after=-np.inf):
+    """The last walk or turn that started in (after, before): the move that set up the next stage."""
+    return next((c for c in reversed(commands) if c['type'] in ('walk', 'turn') and after < c['time'] < before), None)
+
+
+def root_arrival(checks, move, t, k, phase):
+    """Link 3 for the root: the last walk or turn before a stage ended where it was commanded."""
+    if move is None or not (move.get('end') or {}).get('measured_error'):
+        return
+    error = move['end']['measured_error']
+    if 'root_xy_m' in error:
+        checks.add(3, f'{phase}: root arrived (last {move["type"]})', error['root_xy_m'] <= value(t, 'root_arrival_m'),
+                   value=error['root_xy_m'], threshold=value(t, 'root_arrival_m'), time=move['end']['time'], phase=phase, attempt=k)
+    if 'yaw_deg' in error:
+        checks.add(3, f'{phase}: heading arrived (last {move["type"]})', error['yaw_deg'] <= value(t, 'yaw_arrival_deg'),
+                   value=error['yaw_deg'], threshold=value(t, 'yaw_arrival_deg'), time=move['end']['time'], phase=phase, attempt=k)
 
 
 def judge_box(episode, t, fk=None, grasp_config=None):
@@ -246,7 +265,9 @@ def judge_box(episode, t, fk=None, grasp_config=None):
                 cos = float(np.clip(palm @ inward/np.linalg.norm(palm), -1, 1))
                 checks.add(2, f'{side} palm faces the box', np.degrees(np.arccos(cos)) <= value(t, 'palm_angle_max_deg'),
                            value=float(np.degrees(np.arccos(cos))), threshold=value(t, 'palm_angle_max_deg'), time=t0, attempt=k)
-        # link 3: arrival of the commanded wrists
+        # link 3: the root where the last move put it, then the commanded wrists
+        previous = attempts[k-1]['close']['time'] if k else -np.inf
+        root_arrival(checks, last_move(commands, t0, previous), t, k, 'pick')
         end = reach.get('end') or {}
         error = end.get('measured_error', {})
         for side in targets:
@@ -285,13 +306,14 @@ def judge_box(episode, t, fk=None, grasp_config=None):
                        time=dropped or fell, attempt=k)
             if a['open'] is not None:
                 place = next((c for c in reversed(commands) if c['type'] == 'hand_pose' and c['time'] < a['open']['time']), None)
-                judge_place(checks, place, reach, box, episode, t, k)
+                judge_place(checks, place, reach, box, episode, t, k, a['open'], last_move(commands, place['time'] if place else 0., lifted_at))
         results.append(checks.rows[rows_before:])
     return checks, margins, results, early_fall, bool(attempts)
 
 
-def judge_place(checks, place, grasp, box, episode, t, k):
-    """Placement with the same links: where the commanded wrists would put the box, and whether they got there."""
+def judge_place(checks, place, grasp, box, episode, t, k, opening=None, move=None):
+    """The place stage with the same links: 2 the commanded wrists would not put the box on the target layer,
+    3 the root or the wrists did not get where commanded, 4 released but the box did not stay on the target."""
     layer = scene_object(episode, 'shelf_target_layer')
     if place is None or layer is None or place is grasp:
         return
@@ -315,11 +337,18 @@ def judge_place(checks, place, grasp, box, episode, t, k):
     lo, hi = value(t, 'place_bottom_gap_m')
     checks.add(2, 'place: box bottom at the layer', lo <= bottom <= hi, value=float(bottom), threshold=[lo, hi],
                time=place['time'], phase='place', attempt=k)
+    root_arrival(checks, move, t, k, 'place')
     error = (place.get('end') or {}).get('measured_error', {})
     for side in wrists:
         checks.add(3, f'place: {side} wrist arrived', error.get(f'{side}_wrist_m', np.inf) <= value(t, 'wrist_arrival_m'),
                    value=error.get(f'{side}_wrist_m'), threshold=value(t, 'wrist_arrival_m'), time=(place.get('end') or {}).get('time'),
                    phase='place', attempt=k)
+    if opening is not None:
+        released = (opening.get('end') or {}).get('time', opening['time'])
+        window = steps_between(episode['steps'], released, released+value(t, 'place_settle_s'))
+        stayed = any(s.get('arena_success') for s in window)
+        checks.add(4, 'place: box stayed on the target after release', stayed, value={'released_at': released},
+                   threshold=value(t, 'place_settle_s'), time=released, phase='place', attempt=k)
 
 
 # ---- leg class --------------------------------------------------------------------------
@@ -431,7 +460,7 @@ def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest
         for rows in pool:
             # An attempt that lifted the box (or seated the hips) shows its body got there: its link 1-3 checks
             # stay in the record but do not count as the failure (marked superseded).
-            if any(r['link'] == 4 and r['passed'] for r in rows):
+            if any(r['link'] == 4 and r['passed'] and r.get('phase') != 'place' for r in rows):
                 for r in rows:
                     if r['link'] in (1, 2, 3) and not r['passed'] and r.get('phase') != 'place':
                         r['superseded'] = True
