@@ -211,6 +211,7 @@ UNSEATED = {'contact': lambda t: 0.}    # a sit that went wrong does not end wit
     ({'behind': 0., **UNSEATED}, 2, 'pelvis target over the seat'),
     ({'end_root': [-.44, 0., .70], **UNSEATED}, 3, 'pelvis arrived (height)'),
     ({'contact': lambda t: 0.}, 4, 'seat carries the hips'),
+    ({'pelvis': [2.0, 0., .78], 'yaw': 180., 'end_root': [2.2, 0., .5]}, 1, 'back turned to the seat'),   # sat on the floor
     ({'contact': lambda t: 200. if 4.8 <= t < 7. else 0., 'fall_at': 7.5}, 5, 'stayed seated')])
 def test_sofa_one_episode_per_link(tmp_path, change, link, check):
     v = sofa_episode(tmp_path, **change)

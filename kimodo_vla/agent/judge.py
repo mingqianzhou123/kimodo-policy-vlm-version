@@ -383,8 +383,11 @@ def judge_sofa(episode, t):
         # link 4: support formed
         after = steps_between(steps, end.get('time', t0), end.get('time', t0)+value(t, 'support_window_s'))
         held = [x.get('hip_contact_n', 0.) for x in after]
-        supported = bool(held) and np.median(held) >= value(t, 'support_force_n')
-        checks.add(4, 'seat carries the hips', supported, value=float(np.median(held)) if held else None,
+        # The hips carried by the seat, not by the floor: the pelvis must end over the seat box.
+        over_seat = bool(measured) and rectangle_margin(measured['root'][:2], low[:2], high[:2]) >= 0.
+        supported = bool(held) and np.median(held) >= value(t, 'support_force_n') and over_seat
+        checks.add(4, 'seat carries the hips', supported, value={'median_hip_n': float(np.median(held)) if held else None,
+                                                                    'pelvis_over_seat': over_seat},
                    threshold=value(t, 'support_force_n'), time=end.get('time'), phase='sit', attempt=k)
         # link 5: kept the seat
         if supported:
