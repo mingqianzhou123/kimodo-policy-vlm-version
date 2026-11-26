@@ -7,10 +7,11 @@ it translates. HITCH runs in its own environment (``hitch_server.py``), started 
 
   walk        ``{"walk": {"target": [x, y], "turn_deg": t}}`` in the plan frame; the target is the commanded point
               from the measured root (as ``KimodoPlanner``), the turn keeps the measured heading. HITCH walks with the
-              arms locked at their joint angles; with both hands open the request first sends the arms to HITCH's rest
-              posture (``home``; for the Dex3 it keeps the open hands clear of the body while walking), so they are not
-              carried in front at table height (``rest_arms_when_open``). With a hand closed the arms stay as they
-              are, holding what they hold. After the plan, the remaining error of the true root pose is walked
+              arms locked at their joint angles; with both hands open the request first moves the palms to
+              ``walk_palms`` ([forward, out, height] from the pelvis: beside the body, above a table, outside a box
+              in front), so the open hands are not carried in front at table height. HITCH's own ``home`` is the
+              Dex3 ready pose (wrists 0.22 m in front at 0.92 m): it touched the box on the way in (k3heft 90004). With
+              a hand closed the arms stay as they are, holding what they hold. After the plan, the remaining error of the true root pose is walked
               off again, at most ``move_corrections`` times (``walk_tolerance_m``, ``turn_tolerance_deg``)
   turn        a walk to where the robot stands with ``turn_deg`` (integer degrees)
   pelvis_height  ``{"height": h}`` (HITCH: 0.30-0.79 m; ``behind_feet_m`` is not supported: refused)
@@ -52,7 +53,8 @@ CHUNK = 25
 
 SETTINGS = {k: KIMODO_SETTINGS[k] for k in ('hand_toggle_s', 'walk_tolerance_m', 'turn_tolerance_deg', 'move_corrections',
                                              'tracker', 'avoid_rules')}
-SETTINGS.update(hitch_python=None, hand='dex3', rest_arms_when_open=True)
+SETTINGS.update(hitch_python=None, hand='dex3', walk_palms=[.10, .30, .95],
+                max_reference_lead_m=.25)   # no further correction walk while the reference leads the root this much
 
 
 def wrap_deg(angle):
@@ -188,7 +190,11 @@ class KinematicPlanner(Planner):
         if self.move is not None and self.corrections < self.settings['move_corrections']:
             off = float(np.linalg.norm(np.subtract(obs['root_pos'][:2], self.move['root_xy'])))
             turn = abs(wrap_deg(yaw_deg(rotation_wxyz(obs['root_quat']))-self.move['yaw_deg']))
-            if off > self.settings['walk_tolerance_m'] or turn > self.settings['turn_tolerance_deg']:
+            lead = float(np.linalg.norm(np.subtract(obs['reference_root_pos'][:2], obs['root_pos'][:2])))
+            # A tracker that does not follow the reference (SONIC stepping in place on HITCH's short walks, k3sonic)
+            # gains nothing from a reference walked further away: no correction past max_reference_lead_m.
+            if (off > self.settings['walk_tolerance_m'] or turn > self.settings['turn_tolerance_deg']) \
+                    and lead <= self.settings['max_reference_lead_m']:
                 self.corrections += 1
                 try:
                     self.plan_walk(obs, self.move)
@@ -218,8 +224,10 @@ class KinematicPlanner(Planner):
         request = {'walk': {'target': [round(v, 4) for v in local], 'turn_deg': int(np.clip(turn, -180, 180))}}
         if obs['reference_root_pos'][2] > WALK_HEIGHT_MAX:
             request['height'] = WALK_HEIGHT
-        if self.settings['rest_arms_when_open'] and not np.any(self.hands >= .5):
-            request['hands'] = {side: {'home': True} for side in SIDES}
+        palms = self.settings['walk_palms']
+        if palms and not np.any(self.hands >= .5):
+            request['hands'] = {side: {'waypoints': [{'position': [palms[0], palms[1]*(1 if side == 'left' else -1), palms[2]],
+                                                      'duration_s': 1.2, 'orientation': {'palm': 'inward'}}]} for side in SIDES}
         return self.plan_request(obs, request)
 
     def plan_request(self, obs, request, wrists=None):
