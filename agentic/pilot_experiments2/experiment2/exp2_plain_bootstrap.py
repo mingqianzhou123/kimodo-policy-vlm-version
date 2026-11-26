@@ -1,8 +1,10 @@
-"""Experiment 2 TWIST2 replay: Arena's stock TWIST2 evaluation with the recorded layout.
+"""Experiment 2 replay from the reset pose, as the recording started: Arena's stock evaluation, either tracker.
 
-The oracle bridge is SONIC-only, so it is not installed. Before the first control step the objects are
-put where the recording had them (``exp2_replay.place_recorded``); every step's root pose and tracked
-object pose go to ``execution.jsonl``. The replay server runs open loop (no measured history).
+No oracle bridge (it is SONIC-only) and no settled start (it is tuned for the aligned actuators; with
+Arena's own actuators it never stabilizes), so Arena's own dynamics. Before the first control step the
+objects are put where the recording had them (``exp2_replay.place_recorded``); every step's root pose and
+tracked object pose go to ``execution.jsonl``. The replay server runs open loop (no measured history),
+from recording frame 0.
 """
 import importlib
 import json

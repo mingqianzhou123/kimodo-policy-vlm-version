@@ -321,7 +321,8 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='act
              'eval_model_path': str(Path(episode_path).resolve())}
     (run/'episodes.json').write_text(json.dumps({'episodes': [batch]}, indent=2))
     tracker = episode['tracker']
-    bootstrap = 'exp2_replay_bootstrap.py' if tracker == 'sonic' else 'exp2_twist2_bootstrap.py'
+    settled = tracker == 'sonic' and dynamics == 'actuator'
+    bootstrap = 'exp2_replay_bootstrap.py' if settled else 'exp2_plain_bootstrap.py'
     simcmd = [str(cache/'envs/isaaclab-2.2/bin/python'), '-u', str(HERE/bootstrap),
               str(arena/f'script/eval_scripts/{tracker}/sim_eval_vla.py'), '--headless', '--device', 'cuda:0', '--kit_args',
               f'--allow-root --portable-root {runtime} --/renderer/activeGpu={gpu} --/renderer/multiGpu/enabled=false',
@@ -338,8 +339,7 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='act
               'episode_file': str(Path(episode_path).resolve()), 'episode_sha256': sha256(episode_path),
               'raw_source': episode['source'], 'raw_sha256': episode['raw_sha256'], 'tracker': episode['tracker'],
               'sim_seed': SIM_SEED, 'steps': steps, 'gpu': gpu, 'gpu_uuid': uuid, 'dds_domain': dds_domain,
-              'dynamics_profile': (dynamics if dynamics != 'arena' else None) if tracker == 'sonic' else None,
-              'settled_start': tracker == 'sonic',
+              'dynamics_profile': 'actuator' if settled else None, 'settled_start': settled,
               'sim_command': simcmd, 'policy_command': policycmd,
               'git_commit': commit, 'started_unix': time.time(),
               'tracker_sha256': {p.name: sha256(p) for p in ((cache/'sim-assets/sonic').glob('model_*.onnx') if tracker == 'sonic'
@@ -492,7 +492,8 @@ def main():
     p.add_argument('--label', default='partb')
     p.add_argument('--tracker', choices=['sonic', 'twist2'], default='sonic')
     p.add_argument('--dynamics', choices=['actuator', 'arena'], default='actuator',
-                   help="SONIC: the aligned actuators of this line's runs since 2026-11-17, or Arena's own (as recorded)")
+                   help="SONIC: the aligned actuators and settled start of this line's runs since 2026-11-17, or "
+                        "Arena's own actuators from the reset pose, as the recordings were made (TWIST2: always the latter)")
     p.add_argument('--repeats', type=int, default=1)
     p.add_argument('--gpus', type=int, nargs='+', default=[])
     p.add_argument('--episodes', nargs='+')
