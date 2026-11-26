@@ -93,17 +93,30 @@ class SmokeScript:
 class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
-    def __init__(self, task, stop_after=None):
+    def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
-        'carry' after carrying it to the shelf front; None runs the whole task."""
+        'carry' after carrying it to the shelf front; None runs the whole task.
+
+        ``stance_closer_m`` / ``min_clearance`` (P&PBox, for the kinematic planner): stand this much closer to the box
+        than the first batch's stance rule, never closer to the table edge than its smallest validated clearance
+        (stance_min_clearance_m + stance_extra_m, 0.17 m) instead of its stance (0.24 m). HITCH plans palms with its
+        own arm-reach model: from the first batch's stance it refused the reach beside the box ("farther from its
+        shoulder than the arm reaches") and suggested 4-20 cm closer (k1heft 90000, 90002, 2026-11-28); its walk keeps
+        the arms at their rest posture, so the hanging fingers no longer set the distance."""
         if task not in ('pp_box', 'sit_sofa', 'vision_navi') or stop_after not in (None, 'hold', 'carry'):
             raise ValueError((task, stop_after))
         self.task, self.stop_after = task, stop_after
+        self.stance_closer_m, self.min_clearance = float(stance_closer_m), bool(min_clearance)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
 
     def next(self, observation):
+        last = observation.get('last_command') or {}
+        if self.task == 'pp_box' and last.get('status') == 'planner_refused' and last.get('command', {}).get('type') == 'hand_pose':
+            # A reach the planner cannot carry out: stop rather than close the hands on nothing.
+            self.stage, self.queue = 'stop', []
+            return None
         if not self.queue:
             self.plan(observation)
         if not self.queue:
@@ -128,9 +141,11 @@ class TaskScript:
         and reaching forward moves the hips back another 5 cm: in b1-90000 / 90002 (2026-11-27) a step-in to
         0.25 m left the pelvis 0.30-0.36 m from the edge and the wrists 15-27 cm short of the box."""
         table = obj(observation, 'table')
+        raised = raised or self.min_clearance
         clearance_m = self.grasp['stance_min_clearance_m'] if raised else self.grasp['stance_clearance_m']-.01
         closest = table['min'][0]-(clearance_m+self.wide.get('stance_extra_m', 0.))
         final = self.box_stance(box['position'])
+        final[0] += self.stance_closer_m
         final[0] = min(final[0], closest-.02)
         return final
 
@@ -193,8 +208,8 @@ class TaskScript:
         if self.stage == 'approach' and not self.raise_before_walk:
             # The walk-to-the-stance of d7 (hands in the walking pose, never closer than 0.24 m to the edge), then the
             # reach from the hanging pose. See raise_before_walk for why the other variant is off.
-            step = self.face(observation, 0.) or self.walk_to(observation, self.box_stance(box['position']))
             final = self.final_stance(observation, box)
+            step = self.face(observation, 0.) or self.walk_to(observation, final)
             if step is None and observation['robot']['pelvis'][0] > final[0]+.02:
                 step = {'type': 'walk', 'forward_m': float(final[0]-observation['robot']['pelvis'][0]), 'left_m': 0.}
             if step and self.tries < 4:
