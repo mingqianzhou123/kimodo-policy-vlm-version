@@ -231,12 +231,14 @@ def counts(rows, field='class'):
 
 
 def table(records):
-    med = lambda rows, name, scale=1.: ('—' if not rows else
-                                        f"{np.nanmedian([np.nan if r.get(name) is None else r[name] for r in rows]) * scale:.1f}")
+    value = lambda r, name: np.nan if r.get(name) is None or not np.isfinite(r[name]) else r[name]
+    med = lambda rows, name, scale=1.: ('—' if not rows or all(np.isnan(value(r, name)) for r in rows) else
+                                        f"{np.nanmedian([value(r, name) for r in rows]) * scale:.1f}")
     lines = ['| group · cell | outcome | n | out of reach / not holdable / holdable | same, hands +0.5 kg | '
-             'reach margin (cm) | ref. CoM margin at arrival (cm) | worst ref. CoM margin (cm) | max pelvis back-off (cm) | '
+             'reach margin (cm) | same, no waist lean (cm) | ref. CoM margin at arrival (cm) | worst ref. CoM margin (cm) | '
+             'worst robot CoM margin (cm) | max pelvis back-off (cm) | '
              'trunk lean asked / done (deg) | back-off before ref. CoM leaves / after / ref. never leaves / no back-off |',
-             '|---|---|---|---|---|---|---|---|---|---|---|']
+             '|---|---|---|---|---|---|---|---|---|---|---|---|---|']
     by = defaultdict(list)
     for r in records:
         if 'skip' in r:
@@ -250,7 +252,9 @@ def table(records):
                  ('backoff_first', 'reference_left_first', 'backoff_reference_inside', 'no_backoff')}
         lines.append(f"| {group} · {cell} | {outcome} | {len(rows)} | {c['out_of_reach']} / {c['not_holdable']} / {c['holdable']} | "
                      f"{h['out_of_reach']} / {h['not_holdable']} / {h['holdable']} | {med(rows, 'reach_margin_m', 100)} | "
+                     f"{med(rows, 'upright_reach_margin_m', 100)} | "
                      f"{med(rows, 'ref_com_margin_arrive_m', 100)} | {med(rows, 'ref_com_margin_worst_m', 100)} | "
+                     f"{med(rows, 'actual_com_margin_worst_m', 100)} | "
                      f"{med(rows, 'max_backoff_m', 100)} | {med(rows, 'P.torso_rot.1')} / {med(rows, 'P.torso_rot.total')} | "
                      f"{order['backoff_first']} / {order['reference_left_first']} / {order['backoff_reference_inside']} / {order['no_backoff']} |")
     return '\n'.join(lines)
