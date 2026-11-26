@@ -4,6 +4,7 @@
  "box_size_m": {"value": 0.21, "status": "fact", "meaning": "Edge of the P&PBox box (Arena, move_pickplace_box .../mdp/rewards.py _BOX_SIZE_M)."},
 
  "collision_force_n": {"value": 20, "status": "placeholder", "link": 1, "meaning": "A robot body other than the feet, ankles, hands and wrists pressing on anything with at least this force during a reach counts as a collision."},
+ "collision_min_s": {"value": 0.2, "status": "placeholder", "link": 1, "meaning": "A contact counts as a collision only when it lasts at least this long. Before any attempt (approach) hands and wrists count too."},
  "stable_tilt_max_deg": {"value": 20, "status": "placeholder", "link": 1, "meaning": "Largest pelvis tilt from upright allowed during a reach."},
  "reach_region_pad_m": {"value": 0.0, "status": "placeholder", "link": 1, "meaning": "Padding added on every side of the box region validated in the first batch (configs/grasp-loop.json stand.region, both yaws pooled) before the reach margin is measured."},
  "reach_margin_min_m": {"value": 0.0, "status": "placeholder", "link": 1, "meaning": "Smallest reach margin (box region and each arm) that counts as reachable; negative margins are outside."},

@@ -86,7 +86,8 @@ def box_episode(**change):
         s = {'time': t, 'fallen': bool(change.get('fall_at') is not None and t >= change['fall_at']), 'tilt_deg': 2.,
              'objects': [{'name': 'box', 'position': [x, 0., z], 'yaw_deg': 0.}],
              'wrist_pos': [[x-.1, HALF+.04, hz+.04], [x-.1, -HALF-.04, hz+.04]],
-             'other_contacts_n': change.get('contacts', {}) if 4. <= t <= 6. else {}, 'arena_success': False}
+             'other_contacts_n': change.get('contacts', {}) if change.get('contact_window', (4., 6.))[0] <= t <= change.get('contact_window', (4., 6.))[1] else {},
+             'arena_success': False}
         steps.append(s)
     scene = {'objects': [{'name': 'box', 'kind': 'object', 'position': BOX, 'yaw_deg': 0., 'size': [.21]*3}, layer]}
     return commands, steps, scene
@@ -137,6 +138,20 @@ def test_box_without_an_attempt_is_unclassified(tmp_path):
     commands, steps, scene = box_episode()
     v = judge(write(tmp_path, 'pp_box', scene, commands[:1], steps, False, 'command_budget'), THRESHOLDS, grasp_config=GRASP)
     assert v['link'] == 'unclassified' and v['reason'] == 'no attempt' and v['end_reason'] == 'command_budget'
+
+
+def test_collision_on_the_way_without_an_attempt_is_link_one(tmp_path):
+    commands, steps, scene = box_episode()
+    for s in steps:
+        if 2. <= s['time'] <= 3.:
+            s['other_contacts_n'] = {'left_elbow_link': 90.}
+    v = judge(write(tmp_path, 'pp_box', scene, commands[:1], steps, False), THRESHOLDS, grasp_config=GRASP)
+    assert v['link'] == 1 and v['phase'] == 'approach' and 'left_elbow_link' in v['reason']
+
+
+def test_a_brief_touch_is_not_a_collision(tmp_path):
+    v = verdict_box(tmp_path, contacts={'torso_link': 80.}, success=False, contact_window=(4., 4.1))
+    assert v['link'] != 1
 
 
 def test_earliest_and_last_attempt_rules(tmp_path):

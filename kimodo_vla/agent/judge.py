@@ -104,6 +104,36 @@ def scene_object(episode, name):
     return next((o for o in scene.get('objects', []) if o['name'] == name), None)
 
 
+def sustained_contacts(steps, t, exclude_hands=True):
+    """(time, body, force) of the first robot-body contact of at least ``collision_force_n`` that lasts
+    ``collision_min_s`` (feet and ankles never count; hands and wrists only with ``exclude_hands`` off)."""
+    since = {}
+    for s in steps:
+        pressing = {n: f for n, f in s.get('other_contacts_n', {}).items() if f >= value(t, 'collision_force_n')
+                    and not (exclude_hands and ('_hand_' in n or 'wrist' in n))}
+        since = {n: since.get(n, s['time']) for n in pressing}
+        for n, first in since.items():
+            if s['time']-first >= value(t, 'collision_min_s')-1e-9:
+                return first, n, pressing[n]
+    return None
+
+
+def approach_problem(steps, t, until=None):
+    """The first collision, fall or excessive tilt before ``until`` (the first attempt), or None."""
+    window = steps_between(steps, 0., until)
+    found = []
+    hit = sustained_contacts(window, t, exclude_hands=False)
+    if hit:
+        found.append((hit[0], f'body collision before any attempt ({hit[1]}, {hit[2]:.0f} N)'))
+    fell = fall_time(window)
+    if fell is not None:
+        found.append((fell, 'fell before any attempt'))
+    tilted = next((s['time'] for s in window if s.get('tilt_deg', 0.) > value(t, 'stable_tilt_max_deg')), None)
+    if tilted is not None:
+        found.append((tilted, 'unstable before any attempt'))
+    return min(found) if found else None
+
+
 def success_of(episode):
     if episode.get('episode') is not None:
         return bool(episode['episode'].get('success'))
@@ -165,10 +195,9 @@ def judge_box(episode, t, fk=None, grasp_config=None):
         box = next((o for _, o in object_track(steps_between(steps, t0), 'box')[:1] if o), box0)
         # link 1: collisions, stability, reach
         window = steps_between(steps, t0, t1)
-        hit = [(s['time'], n, f) for s in window for n, f in s.get('other_contacts_n', {}).items()
-               if f >= value(t, 'collision_force_n') and not ('_hand_' in n or 'wrist' in n)]
-        checks.add(1, 'body collision during the reach', len(hit) == 0, value=hit[:3], threshold=value(t, 'collision_force_n'),
-                   time=hit[0][0] if hit else None, attempt=k)
+        hit = sustained_contacts(window, t)
+        checks.add(1, 'body collision during the reach', hit is None, value=hit, threshold=value(t, 'collision_force_n'),
+                   time=hit[0] if hit else None, attempt=k)
         tilt = max((s.get('tilt_deg', 0.) for s in window), default=0.)
         fell = early_fall if k == 0 else fall_time(steps, t0, t1)
         checks.add(1, 'stable during the reach', fell is None and tilt <= value(t, 'stable_tilt_max_deg'),
@@ -387,8 +416,12 @@ def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest
             failed = checks.first_failure(rows)
             if failed:
                 break
-    if failed is None and not tried and early_fall is not None:
-        failed = {'link': 1, 'check': 'fell before any attempt', 'phase': 'approach', 'time': early_fall}
+    if failed is None and not tried:
+        # No attempt at all: a collision or instability on the way is a stance / posture failure (link 1);
+        # a clean approach that never attempted stays unclassified.
+        problem = approach_problem(episode['steps'], thresholds)
+        if problem is not None:
+            failed = {'link': 1, 'check': problem[1], 'phase': 'approach', 'time': problem[0]}
     if failed is None:
         verdict.update(link='unclassified', reason='no attempt' if not tried else 'every check passed')
         return verdict
