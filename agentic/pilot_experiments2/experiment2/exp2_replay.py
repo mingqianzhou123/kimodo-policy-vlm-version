@@ -270,7 +270,7 @@ def free_mib(gpu):
     return uuid, int(free)
 
 
-def wait_free(gpu, mib=17000, timeout_s=3600):
+def wait_free(gpu, mib=20000, timeout_s=7200):
     """Wait until ``gpu`` has ``mib`` free (other sessions share the box); False on timeout."""
     deadline = time.monotonic()+timeout_s
     while time.monotonic() < deadline:
