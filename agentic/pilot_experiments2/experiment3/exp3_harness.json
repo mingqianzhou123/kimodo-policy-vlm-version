@@ -86,7 +86,7 @@
   "min_palm_finger_angle_deg": 45
  },
  "planner": {
-  "_about": "kimodo_vla/agent/planner.py SETTINGS. wrist_feedback stays off: closing the wrist error with measurements is experiment 4's step 3. Walks and turns are closed-loop on the true root pose (walk_tolerance_m, turn_tolerance_deg, at most move_corrections extra moves).",
+  "_about": "kimodo_vla/agent/planner.py SETTINGS. wrist_feedback stays off: closing the wrist error with measurements is experiment 4's step 3. Walks and turns are closed-loop on the true root pose (walk_tolerance_m, turn_tolerance_deg, at most move_corrections extra moves). name: 'kimodo' (KimodoPlanner, default) or 'hitch' (KinematicPlanner).",
   "diffusion_steps": 50,
   "constraint_cfg": 2.0,
   "joint_speed": 4.0,
@@ -185,6 +185,15 @@
     "move_corrections": 0
    },
    "_about": "As scripted_feedback, without the planner's closed-loop correction walks (move_corrections 0), as in development round d7 (3 of 4 lifted). In d9 the correction walks near the table swung the hands into its edge (up to 621 N). A development variant, not a candidate baseline: it switches off plan v3 item 4 for this commander."
+  },
+  "scripted_hitch": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "The same rule on the kinematic planner (kimodo_vla/agent/kinematic.py: HITCH's whole-body planner, $HITCH_PYTHON). The tracker is chosen with --tracker sonic|heft, so the two cells share the references. Development comparison (2026-11-27/28), not a frozen baseline."
   },
   "qwen": {
    "kind": "vlm",

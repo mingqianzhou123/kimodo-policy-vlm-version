@@ -55,8 +55,11 @@ class CommandLoopPolicy:
         self.budgets = {**BUDGETS, **config.get('budgets', {})}
         self.task_text = task_text
         if planner is None:
-            from .planner import KimodoPlanner
-            planner = KimodoPlanner(checkpoint, text_cache, self.run/'loop', config.get('planner'))
+            # The planner is a named choice (planner.name): 'kimodo' (default) or 'hitch' (kinematic.py).
+            from .kinematic import make_planner
+            settings = config.get('planner') or {}
+            planner = make_planner(settings.get('name'), checkpoint=checkpoint, text_cache=text_cache,
+                                   run=self.run/'loop', settings=settings)
         self.planner, self.commander = planner, commander
         self.fk = fk if fk is not None else planner.fk
         self.meta = meta or {}
