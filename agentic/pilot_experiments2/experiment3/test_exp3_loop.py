@@ -248,9 +248,17 @@ def test_box_script_grasp_commands_are_valid():
     observation['robot']['pelvis'] = [-.641-.12, stance[1], .78]     # walked too close to the table edge
     back = script.next(observation)
     assert back['type'] == 'walk' and back['forward_m'] < -.05
-    observation['robot']['pelvis'] = [min(stance[0], -.641-.24), stance[1], .78]
+    final = [min(stance[0], -.641-.24+.01-.02), stance[1]]
+    observation['robot']['pelvis'] = [final[0]-script.pre_stance_m, final[1], .78]     # short of the stance
+    raised = validate(script.next(observation), pelvis=observation['robot']['pelvis'])
+    assert raised['type'] == 'hand_pose' and min(h['position'][2] for h in raised['hands'].values()) > .85+.105+.05
+    assert script.next(observation) == {'type': 'hand', 'left': 'close', 'right': 'close'}
+    step_in = script.next(observation)
+    assert step_in['type'] == 'walk' and step_in['forward_m'] == pytest.approx(script.pre_stance_m)
+    observation['robot']['pelvis'] = [final[0], final[1], .78]
     commands = [validate(script.next(observation), pelvis=observation['robot']['pelvis']) for _ in range(7)]
-    assert [c['type'] for c in commands] == ['hand_pose', 'hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']
+    assert [c['type'] for c in commands] == ['hand', 'hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']
+    assert commands[0] == {'type': 'hand', 'left': 'open', 'right': 'open'}
     over, pre = commands[1]['hands']['left']['position'], commands[2]['hands']['left']['position']
     assert over[2] == pytest.approx(pre[2]+.10) and over[:2] == pytest.approx(pre[:2])
 

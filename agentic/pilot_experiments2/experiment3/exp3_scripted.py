@@ -115,6 +115,16 @@ class TaskScript:
         shift = np.array([-self.wide.get('stance_extra_m', 0.), -self.wide.get('box_lateral_m', 0.)])
         return stance(np.asarray(box_pos), self.grasp)+shift
 
+    def final_stance(self, observation, box):
+        """The first batch's stance, never closer to the table edge than the stance it validated (stance_clearance_m
+        plus the wide setting's stance_extra_m, 0.24 m; 1 cm tolerance). In development episodes 90000 and 90002
+        reaches started 17-21 cm from the edge and the hanging fingers caught it."""
+        table = obj(observation, 'table')
+        closest = table['min'][0]-(self.grasp['stance_clearance_m']+self.wide.get('stance_extra_m', 0.)-.01)
+        final = self.box_stance(box['position'])
+        final[0] = min(final[0], closest-.02)
+        return final
+
     def walk_to(self, observation, goal_xy, tolerance=.06):
         d = to_robot(observation, goal_xy)
         if np.linalg.norm(d) <= tolerance:
@@ -158,29 +168,44 @@ class TaskScript:
         box = obj(observation, 'box')
         if self.stage == 'start':
             self.stage, self.tries = 'approach', 0
+        if self.stage in ('approach', 'step_in'):
+            final = self.final_stance(observation, box)
         if self.stage == 'approach':
-            step = self.face(observation, 0.) or self.walk_to(observation, self.box_stance(box['position']))
-            # Never closer to the table edge than the stance the first batch validated (stance_clearance_m
-            # plus the wide setting's stance_extra_m, 0.24 m; 1 cm tolerance). In development episodes 90000
-            # and 90002 reaches started 17-21 cm from the edge, the body crept 4 cm closer while the hands
-            # rose, the hanging fingers caught the edge (58-162 N) and the robot was shoved 21-31 cm back.
-            table = obj(observation, 'table')
-            closest = table['min'][0]-(self.grasp['stance_clearance_m']+self.wide.get('stance_extra_m', 0.)-.01)
-            if step is None and observation['robot']['pelvis'][0] > closest:
-                step = {'type': 'walk', 'forward_m': float(closest-observation['robot']['pelvis'][0]-.02), 'left_m': 0.}
+            # Stop short of the stance first. While it walks or stands the walking reference carries both hands in
+            # front of the body at 0.72-0.79 m, the height of the table top (0.745 m); in development episode 90000
+            # (d9) the fingers hit the table edge (up to 131 N) on every walk that ended within 0.3 m of it.
+            step = self.face(observation, 0.) or self.walk_to(observation, final-[self.pre_stance_m, 0.], .08)
             if step and self.tries < 4:
+                self.tries += 1
+                self.queue = [step]
+                return
+            # Hands up above the box, then closed: with closed hands the planner holds the arms still while it walks
+            # (hold_arms_when_closed), so the last step in keeps them clear of the table.
+            top = box['position'][2]+self.box_half()+self.raised_above_box_m
+            w = waypoints(box['position'], box['quat_wxyz'], final, self.grasp)
+            lateral = to_robot(observation, box['position'][:2])[1]
+            self.queue = [
+                {'type': 'hand_pose', 'duration_s': self.grasp['raise_s']+0.4, 'hands': {
+                    s: pose(s, from_robot(observation, self.raised_forward_m, lateral+side*self.raised_half_width_m, top), w['rotation'][i])
+                    for i, (s, side) in enumerate((('left', 1.), ('right', -1.)))}},
+                {'type': 'hand', 'left': 'close', 'right': 'close'}]
+            self.stage, self.tries = 'step_in', 0
+            return
+        if self.stage == 'step_in':
+            step = self.walk_to(observation, final, .06)
+            if step and self.tries < 3:
                 self.tries += 1
                 self.queue = [step]
                 return
             self.stage = 'grasp'
             w = waypoints(box['position'], box['quat_wxyz'], observation['robot']['pelvis'][:2], self.grasp)
             both = lambda key, rot: {s: pose(s, w[key][i], w[rot][i]) for i, s in enumerate(('left', 'right'))}
-            # Over the box before lowering beside it: in every development reach (90000 twice, 90002, 90004 runs
-            # of 2026-11-26/27) the open fingers caught the table edge on the way from 'via' to 'pre'.
+            # Down beside the box from above: in every development reach from the hanging pose (90000 twice, 90002,
+            # 90004, 2026-11-26/27) the open fingers caught the table edge on the way to 'pre'.
             w['over'] = np.asarray(w['pre']).copy()
             w['over'][:, 2] += self.over_m
             self.queue = [
-                {'type': 'hand_pose', 'hands': both('via', 'via_rotation'), 'duration_s': self.grasp['raise_s']},
+                {'type': 'hand', 'left': 'open', 'right': 'open'},
                 {'type': 'hand_pose', 'hands': both('over', 'rotation'), 'duration_s': self.grasp['advance_s']},
                 {'type': 'hand_pose', 'hands': both('pre', 'rotation'), 'duration_s': 1.0},
                 {'type': 'hand', 'left': 'close', 'right': 'close'},
@@ -224,6 +249,10 @@ class TaskScript:
         self.queue = []
 
     over_m = .10          # the open hands travel this far above the grasp height before they come down beside the box
+    pre_stance_m = .25    # the first walk stops this much short of the stance (hands still in the walking pose)
+    raised_above_box_m = .08   # then the wrists go this far above the box top,
+    raised_forward_m = .12     # this far in front of the pelvis,
+    raised_half_width_m = .22  # and this far to either side of the box's line
     approach_gap_m = .05  # the carried box stops this far short of the shelf's face
     place_depth_m = .15   # and the hands put its centre this far inside it (Arena needs at least half the box, 0.105)
 
