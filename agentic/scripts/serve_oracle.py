@@ -53,6 +53,7 @@ p.add_argument('--command-loop',help='Command loop configuration (JSON): a comma
 p.add_argument('--commander',help='With --command-loop: which commander of the configuration')
 p.add_argument('--command-task',choices=['pp_box','sit_sofa'],help='With --command-loop: the task')
 p.add_argument('--condition',default='',help='With --command-loop: condition name, recorded only')
+p.add_argument('--tracker',default='sonic',help='With --command-loop: the tracker under the planner (selects its avoid rules)')
 p.add_argument('--vlm-model')
 p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
 p.add_argument('--vlm-python',default=sys.executable)
@@ -104,10 +105,10 @@ if a.command_loop:
         backend = QwenBackend(Path(a.vlm_model)) if spec['backend'] == 'qwen' else API_BACKENDS[spec['backend']](spec['api'])
         commander = VLMCommander(backend, load_prompt(config_path.with_name(spec['page'])), limits, spec.get('max_tokens', 256))
     # A commander may override planner settings (e.g. the wrist feedback of the first batch's grasp).
-    config = {**config, 'planner': {**config.get('planner', {}), **spec.get('planner', {})}}
+    config = {**config, 'planner': {**config.get('planner', {}), **spec.get('planner', {}), 'tracker': a.tracker}}
     policy = CommandLoopPolicy(a.checkpoint, a.text_cache, a.run, config=config, task_text=task['task_text'],
         commander=commander, meta={'task': a.command_task, 'commander_name': a.commander, 'commander_spec': spec,
-                                   'condition': a.condition, 'config': str(config_path)})
+                                   'condition': a.condition, 'tracker': a.tracker, 'config': str(config_path)})
 if policy is None:
     policy = policy_class(a.checkpoint, a.text_cache, a.run, a.mode, diffusion_steps=a.diffusion_steps,
                           constraint_cfg=a.constraint_cfg, text_mode=a.text_mode, root_anchor=a.root_anchor,

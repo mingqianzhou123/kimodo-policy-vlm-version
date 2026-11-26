@@ -382,3 +382,47 @@ def test_development_seeds_are_not_evaluation_episodes():
         dev = set(config['tasks'][task]['dev_seeds'])
         assert not dev & evaluation       # a development run uses seed = episode seed = its dev seed
     assert derive_episode_seed('X', 0, 0) == derive_episode_seed('X', 0, 0) < 2**31
+
+
+def test_planner_moves_avoid_rules_and_corrections():
+    """A sidestep beyond the tracker's rule becomes turn + forward walk + turn back; afterwards the measured
+    root error is walked off again, at most move_corrections times."""
+    from kimodo_vla.agent.planner import KimodoPlanner, SETTINGS
+    planner = KimodoPlanner.__new__(KimodoPlanner)
+    planner.settings = {**SETTINGS, 'avoid_rules': {'sonic': {'sidestep': {'max_m': .3}}}}
+    planner.fk = FK
+    planner.move_target = {'root_xy': [0., .8], 'yaw_deg': 0.}
+    now = {'root': [0., 0., .78], 'yaw_deg': 0.}
+    moves = planner.plan_moves('walk', now)
+    assert [m[0] for m in moves] == ['face', 'walk_to', 'face'] and moves[0][1] == pytest.approx(90.)
+    planner.move_target = {'root_xy': [.8, .1], 'yaw_deg': 0.}
+    assert [m[0] for m in planner.plan_moves('walk', now)] == ['walk_to']
+    planner.settings['avoid_rules'] = {'sonic': {}}
+    planner.move_target = {'root_xy': [0., .8], 'yaw_deg': 0.}
+    assert [m[0] for m in planner.plan_moves('walk', now)] == ['walk_to']
+    assert planner.plan_moves('turn', now) == [('face', 0.)]
+
+    class Walker:
+        native_settings = {'prime_samples': 30, 'speed_m_s': .35, 'tolerance_m': .05}
+        yaw_gain = 1.
+    started = []
+    import kimodo_vla.agent.planner as module
+    original = module.prime
+    module.prime = lambda walker, **kw: started.append(kw['goal'])
+    try:
+        import tempfile
+        q, root = standing()
+        planner.walker, planner.heading, planner.folder, planner.seed = Walker(), np.eye(3), Path(tempfile.mkdtemp()), 1
+        planner.recent = [sample(0., q, root)]
+        planner.move_target, planner.corrections, planner.moves_done = {'root_xy': [.5, 0.], 'yaw_deg': 0.}, 0, []
+        planner.moves = [('walk_to', [.5, 0.])]
+        assert planner.next_move(sample(0., q, root)) and 'xy' in started[-1]['root']
+        short = sample(1., q, root+[.3, 0., 0.])           # stopped 20 cm short: walk again, twice at most
+        assert planner.next_move(short) and planner.corrections == 1
+        assert planner.next_move(short) and planner.corrections == 2
+        assert not planner.next_move(short)
+        there = sample(2., q, root+[.48, 0., 0.])
+        planner.corrections, planner.moves = 0, []
+        assert not planner.next_move(there)
+    finally:
+        module.prime = original

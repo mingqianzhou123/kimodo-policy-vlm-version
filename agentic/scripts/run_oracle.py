@@ -24,6 +24,9 @@ import urllib.request
 
 from paths import AGENTIC as ROOT, CHECKPOINTS, REPO, RUNS, sim_cache
 
+# The tracker under the reference: simulator arguments per tracker (only SONIC is wired; HEFT would be another entry).
+TRACKERS={'sonic':lambda cache:['--sonic_encoder_path',str(cache/'sim-assets/sonic/model_encoder.onnx'),
+                                '--sonic_decoder_path',str(cache/'sim-assets/sonic/model_decoder.onnx')]}
 TASKS={'pp_box':('Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','tasks/common_test_config/base_test/pp_box_sonic_test.yaml'),
        'doubledesk':('Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody','tasks/common_test_config/base_test/doubledesk_sonic_test.yaml'),
        'sit_sofa':('Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody','tasks/common_test_config/base_test/sit_sofa_sonic_test.yaml')}
@@ -47,6 +50,7 @@ def parse_args(argv=None):
         'one body command at a time (kimodo_vla/agent)')
     p.add_argument('--commander',help='With --command-loop: the commander named in the configuration')
     p.add_argument('--condition',default='',help='With --command-loop: condition name, recorded in run.json')
+    p.add_argument('--tracker',default='sonic',help='With --command-loop: the tracker under the planner (only sonic is wired)')
     p.add_argument('--seed',type=int,default=1000,help='Episode seed: object placement and generator noise')
     p.add_argument('--episode-seed',type=int,help='Arena episode seed when it differs from --seed (an official evaluation '
         'episode runs with seed = its group seed and its own episode seed); default: --seed')
@@ -147,8 +151,10 @@ def parse_args(argv=None):
                 or a.box_wide or a.stand_still or a.start_at_stance):
             raise ValueError('The command loop runs on its own: no grasp loop, goal file, replay, markers or placement flags')
         if not a.command_loop.is_file():raise FileNotFoundError(a.command_loop)
+        if a.tracker not in TRACKERS:
+            raise SystemExit(f'Tracker {a.tracker!r} is not wired into this launcher yet (wired: {sorted(TRACKERS)})')
         a.dynamics_profile=a.dynamics_profile or 'actuator'   # the aligned actuators of every walking and grasping run
-    elif a.task=='sit_sofa' or a.commander or a.condition:
+    elif a.task=='sit_sofa' or a.commander or a.condition or a.tracker!='sonic':
         raise ValueError('--task sit_sofa, --commander and --condition belong to --command-loop')
     hammer=a.task=='doubledesk'
     placements=[bool(a.box_at),a.box_in_region] if not hammer else [bool(a.hammer_at),a.hammer_in_region]
@@ -328,7 +334,7 @@ def main():
         if a.native_walk:policycmd.append('--native-walk')
     if a.command_loop:
         policycmd+=['--command-loop',str(a.command_loop.resolve()),'--commander',a.commander,'--command-task',a.task,
-                    '--condition',a.condition]
+                    '--condition',a.condition,'--tracker',a.tracker]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -360,8 +366,7 @@ def main():
         '--task',TASKS[a.task][0],'--env_config_yaml',str(arena/TASKS[a.task][1]),
         '--seed',str(a.seed),'--episode_seed',str(episode_seed),'--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
         '--lerobot_server_url',f'http://127.0.0.1:{port}','--lerobot_server_timeout','660' if a.vlm_model or a.command_loop else '120','--step_log_every_n','50',
-        '--sonic_encoder_path',str(CACHE/'sim-assets/sonic/model_encoder.onnx'),
-        '--sonic_decoder_path',str(CACHE/'sim-assets/sonic/model_decoder.onnx')]
+        *TRACKERS[a.tracker](CACHE)]
     record={'status':'starting','experiment':'A','oracle':True,'mode':a.mode,'sim_command':simcmd,
         'vlm_localizer':a.vlm_localizer,
         'target_source':'qwen_rgb_depth' if a.vlm_model else 'oracle',
@@ -405,7 +410,7 @@ def main():
     if hammer:record.update(experiment='HAMMER-GRASP-LOOP',task=a.task,env_config=TASKS[a.task][1])
     if a.command_loop:record.update(experiment='COMMAND-LOOP',oracle=False,task=a.task,env_config=TASKS[a.task][1],
         target_source='commander',command_loop=str(a.command_loop.resolve()),command_loop_sha256=sha(a.command_loop),
-        commander=a.commander,condition=a.condition,layout_id=a.seed,episode_seed=episode_seed,repeat_idx=a.repeat_idx,
+        commander=a.commander,condition=a.condition,tracker=a.tracker,layout_id=a.seed,episode_seed=episode_seed,repeat_idx=a.repeat_idx,
         max_steps=a.steps,
         vlm_model=str(a.vlm_model) if a.vlm_model else None)
     record['arena_sha256']={f:sha(arena/f) for f in (

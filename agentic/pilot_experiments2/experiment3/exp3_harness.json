@@ -70,7 +70,7 @@
   "min_palm_finger_angle_deg": 45
  },
  "planner": {
-  "_about": "kimodo_vla/agent/planner.py SETTINGS. wrist_feedback stays off: closing the wrist error with measurements is what replacing link 3 means in experiment 4.",
+  "_about": "kimodo_vla/agent/planner.py SETTINGS. wrist_feedback stays off: closing the wrist error with measurements is experiment 4's step 3. Walks and turns are closed-loop on the true root pose (walk_tolerance_m, turn_tolerance_deg, at most move_corrections extra moves).",
   "diffusion_steps": 50,
   "constraint_cfg": 2.0,
   "joint_speed": 4.0,
@@ -79,7 +79,36 @@
   "hand_settle_s": 0.5,
   "hand_toggle_s": 0.6,
   "wrist_feedback": false,
-  "hold_arms_when_closed": true
+  "hold_arms_when_closed": true,
+  "tracker": "sonic",
+  "walk_tolerance_m": 0.08,
+  "turn_tolerance_deg": 6,
+  "move_corrections": 2,
+  "avoid_rules": {
+   "_about": "Per tracker: motions it does badly and how the planner routes around them (plan v3, section 2 item 4). A rule with max_m null is not applied. Frozen with the VLM configuration; the measured basis is experiment 2's command test, entries marked pending until it reports.",
+   "sonic": {
+    "turn": {
+     "rule": "aim twice the yaw still to go (turn_gain 2)",
+     "measured": "exp3 smoke 2026-11-26: a +30 deg turn aimed exactly stalled at 17 deg after 10.6 s (reference stopped 3 deg short, tracker ~8 deg behind); with the gain a 180 deg turn took 12.6 s and ended 0.06 deg off",
+     "status": "measured here"
+    },
+    "lean": {
+     "rule": "none yet",
+     "measured": "exp3 smoke: torso_pitch 15 deg reached 6-9 deg (reference 14.4)",
+     "status": "measured here, no rule"
+    },
+    "sidestep": {
+     "max_m": null,
+     "rule": "longer sidesteps become turn + forward walk + turn back",
+     "status": "pending experiment 2"
+    },
+    "backward": {
+     "max_m": null,
+     "rule": "longer backward walks become turn + forward walk + turn back",
+     "status": "pending experiment 2 (exp 2 of batch 1: backward 7/10 within 5 cm vs forward and side 15/15)"
+    }
+   }
+  }
  },
  "commanders": {
   "smoke": {

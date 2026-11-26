@@ -10,7 +10,11 @@ loop (``loop.py``) never looks inside. A kinematic planner would be another subc
   walk, turn       the official-way Kimodo walk validated in experiment two
                    (``oracle.grasp_walk``: native generator, 1 s replans of 5 s segments from the
                    measured position, approach gain 2, one stop plan into the standing pose);
-                   a turn is the same walker with an on-the-spot yaw goal
+                   a turn is the same walker with an on-the-spot yaw goal. A command is carried out
+                   as moves ('face' a heading, 'walk_to' a point): the tracker's avoid rules may turn a
+                   sidestep or a long backward walk into turn + forward walk + turn back, and once the
+                   moves are done the remaining error of the true root pose is walked (turned) off again,
+                   at most ``move_corrections`` times
   pelvis_height,   one Kimodo plan into the pose ``posture.posture_pose`` solves (the walker's
   torso_pitch      lean phase with that pose as its end); new
   hand_pose        the standing IK-hold backend of the box grasp (``oracle.policy`` with continuous
@@ -50,6 +54,12 @@ SETTINGS = {
     'wrist_feedback_s': 1.,         # with feedback on, a hand_pose command runs this much longer, so the correction acts
     'hold_arms_when_closed': True,
     'reach_settle_s': [.3, 2.],     # before a hand_pose: hold at least / at most this long until the body is still
+    # Walks and turns end within tolerance of the true root pose: after the planned moves the measured error is
+    # walked (turned) off again, at most this many times (plan v3, section 2 item 4).
+    'walk_tolerance_m': .08, 'turn_tolerance_deg': 6., 'move_corrections': 2,
+    # The tracker under the planner; its avoid rules route around motions it does badly (plan v3, section 2 item 4).
+    'tracker': 'sonic',
+    'avoid_rules': {'sonic': {}},
     'settled_root_speed_mps': .02, 'settled_foot_speed_mps': .01,   # "still", as the first batch's grasp loop
 }
 
@@ -228,18 +238,17 @@ class KimodoPlanner(Planner):
             if kind == 'walk':
                 yaw = np.radians(now['yaw_deg'])
                 goal_xy = np.asarray(obs['root_pos'][:2])+yaw_matrix(yaw)[:2, :2] @ [command['forward_m'], command['left_m']]
-                primed_from = history[-self.walker.native_settings['prime_samples']:][0]['root_pos']
-                goal = {'name': 'command-walk', 'root': {'xy': walk_goal_xy(primed_from, goal_xy, heading).tolist(),
-                        'speed_m_s': self.walker.native_settings['speed_m_s'],
-                        'tolerance_m': self.walker.native_settings['tolerance_m']}}
                 target = {'root_xy': goal_xy.tolist(), 'yaw_deg': now['yaw_deg']}
             else:
-                goal = {'name': 'command-turn', 'root': {'xy': [0., 0.], 'yaw_deg': command['left_deg'],
-                        'yaw_rate_deg_s': self.settings['turn_rate_deg_s'], 'tolerance_m': self.walker.native_settings['tolerance_m']}}
                 target = {'root_xy': obs['root_pos'][:2], 'yaw_deg': (now['yaw_deg']+command['left_deg']+180.) % 360.-180.}
-            self.walker.yaw_gain = float(self.settings['turn_gain']) if kind == 'turn' else 1.
-            prime(self.walker, run=self.folder, goal=goal, heading=heading, history=history, seed=self.seed)
-            self.active, plan = ('native', self.walker, ARM_JOINTS+WAIST_JOINTS), {'walker_goal': goal}
+            self.recent = list(history)
+            self.move_target, self.corrections, self.moves_done = target, 0, []
+            self.moves = self.plan_moves(kind, now)
+            if not self.next_move(obs):     # already there: hold a moment
+                self.active = ('hold', obs['time']+.1, None)
+            else:
+                self.active = ('native', self.walker, ARM_JOINTS+WAIST_JOINTS)
+            plan = {'moves': self.moves_done+[list(m) for m in self.moves], 'avoid_rules': self.rules()}
         elif kind in ('pelvis_height', 'torso_pitch'):
             posture = ({'height_m': command['height_m'], 'behind_feet_m': command.get('behind_feet_m')}
                        if kind == 'pelvis_height' else {'pitch_deg': command['pitch_deg']})
@@ -300,11 +309,18 @@ class KimodoPlanner(Planner):
                 executor.arm(obs, self.recent[:-len(new)], heading, goals, command['duration_s'], settle, feedback)
             rows = executor.step(request)
         else:
-            if self.first:
-                request = {**request, 'observation': {**request['observation'], 'oracle_history': executor.primed}}
-            rows = np.asarray(executor(request)['action_chunk'], dtype=float)
-            if executor.phase == 'hold':      # the stop (or posture) plan has been executed whole
-                return None
+            new = [x for x in request['observation']['oracle_history'] if not self.recent or x['time'] > self.recent[-1]['time']+1e-9]
+            self.recent = (self.recent+new)[-400:]
+            while True:
+                call = request if not self.first else {**request, 'observation': {**request['observation'],
+                                                                                   'oracle_history': executor.primed}}
+                rows = np.asarray(executor(call)['action_chunk'], dtype=float)
+                if executor.phase != 'hold':
+                    break
+                # The stop (or posture) plan has been executed whole: the next move, if any, from here.
+                if executor is not self.walker or not self.next_move(obs):
+                    return None
+                self.first = True
         self.first = False
         if rows is None:
             return None
@@ -313,6 +329,66 @@ class KimodoPlanner(Planner):
             rows[:, [9+j for j in keep]] = self.held[keep]
         rows[:, 38:40] = self.hands
         return rows
+
+    # ---- walks and turns as moves ----------------------------------------------------------
+    def rules(self):
+        return self.settings['avoid_rules'].get(self.settings['tracker'], {})
+
+    def plan_moves(self, kind, now):
+        """Moves for one walk or turn: ('face', yaw) and ('walk_to', xy), after the tracker's avoid rules."""
+        target = self.move_target
+        if kind == 'turn':
+            return [('face', target['yaw_deg'])]
+        here, goal = np.asarray(now['root'][:2]), np.asarray(target['root_xy'])
+        d = goal-here
+        yaw = np.radians(now['yaw_deg'])
+        forward, left = np.cos(yaw)*d[0]+np.sin(yaw)*d[1], -np.sin(yaw)*d[0]+np.cos(yaw)*d[1]
+        side = self.rules().get('sidestep', {}).get('max_m')
+        back = self.rules().get('backward', {}).get('max_m')
+        if (side is not None and abs(left) > side) or (back is not None and -forward > back):
+            # Turn toward the goal, walk forward to it, turn back to the commanded heading.
+            return [('face', float(np.degrees(np.arctan2(d[1], d[0])))), ('walk_to', goal.tolist()), ('face', target['yaw_deg'])]
+        return [('walk_to', goal.tolist())]
+
+    def next_move(self, obs):
+        """Start the next move (or, once the planned moves are done, a correction on the measured root pose).
+        Returns False when the command is complete."""
+        now = body_state(obs, self.fk)
+        while True:
+            if not self.moves:
+                if self.corrections >= self.settings['move_corrections']:
+                    return False
+                off = np.linalg.norm(np.subtract(now['root'][:2], self.move_target['root_xy']))
+                turn = abs((now['yaw_deg']-self.move_target['yaw_deg']+180.) % 360.-180.)
+                if off > self.settings['walk_tolerance_m'] and any(m[0] == 'walk_to' for m in self.moves_done):
+                    self.moves = self.plan_moves('walk', now)
+                elif turn > self.settings['turn_tolerance_deg']:
+                    self.moves = [('face', self.move_target['yaw_deg'])]
+                else:
+                    return False
+                self.corrections += 1
+            move = self.moves.pop(0)
+            if move[0] == 'face':
+                angle = (move[1]-now['yaw_deg']+180.) % 360.-180.
+                if abs(angle) < 2.:
+                    continue
+                goal = {'name': 'command-turn', 'root': {'xy': [0., 0.], 'yaw_deg': float(angle),
+                        'yaw_rate_deg_s': self.settings['turn_rate_deg_s'], 'tolerance_m': self.walker.native_settings['tolerance_m']}}
+                self.walker.yaw_gain = float(self.settings['turn_gain'])
+            else:
+                if np.linalg.norm(np.subtract(move[1], now['root'][:2])) < .02:
+                    continue
+                primed_from = self.recent[-self.walker.native_settings['prime_samples']:][0]['root_pos']
+                goal = {'name': 'command-walk', 'root': {'xy': walk_goal_xy(primed_from, move[1], self.heading).tolist(),
+                        'speed_m_s': self.walker.native_settings['speed_m_s'],
+                        'tolerance_m': self.walker.native_settings['tolerance_m']}}
+                self.walker.yaw_gain = 1.
+            folder = self.folder/f'move-{len(self.moves_done):02d}'
+            prime(self.walker, run=folder, goal=goal, heading=self.heading, history=self.recent,
+                  seed=self.seed*10+len(self.moves_done))
+            self.moves_done.append([move[0], move[1], obs['time']])
+            self.first = True
+            return True
 
     def still(self):
         """Pelvis and both ankles nearly at rest over the last 0.3 s (the first batch's ``settled``)."""
