@@ -33,6 +33,7 @@ from stage_split import key, quat_matrix, read_jsonl, round_targets
 
 ONSET_M = .05
 TOUCH_M = .01
+EDGE_M = .03    # a first touch whose closest point is less than this past the front edge counts as "at the edge"
 # Dex3-1 on the G1 wrist-yaw link (HITCH assets/g1/hands/dex3_1.xml); sign s = +1 left, -1 right.
 FINGER_BASE = {'index': (.1192, .0046, .0285), 'middle': (.1192, .0046, -.0285)}
 PHALANX_M, TIP_M = .0458, .03          # proximal link length; distal tip length (mesh, estimated)
@@ -116,6 +117,9 @@ def summarize_trace(tr, start):
     out = {'min_clearance_m': worst['clearance'] if worst else None,
            'touch_s': None if touch is None else touch['t'] - start, 'onset_s': None if onset is None else onset['t'] - start,
            'max_backoff_m': max((x['backoff'] for x in tr), default=None)}
+    if touch is not None:   # where the hand first met the table: at the front edge, or over the top
+        out.update(z_above_top_at_touch_m=touch['z_above_top'], x_beyond_edge_at_touch_m=touch['x_beyond_edge'],
+                   touch_at_edge=bool(touch['x_beyond_edge'] < EDGE_M))
     if onset is not None:
         out.update(clearance_at_onset_m=min(x['clearance'] for x in near),
                    z_above_top_at_onset_m=min(near, key=lambda x: x['clearance'])['z_above_top'],
@@ -173,14 +177,17 @@ def table(records, key_fields=('group', 'outcome')):
         by[(r['group'], outcome)].append(r)
         by[(r['group'] + ' · ' + r['cell'], outcome)].append(r)
     lines = ['| group | outcome | n | min hand–table clearance (cm) | hands inside the table box (n) | back-off >= 5 cm (n) | '
-             'clearance at onset (cm) | closest point above the top / beyond the edge at onset (cm) | at the table before onset / after / never |',
-             '|---|---|---|---|---|---|---|---|---|']
+             'clearance at onset (cm) | closest point above the top / beyond the edge at onset (cm) | at the table before onset / after / never | '
+             'first touch above the top / beyond the edge (cm) | first touch at the front edge (n) |',
+             '|---|---|---|---|---|---|---|---|---|---|---|']
     for (group, outcome), rows in sorted(by.items()):
         orders = {o: sum(r['order'] == o for r in rows) for o in ('touch_first', 'onset_first', 'no_touch')}
         lines.append(f"| {group} | {outcome} | {len(rows)} | {med(rows, 'min_clearance_m')} | "
                      f"{sum(1 for r in rows if (r['min_clearance_m'] or 1) < 0)} | {sum(r['onset_s'] is not None for r in rows)} | "
                      f"{med(rows, 'clearance_at_onset_m')} | {med(rows, 'z_above_top_at_onset_m')} / {med(rows, 'x_beyond_edge_at_onset_m')} | "
-                     f"{orders['touch_first']} / {orders['onset_first']} / {orders['no_touch']} |")
+                     f"{orders['touch_first']} / {orders['onset_first']} / {orders['no_touch']} | "
+                     f"{med(rows, 'z_above_top_at_touch_m')} / {med(rows, 'x_beyond_edge_at_touch_m')} | "
+                     f"{sum(1 for r in rows if r.get('touch_at_edge'))} |")
     return '\n'.join(lines)
 
 
