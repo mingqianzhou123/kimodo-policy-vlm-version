@@ -171,6 +171,10 @@ def analyze_carry_run(run, fk=None):
         out['carry_status'] = 'no_grasp' if 'clear' not in stages else 'clear_never_stopped'
         return out
     t0 = stages['command']['time']
+    rest = json.loads((run/'grasp-result.json').read_text())['rest_height']
+    if stages['command']['box_com'][2]-rest < .05:   # the box fell during the clearing walk: nothing was carried
+        out['carry_status'] = 'dropped_before_command'
+        return out
     target = json.loads((run/'carry-command'/'target.json').read_text())
     steps = [json.loads(x) for x in (run/'execution.jsonl').read_text().splitlines() if x.strip()]
     steps = [s for s in steps if s['after']['time'] >= t0-1e-6]
@@ -188,7 +192,6 @@ def analyze_carry_run(run, fk=None):
     i = out['measured_index']
     grasp = steps[i].get('grasp') or {}
     z0, zi = samples[0]['box_com'][2], samples[i]['box_com'][2]
-    rest = json.loads((run/'grasp-result.json').read_text())['rest_height']
     # Held: both hands press on it (the grasp judge's 0.05 N) and nothing else supports it (no external contact,
     # 0.5 N). Its height is not used: leaning forward lowers a held box to about its resting height.
     out.update(box_drop_m=float(z0-zi), box_above_rest_m=float(zi-rest), external_n=float(grasp.get('external_n', 0.)),
