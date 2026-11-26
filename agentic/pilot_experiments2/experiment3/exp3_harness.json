@@ -3,12 +3,34 @@
  "tasks": {
   "pp_box": {
    "task_text": "Pick up the box from the table and put it on the shelf.",
-   "dev_seeds": [90000, 90001, 90002, 90003, 90004, 90005, 90006, 90007, 90008, 90009],
+   "dev_seeds": [
+    90000,
+    90001,
+    90002,
+    90003,
+    90004,
+    90005,
+    90006,
+    90007,
+    90008,
+    90009
+   ],
    "_dev_seeds": "Development layouts only (Arena's own seeded reset of box and shelf). Set aside on 2026-11-26 for building the harness; they must not be in the valid layout set V of experiment 2."
   },
   "sit_sofa": {
    "task_text": "Sit down on the sofa.",
-   "dev_seeds": [91000, 91001, 91002, 91003, 91004, 91005, 91006, 91007, 91008, 91009],
+   "dev_seeds": [
+    91000,
+    91001,
+    91002,
+    91003,
+    91004,
+    91005,
+    91006,
+    91007,
+    91008,
+    91009
+   ],
    "_dev_seeds": "As for pp_box: development only, never in V."
   }
  },
@@ -27,10 +49,22 @@
   "walk_min_m": 0.02,
   "turn_max_deg": 180,
   "turn_min_deg": 2,
-  "pelvis_height_m": [0.40, 0.80],
-  "behind_feet_m": [0.0, 0.30],
-  "torso_pitch_deg": [0, 45],
-  "hand_duration_s": [0.5, 4.0],
+  "pelvis_height_m": [
+   0.4,
+   0.8
+  ],
+  "behind_feet_m": [
+   0.0,
+   0.3
+  ],
+  "torso_pitch_deg": [
+   0,
+   45
+  ],
+  "hand_duration_s": [
+   0.5,
+   4.0
+  ],
   "hand_default_duration_s": 1.5,
   "workspace_radius_m": 1.2,
   "min_palm_finger_angle_deg": 45
@@ -48,11 +82,58 @@
   "hold_arms_when_closed": true
  },
  "commanders": {
-  "smoke": {"kind": "scripted", "file": "exp3_scripted.py", "name": "SmokeScript",
-            "_about": "One of every command type, to check the planner end to end and record the scene; not a task."},
-  "scripted": {"kind": "scripted", "file": "exp3_scripted.py", "name": "TaskScript",
-               "_about": "The acceptance test of the harness: a fixed rule per task computed from the ground-truth objects, no VLM."},
-  "qwen": {"kind": "vlm", "backend": "qwen", "page": "vlm-config.md", "max_tokens": 400,
-           "_about": "Qwen3-VL-4B-Instruct, local (--vlm-model). Prompt: the prompt block of vlm-config.md."}
+  "smoke": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "SmokeScript",
+   "_about": "One of every command type, to check the planner end to end and record the scene; not a task."
+  },
+  "scripted": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "_about": "The acceptance test of the harness: a fixed rule per task computed from the ground-truth objects, no VLM."
+  },
+  "qwen": {
+   "kind": "vlm",
+   "backend": "qwen",
+   "page": "vlm-config.md",
+   "max_tokens": 400,
+   "_about": "Qwen3-VL-4B-Instruct, local (--vlm-model). Prompt: the prompt block of vlm-config.md."
+  },
+  "gpt": {
+   "kind": "vlm",
+   "backend": "openai",
+   "page": "vlm-config.md",
+   "max_tokens": 400,
+   "api": {
+    "model": "gpt-6.2-astra",
+    "base_url": "https://api.openai.com/v1",
+    "request": {},
+    "price_per_million_tokens_usd": {
+     "input": 8.0,
+     "output": 40.0
+    },
+    "timeout_s": 120
+   },
+   "_about": "Candidate only, not frozen: the model the first batch's pointing experiment used. Key: OPENAI_API_KEY in agentic/env.local.sh. One connectivity check at most without the user's go-ahead."
+  },
+  "gemini": {
+   "kind": "vlm",
+   "backend": "gemini",
+   "page": "vlm-config.md",
+   "max_tokens": 400,
+   "api": {
+    "model": "gemini-4-argon",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta",
+    "request": {},
+    "price_per_million_tokens_usd": {
+     "input": 2.0,
+     "output": 10.0
+    },
+    "timeout_s": 120
+   },
+   "_about": "Candidate only, as gpt. Key: GEMINI_API_KEY in agentic/env.local.sh."
+  }
  }
 }
