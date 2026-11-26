@@ -75,11 +75,32 @@ class Hooks:
         box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
         return np.array(box.GetMin(), dtype=float), np.array(box.GetMax(), dtype=float)
 
+    def parts(self, root, depth=None):
+        """Axis-aligned bounds of every prim under ``root`` (``depth`` levels down only, if given)."""
+        import omni.usd
+        from pxr import Usd, UsdGeom
+        stage = omni.usd.get_context().get_stage()
+        top = stage.GetPrimAtPath(root)
+        if not top or not top.IsValid():
+            return []
+        cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy])
+        out, base = [], str(top.GetPath()).count('/')
+        for prim in Usd.PrimRange(top):
+            level = str(prim.GetPath()).count('/')-base
+            if level == 0 or (depth is not None and level > depth):
+                continue
+            box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+            if box.IsEmpty():
+                continue
+            low, high = np.array(box.GetMin(), dtype=float), np.array(box.GetMax(), dtype=float)
+            out.append({'path': str(prim.GetPath()), 'name': prim.GetName(), 'min': low.tolist(), 'max': high.tolist()})
+        return out
+
     def static_objects(self):
         """Fixed scenery, read once after the episode's reset placed it."""
         if self.static is not None:
             return self.static
-        objects, extra = [], {}
+        objects, extra = [], {'room_assets': self.parts('/World/envs/env_0/Room/Assets', depth=1)}
         if self.task == 'pp_box':
             scene = json.loads((self.run/'grasp-scene.json').read_text())
             table = next(c for c in scene['colliders_near_box'] if 'PackingTable' in c['path'])
@@ -93,15 +114,23 @@ class Hooks:
                 objects.append(region('shelf', *shelf))
             objects.append(region('shelf_target_layer', [widest[0], widest[2], target_top], [widest[1], widest[3], target_top],
                 note='place the box so that its centre is over this area and its bottom rests at top z'))
-            extra = {'shelf_support_surfaces': [list(s) for s in surfaces], 'shelf_base_top_z': base,
-                     'shelf_target_top_z': target_top, 'box_size_m': list(self.rewards._BOX_SIZE_M)}
+            extra.update({'shelf_parts': self.parts('/World/envs/env_0/Shelf'),
+                     'shelf_support_surfaces': [list(s) for s in surfaces], 'shelf_base_top_z': base,
+                     'shelf_target_top_z': target_top, 'box_size_m': list(self.rewards._BOX_SIZE_M)})
         else:
             seat = self.rewards._get_sofa_seat_boxes_world(self.env)[0]
             if seat is None:
                 raise RuntimeError('Arena found no sofa seat on the stage')
             x0, x1, y0, y1, z0, z1 = seat
             objects.append(region('sofa_seat', [x0, y0, z0], [x1, y1, z1], top_z=z1))
-            extra = {'seat_box_world': list(seat), 'sit_bodies': list(HIP_BODIES)}
+            extra.update({'seat_box_world': list(seat), 'sit_bodies': list(HIP_BODIES)})
+            # Furniture within 3 m of the seat, as obstacles (names from the scene file).
+            centre = np.array([(x0+x1)/2, (y0+y1)/2])
+            for part in extra['room_assets']:
+                low, high = np.array(part['min']), np.array(part['max'])
+                size = high-low
+                if np.linalg.norm((low[:2]+high[:2])/2-centre) <= 3. and size[2] > .1 and max(size[:2]) < 4.:
+                    objects.append(region(part['name'], low, high, kind_of='furniture'))
             for key in ('carton_obstacle_01', 'carton_obstacle_02'):
                 bounds = self.stage_bounds(f'/World/envs/env_0/{"CartonObstacle0" + key[-1]}')
                 if bounds is not None:

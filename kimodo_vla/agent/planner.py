@@ -42,6 +42,7 @@ SETTINGS = {
     'diffusion_steps': 50, 'constraint_cfg': 2., 'joint_speed': 4., 'handoff_seconds': .2,
     'walk': {},                     # overrides of oracle.grasp_walk.DEFAULTS
     'turn_rate_deg_s': 45.,
+    'turn_gain': 2.,                # turns aim this many times the yaw still to go (the walk's approach gain, for yaw)
     'hand_settle_s': .5,            # a hand_pose command ends this long after its path does
     'hand_toggle_s': .6,            # an open / close command holds the body this long
     'wrist_feedback': False,        # off: the measured wrist error is not fed back (replacing link 3 is experiment 4's job)
@@ -123,6 +124,29 @@ class HandReach(OraclePolicy):
         return np.asarray(self.__call__(request)['action_chunk'])
 
 
+class TurnWalk(NativeApproach):
+    """The walker, whose heading conditions aim ``yaw_gain`` times the yaw still to go during a turn.
+
+    The tracker stays several degrees behind the reference heading, and Kimodo's reference stops a
+    few degrees short of the conditioned one, so a turn aimed exactly at its goal stalls outside
+    the 5 degree tolerance until the time allowance ends (2026-11-26 smoke runs). The walk's
+    validated setting answers the same shortfall in position with approach gain 2; this is that
+    gain for yaw. When the turn is done is still judged on the yaw actually turned.
+    """
+    yaw_gain = 1.
+
+    def conditions(self, phase, obs, step, cut, canvas=None):
+        kwargs = {} if canvas is None else {'canvas': canvas}
+        if phase != 'walk' or self.yaw_gain == 1. or not self.goal.get('root', {}).get('yaw_deg'):
+            return super().conditions(phase, obs, step, cut, **kwargs)
+        remaining = NativeApproach.yaw_remaining
+        self.yaw_remaining = lambda o: self.yaw_gain*remaining(self, o)
+        try:
+            return super().conditions(phase, obs, step, cut, **kwargs)
+        finally:
+            del self.yaw_remaining
+
+
 class PostureMove(NativeApproach):
     """The walker's lean phase, ending in the pose ``posture_pose`` solves instead of a plain lean."""
     posture = {}
@@ -179,7 +203,7 @@ class KimodoPlanner(Planner):
             joint_speed=s['joint_speed'], support_constraints='root', hand_constraints='continuous',
             trajectory_projection='ik-hold')
         self.fk = self.reacher.fk
-        self.walker = make_native(self.reacher, NativeApproach, text_cache, s['walk'],
+        self.walker = make_native(self.reacher, TurnWalk, text_cache, s['walk'],
                                   {'name': 'command-walk', 'root': {'xy': [.1, 0.]}})
         self.poser = make_native(self.reacher, PostureMove, text_cache, s['walk'],
                                  {'name': 'command-posture', 'lean': {'pitch_deg': 1.}})
@@ -210,6 +234,7 @@ class KimodoPlanner(Planner):
                 goal = {'name': 'command-turn', 'root': {'xy': [0., 0.], 'yaw_deg': command['left_deg'],
                         'yaw_rate_deg_s': self.settings['turn_rate_deg_s'], 'tolerance_m': self.walker.native_settings['tolerance_m']}}
                 target = {'root_xy': obs['root_pos'][:2], 'yaw_deg': (now['yaw_deg']+command['left_deg']+180.) % 360.-180.}
+            self.walker.yaw_gain = float(self.settings['turn_gain']) if kind == 'turn' else 1.
             prime(self.walker, run=self.folder, goal=goal, heading=heading, history=history, seed=self.seed)
             self.active, plan = ('native', self.walker, ARM_JOINTS+WAIST_JOINTS), {'walker_goal': goal}
         elif kind in ('pelvis_height', 'torso_pitch'):

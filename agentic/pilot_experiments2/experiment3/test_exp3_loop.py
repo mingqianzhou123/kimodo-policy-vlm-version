@@ -245,10 +245,8 @@ def test_box_script_grasp_commands_are_valid():
     assert first['type'] == 'walk' and first['forward_m'] > .3
     stance = script.box_stance(box['position'])
     observation['robot']['pelvis'] = [stance[0], stance[1], .78]
-    kinds = []
-    while (command := script.next(observation)) is not None:
-        kinds.append(validate(command, pelvis=observation['robot']['pelvis'])['type'])
-    assert kinds == ['hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose']
+    kinds = [validate(script.next(observation), pelvis=observation['robot']['pelvis'])['type'] for _ in range(6)]
+    assert kinds == ['hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']
 
 
 def test_config_names_dev_seeds_and_commanders():
@@ -266,3 +264,32 @@ def test_prompt_block_fills():
     assert 'Sit down.' in text and '1.235' in text and 'refused (no_json: x)' in text
     assert '{observation}' not in text and '{task}' not in text and '{error}' not in text
     assert 'refused' not in fill(template, {'task': 't'})
+
+
+def test_task_scripts_on_recorded_scenes():
+    """Both rules on the geometry the smoke runs recorded (seed 90000 and 91000): valid commands, sensible targets."""
+    from exp3_scripted import TaskScript, nearest_face, route
+    shelf = {'name': 'shelf', 'min': [-3.316, -3.209, 0.], 'max': [-1.236, -2.146, 2.18]}
+    layer = {'name': 'shelf_target_layer', 'min': [-3.316, -3.209, .648], 'max': [-1.236, -2.146, .648]}
+    normal, _, inside = nearest_face(shelf, [-1.3, -5.2])
+    assert normal.tolist() == [0., -1.] and inside(.22, .25)[1] == pytest.approx(-3.209+.22)
+    script = TaskScript('pp_box')
+    script.stage = 'grasp'
+    box = {'name': 'box', 'position': [-.85, -5.2, 1.07], 'quat_wxyz': [1, 0, 0, 0]}
+    wrists = {s: {'position': [-.95, -5.2+(.16 if s == 'left' else -.16), 1.1]} for s in ('left', 'right')}
+    observation = {'robot': {'pelvis': [-1.3, -5.2, .78], 'heading_deg': 0., 'wrists': wrists}, 'objects': [box, shelf, layer]}
+    first = script.next(observation)
+    assert first == {'type': 'turn', 'left_deg': 90.}
+    assert script.place_yaw == pytest.approx(90.) and script.place_z == pytest.approx(.648+.105+.02)
+    seat = {'name': 'sofa_seat', 'min': [-4.306, -1.690, -.31], 'max': [-2.326, -.785, .31]}
+    cartons = [{'name': 'carton_obstacle_01', 'position': [-1.86, .60, 0.], 'size': [.41, .41, .42]},
+               {'name': 'carton_obstacle_02', 'position': [-1.92, .08, 0.], 'size': [.41, .41, .42]}]
+    sofa = TaskScript('sit_sofa')
+    observation = {'robot': {'pelvis': [-1.6, 2.0, .78], 'heading_deg': -90.}, 'objects': [seat]+cartons}
+    turn = sofa.next(observation)
+    assert turn['type'] == 'turn' and abs(turn['left_deg']) == pytest.approx(180.)
+    assert sofa.sit_yaw == pytest.approx(90.) and sofa.stand[1] == pytest.approx(-.785+.10)
+    for leg_start, leg_end in zip([[-1.6, 2.0]]+sofa.route, sofa.route):
+        for u in np.linspace(0, 1, 20):
+            p = np.asarray(leg_start)+(np.asarray(leg_end)-np.asarray(leg_start))*u
+            assert all(np.max(np.abs(p-np.asarray(c['position'][:2]))) > .2+.3 for c in cartons)

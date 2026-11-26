@@ -137,27 +137,144 @@ class TaskScript:
         if self.stage == 'start':
             self.stage, self.tries = 'approach', 0
         if self.stage == 'approach':
-            turn = self.face(observation, 0.)
-            walk = self.walk_to(observation, self.box_stance(box['position']))
-            if (turn or walk) and self.tries < 4:
+            step = self.face(observation, 0.) or self.walk_to(observation, self.box_stance(box['position']))
+            if step and self.tries < 4:
                 self.tries += 1
-                self.queue = [turn or walk]
+                self.queue = [step]
                 return
             self.stage = 'grasp'
-            quat = box['quat_wxyz']
-            w = waypoints(box['position'], quat, observation['robot']['pelvis'][:2], self.grasp)
+            w = waypoints(box['position'], box['quat_wxyz'], observation['robot']['pelvis'][:2], self.grasp)
             both = lambda key, rot: {s: pose(s, w[key][i], w[rot][i]) for i, s in enumerate(('left', 'right'))}
             self.queue = [
                 {'type': 'hand_pose', 'hands': both('via', 'via_rotation'), 'duration_s': self.grasp['raise_s']},
                 {'type': 'hand_pose', 'hands': both('pre', 'rotation'), 'duration_s': self.grasp['advance_s']},
                 {'type': 'hand', 'left': 'close', 'right': 'close'},
                 {'type': 'hand_pose', 'hands': both('squeeze', 'rotation'), 'duration_s': self.grasp['squeeze_s']},
-                {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': self.grasp['lift_s']}]
+                {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': self.grasp['lift_s']},
+                {'type': 'walk', 'forward_m': -0.35, 'left_m': 0.0}]
             return
         if self.stage == 'grasp':
-            self.stage = 'done'
-            self.queue = []
+            # Where the held box sits relative to the pelvis, and where it should go on the shelf.
+            self.hold = to_robot(observation, box['position'][:2])
+            layer, shelf = obj(observation, 'shelf_target_layer'), obj(observation, 'shelf')
+            normal, along, inside = nearest_face(shelf, observation['robot']['pelvis'][:2])
+            self.place_xy = inside(0.22, self.box_half()+0.15)
+            self.place_z = layer['max'][2]+self.box_half()+0.02
+            self.place_yaw = float(np.degrees(np.arctan2(-normal[1], -normal[0])))
+            self.stage, self.tries = 'carry', 0
+        if self.stage == 'carry':
+            yaw = np.radians(self.place_yaw)
+            c, s_ = np.cos(yaw), np.sin(yaw)
+            stand = np.asarray(self.place_xy)-np.array([c*self.hold[0]-s_*self.hold[1], s_*self.hold[0]+c*self.hold[1]])
+            step = self.face(observation, self.place_yaw, 6.) or self.walk_to(observation, stand, .08)
+            if step and self.tries < 6:
+                self.tries += 1
+                self.queue = [step]
+                return
+            self.stage = 'place'
+            delta = np.r_[np.asarray(self.place_xy)-np.asarray(box['position'][:2]), self.place_z-box['position'][2]]
+            wrists = observation['robot']['wrists']
+            yawv = np.array([np.cos(yaw), np.sin(yaw), 0.])
+            self.queue = [
+                {'type': 'hand_pose', 'duration_s': 2.0,
+                 'hands': {s: {'position': (np.asarray(wrists[s]['position'])+delta).tolist()} for s in ('left', 'right')}},
+                {'type': 'hand', 'left': 'open', 'right': 'open'},
+                lambda o: {'type': 'hand_pose', 'duration_s': 1.5, 'hands': {s: {'position': (
+                    np.asarray(o['robot']['wrists'][s]['position'])-0.15*yawv+[0, 0, 0.05]).tolist()} for s in ('left', 'right')}},
+                {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0}]
+            return
+        self.queue = []
+
+    def box_half(self):
+        return 0.105
 
     # ---- SitSofa ------------------------------------------------------------------------
     def plan_sofa(self, observation):
-        self.queue = []   # written after the scene probe shows where the seat is
+        seat = obj(observation, 'sofa_seat')
+        if self.stage == 'start':
+            pelvis = observation['robot']['pelvis'][:2]
+            normal, along, inside = nearest_face(seat, pelvis)
+            # Everything but the seat and the sofa it belongs to (any box around the seat's centre) is in the way.
+            centre = (np.asarray(seat['min'][:2])+np.asarray(seat['max'][:2]))/2
+            obstacles = [o for o in observation['objects'] if o['name'] != 'sofa_seat' and clearance(centre, o) > 0]
+            # The spot along the seat front with the most room in front of it, nearest the robot on ties.
+            best = None
+            for u in np.linspace(0.1, 0.9, 17):
+                spot = np.asarray(inside(-0.10, None, u))
+                room = min((clearance(spot+normal*d, o) for o in obstacles for d in (0.2, 0.5, 0.8)), default=9.)
+                score = (round(min(room, 1.0), 2), -np.linalg.norm(spot-pelvis))
+                if best is None or score > best[0]:
+                    best = (score, spot)
+            self.stand = best[1]
+            self.sit_yaw = float(np.degrees(np.arctan2(normal[1], normal[0])))   # back to the seat
+            self.route = route(pelvis, self.stand, obstacles)
+            self.stage, self.tries = 'turn', 0
+        if self.stage == 'turn':
+            step = self.face(observation, self.sit_yaw, 6.)
+            if step and self.tries < 3:
+                self.tries += 1
+                self.queue = [step]
+                return
+            self.stage, self.tries = 'walk', 0
+        if self.stage == 'walk':
+            while self.route:
+                step = self.walk_to(observation, self.route[0], .08 if len(self.route) == 1 else .2)
+                if step and self.tries < 8:
+                    self.tries += 1
+                    self.queue = [step]
+                    return
+                self.route.pop(0)
+            self.stage = 'sit'
+            step = self.face(observation, self.sit_yaw, 8.)
+            self.queue = ([step] if step else [])+[{'type': 'pelvis_height', 'height_m': 0.48, 'behind_feet_m': 0.25}]
+            return
+        self.queue = []
+
+
+def nearest_face(region, point):
+    """The side of an axis-aligned region that faces ``point``: (outward normal, unit vector along it,
+    inside(depth, margin, u)) where inside gives the ground point ``depth`` inside the face (negative:
+    outside), at fraction ``u`` along it, or (u None) at the point's own place clamped ``margin`` from the ends."""
+    low, high = np.asarray(region['min'][:2], dtype=float), np.asarray(region['max'][:2], dtype=float)
+    centre, half = (low+high)/2, (high-low)/2
+    d = np.asarray(point, dtype=float)-centre
+    axis = int(np.argmax(np.abs(d)/half))
+    normal = np.zeros(2)
+    normal[axis] = np.sign(d[axis]) or 1.
+    other = 1-axis
+    along = np.zeros(2)
+    along[other] = 1.
+    face = centre+normal*half
+
+    def inside(depth, margin, u=None):
+        p = face.copy()-normal*depth
+        if u is None:
+            p[other] = np.clip(point[other], low[other]+margin, high[other]-margin)
+        else:
+            p[other] = low[other]+u*(high[other]-low[other])
+        return p.tolist()
+    return normal, along, inside
+
+
+def clearance(point, region):
+    """Ground distance from a point to an object's footprint (0 inside)."""
+    if 'min' in region:
+        low, high = np.asarray(region['min'][:2]), np.asarray(region['max'][:2])
+    else:
+        half = np.asarray(region.get('size') or [.2, .2])[:2]/2
+        low, high = np.asarray(region['position'][:2])-half, np.asarray(region['position'][:2])+half
+    return float(np.linalg.norm(np.maximum(0., np.maximum(low-point, point-high))))
+
+
+def route(start, goal, obstacles, body=.35):
+    """Straight, or through one corner (x first or y first), whichever keeps ``body`` clear of every obstacle."""
+    start, goal = np.asarray(start, dtype=float), np.asarray(goal, dtype=float)
+
+    def free(a, b):
+        return all(clearance(a+(b-a)*u, o) > body for u in np.linspace(0, 1, 25) for o in obstacles)
+    for corner in (None, np.array([goal[0], start[1]]), np.array([start[0], goal[1]])):
+        legs = [goal] if corner is None else [corner, goal]
+        points = [start]+legs
+        if all(free(a, b) for a, b in zip(points, points[1:])):
+            return [p.tolist() for p in legs]
+    return [goal.tolist()]
