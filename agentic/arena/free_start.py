@@ -94,6 +94,8 @@ def settle(env, provider, warm_action, run):
                 provider._lerobot_vla_runtime.reset(body_xy_world=here, target_root_quat_wxyz=quat)
                 provider._vla_initial_robot_quat_wxyz = quat.copy()
                 provider._latest_pose_payload = {}
+                if hasattr(provider, '_heft_reset'):   # its reference restarts with the integrator
+                    provider._heft_reset()
                 return
     raise RuntimeError('Double support did not stabilize within 5 s')
 
@@ -101,6 +103,9 @@ def settle(env, provider, warm_action, run):
 def install(install_bridge):
     factory = importlib.import_module('action_provider.create_action_provider')
     install_dynamics_override()
+    if os.environ.get('KVLA_TRACKER') == 'heft':   # HEFT replaces SONIC in the provider, settling included
+        from arena.heft_bridge import install_heft
+        install_heft()
     aligned = factory.create_action_provider
 
     def remember_warm_action(env, args):

@@ -159,6 +159,9 @@ def install_oracle_bridge():
             if loop is not None:
                 record.update(contact_sensor_available=True, grasp_attempted=loop.gate.fired_at is not None,
                               grasp=loop.after_step(after, read_contact(env)))
+            if getattr(provider, '_heft_reference', None) is not None:   # the frame HEFT tracked (arena/heft_bridge.py)
+                record['heft_reference'] = provider._heft_reference
+                record['heft_checks'] = dict(provider._heft_checks)
             payload = provider._latest_pose_payload
             if payload and all(k in payload for k in ('body_pos','body_quat_w','joint_pos')):
                 refp, refr = fk(np.asarray(payload['joint_pos']).reshape(29),

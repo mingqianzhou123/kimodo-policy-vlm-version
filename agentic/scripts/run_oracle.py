@@ -109,6 +109,9 @@ def parse_args(argv=None):
     p.add_argument('--noise-seed',type=int,help='With --motion-goal: seed of Kimodo\'s sampling noise, to repeat one goal with different motions')
     p.add_argument('--actuator-audit',action='store_true')
     p.add_argument('--dynamics-profile',choices=['sensor-load','actuator','actuator-load'])
+    p.add_argument('--tracker',choices=['sonic','heft'],default='sonic',help='heft: HEFT (HITCH G1_Harness) replaces '
+        'SONIC inside the provider (arena/heft_bridge.py), with its own drives (configs/heft-dynamics.json); open-floor '
+        'motion goals and demo segments only. Checkpoint: $KVLA_HEFT_CHECKPOINT, else <checkpoints>/heft/G1_Harness')
     p.add_argument('--root-support',choices=['none','raised'],help='Root diagnostic: keep ground or add a reference-height support platform')
     p.add_argument('--variant',choices=['original','handoff','bounded'],default='bounded')
     p.add_argument('--handoff-seconds',type=float,default=.2)
@@ -197,6 +200,13 @@ def main():
             or a.actuator_audit or a.mode!='hold' or a.trajectory_projection!='ik-hold' or a.dynamics_profile!='actuator'
             or a.latch_delay_steps<0):
         raise ValueError('The grasp loop runs on the live IK-hold backend with aligned actuators and nothing else')
+    heft=None
+    if a.tracker=='heft':
+        if not (a.motion_goal or demo):raise ValueError('--tracker heft runs open-floor motion goals and demo segments only')
+        heft=Path(os.environ.get('KVLA_HEFT_CHECKPOINT') or CHECKPOINTS/'heft/G1_Harness')
+        if not (heft/'deploy.yaml').is_file() or not (heft/'policy.onnx').is_file():
+            raise FileNotFoundError(f'HEFT checkpoint (deploy.yaml, policy.onnx) not found in {heft}')
+        a.dynamics_profile='heft'   # after the checks above, which require the aligned SONIC profile
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
     if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not demo and not ((replay or a.settled_goal) and a.actuator_audit):
@@ -245,6 +255,7 @@ def main():
     env={k:v for k,v in os.environ.items() if k.lower() not in ('http_proxy','https_proxy','all_proxy')}
     env.update(PYTHONUNBUFFERED='1',OMP_NUM_THREADS='4',ORACLE_RUN=str(run))
     if a.dynamics_profile:env['SONIC_DYNAMICS_PROFILE']=a.dynamics_profile
+    if heft:env.update(KVLA_TRACKER='heft',KVLA_HEFT_CHECKPOINT=str(heft))
     if a.grasp_loop:env['GRASP_LOOP']='1'
     if a.carry_goal:env['KVLA_GRASP_KEEP_RUNNING']='1'   # success no longer ends the episode
     if hammer:env['GRASP_TASK']='hammer'
@@ -363,7 +374,9 @@ def main():
         'source_sha256':{str(p.relative_to(base)):sha(p) for base,directory in ((REPO,'kimodo_vla'),(ROOT,'arena'),(ROOT,'scripts'),(ROOT,'pilot_experiments'))
                          for p in (base/directory).rglob('*.py')},
         'checkpoint_sha256':{} if fixed else {str(p.relative_to(checkpoint)):sha(p) for p in checkpoint.rglob('*') if p.is_file()},
-        'tracker_sha256':{p.name:sha(p) for p in (CACHE/'sim-assets/sonic').glob('model_*.onnx')}}
+        'tracker':a.tracker,
+        'tracker_sha256':({p.name:sha(heft/p.name) for p in (heft/'policy.onnx',heft/'deploy.yaml')} if heft else
+                          {p.name:sha(p) for p in (CACHE/'sim-assets/sonic').glob('model_*.onnx')})}
     if a.settled_goal:record.update(experiment='SETTLED-VISUAL-GOAL',oracle=False,target_source='archived_visual_world',
         archived_goal_sha256=sha(a.settled_goal),marker_reach_rad=a.marker_reach_rad,camera_lateral_m=a.camera_lateral_m)
     if a.vlm_model:record.update(experiment='VLM-A',oracle=False)

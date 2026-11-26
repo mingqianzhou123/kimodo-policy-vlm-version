@@ -1,0 +1,163 @@
+"""Experiment 2's standard command test on HEFT (acceptance of the HEFT port, plan section 1.4), and the HITCH paper's
+error definitions applied to HEFT and SONIC runs alike.
+
+    python heft_commands.py run --gpus 0 0 [--only forward ...]        # HEFT, empty-handed, seeds 1000-1004
+    python heft_commands.py analyze --date <heft date> --sonic-date <exp2 SONIC date>
+
+``run`` is ``exp2_commands.py run --condition empty`` unchanged (same goals, seeds, start offsets, planner flags,
+episode lengths), plus ``--tracker heft``; runs are named ``p2e2heft-cmd-empty-<motion>-<date>-s<seed>`` so that
+experiment 2's own SONIC analysis (``p2e2-cmd-*``) never picks them up.
+
+``analyze`` measures each run twice:
+- experiment 2's protocol (``exp2_commands.analyze_run``: actual minus commanded at the stop, start-heading frame);
+- HITCH appendix D: walk error = |executed - reference pelvis displacement| / reference distance over the command
+  (walks with a reference distance >= 0.2 m); hand error = distance of each wrist from its reference wrist, both in
+  their own pelvis frame, averaged over the frames where the reference wrist is >= 5 cm from its start in the
+  reference torso frame. The reference is the frame the tracker followed at that step: the newest decoded frame for
+  SONIC, ``heft_reference`` (8 frames older) for HEFT.
+Writes ``<runs>/p2e2heft-cmd-empty-<date>.json`` and prints both tables, HEFT beside SONIC.
+"""
+import argparse
+import json
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+import exp2_commands as E  # noqa: E402  (also puts agentic/scripts on the path)
+
+PREFIX = 'p2e2heft'
+WALK_MIN_M, MOVED_M = .2, .05
+ACCEPT_WALK, ACCEPT_HAND_M = .15, .02   # plan section 1.4: walk error above 15% or hand error above 2 cm fails
+
+
+def heft_run_name(condition, motion, date, seed):
+    return f'{PREFIX}-cmd-{condition}-{motion}-{date}-s{seed}'
+
+
+def hitch_errors(run, fk, upto=None):
+    """HITCH appendix D errors of one empty-handed run, over the whole command (up to sample ``upto``)."""
+    steps = [json.loads(x) for x in (run/'execution.jsonl').read_text().splitlines() if x.strip()]
+    steps = [s for s in steps if 'reference_joints' in s][:None if upto is None else upto+1]
+    if not steps:
+        return {}
+
+    def reference(s):
+        h = s.get('heft_reference')
+        if h is not None:
+            return np.array(h['body_pos']), E.rotation_wxyz(h['body_quat_w']), np.array(h['joint_pos'])
+        return np.array(s['reference_root_world']), E.rotation_wxyz(s['reference_root_quat']), np.array(s['reference_joints'])
+
+    names = ['pelvis', 'torso_link', 'left_wrist_yaw_link', 'right_wrist_yaw_link']
+    out = {}
+    actual_root = np.array([s['after']['root_pos'] for s in steps])
+    refs = [reference(s) for s in steps]
+    ref_root = np.array([r[0] for r in refs])
+    dr, da = ref_root[-1, :2]-ref_root[0, :2], actual_root[-1, :2]-actual_root[0, :2]
+    out['reference_distance_m'] = float(np.linalg.norm(dr))
+    if np.linalg.norm(dr) >= WALK_MIN_M:
+        out['walk_error'] = float(np.linalg.norm(da-dr)/np.linalg.norm(dr))
+    ref_bodies = [fk(q, p, R, body_names=names) for p, R, q in refs]
+    act_root_rot = [E.rotation_wxyz(s['after']['root_quat']) for s in steps]
+    for side, k in (('left', 2), ('right', 3)):
+        torso = [b[1][1].T@(b[0][k]-b[0][1]) for b in ref_bodies]
+        moved = np.array([np.linalg.norm(t-torso[0]) >= MOVED_M for t in torso])
+        if not moved.any():
+            continue
+        ref_local = np.array([R.T@(b[0][k]-p) for (p, R, _), b in zip(refs, ref_bodies)])
+        act_local = np.array([R.T@(np.array(s['after']['wrist_pos'][k-2])-np.array(s['after']['root_pos']))
+                              for s, R in zip(steps, act_root_rot)])
+        out[f'hand_error_{side}_m'] = float(np.linalg.norm(act_local-ref_local, axis=1)[moved].mean())
+    return out
+
+
+def analyze(prefix, condition, date, fk, tracker):
+    rows = []
+    for run in sorted(_runs().glob(f'{prefix}-cmd-{condition}-*-{date}-s*')):
+        manifest = run/'run.json'
+        if not manifest.exists() or json.loads(manifest.read_text()).get('status') != 'completed':
+            print('NOT-COMPLETED', run.name)
+            continue
+        if json.loads(manifest.read_text()).get('tracker', 'sonic') != tracker:
+            continue
+        row = E.analyze_run(run, fk)
+        row.update(hitch_errors(run, fk))
+        rows.append(row)
+    return rows
+
+
+def _runs():
+    from paths import RUNS
+    return RUNS
+
+
+def hitch_table(rows):
+    table = {}
+    for motion in E.MOTIONS:
+        r = [x for x in rows if x['motion'] == motion and not x['fell']]
+        if not r:
+            continue
+        entry = {'n': len(r)}
+        for key in ('walk_error', 'hand_error_right_m', 'hand_error_left_m'):
+            v = np.array([x[key] for x in r if key in x])
+            if len(v):
+                entry[key] = {'mean': float(v.mean()), 'sd': float(v.std(ddof=1)) if len(v) > 1 else None}
+        table[motion] = entry
+    return table
+
+
+def verdict(table):
+    walks = [e['walk_error']['mean'] for m, e in table.items() if 'walk_error' in e]
+    hands = [e['hand_error_right_m']['mean'] for m, e in table.items() if m == 'reach' and 'hand_error_right_m' in e]
+    return {'worst_walk_error': max(walks) if walks else None, 'reach_hand_error_m': hands[0] if hands else None,
+            'walk_ok': bool(walks) and max(walks) <= ACCEPT_WALK, 'hand_ok': bool(hands) and hands[0] <= ACCEPT_HAND_M}
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument('action', choices=['run', 'analyze'])
+    p.add_argument('--date', default=time.strftime('%Y%m%d'))
+    p.add_argument('--sonic-date', help='date tag of experiment 2\'s SONIC empty-handed runs')
+    p.add_argument('--gpus', type=int, nargs='+', default=[])
+    p.add_argument('--only', nargs='+', choices=list(E.MOTIONS))
+    p.add_argument('--seeds', type=int, nargs='+')
+    p.add_argument('--dds-domain', type=int, default=60)
+    args, extra = p.parse_known_args()
+    if args.action == 'run':
+        if not args.gpus:
+            raise SystemExit('--gpus is required')
+        E.run_name = heft_run_name
+        args.condition = 'empty'
+        return E.launch(args, extra+['--tracker', 'heft'])
+    from paths import G1_XML
+    from kimodo_vla.core.types import G1_JOINT_NAMES
+    from kimodo_vla.oracle.geometry import XmlFK
+    fk = XmlFK(G1_XML, G1_JOINT_NAMES)
+    result = {}
+    for tracker, prefix, date in (('heft', PREFIX, args.date), ('sonic', 'p2e2', args.sonic_date)):
+        if date is None:
+            continue
+        rows = analyze(prefix, 'empty', date, fk, tracker)
+        for r in rows:
+            print(tracker, json.dumps(r))
+        protocol, hitch = E.summarize(rows), hitch_table(rows)
+        result[tracker] = {'date': date, 'runs': rows, 'protocol_table': protocol, 'hitch_table': hitch,
+                           'acceptance': verdict(hitch)}
+        print(f'\n## {tracker} ({date}): experiment 2 protocol\n'+E.markdown(protocol, f'{tracker} empty'))
+        print(f'\n## {tracker}: HITCH definitions\n| 指令 | n | 走路误差 % | 右手误差 cm | 左手误差 cm |\n|---|---:|---:|---:|---:|')
+        for m, e in hitch.items():
+            cell = lambda k, s: (f"{s*e[k]['mean']:.1f} ± {s*e[k]['sd']:.1f}" if e[k]['sd'] is not None
+                                 else f"{s*e[k]['mean']:.1f}") if k in e else '—'
+            print(f"| {m} | {e['n']} | {cell('walk_error', 100)} | {cell('hand_error_right_m', 100)} | "
+                  f"{cell('hand_error_left_m', 100)} |")
+        print('acceptance', json.dumps(result[tracker]['acceptance']))
+    out = _runs()/f'{PREFIX}-cmd-empty-{args.date}.json'
+    out.write_text(json.dumps(result, indent=1))
+    print(out)
+
+
+if __name__ == '__main__':
+    main()
