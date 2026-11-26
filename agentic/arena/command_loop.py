@@ -163,12 +163,25 @@ class Hooks:
 
     # ---- camera ---------------------------------------------------------------------------
     def capture(self):
-        from arena.vlm_capture import capture
-        info = capture(self.env, self.run, os.environ.get('COMMAND_CAMERA', 'front_camera'))
-        target = self.run/'loop'/f'capture-{self.captures:03d}.npz'
-        Path(info['capture_path']).rename(target)
+        """One RGB image of this paused instant (``arena/vlm_capture`` without the depth image, which this
+        mode does not enable), with the camera's pose; one file per decision."""
+        name = os.environ.get('COMMAND_CAMERA', 'front_camera')
+        camera = self.env.scene[name]
+        camera.cfg.update_latest_camera_pose = True
+        self.env.sim.forward()
+        for _ in range(6):
+            self.env.sim.render()
+        camera.reset()
+        camera.update(0., force_recompute=True)
+        data = camera.data
+        cpu = lambda x: x[0].detach().cpu().numpy().copy()
+        path = self.run/'loop'/f'capture-{self.captures:03d}.npz'
+        now = float(self.env.sim.current_time)
+        np.savez_compressed(path, rgb=cpu(data.output['rgb'])[..., :3], K=cpu(data.intrinsic_matrices),
+                            camera_position=cpu(data.pos_w), camera_rotation=rotation_wxyz(cpu(data.quat_w_ros)),
+                            time=now, camera_name=name, camera_convention='ros_optical')
         self.captures += 1
-        return {**info, 'capture_path': str(target)}
+        return {'capture_path': str(path), 'time': now, 'camera_name': name}
 
     # ---- every control step ---------------------------------------------------------------
     def after_step(self):

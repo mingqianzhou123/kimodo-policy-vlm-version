@@ -38,3 +38,43 @@ VLM 加规划器跑完整任务、不替换任何环节时，失败落在哪一�
 - VLM 配置一页并冻结。调试只在 V 之外的布局上做。
 - 每回合的记录格式（计划第 1 节第 8 条），加上实验 1 发现缺的字段。
 - 两手合拢把关的漏洞要先修。
+
+## 运行框架（2026-11-26 搭，正式回合还没跑）
+
+一句话：VLM（或脚本）每次发一条身体指令，规划器把它变成 40 维参考交给 SONIC，做完再看新的观测发下一条，直到它说结束、预算用完或 Arena 判成功 / 摔倒 / 超时。每个回合的日志够事后自动判第几环失败。
+
+### 由什么组成
+
+| 部分 | 位置 | 做什么 |
+|---|---|---|
+| 指令集和校验 | `kimodo_vla/agent/commands.py` | 七种指令：走路位移、转身、骨盆高度（可选“骨盆落到脚后方多远”，用来坐下）、躯干前倾、手部目标位姿（位置 + 掌心方向 + 手指方向）、开合手、结束。格式、取值范围、坐标系写在文件开头。不合法的回复不执行，告诉它原因再问 |
+| 规划器接口 | `kimodo_vla/agent/planner.py` | `Planner.start(指令)` 返回指令目标，`chunk()` 给下一段 40 维参考。`KimodoPlanner` 用现成的积木：走路和转身是实验二验证过的官方方式走路（转身加了同样的“多瞄一倍”增益，`turn_gain`），骨盆高度和前倾是新写的姿态求解（`posture.py`，双脚不动）加一段 Kimodo 生成，手部位姿是第一批抓箱的站立 IK 后端，开合手直接改 40 维的最后两位。合着手时走路、转身保持手臂姿态不动。换运动学规划器只换这一层 |
+| 循环 | `kimodo_vla/agent/loop.py`（策略侧），`agentic/arena/command_loop.py`（仿真侧） | 每次请求带上实测历史、物体真值（世界坐标）和需要时的一张相机图；VLM 思考时仿真暂停 |
+| 记录 | `kimodo_vla/agent/episode_log.py` | 见下一节 |
+| 五环判定和余量 | `kimodo_vla/agent/judge.py`，命令行 `exp3_judge.py` | 只读日志判第几环最先出问题；每条检查都带数值和阈值 |
+| 本实验专用 | 本目录 | `exp3_harness.json`（任务、开发种子、预算、指令范围、规划器设置、指令来源），`exp3_thresholds.json`（判定阈值），`exp3_scripted.py`（脚本指令），`exp3_run.py`（跑开发种子），`vlm-config.md`（VLM 配置草案和提示词全文），测试 `test_exp3_*.py` |
+
+### 每回合的记录（计划第 1 节第 8 条）
+
+运行文件夹里 `loop/` 下：`meta.json`（任务、条件、布局号、指令来源、规划器设置）、`scene.json`（开局时所有物体的位姿、尺寸、货架目标层、座面、家具）、`vlm.jsonl`（每次调用的原始回复、看到的观测和图片、耗时、解析结果或拒收原因）、`commands.jsonl`（每条指令一开一合两行：指令目标、规划器自己的计划、开始和结束时的实测与参考状态、实测和参考各自离目标多远）、`sent.jsonl`（发给 tracker 的每段 40 维参考）、`steps.jsonl`（每个控制步：实测根部和手腕、手的开合、物体位姿、左右手对箱子的力、髋部接触力、其他身体部位的接触、Arena 自己的成功判定、是否摔倒）、`summary.json`（为什么结束）。上一层有启动器的 `run.json`（代码版本、布局号、条件）和 Arena 的 `episode.json`（最终成败）。完整的逐步参考和实测还在原有的 `execution.jsonl`。
+
+第 3 类要的“指令目标 / 规划器参考终态 / 实测终态”三样都在 `commands.jsonl` 的结束行里：参考终态取 tracker 在指令结束那一步正在跟的参考。
+
+### 怎么跑
+
+在开发机上，仓库根目录，先 `source agentic/env.local.sh`，用 `$KVLA_SIM_CACHE/envs/policy/bin/python`：
+
+```bash
+# 脚本指令（验收用），开发种子，两张卡
+python agentic/pilot_experiments2/experiment3/exp3_run.py --task pp_box --commander scripted --tag <标签> --gpus 4 5 --steps 4000 -- --gpu-min-free-mib 16384
+# 本地 Qwen
+python agentic/pilot_experiments2/experiment3/exp3_run.py --task sit_sofa --commander qwen --tag <标签> --gpus 4 --seeds 91000 --vlm-model "<Qwen3-VL-4B-Instruct 权重目录>" -- --gpu-min-free-mib 16384
+# 判定
+python agentic/pilot_experiments2/experiment3/exp3_judge.py 'exp3dev-pp_box-scripted-<标签>-*'
+```
+
+单个回合也可以直接用启动器：`agentic/scripts/run_oracle.py --command-loop agentic/pilot_experiments2/experiment3/exp3_harness.json --commander <名字> --task pp_box|sit_sofa --seed <布局号>`。
+
+### 开发种子
+
+只在 `exp3_harness.json` 里的开发种子上调试：P&PBox 90000–90009，SitSofa 91000–91009（Arena 自己按种子摆放箱子和货架、纸箱）。`exp3_run.py` 拒绝别的种子。这 20 个种子不能进实验 2 的 V。
