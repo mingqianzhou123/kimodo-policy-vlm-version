@@ -46,6 +46,7 @@ MOTIONS = {
 # Stop criterion: every one of these holds on STOP_STEPS consecutive control steps after the last phase began.
 STOP_SPEED_M_S, STOP_YAW_DEG_S, STOP_VERTICAL_M_S, STOP_STEPS, RATE = .05, 5., .05, 25, 50.
 FALL_HEIGHT_M, FALL_TILT_DEG = .40, 60.
+CARRY_STEPS = 3000   # 60 s: grasp, the 0.6 m clearing walk and the command, with room for one retried grasp
 
 
 def start_offset(seed, radius=START_RADIUS_M):
@@ -122,7 +123,7 @@ def measure(samples, heading, commanded, last_phase_time, torso=None, wrist_goal
     i = len(time)-1 if i is None else i
     local = heading[:2, :2].T @ (root[i, :2]-root[0, :2])
     forward, left, turn, height, pitch = commanded
-    out = {'fell': fell, 'stopped': stopped, 'measured_at_s': float(time[i]-time[0]),
+    out = {'fell': fell, 'stopped': stopped, 'measured_at_s': float(time[i]-time[0]), 'measured_index': int(i),
            'root_along_m': float(local[0]-forward), 'root_across_m': float(local[1]-left),
            'root_m': float(np.hypot(local[0]-forward, local[1]-left)),
            'yaw_deg': float(yaw[i]-turn), 'pelvis_height_m': float(root[i, 2]-root[0, 2]-height)}
@@ -159,6 +160,36 @@ def analyze_run(run, fk=None):
             **measure(samples, heading, MOTIONS[motion][1], last, torso, wrist)}
 
 
+def analyze_carry_run(run, fk=None):
+    """One carrying run: the measured command starts when carry.json says so (kimodo_vla/oracle/carry_policy.py)."""
+    record = json.loads((run/'run.json').read_text())
+    motion = next(m for m in MOTIONS if record['carry_goal']['name'] == f'p2e2-{m}')
+    out = {'run': run.name, 'motion': motion, 'seed': record['seed']}
+    carry = run/'carry.json'
+    stages = {x['stage']: x for x in json.loads(carry.read_text())['stages']} if carry.exists() else {}
+    if 'command' not in stages:
+        out['carry_status'] = 'no_grasp' if 'clear' not in stages else 'clear_never_stopped'
+        return out
+    t0 = stages['command']['time']
+    target = json.loads((run/'carry-command'/'target.json').read_text())
+    steps = [json.loads(x) for x in (run/'execution.jsonl').read_text().splitlines() if x.strip()]
+    steps = [s for s in steps if s['after']['time'] >= t0-1e-6]
+    samples = [s['after'] for s in steps]
+    phases = {p['phase']: p['time'] for p in target.get('phases', [])}
+    torso = None
+    if fk is not None:
+        torso = [fk(s['joints'], s['root_pos'], rotation_wxyz(s['root_quat']), body_names=['torso_link'])[1][0] for s in samples]
+    out.update(carry_status='measured', **measure(samples, np.array(target['heading']), MOTIONS[motion][1],
+                                                 phases.get('hold', target['arrival_time']), torso))
+    i = out['measured_index']
+    grasp = steps[i].get('grasp') or {}
+    z0, zi = samples[0]['box_com'][2], samples[i]['box_com'][2]
+    out.update(box_drop_m=float(z0-zi), held_at_measure=bool(grasp.get('left_n', 0) >= .05 and grasp.get('right_n', 0) >= .05
+                                                              and z0-zi < .05),
+               clear_lift_m=stages['clear'].get('lift_m'))
+    return out
+
+
 QUANTITIES = (('root_m', '根部位置 cm', 100), ('root_along_m', '沿朝向 cm', 100), ('root_across_m', '横向 cm', 100),
               ('yaw_deg', '朝向 °', 1), ('pelvis_height_m', '骨盆高度 cm', 100), ('torso_pitch_deg', '躯干俯仰 °', 1),
               ('wrist_m', '手腕位置 cm', 100), ('wrist_deg', '手腕朝向 °', 1))
@@ -171,7 +202,10 @@ def summarize(results):
         rows = [r for r in results if r['motion'] == motion]
         if not rows:
             continue
-        entry = {'n': len(rows), 'fell': sum(r['fell'] for r in rows), 'not_stopped': sum(not r['stopped'] for r in rows)}
+        unmeasured = [r for r in rows if r.get('carry_status', 'measured') != 'measured']
+        rows = [r for r in rows if r.get('carry_status', 'measured') == 'measured']
+        entry = {'n': len(rows), 'fell': sum(r['fell'] for r in rows), 'not_stopped': sum(not r['stopped'] for r in rows),
+                 'unmeasured': len(unmeasured), 'dropped': sum(not r.get('held_at_measure', True) for r in rows)}
         for key, _, _ in QUANTITIES:
             values = np.array([r[key] for r in rows if key in r and not r['fell']], dtype=float)
             if len(values):
@@ -181,8 +215,8 @@ def summarize(results):
 
 
 def markdown(table, condition):
-    lines = [f'| 指令（{condition}） | n | 摔倒 | 未停稳 | ' + ' | '.join(label for _, label, _ in QUANTITIES) + ' |',
-             '|---|---:|---:|---:|' + '---:|'*len(QUANTITIES)]
+    lines = [f'| 指令（{condition}） | n | 摔倒 | 未停稳 | 箱子掉了 | ' + ' | '.join(label for _, label, _ in QUANTITIES) + ' |',
+             '|---|---:|---:|---:|---:|' + '---:|'*len(QUANTITIES)]
     for motion, e in table.items():
         cells = []
         for key, _, scale in QUANTITIES:
@@ -191,7 +225,7 @@ def markdown(table, condition):
             else:
                 sd = e[key]['sd']
                 cells.append(f"{scale*e[key]['mean']:.1f} ± {scale*sd:.1f}" if sd is not None else f"{scale*e[key]['mean']:.1f}")
-        lines.append(f"| {motion} | {e['n']} | {e['fell']} | {e['not_stopped']} | " + ' | '.join(cells) + ' |')
+        lines.append(f"| {motion} | {e['n']} | {e['fell']} | {e['not_stopped']} | {e['dropped']} | " + ' | '.join(cells) + ' |')
     return '\n'.join(lines)
 
 
@@ -199,7 +233,9 @@ def markdown(table, condition):
 def launch(args, extra):
     from paths import AGENTIC as ROOT, RUNS
     from kimodo_vla.oracle.locomotion import episode_seconds, load_goal
-    jobs = [(m, s) for m in MOTIONS if not args.only or m in args.only for s in SEEDS]
+    carry = args.condition == 'carry'
+    seeds = args.seeds or SEEDS
+    jobs = [(m, s) for m in MOTIONS if (not args.only or m in args.only) and not (carry and m == 'reach') for s in seeds]
     goals = RUNS/'p2e2-cmd-goals'
     goals.mkdir(parents=True, exist_ok=True)
     lock = threading.Lock()
@@ -221,12 +257,18 @@ def launch(args, extra):
             goal = goal_for(motion)
             path = goals/f"{goal['name']}.json"
             path.write_text(json.dumps(goal, indent=1))
-            xy = np.array(START_XY)+start_offset(seed)
-            steps = int(round(episode_seconds(load_goal(goal))*RATE))
-            cmd = [sys.executable, 'scripts/run_oracle.py', '--run-id', run_id, '--motion-goal', str(path),
-                   '--start-xy', f'{xy[0]:.4f}', f'{xy[1]:.4f}', '--noise-seed', str(seed), '--steps', str(steps),
-                   '--sim-gpu', str(gpu), '--policy-gpu', str(gpu), '--share-policy-sim-gpu',
-                   '--gpu-min-free-mib', '16384', *PLANNER_FLAGS, *extra]
+            if carry:   # box placed by the seed in the standing region; grasp, clear, command (README protocol)
+                cmd = [sys.executable, 'scripts/run_oracle.py', '--run-id', run_id, '--grasp-loop', '--stand-still',
+                       '--box-in-region', '--seed', str(seed), '--carry-goal', str(path), '--steps', str(CARRY_STEPS),
+                       '--sim-gpu', str(gpu), '--policy-gpu', str(gpu), '--share-policy-sim-gpu',
+                       '--gpu-min-free-mib', '16384', *extra]
+            else:
+                xy = np.array(START_XY)+start_offset(seed)
+                steps = int(round(episode_seconds(load_goal(goal))*RATE))
+                cmd = [sys.executable, 'scripts/run_oracle.py', '--run-id', run_id, '--motion-goal', str(path),
+                       '--start-xy', f'{xy[0]:.4f}', f'{xy[1]:.4f}', '--noise-seed', str(seed), '--steps', str(steps),
+                       '--sim-gpu', str(gpu), '--policy-gpu', str(gpu), '--share-policy-sim-gpu',
+                       '--gpu-min-free-mib', '16384', *PLANNER_FLAGS, *extra]
             env = dict(os.environ, KVLA_DDS_DOMAIN=str(args.dds_domain+slot))
             print('START', run_id, 'gpu', gpu, flush=True)
             done = subprocess.run(cmd, cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -244,7 +286,8 @@ def launch(args, extra):
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('action', choices=['run', 'analyze', 'list'])
-    p.add_argument('--condition', choices=['empty'], default='empty')
+    p.add_argument('--condition', choices=['empty', 'carry'], default='empty')
+    p.add_argument('--seeds', type=int, nargs='+', help='carry: replacement layout seeds for failed grasps')
     p.add_argument('--date', default=time.strftime('%Y%m%d'))
     p.add_argument('--gpus', type=int, nargs='+', default=[])
     p.add_argument('--only', nargs='+', choices=list(MOTIONS))
@@ -270,7 +313,7 @@ def main():
         if not manifest.exists() or json.loads(manifest.read_text()).get('status') != 'completed':
             print('NOT-COMPLETED', run.name)
             continue
-        result = analyze_run(run, fk)
+        result = analyze_carry_run(run, fk) if args.condition == 'carry' else analyze_run(run, fk)
         results.append(result)
         print(json.dumps(result))
     table = summarize(results)

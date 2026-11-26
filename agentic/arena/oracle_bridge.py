@@ -59,7 +59,9 @@ def install_oracle_bridge():
                           if 'PackingTable' in c['path']), None)
             if table is None or abs(table['min'][0]-config['scene']['table_edge_x_m']) > .01:
                 raise ValueError('The table edge in the scene differs from the grasp configuration')
-            loop = GraspLoop(run, config, stop=lambda: setattr(env.kvla_controller, 'is_running', False),
+            # KVLA_GRASP_KEEP_RUNNING=1 (run_oracle.py --carry-goal): a success no longer ends the episode.
+            keep = os.environ.get('KVLA_GRASP_KEEP_RUNNING') == '1'
+            loop = GraspLoop(run, config, stop=(lambda: None) if keep else lambda: setattr(env.kvla_controller, 'is_running', False),
                              layout=load_layout())
             apply_hands = provider._apply_hand_binary_targets
             # The policy's hand channel is ignored: both hands follow the measured-arrival gate.
