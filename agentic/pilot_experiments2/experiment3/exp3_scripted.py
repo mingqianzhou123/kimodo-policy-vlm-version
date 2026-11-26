@@ -161,6 +161,10 @@ class TaskScript:
             self.route, self.stage, self.tries = route(observation['robot']['pelvis'][:2], goal, low,
                                                        room=floor_area(observation), low_body=self.legs_clearance_m,
                                                        low_top_m=self.low_obstacle_top_m), 'walk', 0
+            # No route at these clearances (development layout 92000: the only gap, between a slab's end and a crate,
+            # is narrower): the rule gives up rather than walk into the obstacles, as it did with the straight line.
+            self.no_route = self.route is None
+            self.route = self.route or []
         while self.stage == 'walk' and self.route:
             step = self.walk_to(observation, self.route[0], .06 if len(self.route) == 1 else .2)
             if step and self.tries < 8:
@@ -285,7 +289,7 @@ class TaskScript:
             self.stand = best[1]
             self.sit_yaw = float(np.degrees(np.arctan2(normal[1], normal[0])))   # back to the seat
             sofa = [o for o in observation['objects'] if o['name'] not in ('sofa_seat', 'room_floor') and clearance(centre, o) == 0]
-            self.route = route(pelvis, self.stand, obstacles, near=sofa, room=floor_area(observation))
+            self.route = route(pelvis, self.stand, obstacles, near=sofa, room=floor_area(observation)) or [list(self.stand)]
             self.stage, self.tries = 'turn', 0
         if self.stage == 'turn':
             step = self.face(observation, self.sit_yaw, 6.)
@@ -360,7 +364,7 @@ def route(start, goal, obstacles, body=.32, near=None, step=.1, pad=4., room=Non
     the robot may come right up to, such as the sofa it will sit on) and of the walls (``room``: the floor
     area inside them). Obstacles whose top is below ``low_top_m`` need only ``low_body`` (the legs) when given.
     A* on a ``step`` grid, then shortened to the fewest straight legs that stay clear.
-    Falls back to the straight line."""
+    None when no route keeps those clearances."""
     import heapq
     start, goal = np.asarray(start, dtype=float), np.asarray(goal, dtype=float)
     near = near or []
@@ -397,7 +401,7 @@ def route(start, goal, obstacles, body=.32, near=None, step=.1, pad=4., room=Non
                     cost[n], came[n] = new, c
                     heapq.heappush(frontier, (new+np.linalg.norm(point(n)-point(g)), n))
     if g not in came:
-        return [goal.tolist()]
+        return None
     path, c = [], g
     while c is not None:
         path.append(point(c))
