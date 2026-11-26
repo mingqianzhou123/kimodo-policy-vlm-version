@@ -5,9 +5,18 @@
 Arena's test configs (`tasks/common_test_config/base_test/<task>_sonic_test.yaml`) set seeds [0, 1, 2]
 and 20 repeats per seed; `script/eval_scripts/sonic/eval_vla_suite.py` runs each episode with
 seed = its group seed and episode_seed = `_derive_episode_seed(task_name, group_seed, repeat_idx)`,
-copied below (HumanoidArena 44a7222). This is the list only. Whether anything beyond these two
-numbers is needed to restore an evaluation episode exactly is experiment 2's record to settle; the
-runner (`exp3_run.py --episodes`) passes exactly these two numbers and nothing else.
+copied below (HumanoidArena 44a7222). It is the same function as experiment 2's
+`exp2_replay.official_episode_seed` (branch claude/exp2-tracker-base, PR #20, not merged yet; once it is,
+import that one instead of this copy); the test pins experiment 2's checked value for P&PBox (0, 0).
+
+Restoring one (experiment 2's record, section 4): run Arena's evaluation with --seed <group> and
+--episode_seed <derived seed> and the episode batch entry {seed, episode_seed, repeat_idx}; Arena's
+own reset places the objects. That is exactly what the runner (`exp3_run.py --episodes`) passes, and
+nothing else. Two caveats from that record: Arena runs all 60 in one persistent simulator, we run one
+fresh process per episode (layouts depend only on the episode seed, not compared against an official
+log); and determinism was shown for open-loop commands only. The command loop's inputs are on the
+simulation clock (observation 'time' is env.sim.current_time, the simulator pauses while the commander
+thinks; wall-clock time is only logged as latency), so closed-loop runs should repeat too - not tested.
 """
 import argparse
 import hashlib

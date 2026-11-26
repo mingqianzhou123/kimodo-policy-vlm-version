@@ -101,27 +101,55 @@
   "turn_tolerance_deg": 6,
   "move_corrections": 2,
   "avoid_rules": {
-   "_about": "Per tracker: motions it does badly and how the planner routes around them (plan v3, section 2 item 4). A rule with max_m null is not applied. Frozen with the VLM configuration; the measured basis is experiment 2's command test, entries marked pending until it reports.",
+   "_about": "Per tracker: motions it does badly and how the planner routes around them (plan v3, section 2 item 4). Values from experiment 2's final record (PR #20, claude/exp2-tracker-base 4127401, experiment2/README.md section 3; n = 5 per command, planner = Kimodo native generation with root closed loop, measured 0.5 s after the body is still). Suggested values awaiting the team, frozen with the VLM configuration. The planner applies only 'sidestep' and 'backward' and only when max_m is a number; everything else is recorded here for the commander prompt and the team.",
    "sonic": {
-    "turn": {
-     "rule": "aim twice the yaw still to go (turn_gain 2)",
-     "measured": "exp3 smoke 2026-11-26: a +30 deg turn aimed exactly stalled at 17 deg after 10.6 s (reference stopped 3 deg short, tracker ~8 deg behind); with the gain a 180 deg turn took 12.6 s and ended 0.06 deg off",
-     "status": "measured here"
-    },
-    "lean": {
-     "rule": "none yet",
-     "measured": "exp3 smoke: torso_pitch 15 deg reached 6-9 deg (reference 14.4)",
-     "status": "measured here, no rule"
+    "backward": {
+     "max_m": null,
+     "rule": "longer empty-handed backward walks become turn + forward walk + turn back",
+     "measured": "exp2: 0.5 m backward empty-handed 53.0 +/- 88.8 cm (one run drifted 2.1 m sideways, one stopped 36 cm short); carrying the box backward 5.7 +/- 1.6 cm (1 of 5 dropped)",
+     "status": "exp2 says avoid; not applied yet: only 0.5 m was measured, so the length above which to replace is the team's choice (the planner would also apply it while carrying, where backward was fine)"
     },
     "sidestep": {
      "max_m": null,
-     "rule": "longer sidesteps become turn + forward walk + turn back",
-     "status": "pending experiment 2"
+     "rule": "none",
+     "measured": "exp2: 0.5 m sidestep 4.1 +/- 3.1 cm empty-handed, 8.0 +/- 4.4 cm carrying",
+     "status": "usable; contrary to the plan's presumption, do not replace by turn + forward"
     },
-    "backward": {
-     "max_m": null,
-     "rule": "longer backward walks become turn + forward walk + turn back",
-     "status": "pending experiment 2 (exp 2 of batch 1: backward 7/10 within 5 cm vs forward and side 15/15)"
+    "turn": {
+     "rule": "aim twice the yaw still to go (turn_gain 2)",
+     "measured": "exp3 smoke 2026-11-26: a +30 deg turn aimed exactly stalled at 17 deg; with the gain a 180 deg turn ended 0.06 deg off. exp2 (approach gain 2): 90 deg turn -2.1 +/- 2.4 deg",
+     "status": "applied"
+    },
+    "carry_squat": {
+     "max_drop_m": 0.05,
+     "rule": "while carrying, a pelvis drop counts as at most 5 cm",
+     "measured": "exp2: 15 cm squat carrying the box could not be planned 5/5 (joint limits); offline 5 cm worked from both start poses, 10 cm from one of two",
+     "status": "suggested; not enforced by a separate check (the posture solve refuses an infeasible pose itself: planner_refused)"
+    },
+    "carry_forward": {
+     "rule": "use with care",
+     "measured": "exp2: 0.5 m forward carrying 11.2 +/- 8.6 cm (7.2 +/- 12.5 cm overshoot along heading) vs 3.8 +/- 2.0 cm empty-handed",
+     "status": "suggested, no planner rule"
+    },
+    "carry_turn": {
+     "rule": "use with care (box dropped)",
+     "measured": "exp2: 90 deg turn carrying dropped the box 2 of 5; torso pitched 6.8 +/- 1.8 deg more",
+     "status": "suggested, no planner rule"
+    },
+    "squat": {
+     "rule": "none (fixed shortfall, could be added to the command)",
+     "measured": "exp2: 15 cm squat empty-handed 2.9 +/- 0.0 cm short",
+     "status": "usable"
+    },
+    "lean": {
+     "rule": "none",
+     "measured": "exp2: 30 deg lean (native generation, by hips) +1.5 +/- 0.4 deg, after 0.5 s still. exp3 smoke (posture solve, 15 deg absolute, read at the end of the 1.6 s plan, no settling, starting from -5.3/-5.8 deg): reached 5.8/6.2 deg, a change of 11.4-11.6 deg against the reference's 17.7. Different planner, size and read-out time: not comparable, not re-measured",
+     "status": "usable per exp2; the exp3 posture solve's lean is unverified"
+    },
+    "reach": {
+     "rule": "none",
+     "measured": "exp2: standing reach 4.0 +/- 0.9 cm, 5.6 +/- 2.0 deg (the grasp gate's position tolerance is 5 cm)",
+     "status": "usable"
     }
    }
   }

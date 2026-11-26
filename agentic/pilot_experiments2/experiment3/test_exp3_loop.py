@@ -384,6 +384,10 @@ def test_development_seeds_are_not_evaluation_episodes():
         dev = set(config['tasks'][task]['dev_seeds'])
         assert not dev & evaluation       # a development run uses seed = episode seed = its dev seed
     assert derive_episode_seed('X', 0, 0) == derive_episode_seed('X', 0, 0) < 2**31
+    # The same formula as experiment 2's exp2_replay.official_episode_seed (claude/exp2-tracker-base), which
+    # restored and replayed P&PBox (group 0, repeat 0) with this episode seed; and the value checked here before.
+    assert official_episodes('pp_box')[0]['episode_seed'] == 575085118
+    assert official_episodes('pp_box')[27]['episode_seed'] == 274596493     # group 1, repeat 7
 
 
 def test_planner_moves_avoid_rules_and_corrections():
