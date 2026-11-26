@@ -298,7 +298,13 @@ def nearest_face(region, point):
 
 
 def clearance(point, region):
-    """Ground distance from a point to an object's footprint (0 inside)."""
+    """Ground distance from a point to an object's footprint (0 inside): its turned rectangle when the object
+    has a position, a size and a yaw, otherwise its axis-aligned box."""
+    if all(k in region for k in ('position', 'size', 'yaw_deg')) and region.get('size'):
+        yaw = np.radians(region['yaw_deg'])
+        d = np.asarray(point, dtype=float)[:2]-np.asarray(region['position'][:2])
+        local = np.array([np.cos(yaw)*d[0]+np.sin(yaw)*d[1], -np.sin(yaw)*d[0]+np.cos(yaw)*d[1]])
+        return float(np.linalg.norm(np.maximum(0., np.abs(local)-np.asarray(region['size'][:2])/2)))
     if 'min' in region:
         low, high = np.asarray(region['min'][:2]), np.asarray(region['max'][:2])
     else:
@@ -307,7 +313,7 @@ def clearance(point, region):
     return float(np.linalg.norm(np.maximum(0., np.maximum(low-point, point-high))))
 
 
-def route(start, goal, obstacles, body=.32, near=None, step=.1):
+def route(start, goal, obstacles, body=.32, near=None, step=.1, pad=4.):
     """Waypoints from ``start`` to ``goal`` that keep ``body`` clear of every obstacle (``near``: obstacles
     the robot may come right up to, such as the sofa it will sit on). A* on a ``step`` grid, then
     shortened to the fewest straight legs that stay clear. Falls back to the straight line."""
@@ -321,11 +327,11 @@ def route(start, goal, obstacles, body=.32, near=None, step=.1):
         return all(not blocked(a+(b-a)*u) for u in np.linspace(0, 1, n)[1:-1])
     if free(start, goal):
         return [goal.tolist()]
-    low = np.minimum(start, goal)-2.
+    low = np.minimum(start, goal)-pad
     cell = lambda p: tuple(np.round((np.asarray(p)-low)/step).astype(int))
     point = lambda c: low+np.asarray(c)*step
     s, g = cell(start), cell(goal)
-    shape = tuple(cell(np.maximum(start, goal)+2.)[i]+1 for i in range(2))
+    shape = tuple(cell(np.maximum(start, goal)+pad)[i]+1 for i in range(2))
     frontier, came, cost = [(0., s)], {s: None}, {s: 0.}
     while frontier:
         _, c = heapq.heappop(frontier)
