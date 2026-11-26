@@ -14,6 +14,7 @@ Each run is judged afterwards with exp3_judge.py.
 """
 import argparse
 import json
+import os
 from pathlib import Path
 import queue
 import shutil
@@ -37,6 +38,9 @@ def played(run):
         return False
 
 
+lock_print = threading.Lock()
+
+
 def work(gpu, jobs, args, lock):
     while True:
         try:
@@ -44,6 +48,14 @@ def work(gpu, jobs, args, lock):
         except queue.Empty:
             return
         run = RUNS/name
+        # One runner per run name: a second runner on the same name would put two simulators in one folder.
+        lock = RUNS/f'{name}.lock'
+        try:
+            os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        except FileExistsError:
+            with lock_print:
+                print(f'{name}: another runner holds {lock.name}; skipped (delete the lock only if no runner is alive)', flush=True)
+            continue
         attempt = refused = 0
         while attempt < args.tries and not played(run):
             if run.exists():
@@ -65,6 +77,7 @@ def work(gpu, jobs, args, lock):
                 continue
             attempt += 1
             time.sleep(20)
+        lock.unlink(missing_ok=True)
 
 
 def main():
