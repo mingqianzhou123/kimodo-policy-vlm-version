@@ -121,7 +121,7 @@ P = 第一次碰到物体和合手两者中较早那个的前一步。AUC = 失�
 ## 数据、备份和输出
 
 - 读的数据：开发机 `KVLA_AGENTIC_RUNS` 下 `exp1-*`、`exp1b-*`、`exp4-*` 的运行目录（2,133 个，11 月 24–25 日）。
-- 备份（只读，非视频文件：json、jsonl、npz，75,337 个文件，未压缩 41.4 GB）：开发机持久盘 `/mnt/cfs/d5bvk6/exp1-stage-split-runs-20261126.tgz`（和 `exp2-runs-20261124.tgz` 放在一起）。BACKUP_STATUS
+- 备份（只读，非视频文件：json、jsonl、npz，75,337 个文件，未压缩 41.4 GB）：开发机持久盘 `/mnt/cfs/d5bvk6/exp1-stage-split-runs-20261126.tgz`（和 `exp2-runs-20261124.tgz` 放在一起），压缩后 16.4 GB。核对：归档列出的文件清单和打包清单逐行一致（75,337 个），记录在输出目录的 `backup-log.txt`。
 - 输出（不进 git）：`/mnt/cfs/d5bvk6/personal/mingqianzhou/exp1-stage-split-20261126/`：`episodes.jsonl`（每回合一行，所有量）、`summary.json`、`table.md`、`cells.md`、`DONE.txt`（代码版本 `05cce20`）。本文所有数字都从这次输出里抄出。
 
 ## 怎么复现
