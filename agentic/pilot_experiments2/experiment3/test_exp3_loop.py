@@ -248,7 +248,7 @@ def test_box_script_grasp_commands_are_valid():
     observation['robot']['pelvis'] = [-.641-.12, stance[1], .78]     # walked too close to the table edge
     back = script.next(observation)
     assert back['type'] == 'walk' and back['forward_m'] < -.05
-    observation['robot']['pelvis'] = [min(stance[0], -.641-.25), stance[1], .78]
+    observation['robot']['pelvis'] = [min(stance[0], -.641-.24), stance[1], .78]
     kinds = [validate(script.next(observation), pelvis=observation['robot']['pelvis'])['type'] for _ in range(6)]
     assert kinds == ['hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']
 
