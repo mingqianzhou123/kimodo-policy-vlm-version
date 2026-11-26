@@ -251,3 +251,17 @@ def test_a_lifted_box_supersedes_stance_and_arrival_checks(tmp_path):
     assert v['link'] == 5
     noted = [c for c in v['checks'] if c.get('superseded')]
     assert {c['link'] for c in noted} == {1, 3}
+
+
+def test_unfinished_and_refused_sits(tmp_path):
+    """A sit the episode ended in the middle of has no end record; a sit the planner refused is no attempt."""
+    pelvis = [-.25, 0., .78]
+    start = state(pelvis, 0.)
+    sit = {'height_m': .55, 'behind_feet_m': .2}
+    unfinished = command(0, 'pelvis_height', 1., 2., sit, {'pelvis_height_m': .55}, start, start)[:1]
+    refused = command(1, 'pelvis_height', .5, .5, sit, {}, start, start)
+    refused[1]['status'] = 'planner_refused'
+    steps = [{'time': round(float(t), 2), 'hip_contact_n': 200. if t > 1.5 else 0., 'tilt_deg': 3., 'fallen': False,
+              'objects': []} for t in np.arange(0., 4., .1)]
+    v = judge(write(tmp_path, 'sit_sofa', {'objects': [SEAT]}, [refused, unfinished], steps, False), THRESHOLDS)
+    assert v['attempts'] == 1 and v['link'] in (5, 'unclassified', 1, 2, 3, 4)

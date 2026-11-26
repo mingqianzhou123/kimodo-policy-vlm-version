@@ -164,6 +164,7 @@ def grasp_attempts(commands):
     """(reach command, close command, index of the next opening) for every closing of the hands
     that follows a hand_pose command."""
     attempts, reach = [], None
+    commands = [c for c in commands if not refused(c)]
     for i, c in enumerate(commands):
         if c['type'] == 'hand_pose':
             reach = c
@@ -322,8 +323,12 @@ def judge_place(checks, place, grasp, box, episode, t, k):
 
 
 # ---- leg class --------------------------------------------------------------------------
+def refused(command):
+    return (command.get('end') or {}).get('status') == 'planner_refused'
+
+
 def sit_attempts(commands, t):
-    return [c for c in commands if c['type'] == 'pelvis_height' and (c['command'].get('behind_feet_m') is not None
+    return [c for c in commands if c['type'] == 'pelvis_height' and not refused(c) and (c['command'].get('behind_feet_m') is not None
                                                                      or c['command']['height_m'] <= value(t, 'sit_height_max_m'))]
 
 
@@ -383,10 +388,11 @@ def judge_sofa(episode, t):
                    threshold=value(t, 'support_force_n'), time=end.get('time'), phase='sit', attempt=k)
         # link 5: kept the seat
         if supported:
-            later = steps_between(steps, end['time'])
-            fell = fall_time(steps, end['time'])
+            done = end.get('time', t0)     # a command the episode ended in the middle of has no end record
+            later = steps_between(steps, done)
+            fell = fall_time(steps, done)
             lost = next((x['time'] for x in later if x.get('hip_contact_n', 0.) < value(t, 'support_force_n')/2
-                         and x['time'] > end['time']+value(t, 'support_window_s')), None)
+                         and x['time'] > done+value(t, 'support_window_s')), None)
             checks.add(5, 'stayed seated', fell is None and (lost is None or success_of(episode)), value={'fell_at': fell, 'lost_at': lost},
                        time=fell or lost, phase='sit', attempt=k)
         results.append(checks.rows[rows_before:])
