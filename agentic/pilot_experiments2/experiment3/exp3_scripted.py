@@ -93,7 +93,8 @@ class SmokeScript:
 class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
-    def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None):
+    def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
+                 place_by_walk=False):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -109,6 +110,8 @@ class TaskScript:
         self.stance_closer_m, self.min_clearance = float(stance_closer_m), bool(min_clearance)
         # an explicit pelvis-to-table-edge clearance overrides both (k5heft: 0.12 m, below the validated range)
         self.clearance_m = None if clearance_m is None else float(clearance_m)
+        # place: lower the box in front of the shelf and walk it in, instead of pushing it in with the hands
+        self.place_by_walk = bool(place_by_walk)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -308,6 +311,17 @@ class TaskScript:
             delta = np.r_[np.asarray(self.place_xy)-np.asarray(box['position'][:2]), self.place_z-box['position'][2]]
             wrists = observation['robot']['wrists']
             yawv = np.array([np.cos(yaw), np.sin(yaw), 0.])
+            if self.place_by_walk:
+                # Lower the box in front of the shelf, then walk it in with the arms held (closed hands), open, back
+                # off. Pushing it in with the hands asked HITCH for wrists 0.49 m in front of the pelvis (k7heft 90002).
+                forward = float(np.dot(delta[:2], yawv[:2]))
+                self.queue = [
+                    {'type': 'hand_pose', 'duration_s': 2.0,
+                     'hands': {s: {'position': (np.asarray(wrists[s]['position'])+[0, 0, delta[2]]).tolist()} for s in ('left', 'right')}},
+                    {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0},
+                    {'type': 'hand', 'left': 'open', 'right': 'open'},
+                    {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0}]
+                return
             self.queue = [
                 {'type': 'hand_pose', 'duration_s': 2.0,
                  'hands': {s: {'position': (np.asarray(wrists[s]['position'])+delta).tolist()} for s in ('left', 'right')}},

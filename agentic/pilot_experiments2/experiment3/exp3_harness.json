@@ -196,7 +196,8 @@
    "_about": "The same rule on the kinematic planner (kimodo_vla/agent/kinematic.py: HITCH's whole-body planner, $HITCH_PYTHON). The tracker is chosen with --tracker sonic|heft, so the two cells share the references. Development comparison (2026-11-27/28), not a frozen baseline.",
    "options": {
     "stance_closer_m": 0.08,
-    "min_clearance": true
+    "min_clearance": true,
+    "place_by_walk": true
    }
   },
   "scripted_hitch_hold": {
@@ -206,7 +207,8 @@
    "options": {
     "stop_after": "hold",
     "stance_closer_m": 0.08,
-    "min_clearance": true
+    "min_clearance": true,
+    "place_by_walk": true
    },
    "planner": {
     "name": "hitch"
@@ -220,7 +222,8 @@
    "options": {
     "stop_after": "carry",
     "stance_closer_m": 0.08,
-    "min_clearance": true
+    "min_clearance": true,
+    "place_by_walk": true
    },
    "planner": {
     "name": "hitch"
