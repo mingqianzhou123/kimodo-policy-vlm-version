@@ -183,11 +183,11 @@ class SynchronizedGripperGate:
                         position=position, rotation=rotation, speed_mps=speed)
         if self.closed:
             return True
-        fired = [gate.status == "fired" for gate in self.gates]
-        if all(fired):
+        # Every hand that has fired is re-checked on every tick, including the tick on which the
+        # other hand fires: a hand that fired earlier and has since drifted out must arrive again.
+        for gate, (position, rotation, speed) in zip(self.gates, measured):
+            if gate.status == "fired" and not gate.inside(position, rotation, speed):
+                gate.rearm()
+        if all(gate.status == "fired" for gate in self.gates):
             self.closed, self.fired_at = True, now_s
-        elif any(fired):
-            for gate, done, (position, rotation, speed) in zip(self.gates, fired, measured):
-                if done and not gate.inside(position, rotation, speed):
-                    gate.rearm()
         return self.closed
