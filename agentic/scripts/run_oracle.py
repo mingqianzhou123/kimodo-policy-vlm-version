@@ -4,6 +4,8 @@ The defaults are the backend every experiment since 2026-11-17 has used: bounded
 root support, continuous hand conditions, IK-hold projection, 4 rad/s, 400 steps.
 ``--settled-goal`` additionally starts from stable double support with aligned actuators,
 which is the configuration of the 2026-11-23 result. Earlier variants need explicit flags.
+``--command-loop`` runs a whole task (P&PBox or SitSofa) one body command at a time from a scripted
+or VLM commander (kimodo_vla/agent; experiment 3 of the second pilot batch).
 ``--grasp-loop`` runs blocking walk-reach-close-lift rounds on the box from the same settled
 start, with a physical success criterion; it defaults to the task's 1450-step time limit.
 """
@@ -23,7 +25,8 @@ import urllib.request
 from paths import AGENTIC as ROOT, CHECKPOINTS, REPO, RUNS, sim_cache
 
 TASKS={'pp_box':('Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','tasks/common_test_config/base_test/pp_box_sonic_test.yaml'),
-       'doubledesk':('Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody','tasks/common_test_config/base_test/doubledesk_sonic_test.yaml')}
+       'doubledesk':('Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody','tasks/common_test_config/base_test/doubledesk_sonic_test.yaml'),
+       'sit_sofa':('Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody','tasks/common_test_config/base_test/sit_sofa_sonic_test.yaml')}
 
 
 def sha(p):
@@ -39,7 +42,11 @@ def parse_args(argv=None):
     p.add_argument('--policy-gpu',type=int,default=2)
     p.add_argument('--share-policy-sim-gpu',action='store_true',
                    help='Explicitly colocate this run\'s policy and simulation on one otherwise empty GPU')
-    p.add_argument('--steps',type=int,help='Default: 400, or 1450 with --grasp-loop')
+    p.add_argument('--steps',type=int,help='Default: 400, 1450 with --grasp-loop, 3000 with --command-loop')
+    p.add_argument('--command-loop',type=Path,help='Command loop configuration (JSON); runs --task pp_box or sit_sofa '
+        'one body command at a time (kimodo_vla/agent)')
+    p.add_argument('--commander',help='With --command-loop: the commander named in the configuration')
+    p.add_argument('--condition',default='',help='With --command-loop: condition name, recorded in run.json')
     p.add_argument('--seed',type=int,default=1000,help='Episode seed: object placement and generator noise')
     p.add_argument('--grasp-loop',action='store_true',help='Blocking grasp rounds on the box: latch its pose, wait, '
         'walk, reach, close both hands on measured arrival, lift; retry until success, fall or the step limit')
@@ -59,8 +66,9 @@ def parse_args(argv=None):
         '(kimodo_vla/oracle/grasp_walk.py, settings in configs/grasp-loop.json wide) instead of whole clips')
     p.add_argument('--box-speed',type=float,default=0.,help='With --box-in-region: drive the box back and forth '
         'across the region at this speed (m/s) from the first latch until a hand touches it')
-    p.add_argument('--task',choices=['pp_box','doubledesk'],default='pp_box',help='Grasp loop task: the two-handed box '
-        '(pp_box) or the one-handed hammer on DoubleDesk (experiment 1b; needs --stand-still and a --hammer-* placement)')
+    p.add_argument('--task',choices=['pp_box','doubledesk','sit_sofa'],default='pp_box',help='Grasp loop task: the two-handed box '
+        '(pp_box) or the one-handed hammer on DoubleDesk (experiment 1b; needs --stand-still and a --hammer-* placement); '
+        'command loop: pp_box or sit_sofa')
     p.add_argument('--hammer-at',type=float,nargs=4,metavar=('DEPTH_M','LATERAL_M','YAW_DEG','EXTRA_M'),
         help='DoubleDesk reach-map cell: grip point this far behind the table edge and to the robot\'s left, handle '
              'turned from the robot\'s left (head towards the robot positive), robot this much further back than the stance rule')
@@ -127,7 +135,18 @@ def parse_args(argv=None):
     p.add_argument('--gpu-min-free-mib',type=int,
         help='Explicitly allow existing GPU users if at least this much memory is free (minimum 16384 MiB)')
     a=p.parse_args(argv)
-    a.steps=a.steps or (1450 if a.grasp_loop else 400)
+    a.steps=a.steps or (1450 if a.grasp_loop else 3000 if a.command_loop else 400)
+    if a.command_loop:
+        if not a.commander or a.task not in ('pp_box','sit_sofa'):
+            raise ValueError('--command-loop needs --commander and --task pp_box or sit_sofa')
+        if (a.grasp_loop or a.motion_goal or a.settled_goal or a.reference_source!='kimodo' or a.root_support
+                or a.capture_vision or a.visual_markers or a.actuator_audit or a.mode!='hold' or a.box_at or a.box_in_region
+                or a.box_wide or a.stand_still or a.start_at_stance):
+            raise ValueError('The command loop runs on its own: no grasp loop, goal file, replay, markers or placement flags')
+        if not a.command_loop.is_file():raise FileNotFoundError(a.command_loop)
+        a.dynamics_profile=a.dynamics_profile or 'actuator'   # the aligned actuators of every walking and grasping run
+    elif a.task=='sit_sofa' or a.commander or a.condition:
+        raise ValueError('--task sit_sofa, --commander and --condition belong to --command-loop')
     hammer=a.task=='doubledesk'
     placements=[bool(a.box_at),a.box_in_region] if not hammer else [bool(a.hammer_at),a.hammer_in_region]
     if (a.hammer_at or a.hammer_in_region or a.inject or a.hammer_speed or a.hammer_direction) and not hammer:
@@ -195,7 +214,7 @@ def main():
         raise ValueError('The grasp loop runs on the live IK-hold backend with aligned actuators and nothing else')
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
-    if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not demo and not ((replay or a.settled_goal) and a.actuator_audit):
+    if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not a.command_loop and not demo and not ((replay or a.settled_goal) and a.actuator_audit):
         raise ValueError('Dynamics interventions require audited immutable replay')
     if a.root_support and not (a.actuator_audit and replay and a.dynamics_profile in ('actuator','actuator-load')):
         raise ValueError('Root diagnostics require fixed reference and aligned actuators')
@@ -242,6 +261,7 @@ def main():
     env.update(PYTHONUNBUFFERED='1',OMP_NUM_THREADS='4',ORACLE_RUN=str(run))
     if a.dynamics_profile:env['SONIC_DYNAMICS_PROFILE']=a.dynamics_profile
     if a.grasp_loop:env['GRASP_LOOP']='1'
+    if a.command_loop:env.update(COMMAND_LOOP='1',COMMAND_TASK=a.task)
     if hammer:env['GRASP_TASK']='hammer'
     if a.start_at_stance:
         if not a.grasp_loop:raise ValueError('--start-at-stance belongs to the grasp loop')
@@ -303,6 +323,9 @@ def main():
         if hammer:policycmd+=['--grasp-task','hammer']
         if a.stand_still:policycmd.append('--stand-still')
         if a.native_walk:policycmd.append('--native-walk')
+    if a.command_loop:
+        policycmd+=['--command-loop',str(a.command_loop.resolve()),'--commander',a.commander,'--command-task',a.task,
+                    '--condition',a.condition]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -324,15 +347,15 @@ def main():
     episode={'seed':a.seed,'episode_seed':a.seed,'repeat_idx':0,'episode_index':0,'max_steps':a.steps,
         'result_json':str(run/'episode.json'),'success_video_dir':str(run/'videos'),
         'failure_video_dir':str(run/'videos'),'recording_save_dir':str(run/'recordings'),'video_fps':30,
-        'post_termination_record_steps':0,'model_label':('demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
+        'post_termination_record_steps':0,'model_label':('command-loop-' if a.command_loop else 'demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
         'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(a.demo_segment.resolve()) if demo else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
-    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal or demo else ('hammer_sim_bootstrap.py' if hammer else 'grasp_sim_bootstrap.py') if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
+    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('command_sim_bootstrap.py' if a.command_loop else 'free_sim_bootstrap.py' if a.motion_goal or demo else ('hammer_sim_bootstrap.py' if hammer else 'grasp_sim_bootstrap.py') if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
         '--task',TASKS[a.task][0],'--env_config_yaml',str(arena/TASKS[a.task][1]),
         '--seed',str(a.seed),'--episode_seed',str(a.seed),'--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
-        '--lerobot_server_url',f'http://127.0.0.1:{port}','--lerobot_server_timeout','660' if a.vlm_model else '120','--step_log_every_n','50',
+        '--lerobot_server_url',f'http://127.0.0.1:{port}','--lerobot_server_timeout','660' if a.vlm_model or a.command_loop else '120','--step_log_every_n','50',
         '--sonic_encoder_path',str(CACHE/'sim-assets/sonic/model_encoder.onnx'),
         '--sonic_decoder_path',str(CACHE/'sim-assets/sonic/model_decoder.onnx')]
     record={'status':'starting','experiment':'A','oracle':True,'mode':a.mode,'sim_command':simcmd,
@@ -376,9 +399,13 @@ def main():
     if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',
         grasp_config_sha256=sha(grasp_config))
     if hammer:record.update(experiment='HAMMER-GRASP-LOOP',task=a.task,env_config=TASKS[a.task][1])
+    if a.command_loop:record.update(experiment='COMMAND-LOOP',oracle=False,task=a.task,env_config=TASKS[a.task][1],
+        target_source='commander',command_loop=str(a.command_loop.resolve()),command_loop_sha256=sha(a.command_loop),
+        commander=a.commander,condition=a.condition,layout_id=a.seed,max_steps=a.steps,
+        vlm_model=str(a.vlm_model) if a.vlm_model else None)
     record['arena_sha256']={f:sha(arena/f) for f in (
         'action_provider/action_provider_sonic.py','action_provider/vla_robot_current_local_runtime_v3.py',
-        'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')+((TASKS[a.task][1],) if hammer else ())}
+        'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')+((TASKS[a.task][1],) if a.task!='pp_box' else ())}
     if replay:
         for key in ('tracker_sha256','arena_sha256'):
             if record[key] != fixture[key]:
@@ -419,7 +446,8 @@ def main():
                 sim=subprocess.run(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,timeout=max(1800,3*a.steps))
             record['sim_exit_code']=sim.returncode
             sim.check_returncode()
-            if not (run/'execution.jsonl').is_file() or not (run/'plans.jsonl').is_file():
+            evidence=run/('loop/commands.jsonl' if a.command_loop else 'plans.jsonl')
+            if not (run/'execution.jsonl').is_file() or not evidence.is_file():
                 raise RuntimeError('No actual execution or native-model evidence')
             if fixed and not (run/'commands.jsonl').is_file():
                 raise RuntimeError('Missing prescribed command evidence')

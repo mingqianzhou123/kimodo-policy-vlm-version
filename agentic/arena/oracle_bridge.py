@@ -40,6 +40,8 @@ def install_oracle_bridge():
         # GRASP_TASK=hammer: the one-handed DoubleDesk hammer grasp (arena/hammer_loop.py); unset, the box.
         hammer = grasp and os.environ.get('GRASP_TASK') == 'hammer'
         target_key = 'object_l' if hammer else 'box'
+        # A scene without that object (SitSofa in the command loop) logs no object pose.
+        has_target = target_key in env.scene.keys()
         loop = drive_rest = None
         if hammer:
             from arena.hammer_loop import HammerGraspLoop
@@ -70,7 +72,7 @@ def install_oracle_bridge():
             wp = data.body_pos_w[0, wrist_ids].detach().cpu().numpy()
             wq = data.body_quat_w[0, wrist_ids].detach().cpu().numpy()
             wr = np.stack([rotation_wxyz(q) for q in wq])
-            box = env.scene[target_key].data.root_state_w[0].detach().cpu().numpy()
+            box = env.scene[target_key].data.root_state_w[0].detach().cpu().numpy() if has_target else None
             reference = getattr(provider, '_latest_pose_payload', None)
             reference_root = (np.asarray(reference['body_pos']).reshape(3)
                               if reference and 'body_pos' in reference else root[:3])
@@ -87,7 +89,8 @@ def install_oracle_bridge():
                 'foot_pos': data.body_pos_w[0,foot_ids].detach().cpu().numpy().tolist(),
                 'foot_rot': [rotation_wxyz(q).tolist() for q in data.body_quat_w[0,foot_ids].detach().cpu().numpy()],
                 'wrist_velocity': data.body_lin_vel_w[0, wrist_ids].detach().cpu().numpy().tolist(),
-                'box_pos': box[:3].tolist(), 'box_quat': box[3:7].tolist(),
+                'box_pos': box[:3].tolist() if box is not None else None,
+                'box_quat': box[3:7].tolist() if box is not None else None,
                 **({'box_com': env.scene[target_key].data.root_com_pos_w[0].detach().cpu().numpy().tolist(),
                     # torque the actuators applied, canonical joint order (for the proprioceptive checks)
                     'applied_torque': data.applied_torque[0, joint_ids].detach().cpu().numpy().tolist()}

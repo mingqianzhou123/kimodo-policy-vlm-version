@@ -49,6 +49,10 @@ p.add_argument('--grasp-task',choices=['box','hammer'],default='box',help='Grasp
 p.add_argument('--latch-delay-steps',type=int,default=75)
 p.add_argument('--stand-still',action='store_true',help='Grasp loop: never walk, reach from where the robot stands')
 p.add_argument('--native-walk',action='store_true',help='Grasp loop: walk the official Kimodo way (settings: the configuration\'s wide section)')
+p.add_argument('--command-loop',help='Command loop configuration (JSON): a commander issues body commands one at a time (kimodo_vla/agent)')
+p.add_argument('--commander',help='With --command-loop: which commander of the configuration')
+p.add_argument('--command-task',choices=['pp_box','sit_sofa'],help='With --command-loop: the task')
+p.add_argument('--condition',default='',help='With --command-loop: condition name, recorded only')
 p.add_argument('--vlm-model')
 p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
 p.add_argument('--vlm-python',default=sys.executable)
@@ -83,10 +87,30 @@ elif a.vlm_model:
     if a.mode!='hold' or a.trajectory_projection!='ik-hold':raise ValueError('Visual mode requires the standing IK-hold backend')
     policy_class=VisualTargetPolicy
     extra=dict(vlm_model=a.vlm_model,vlm_python=a.vlm_python,vlm_localizer=a.vlm_localizer)
-policy = policy_class(a.checkpoint, a.text_cache, a.run, a.mode, diffusion_steps=a.diffusion_steps,
-                      constraint_cfg=a.constraint_cfg, text_mode=a.text_mode, root_anchor=a.root_anchor,
-                      variant=a.variant,handoff_seconds=a.handoff_seconds,joint_speed=a.joint_speed,
-                      support_constraints=a.support_constraints,hand_constraints=a.hand_constraints,trajectory_projection=a.trajectory_projection,**extra)
+policy = None
+if a.command_loop:
+    import json
+    from kimodo_vla.agent.commander import ScriptedCommander, VLMCommander, load_prompt
+    from kimodo_vla.agent.loop import CommandLoopPolicy
+    config_path = Path(a.command_loop).resolve()
+    config = json.loads(config_path.read_text())
+    spec, task = config['commanders'][a.commander], config['tasks'][a.command_task]
+    limits = config.get('limits')
+    if spec['kind'] == 'scripted':
+        commander = ScriptedCommander.from_file(config_path.with_name(spec['file']), spec['name'],
+                                                {**spec.get('options', {}), 'task': a.command_task}, limits)
+    else:
+        from kimodo_vla.vlm.backends import API_BACKENDS, QwenBackend
+        backend = QwenBackend(Path(a.vlm_model)) if spec['backend'] == 'qwen' else API_BACKENDS[spec['backend']](spec['api'])
+        commander = VLMCommander(backend, load_prompt(config_path.with_name(spec['page'])), limits, spec.get('max_tokens', 256))
+    policy = CommandLoopPolicy(a.checkpoint, a.text_cache, a.run, config=config, task_text=task['task_text'],
+        commander=commander, meta={'task': a.command_task, 'commander_name': a.commander, 'commander_spec': spec,
+                                   'condition': a.condition, 'config': str(config_path)})
+if policy is None:
+    policy = policy_class(a.checkpoint, a.text_cache, a.run, a.mode, diffusion_steps=a.diffusion_steps,
+                          constraint_cfg=a.constraint_cfg, text_mode=a.text_mode, root_anchor=a.root_anchor,
+                          variant=a.variant,handoff_seconds=a.handoff_seconds,joint_speed=a.joint_speed,
+                          support_constraints=a.support_constraints,hand_constraints=a.hand_constraints,trajectory_projection=a.trajectory_projection,**extra)
 routes = {('GET','/health'):lambda _: (200,{'status':'ok','native':True}),
           ('POST','/reset'):lambda r: (200,policy.reset(r.get('seed'))),
           ('POST','/infer'):lambda r: (200,policy(r))}

@@ -1,0 +1,58 @@
+{
+ "_about": "Experiment 3 harness (second pilot batch): what the command loop runs with. Read by agentic/scripts/serve_oracle.py --command-loop. Thresholds of the five-link judge are in exp3_thresholds.json, not here.",
+ "tasks": {
+  "pp_box": {
+   "task_text": "Pick up the box from the table and put it on the shelf.",
+   "dev_seeds": [90000, 90001, 90002, 90003, 90004, 90005, 90006, 90007, 90008, 90009],
+   "_dev_seeds": "Development layouts only (Arena's own seeded reset of box and shelf). Set aside on 2026-11-26 for building the harness; they must not be in the valid layout set V of experiment 2."
+  },
+  "sit_sofa": {
+   "task_text": "Sit down on the sofa.",
+   "dev_seeds": [91000, 91001, 91002, 91003, 91004, 91005, 91006, 91007, 91008, 91009],
+   "_dev_seeds": "As for pp_box: development only, never in V."
+  }
+ },
+ "budgets": {
+  "_about": "To be fixed by the team before the formal run. Arena's own step limit (run_oracle.py --steps, default 3000 = 60 s) ends the episode too.",
+  "max_commands": 40,
+  "max_commander_calls": 60,
+  "max_refused_in_row": 3,
+  "max_episode_s": null,
+  "start_hold_s": 0.6,
+  "capture_hold_steps": 5
+ },
+ "limits": {
+  "_about": "Ranges a command may ask for (kimodo_vla/agent/commands.py DEFAULT_LIMITS); a command outside them is refused and the commander asked again.",
+  "walk_max_m": 2.0,
+  "walk_min_m": 0.02,
+  "turn_max_deg": 180,
+  "turn_min_deg": 2,
+  "pelvis_height_m": [0.40, 0.80],
+  "behind_feet_m": [0.0, 0.30],
+  "torso_pitch_deg": [0, 45],
+  "hand_duration_s": [0.5, 4.0],
+  "hand_default_duration_s": 1.5,
+  "workspace_radius_m": 1.2,
+  "min_palm_finger_angle_deg": 45
+ },
+ "planner": {
+  "_about": "kimodo_vla/agent/planner.py SETTINGS. wrist_feedback stays off: closing the wrist error with measurements is what replacing link 3 means in experiment 4.",
+  "diffusion_steps": 50,
+  "constraint_cfg": 2.0,
+  "joint_speed": 4.0,
+  "handoff_seconds": 0.2,
+  "turn_rate_deg_s": 45,
+  "hand_settle_s": 0.5,
+  "hand_toggle_s": 0.6,
+  "wrist_feedback": false,
+  "hold_arms_when_closed": true
+ },
+ "commanders": {
+  "smoke": {"kind": "scripted", "file": "exp3_scripted.py", "name": "SmokeScript",
+            "_about": "One of every command type, to check the planner end to end and record the scene; not a task."},
+  "scripted": {"kind": "scripted", "file": "exp3_scripted.py", "name": "TaskScript",
+               "_about": "The acceptance test of the harness: a fixed rule per task computed from the ground-truth objects, no VLM."},
+  "qwen": {"kind": "vlm", "backend": "qwen", "page": "vlm-config.md", "max_tokens": 400,
+           "_about": "Qwen3-VL-4B-Instruct, local (--vlm-model). Prompt: the prompt block of vlm-config.md."}
+ }
+}
