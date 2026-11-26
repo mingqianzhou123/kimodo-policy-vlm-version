@@ -242,19 +242,16 @@ def test_box_script_grasp_commands_are_valid():
     box = {'name': 'box', 'position': [-.5, -4.8, .85], 'quat_wxyz': [1, 0, 0, 0], 'yaw_deg': 0., 'size': [.21]*3}
     table = {'name': 'table', 'min': [-.641, -6.24, 0.], 'max': [.12, -3.76, .745]}
     observation = {'robot': {'pelvis': [-1.6, -5.0, .78], 'heading_deg': 0.}, 'objects': [box, table]}
-    first = script.next(observation)
-    assert first['type'] == 'walk' and first['forward_m'] > .3
-    stance = script.box_stance(box['position'])
-    observation['robot']['pelvis'] = [-.641-.12, stance[1], .78]     # walked too close to the table edge
-    back = script.next(observation)
-    assert back['type'] == 'walk' and back['forward_m'] < -.05
-    final = [min(stance[0], -.641-.24+.01-.02), stance[1]]
-    observation['robot']['pelvis'] = [final[0]-script.pre_stance_m, final[1], .78]     # short of the stance
-    raised = validate(script.next(observation), pelvis=observation['robot']['pelvis'])
+    raised = validate(script.next(observation), pelvis=observation['robot']['pelvis'])     # hands up before walking
     assert raised['type'] == 'hand_pose' and min(h['position'][2] for h in raised['hands'].values()) > .85+.105+.05
     assert script.next(observation) == {'type': 'hand', 'left': 'close', 'right': 'close'}
-    step_in = script.next(observation)
-    assert step_in['type'] == 'walk' and step_in['forward_m'] >= script.pre_stance_m-.01     # closer with the hands up
+    first = script.next(observation)
+    assert first['type'] == 'walk' and first['forward_m'] > .3
+    final = script.final_stance(observation, box, raised=True)
+    assert final[0] <= -.641-.17
+    observation['robot']['pelvis'] = [-.641-.12, final[1], .78]     # walked too close to the table edge
+    back = script.next(observation)
+    assert back['type'] == 'walk' and back['forward_m'] < -.05
     observation['robot']['pelvis'] = [final[0], final[1], .78]
     commands = [validate(script.next(observation), pelvis=observation['robot']['pelvis']) for _ in range(7)]
     assert [c['type'] for c in commands] == ['hand', 'hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']

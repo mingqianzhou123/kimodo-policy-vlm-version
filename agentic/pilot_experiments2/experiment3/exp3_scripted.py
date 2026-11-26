@@ -185,32 +185,30 @@ class TaskScript:
         box = obj(observation, 'box')
         if self.stage == 'start':
             self.stage, self.tries = 'approach', 0
-        if self.stage in ('approach', 'step_in'):
-            final = self.final_stance(observation, box, raised=self.stage == 'step_in')
         if self.stage == 'approach':
-            # Stop short of the stance first. While it walks or stands the walking reference carries both hands in
-            # front of the body at 0.72-0.79 m, the height of the table top (0.745 m); in development episode 90000
-            # (d9) the fingers hit the table edge (up to 131 N) on every walk that ended within 0.3 m of it.
-            step = self.face(observation, 0.) or self.walk_to(observation, final-[self.pre_stance_m, 0.], .08)
-            if step and self.tries < 4:
+            # Face the table, then hands up and closed before walking: while it walks or stands the walking reference
+            # carries both hands in front of the body at 0.72-0.79 m, the height of the table top (0.745 m), and in
+            # development episode 90000 (d9) the fingers hit the table edge (up to 131 N) on every walk that ended
+            # within 0.3 m of it. With closed hands the planner holds the arms still while it walks
+            # (hold_arms_when_closed). One whole walk to the stance, not a stop short and a step in: on a 0.25 m step-in
+            # (b2-90004) SONIC left the feet 10-14 cm behind the reference's and the pelvis settled back over them.
+            step = self.face(observation, 0.)
+            if step and self.tries < 2:
                 self.tries += 1
                 self.queue = [step]
                 return
-            # Hands up above the box, then closed: with closed hands the planner holds the arms still while it walks
-            # (hold_arms_when_closed), so the last step in keeps them clear of the table.
             top = box['position'][2]+self.box_half()+self.raised_above_box_m
-            w = waypoints(box['position'], box['quat_wxyz'], final, self.grasp)
-            lateral = to_robot(observation, box['position'][:2])[1]
+            w = waypoints(box['position'], box['quat_wxyz'], observation['robot']['pelvis'][:2], self.grasp)
             self.queue = [
                 {'type': 'hand_pose', 'duration_s': self.grasp['raise_s']+0.4, 'hands': {
-                    s: pose(s, from_robot(observation, self.raised_forward_m, lateral+side*self.raised_half_width_m, top), w['rotation'][i])
+                    s: pose(s, from_robot(observation, self.raised_forward_m, side*self.raised_half_width_m, top), w['rotation'][i])
                     for i, (s, side) in enumerate((('left', 1.), ('right', -1.)))}},
                 {'type': 'hand', 'left': 'close', 'right': 'close'}]
-            self.stage, self.tries = 'step_in', 0
+            self.stage, self.tries = 'walk_in', 0
             return
-        if self.stage == 'step_in':
-            step = self.walk_to(observation, final, .06)
-            if step and self.tries < 3:
+        if self.stage == 'walk_in':
+            step = self.walk_to(observation, self.final_stance(observation, box, raised=True), .06)
+            if step and self.tries < 4:
                 self.tries += 1
                 self.queue = [step]
                 return
@@ -266,10 +264,9 @@ class TaskScript:
         self.queue = []
 
     over_m = .10          # the open hands travel this far above the grasp height before they come down beside the box
-    pre_stance_m = .25    # the first walk stops this much short of the stance (hands still in the walking pose)
-    raised_above_box_m = .08   # then the wrists go this far above the box top,
+    raised_above_box_m = .08   # before the walk in the wrists go this far above the box top,
     raised_forward_m = .12     # this far in front of the pelvis,
-    raised_half_width_m = .22  # and this far to either side of the box's line
+    raised_half_width_m = .22  # and this far to either side of it
     approach_gap_m = .05  # the carried box stops this far short of the shelf's face
     place_depth_m = .15   # and the hands put its centre this far inside it (Arena needs at least half the box, 0.105)
 
