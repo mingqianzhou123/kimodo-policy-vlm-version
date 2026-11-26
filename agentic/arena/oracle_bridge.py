@@ -39,7 +39,9 @@ def install_oracle_bridge():
         grasp = os.environ.get('GRASP_LOOP') == '1'
         # GRASP_TASK=hammer: the one-handed DoubleDesk hammer grasp (arena/hammer_loop.py); unset, the box.
         hammer = grasp and os.environ.get('GRASP_TASK') == 'hammer'
-        target_key = 'object_l' if hammer else 'box'
+        # KVLA_TRACK_OBJECT names the scene object logged as box_pos / box_quat outside the grasp loops
+        # (experiment 2's replays of SitSofa); unset, the box as before.
+        target_key = 'object_l' if hammer else 'box' if grasp else os.environ.get('KVLA_TRACK_OBJECT', 'box')
         loop = drive_rest = None
         if hammer:
             from arena.hammer_loop import HammerGraspLoop
