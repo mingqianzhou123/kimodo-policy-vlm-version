@@ -177,7 +177,7 @@ def place_recorded(env, episode_path, run):
     for name in episode['objects']:
         try:
             state = env.scene[name].data.root_state_w[0].detach().cpu().numpy()
-        except KeyError:
+        except (KeyError, AttributeError):   # not in the scene, or a plain prim (the shelf): see 'applied'
             continue
         placed[name] = {'position': state[:3].tolist(), 'orientation': state[3:7].tolist()}
     (Path(run)/'layout-applied.json').write_text(json.dumps(
