@@ -115,12 +115,19 @@ class TaskScript:
         shift = np.array([-self.wide.get('stance_extra_m', 0.), -self.wide.get('box_lateral_m', 0.)])
         return stance(np.asarray(box_pos), self.grasp)+shift
 
-    def final_stance(self, observation, box):
+    def final_stance(self, observation, box, raised=False):
         """The first batch's stance, never closer to the table edge than the stance it validated (stance_clearance_m
         plus the wide setting's stance_extra_m, 0.24 m; 1 cm tolerance). In development episodes 90000 and 90002
-        reaches started 17-21 cm from the edge and the hanging fingers caught it."""
+        reaches started 17-21 cm from the edge and the hanging fingers caught it.
+
+        ``raised``: the hands are already above the box, so the hanging fingers are no longer the limit; the
+        clearance is the first batch's smallest validated one (stance_min_clearance_m) plus stance_extra_m,
+        0.17 m. The walk ends with the pelvis about 8 cm ahead of the feet and the body settles back over them,
+        and reaching forward moves the hips back another 5 cm: in b1-90000 / 90002 (2026-11-27) a step-in to
+        0.25 m left the pelvis 0.30-0.36 m from the edge and the wrists 15-27 cm short of the box."""
         table = obj(observation, 'table')
-        closest = table['min'][0]-(self.grasp['stance_clearance_m']+self.wide.get('stance_extra_m', 0.)-.01)
+        clearance_m = self.grasp['stance_min_clearance_m'] if raised else self.grasp['stance_clearance_m']-.01
+        closest = table['min'][0]-(clearance_m+self.wide.get('stance_extra_m', 0.))
         final = self.box_stance(box['position'])
         final[0] = min(final[0], closest-.02)
         return final
@@ -179,7 +186,7 @@ class TaskScript:
         if self.stage == 'start':
             self.stage, self.tries = 'approach', 0
         if self.stage in ('approach', 'step_in'):
-            final = self.final_stance(observation, box)
+            final = self.final_stance(observation, box, raised=self.stage == 'step_in')
         if self.stage == 'approach':
             # Stop short of the stance first. While it walks or stands the walking reference carries both hands in
             # front of the body at 0.72-0.79 m, the height of the table top (0.745 m); in development episode 90000

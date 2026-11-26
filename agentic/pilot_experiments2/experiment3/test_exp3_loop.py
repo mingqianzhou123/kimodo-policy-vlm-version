@@ -254,7 +254,7 @@ def test_box_script_grasp_commands_are_valid():
     assert raised['type'] == 'hand_pose' and min(h['position'][2] for h in raised['hands'].values()) > .85+.105+.05
     assert script.next(observation) == {'type': 'hand', 'left': 'close', 'right': 'close'}
     step_in = script.next(observation)
-    assert step_in['type'] == 'walk' and step_in['forward_m'] == pytest.approx(script.pre_stance_m)
+    assert step_in['type'] == 'walk' and step_in['forward_m'] >= script.pre_stance_m-.01     # closer with the hands up
     observation['robot']['pelvis'] = [final[0], final[1], .78]
     commands = [validate(script.next(observation), pelvis=observation['robot']['pelvis']) for _ in range(7)]
     assert [c['type'] for c in commands] == ['hand', 'hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']
