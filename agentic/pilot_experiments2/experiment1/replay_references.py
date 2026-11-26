@@ -114,11 +114,12 @@ def placement(original_run):
 def contacts(rows, t0, t1, heading, start_xy):
     """Scene replays: peak net force per non-foot body (box contacts reported apart), and whether the first
     contact of at least CONTACT_N came before the pelvis was 5 cm behind its start."""
-    peak, box_peak, first, onset = {}, {}, None, None
+    peak, box_peak, first, onset, steps = {}, {}, None, None, []
     for r in rows:
         t = r['after']['time']
         if t < t0 - 1e-6 or t > t1 + 1e-6:
             continue
+        steps.append((t, max((r.get('body_contacts_n') or {}).values(), default=0.)))
         for name, f in (r.get('body_contacts_n') or {}).items():
             peak[name] = max(peak.get(name, 0.), f)
             if f >= CONTACT_N and first is None:
@@ -132,7 +133,9 @@ def contacts(rows, t0, t1, heading, start_xy):
     return {'peak_contact_n': dict(top), 'box_contact_peak_n': box_peak,
             'first_contact': None if first is None else {'s': first[0] - t0, 'body': first[1]},
             'backoff_onset_s': None if onset is None else onset - t0,
-            'contact_before_backoff': None if onset is None else bool(first is not None and first[0] <= onset)}
+            'contact_before_backoff': None if onset is None else bool(first is not None and first[0] <= onset),
+            'contact_s': float(sum(.02 for _, f in steps if f >= CONTACT_N)),
+            'peak_before_onset_n': None if onset is None else max((f for t, f in steps if onset - .5 - 1e-6 <= t <= onset + 1e-6), default=0.)}
 
 
 def task_in_replay(original, record_time_P, replay_rows, replay_time, segment_start):
