@@ -153,9 +153,14 @@ class TaskScript:
             self.stage = 'grasp'
             w = waypoints(box['position'], box['quat_wxyz'], observation['robot']['pelvis'][:2], self.grasp)
             both = lambda key, rot: {s: pose(s, w[key][i], w[rot][i]) for i, s in enumerate(('left', 'right'))}
+            # Over the box before lowering beside it: in every development reach (90000 twice, 90002, 90004 runs
+            # of 2026-11-26/27) the open fingers caught the table edge on the way from 'via' to 'pre'.
+            w['over'] = np.asarray(w['pre']).copy()
+            w['over'][:, 2] += self.over_m
             self.queue = [
                 {'type': 'hand_pose', 'hands': both('via', 'via_rotation'), 'duration_s': self.grasp['raise_s']},
-                {'type': 'hand_pose', 'hands': both('pre', 'rotation'), 'duration_s': self.grasp['advance_s']},
+                {'type': 'hand_pose', 'hands': both('over', 'rotation'), 'duration_s': self.grasp['advance_s']},
+                {'type': 'hand_pose', 'hands': both('pre', 'rotation'), 'duration_s': 1.0},
                 {'type': 'hand', 'left': 'close', 'right': 'close'},
                 {'type': 'hand_pose', 'hands': both('squeeze', 'rotation'), 'duration_s': self.grasp['squeeze_s']},
                 {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': self.grasp['lift_s']},
@@ -192,6 +197,8 @@ class TaskScript:
                 {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0}]
             return
         self.queue = []
+
+    over_m = .10   # the open hands travel this far above the grasp height before they come down beside the box
 
     def box_half(self):
         return 0.105

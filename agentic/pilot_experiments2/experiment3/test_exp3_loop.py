@@ -249,8 +249,10 @@ def test_box_script_grasp_commands_are_valid():
     back = script.next(observation)
     assert back['type'] == 'walk' and back['forward_m'] < -.05
     observation['robot']['pelvis'] = [min(stance[0], -.641-.24), stance[1], .78]
-    kinds = [validate(script.next(observation), pelvis=observation['robot']['pelvis'])['type'] for _ in range(6)]
-    assert kinds == ['hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']
+    commands = [validate(script.next(observation), pelvis=observation['robot']['pelvis']) for _ in range(7)]
+    assert [c['type'] for c in commands] == ['hand_pose', 'hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']
+    over, pre = commands[1]['hands']['left']['position'], commands[2]['hands']['left']['position']
+    assert over[2] == pytest.approx(pre[2]+.10) and over[:2] == pytest.approx(pre[:2])
 
 
 def test_config_names_dev_seeds_and_commanders():
