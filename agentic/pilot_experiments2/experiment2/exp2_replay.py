@@ -542,7 +542,8 @@ def verdicts(results, repeats):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('action', choices=['prepare', 'run', 'analyze'])
+    p.add_argument('action', choices=['prepare', 'run', 'analyze', 'compare'])
+    p.add_argument('--labels', nargs=2, help='compare: two labels whose runs of the same episode had identical inputs')
     p.add_argument('raw', nargs='*', type=Path)
     p.add_argument('--task', choices=list(TASKS), required=True)
     p.add_argument('--label', default='partb')
@@ -575,6 +576,23 @@ def main():
             raise SystemExit('--gpus is required')
         return launch(args)
     from paths import RUNS
+    if args.action == 'compare':
+        pairs = {}
+        for label in args.labels:
+            for r in sorted(RUNS.glob(run_name(label, args.task, '*', 'r0', args.tracker))):
+                a = analyze_run(r)
+                if 'success' in a:
+                    pairs.setdefault(a['episode'], []).append((r, a['success']))
+        rows = {e: {'success': [s for _, s in v], 'agree': len({s for _, s in v}) == 1, **divergence([r for r, _ in v])}
+                for e, v in pairs.items() if len(v) == 2}
+        out = RUNS/f"p2e2-replay-compare-{'-'.join(args.labels)}-{args.tracker}-{args.task}.json"
+        out.write_text(json.dumps(rows, indent=1))
+        for e, d in rows.items():
+            print(e, d['success'], 'agree' if d['agree'] else 'DISAGREE', 'first-step object gap', round(d['first_step_object_m'], 4),
+                  'max root gap', round(d['max_root_m'], 3), 'final object gap', round(d['final_object_m'], 3),
+                  'root >1cm from step', d['first_step_root_over_1cm'])
+        print(len(rows), 'pairs,', sum(d['agree'] for d in rows.values()), 'agree;', out)
+        return
     pattern = run_name(args.label, args.task, '*', '*', args.tracker)
     results = [analyze_run(r) for r in sorted(RUNS.glob(pattern)) if (r/'run.json').exists()
                and json.loads((r/'run.json').read_text()).get('tracker') == args.tracker]
