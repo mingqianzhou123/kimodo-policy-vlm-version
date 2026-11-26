@@ -109,6 +109,19 @@ def trace(rows, start, end, lo, hi, origin=None, heading=None, to_world=None):
     return out
 
 
+def advance_contact(tr, from_t):
+    """Closest approach once the hands should be raised (from ``from_t``), and where: added after the first
+    table showed that the hanging hands at the anchor already sit next to the table's front face."""
+    later = [x for x in tr if x['t'] >= from_t - 1e-6]
+    if not later:
+        return {}
+    w = min(later, key=lambda x: x['clearance'])
+    return {'advance_min_clearance_m': w['clearance'], 'advance_z_above_top_m': w['z_above_top'],
+            'advance_x_beyond_edge_m': w['x_beyond_edge'],
+            'advance_edge_contact': bool(w['clearance'] <= TOUCH_M and w['x_beyond_edge'] < EDGE_M),
+            'advance_contact_s': w['t']}
+
+
 def summarize_trace(tr, start):
     onset = next((x for x in tr if x['backoff'] >= ONSET_M), None)
     touch = next((x for x in tr if x['clearance'] <= TOUCH_M), None)
@@ -140,8 +153,12 @@ def episode(runs, record, reach):
     heading = np.array([R[0, 0], R[1, 0]]) / np.linalg.norm([R[0, 0], R[1, 0]])
     lo, hi = table_box(run)
     tr = trace(rows, anchor, record['time_P'], lo, hi, np.asarray(a['root_pos'][:2]), heading)
-    return {'run': record['run'], 'cell': record['cell'], 'group': reach['group'], 'first_success': record['first_success'],
-            'mode': record['mode'], **summarize_trace(tr, anchor)}
+    raise_end = round_targets(rounds)[0][2]['raise_end']
+    out = {'run': record['run'], 'cell': record['cell'], 'group': reach['group'], 'first_success': record['first_success'],
+           'mode': record['mode'], **summarize_trace(tr, anchor), **advance_contact(tr, raise_end)}
+    if out.get('advance_contact_s') is not None:
+        out['advance_contact_s'] -= anchor
+    return out
 
 
 def replay(runs, replay_dir, m, tracker, date, prefix):
@@ -165,7 +182,12 @@ def replay(runs, replay_dir, m, tracker, date, prefix):
     Rb = quat_matrix(b['after']['root_quat'])
     heading = np.array([Rb[0, 0], Rb[1, 0]]) / np.linalg.norm([Rb[0, 0], Rb[1, 0]])
     tr = trace(rows, t0, t1, lo, hi, np.asarray(b['after']['root_pos'][:2]), heading, to_world)
-    return {'tag': m['tag'], 'tracker': tracker, 'run': run.name, 'outcome': m['outcome'], **summarize_trace(tr, t0)}
+    raise_end = round_targets(rounds)[0][2]['raise_end'] - anchor + t0
+    out = {'tag': m['tag'], 'tracker': tracker, 'run': run.name, 'outcome': m['outcome'], **summarize_trace(tr, t0),
+           **advance_contact(tr, raise_end)}
+    if out.get('advance_contact_s') is not None:
+        out['advance_contact_s'] -= t0
+    return out
 
 
 def table(records, key_fields=('group', 'outcome')):
@@ -178,8 +200,9 @@ def table(records, key_fields=('group', 'outcome')):
         by[(r['group'] + ' · ' + r['cell'], outcome)].append(r)
     lines = ['| group | outcome | n | min hand–table clearance (cm) | hands inside the table box (n) | back-off >= 5 cm (n) | '
              'clearance at onset (cm) | closest point above the top / beyond the edge at onset (cm) | at the table before onset / after / never | '
-             'first touch above the top / beyond the edge (cm) | first touch at the front edge (n) |',
-             '|---|---|---|---|---|---|---|---|---|---|---|']
+             'first touch above the top / beyond the edge (cm) | first touch at the front edge (n) | '
+             'after the raise: closest clearance (cm) | its point above the top / beyond the edge (cm) | at the front edge, touching (n) |',
+             '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|']
     for (group, outcome), rows in sorted(by.items()):
         orders = {o: sum(r['order'] == o for r in rows) for o in ('touch_first', 'onset_first', 'no_touch')}
         lines.append(f"| {group} | {outcome} | {len(rows)} | {med(rows, 'min_clearance_m')} | "
@@ -187,7 +210,9 @@ def table(records, key_fields=('group', 'outcome')):
                      f"{med(rows, 'clearance_at_onset_m')} | {med(rows, 'z_above_top_at_onset_m')} / {med(rows, 'x_beyond_edge_at_onset_m')} | "
                      f"{orders['touch_first']} / {orders['onset_first']} / {orders['no_touch']} | "
                      f"{med(rows, 'z_above_top_at_touch_m')} / {med(rows, 'x_beyond_edge_at_touch_m')} | "
-                     f"{sum(1 for r in rows if r.get('touch_at_edge'))} |")
+                     f"{sum(1 for r in rows if r.get('touch_at_edge'))} | {med(rows, 'advance_min_clearance_m')} | "
+                     f"{med(rows, 'advance_z_above_top_m')} / {med(rows, 'advance_x_beyond_edge_m')} | "
+                     f"{sum(1 for r in rows if r.get('advance_edge_contact'))} |")
     return '\n'.join(lines)
 
 
@@ -225,7 +250,8 @@ def main(argv=None):
         (a.out / f'clearance-{a.prefix}.json').write_text(json.dumps(rows, indent=1))
         for r in rows:
             print(r['tag'], r['tracker'], r['outcome'], {k: (round(v, 3) if isinstance(v, float) else v) for k, v in r.items()
-                                                       if k in ('min_clearance_m', 'touch_s', 'onset_s', 'max_backoff_m', 'order')})
+                                                       if k in ('min_clearance_m', 'onset_s', 'max_backoff_m', 'advance_min_clearance_m',
+                                                                'advance_z_above_top_m', 'advance_x_beyond_edge_m', 'advance_edge_contact')})
 
 
 if __name__ == '__main__':

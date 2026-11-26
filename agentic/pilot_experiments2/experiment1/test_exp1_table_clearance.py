@@ -36,3 +36,12 @@ def test_first_touch_at_the_edge_or_over_the_top():
     top = [{'t': 0., 'clearance': .005, 'backoff': 0., 'z_above_top': .005, 'x_beyond_edge': .2}]
     assert tc.summarize_trace(edge, 0.)['touch_at_edge'] is True
     assert tc.summarize_trace(top, 0.)['touch_at_edge'] is False
+
+
+def test_contact_after_the_raise():
+    tr = [{'t': 0., 'clearance': -.01, 'backoff': 0., 'z_above_top': -.13, 'x_beyond_edge': -.009},
+          {'t': 1., 'clearance': .004, 'backoff': 0., 'z_above_top': .01, 'x_beyond_edge': -.015},
+          {'t': 2., 'clearance': .05, 'backoff': 0., 'z_above_top': .05, 'x_beyond_edge': .2}]
+    a = tc.advance_contact(tr, .8)
+    assert a['advance_min_clearance_m'] == .004 and a['advance_edge_contact'] is True and a['advance_contact_s'] == 1.
+    assert tc.advance_contact(tr, 1.5)['advance_edge_contact'] is False
