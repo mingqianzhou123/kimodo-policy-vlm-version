@@ -53,8 +53,7 @@ CHUNK = 25
 
 SETTINGS = {k: KIMODO_SETTINGS[k] for k in ('hand_toggle_s', 'walk_tolerance_m', 'turn_tolerance_deg', 'move_corrections',
                                              'tracker', 'avoid_rules')}
-SETTINGS.update(hitch_python=None, hand='dex3', walk_palms=[.10, .30, .95],
-                max_reference_lead_m=.25)   # no further correction walk while the reference leads the root this much
+SETTINGS.update(hitch_python=None, hand='dex3', walk_palms=[.10, .30, .95])
 
 
 def wrap_deg(angle):
@@ -139,7 +138,7 @@ class KinematicPlanner(Planner):
         self.heading, self.folder = heading, Path(context['folder'])
         kind = command['type']
         now = body_state(obs, self.fk)
-        self.move, self.corrections = None, 0
+        self.move, self.corrections, self.last_off = None, 0, None
         target, plan = {}, {}
         if kind in ('walk', 'turn'):
             yaw = np.radians(now['yaw_deg'])
@@ -190,11 +189,11 @@ class KinematicPlanner(Planner):
         if self.move is not None and self.corrections < self.settings['move_corrections']:
             off = float(np.linalg.norm(np.subtract(obs['root_pos'][:2], self.move['root_xy'])))
             turn = abs(wrap_deg(yaw_deg(rotation_wxyz(obs['root_quat']))-self.move['yaw_deg']))
-            lead = float(np.linalg.norm(np.subtract(obs['reference_root_pos'][:2], obs['root_pos'][:2])))
-            # A tracker that does not follow the reference (SONIC stepping in place on HITCH's short walks, k3sonic)
-            # gains nothing from a reference walked further away: no correction past max_reference_lead_m.
-            if (off > self.settings['walk_tolerance_m'] or turn > self.settings['turn_tolerance_deg']) \
-                    and lead <= self.settings['max_reference_lead_m']:
+            # A tracker that does not follow (SONIC stepping in place on HITCH's short walks, k3sonic) gains nothing
+            # from more walking: no further correction once one did not reduce the error by a fifth.
+            stalled = self.last_off is not None and off > .8*self.last_off
+            self.last_off = off
+            if (off > self.settings['walk_tolerance_m'] or turn > self.settings['turn_tolerance_deg']) and not stalled:
                 self.corrections += 1
                 try:
                     self.plan_walk(obs, self.move)
@@ -209,8 +208,13 @@ class KinematicPlanner(Planner):
 
     # ---- HITCH ---------------------------------------------------------------------------
     def frame(self, obs):
-        return [float(obs['reference_root_pos'][0]), float(obs['reference_root_pos'][1]),
-                heading_rad(obs['reference_root_quat'])]
+        """The plan frame O: on the ground below the measured root, along the reference's heading. HITCH's session
+        plans from the reference tail, which its controller keeps on the robot; Arena's integrator does not: its
+        absolute position drifts from the robot while the tracker follows the reference's motion (k4heft 90005:
+        robot at x -0.76, reference at -1.26, and HITCH judged the box out of reach from the reference). So the plan
+        starts from the reference posture placed at the measured root; its heading stays the reference's, so the rows
+        continue the reference without a turn."""
+        return [float(obs['root_pos'][0]), float(obs['root_pos'][1]), heading_rad(obs['reference_root_quat'])]
 
     def plan_walk(self, obs, target):
         """A walk of the reference by what the true root still lacks: the plan starts from the reference, which may be
@@ -231,7 +235,8 @@ class KinematicPlanner(Planner):
         return self.plan_request(obs, request)
 
     def plan_request(self, obs, request, wrists=None):
-        start = to_hitch_pose(obs['reference_root_pos'], obs['reference_root_quat'], obs['reference_joints'])
+        start = to_hitch_pose([obs['root_pos'][0], obs['root_pos'][1], obs['reference_root_pos'][2]],
+                              obs['reference_root_quat'], obs['reference_joints'])
         message = {'request': request, 'start_pose': start.tolist(), 'frame': self.frame(obs), 'torso': list(self.torso),
                    'hands': None, 'wrist_targets': wrists}
         reply = self.connect().plan(message)

@@ -76,16 +76,16 @@ def test_walk_request_and_correction(tmp_path):
     # the true root ended 0.5 m short: walked off again, from the new reference
     far = sample([1., 1.], 90.)
     assert planner.chunk({'observation': {'oracle_history': [far]}}) is not None and len(client.messages) == 2
-    # the reference already at the target but the true root 0.2 m short: the reference walks 0.2 m further
-    lag = sample([1., 1.5], 90.)
-    lag['root_pos'] = [1., 1.3, .77]
-    planner.queue, planner.corrections = None, 0
+    # the reference anywhere (Arena's integrator drifts), the true root 0.2 m short: the plan starts at the root
+    lag = sample([1., 1.3], 90.)
+    lag['reference_root_pos'] = [1., 0.7, .77]
+    planner.queue, planner.corrections, planner.last_off = None, 0, None
     planner.chunk({'observation': {'oracle_history': [lag]}})
     assert client.messages[-1]['request']['walk']['target'] == [pytest.approx(.2), pytest.approx(0., abs=1e-9)]
-    # ... but not once the reference leads the root by more than max_reference_lead_m (0.25 m)
+    assert client.messages[-1]['start_pose'][:2] == [1., 1.3] and client.messages[-1]['frame'][:2] == [1., 1.3]
+    # a correction that did not reduce the error: no more
     sent = len(client.messages)
-    lag['root_pos'] = [1., 1.2, .77]
-    planner.queue, planner.corrections = None, 0
+    planner.queue = None
     assert planner.chunk({'observation': {'oracle_history': [lag]}}) is None and len(client.messages) == sent
     near = sample([1., 1.49], 90.)
     planner.queue = None
