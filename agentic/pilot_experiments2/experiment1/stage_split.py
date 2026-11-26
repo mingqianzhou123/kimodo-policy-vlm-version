@@ -46,7 +46,8 @@ HAMMER_PITCH_DEG = 40.   # agentic/configs/hammer-grasp.json policy.wrist_pitch_
 STANDING = ('raise', 'advance', 'grip', 'squeeze', 'lift', 'hold', 'release')
 BODIES = ('left_wrist_yaw_link', 'right_wrist_yaw_link', 'torso_link')
 QUANTITIES = ('wrist_pos', 'wrist_rot', 'root_pos', 'torso_rot')
-STAGES = ('1a', '1b', 'handoff', '1', '2', 'total')
+STAGES = ('lag', 'correction', '1a', '1b', 'handoff', '1', '2', 'total')
+FEEDBACK_GAIN, FEEDBACK_MAX_M = .7, .12   # policy.reach_feedback_gain / _max_m, same in both configs, never changed
 PRIMARY = ('P.wrist_pos.1', 'P.wrist_pos.2', 'push_contact_to_close_m')
 
 
@@ -78,6 +79,89 @@ def hammer_rotation(axis, deg=HAMMER_PITCH_DEG):
     p = np.radians(deg)
     up = np.array([0., 0., 1.])
     return np.stack([np.cos(p)*across - np.sin(p)*up, -np.sin(p)*across - np.cos(p)*up, axis], axis=1)
+
+
+def smooth(u):
+    u = np.clip(u, 0., 1.)
+    return u**3 * (10 - 15*u + 6*u*u)
+
+
+def rotvec_matrix(v):
+    theta = np.linalg.norm(v)
+    if theta < 1e-12:
+        return np.eye(3)
+    k = np.asarray(v) / theta
+    K = np.array([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]])
+    return np.eye(3) + np.sin(theta) * K + (1 - np.cos(theta)) * K @ K
+
+
+def slerp(a, b, w):
+    """Rotation a fraction ``w`` of the way from ``a`` to ``b``."""
+    rel = np.asarray(a).T @ np.asarray(b)
+    theta = np.arccos(np.clip((np.trace(rel) - 1) / 2, -1., 1.))
+    if theta < 1e-9:
+        return np.asarray(a).copy()
+    if np.pi - theta < 1e-6:   # half turn: the axis is the eigenvector of +1
+        values, vectors = np.linalg.eig(rel)
+        axis = np.real(vectors[:, np.argmin(abs(values - 1))])
+    else:
+        axis = np.array([rel[2, 1] - rel[1, 2], rel[0, 2] - rel[2, 0], rel[1, 0] - rel[0, 1]]) / (2 * np.sin(theta))
+    return np.asarray(a) @ rotvec_matrix(axis * theta * w)
+
+
+def path_pieces(kind, row, rest_pos, rest_rot):
+    """The planned wrist path of one attempt as [(end time, positions [2,3], rotations [2,3,3])], starting at rest.
+
+    Box (grasp_policy.anchor): rest -> via by raise_end -> pre by advance_end, both hands, wrists
+    pitched down. Hammer (hammer_policy.anchor): the right hand rest -> via -> pre (over_end) ->
+    grip (advance_end); the left hand stays at rest.
+    """
+    wrists = row['wrist_targets']
+    rest_pos, rest_rot = np.asarray(rest_pos, float), np.asarray(rest_rot, float)
+    if kind == 'box':
+        rot = np.stack([pitch_down(BOX_PITCH_DEG)] * 2)
+        return [(row['raise_end'], np.asarray(wrists['via'], float), rot),
+                (row['advance_end'], np.asarray(wrists['pre'], float), rot)]
+    rot = np.stack([rest_rot[0], hammer_rotation(row['handle_axis'])])
+    both = lambda right: np.stack([rest_pos[0], np.asarray(right, float)])
+    return [(row['raise_end'], both(wrists['via']), rot), (row['over_end'], both(wrists['pre']), rot),
+            (row['advance_end'], both(wrists['grip']), rot)]
+
+
+def planned_wrists(pieces, start, rest_pos, rest_rot, t):
+    """Positions and rotations of the planned path at time ``t`` (WristPath semantics)."""
+    t0, p0, r0 = start, np.asarray(rest_pos, float), np.asarray(rest_rot, float)
+    for t1, p1, r1 in pieces:
+        if t < t1:
+            w = float(smooth((t - t0) / (t1 - t0))) if t1 > t0 else 1.
+            return p0 + w * (p1 - p0), np.stack([slerp(a, b, w) for a, b in zip(r0, r1)])
+        t0, p0, r0 = t1, p1, r1
+    return p0, r0
+
+
+def replay_bias(plan_times, wanted, measured, hands, gain=FEEDBACK_GAIN, limit=FEEDBACK_MAX_M):
+    """The policy's wrist correction (grasp_policy.correct) after each plan: [(time, bias [2,3])].
+
+    ``wanted(t)`` and ``measured(t)`` give the planned and the measured wrists [2,3] at a plan time;
+    only plans made in the advance phase after its planned end belong here.
+    """
+    bias, out = np.zeros((2, 3)), []
+    for t in plan_times:
+        step = bias + gain * (np.asarray(wanted(t)) - np.asarray(measured(t)))
+        for h in hands:
+            size = np.linalg.norm(step[h])
+            bias[h] = step[h] * min(1., limit / max(size, 1e-9))
+        out.append((t, bias.copy()))
+    return out
+
+
+def bias_at(history, t):
+    """The correction in force for the command executed at step time ``t`` (made by an earlier plan)."""
+    chosen = np.zeros((2, 3))
+    for when, bias in history:
+        if when < t - 1e-3:
+            chosen = bias
+    return chosen
 
 
 # ---- per-episode timing -------------------------------------------------------------------------
@@ -267,24 +351,28 @@ def distance(quantity, a, b, hands):
     return angle_deg(a['torso_rot'], b['torso_rot'])
 
 
-def stage_errors(layers, target, hands):
-    """Every stage of every quantity at one step: {'wrist_pos.1a': ..., ...}."""
-    T, K, S, R, A = (layers.get(k) if k != 'T' else target for k in 'TKSRA')
-    pairs = {'1a': (T, K), '1b': (K, S), 'handoff': (S, R), '1': (T, R), '2': (R, A), 'total': (T, A)}
+def stage_errors(layers, targets, hands):
+    """Every stage of every quantity at one step: {'wrist_pos.1a': ..., ...}.
+
+    ``targets`` holds the task target (``task``), the planned path at this step (``plan``) and the
+    command the planner asked of Kimodo and IK (``command`` = plan + the closed-loop correction).
+    """
+    T, Tp, Tc = targets['task'], targets['plan'], targets['command']
+    K, S, R, A = (layers.get(k) for k in 'KSRA')
+    pairs = {'lag': (T, Tp), 'correction': (Tp, Tc), '1a': (Tc, K), '1b': (K, S), 'handoff': (S, R),
+             '1': (Tc, R), '2': (R, A), 'total': (T, A)}
     return {f'{q}.{stage}': distance(q, *pairs[stage], hands) for q in QUANTITIES for stage in STAGES}
 
 
-def target_pose(kind, wrists, row, anchor_torso):
-    """The task target as a pose dict; quantities without a target are left out."""
-    if kind == 'box':
-        pos = np.asarray(wrists['pre'], float)
-        rot = np.stack([pitch_down(BOX_PITCH_DEG)] * 2)
-    else:
-        right = np.asarray(wrists['grip'], float)
-        pos = np.stack([np.full(3, np.nan), right])
-        rot = np.stack([np.eye(3), hammer_rotation(row['handle_axis'])])
-    return {'wrist_pos': pos, 'wrist_rot': rot, 'root_pos': np.asarray(row['anchor_root'], float),
-            'torso_rot': anchor_torso}
+def target_poses(kind, row, rest, anchor_torso, t, bias):
+    """Task target, planned path and commanded target at time ``t`` as pose dicts."""
+    pieces = path_pieces(kind, row, *rest)
+    task_pos, task_rot = pieces[-1][1], pieces[-1][2]
+    plan_pos, plan_rot = planned_wrists(pieces, rest[2], rest[0], rest[1], t)
+    common = {'root_pos': np.asarray(row['anchor_root'], float), 'torso_rot': anchor_torso}
+    return {'task': {'wrist_pos': task_pos, 'wrist_rot': task_rot, **common},
+            'plan': {'wrist_pos': plan_pos, 'wrist_rot': plan_rot, **common},
+            'command': {'wrist_pos': plan_pos + bias, 'wrist_rot': plan_rot, **common}}
 
 
 def episode(run, fk, threshold=CONTACT_N, sensitivity=SENSITIVITY_N):
@@ -317,14 +405,30 @@ def episode(run, fk, threshold=CONTACT_N, sensitivity=SENSITIVITY_N):
     anchor_time = targets[0][0]
     anchor_row = execution.get(key(anchor_time)) or execution[min(execution, key=lambda k: abs(k - key(anchor_time)))]
     anchor_torso = layers.at(anchor_row, None)['A']['torso_rot']
+    rest = (np.asarray(anchor_row['after']['wrist_pos'], float), np.asarray(anchor_row['after']['wrist_rot'], float),
+            anchor_time)
+    measured = lambda t: np.asarray((execution.get(key(t)) or {'after': {'wrist_pos': np.full((2, 3), np.nan)}})
+                                    ['after']['wrist_pos'], float)
+
+    def wanted(t):
+        _, row = target_at(targets, t)
+        return planned_wrists(path_pieces(kind, row, *rest), anchor_time, rest[0], rest[1], t)[0]
+
+    # The closed-loop wrist correction, replayed from the plans made after the advance should have ended.
+    reach_end = max((s['time'] for s in steps if s.get('round') == 0 and s.get('phase') == 'advance'), default=anchor_time)
+    stand_plans = [p['time'] for p in read_jsonl(run / 'plans.jsonl') if 'kimodo_fk_target_m' in p]
+    corrections = [t for t in stand_plans if anchor_time - 1e-6 <= t <= reach_end + 1e-6
+                   and t >= target_at(targets, t)[1]['advance_end'] - 1e-6]
+    history = replay_bias(corrections, wanted, measured, hands)
 
     def at(index):
         t = steps[index]['time']
         row = execution.get(key(t))
         if row is None:
             return None
-        wrists, notes = target_at(targets, t)
-        return stage_errors(layers.at(row, commands.get(key(t))), target_pose(kind, wrists, notes, anchor_torso), hands)
+        _, notes = target_at(targets, t)
+        return stage_errors(layers.at(row, commands.get(key(t))),
+                            target_poses(kind, notes, rest, anchor_torso, t, bias_at(history, t)), hands)
 
     out = {**base, 'kind': kind, 'contact': contact is not None, 'closed': close is not None,
            'contact_before_close': contact is not None and (close is None or contact < close),
@@ -368,6 +472,13 @@ def episode(run, fk, threshold=CONTACT_N, sensitivity=SENSITIVITY_N):
         out['staleness_C_m'] = float(np.linalg.norm(
             obj(close)[:2] - np.asarray(latched_c.get('target_box_pos') or latched_c['box_pos'], float)[:2]))
 
+    grip_row = next((r for r in rounds if r.get('round') == 0 and r.get('phase') == 'grip' and 'wrist_bias' in r), None)
+    if grip_row is not None and history:
+        logged = np.asarray(grip_row['wrist_bias'], float).reshape(-1, 3)
+        replayed = bias_at(history, grip_row['time'] + 1.)[[1] if kind == 'hammer' else [0, 1]]
+        out['bias_replay_error_m'] = float(np.abs(logged - replayed).max())
+    out['correction_plans'] = len(corrections)
+
     # Kimodo against what it was asked for: the newest stand plan before P, at its keyframe.
     plans = [p for p in read_jsonl(run / 'plans.jsonl') if 'kimodo_fk_target_m' in p and p['time'] <= steps[P]['time'] + 1e-6]
     if plans:
@@ -375,16 +486,49 @@ def episode(run, fk, threshold=CONTACT_N, sensitivity=SENSITIVITY_N):
         out['P.asked.kimodo_fk_target_m'] = float(np.mean([last['kimodo_fk_target_m'][h][0] for h in hands]))
         out['P.asked.kimodo_angle_deg'] = float(np.mean([last['projected_wrist_angle_deg'][h] for h in hands]))
 
-    # The walk to the stance (walking episodes): goal -> consumed reference root -> measured root.
-    walk = next((r for r in rounds if r.get('round') == 0 and 'walk_goal' in r and r.get('phase') == 'raise'), None)
-    if walk is not None:
-        end = execution.get(key(anchor_time)) or anchor_row
-        goal, reference, actual = (np.asarray(walk['walk_goal'], float), np.asarray(end['reference_root_world'][:2]),
-                                   np.asarray(end['after']['root_pos'][:2]))
-        out.update({'walk.root_pos.1': float(np.linalg.norm(reference - goal)),
-                    'walk.root_pos.2': float(np.linalg.norm(actual - reference)),
-                    'walk.root_pos.total': float(np.linalg.norm(actual - goal)),
-                    'walk.native': walk.get('walk_generator') == 'native'})
+    out.update(walk_split(run, rounds, execution))
+    return out
+
+
+def walk_split(run, rounds, execution):
+    """Round 0's walk to the stance, plan by plan, in relative terms.
+
+    SONIC follows the reference's root motion, not its absolute position (the reference root drifts
+    away from the measured one during a walk), so each plan's span is compared as displacements:
+    stage 1 = Kimodo's own logged root error against the requested path (clip walks: ``end_error_m``;
+    official-way walks: ``root_path_error_m``), stage 2 = |measured displacement - consumed
+    reference displacement| over the span. Total = measured stance against the walk goal.
+    """
+    walk = next((r for r in rounds if r.get('round') == 0 and r.get('phase') == 'raise' and 'walk_goal' in r), None)
+    settle = next((r for r in rounds if r.get('round') == 0 and r.get('phase') == 'settle'), None)
+    if walk is None or settle is None:
+        return {}
+    native = walk.get('walk_generator') == 'native'
+    if native:
+        path = run / 'walk-r0' / 'plans.jsonl'
+        plans = read_jsonl(path) if path.exists() else []
+        errors = [p.get('root_path_error_m') for p in plans]
+    else:
+        plans = [p for p in read_jsonl(run / 'plans.jsonl') if p.get('kind') == 'walk' and p.get('round') == 0]
+        errors = [p.get('end_error_m') for p in plans]
+    times = [p['time'] for p in plans] + [settle['time']]
+    stage2, travel, reference_travel = [], 0., 0.
+    for a, b in zip(times[:-1], times[1:]):
+        ra, rb = execution.get(key(a)), execution.get(key(b))
+        if ra is None or rb is None or 'reference_root_world' not in ra or 'reference_root_world' not in rb:
+            continue
+        dR = np.subtract(rb['reference_root_world'][:2], ra['reference_root_world'][:2])
+        dA = np.subtract(rb['after']['root_pos'][:2], ra['after']['root_pos'][:2])
+        stage2.append(float(np.linalg.norm(dA - dR)))
+        travel, reference_travel = travel + np.linalg.norm(dA), reference_travel + np.linalg.norm(dR)
+    end = execution.get(key(settle['time']))
+    errors = [e for e in errors if isinstance(e, (int, float))]
+    out = {'walk.native': native, 'walk.plans': len(plans),
+           'walk.root_pos.1': float(np.mean(errors)) if errors else float('nan'),
+           'walk.root_pos.2': float(np.mean(stage2)) if stage2 else float('nan'),
+           'walk.travel_ratio': float(travel / reference_travel) if reference_travel > 0 else float('nan')}
+    if end is not None:
+        out['walk.root_pos.total'] = float(np.linalg.norm(np.subtract(end['after']['root_pos'][:2], walk['walk_goal'])))
     return out
 
 
@@ -392,7 +536,8 @@ def episode(run, fk, threshold=CONTACT_N, sensitivity=SENSITIVITY_N):
 def metrics(records):
     names = set()
     for r in records:
-        names.update(k for k, v in r.items() if k[:2] in ('P.', 'W.', 'C.') or k.startswith(('walk.root', 'push', 'stale', 'P_hi.', 'object_')))
+        names.update(k for k, v in r.items() if k[:2] in ('P.', 'W.', 'C.')
+                     or k.startswith(('walk.root', 'walk.travel', 'push', 'stale', 'P_hi.', 'object_')))
     return sorted(n for n in names if not n.endswith('.native'))
 
 

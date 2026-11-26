@@ -119,7 +119,7 @@ def make_run(tmp_path, success=False):
     write_jsonl(run / 'rounds.jsonl', [
         {'kind': 'latch', 'round': 0, 'phase': 'wait', 'time': 0., 'box_pos': [.6, 0, 0]},
         {'kind': 'phase', 'round': 0, 'phase': 'raise', 'time': .02, 'box_pos': [.6, 0, 0], 'anchor_root': [0, 0, 0],
-         'wrist_targets': {'pre': pre}}])
+         'raise_end': .03, 'advance_end': .04, 'wrist_targets': {'via': pre, 'pre': pre}}])
     (run / 'grasp-result.json').write_text(json.dumps({'success': success, 'first_attempt_success': success,
                                                        'seed': 1, 'layout': None, 'attempts': [{'label': 'touched_not_held'}]}))
     # Box at x=.6; it is touched at step 4, pushed 3 cm by step 6 when the hands close.
@@ -168,6 +168,47 @@ def test_episode_splits_the_stages(tmp_path):
     assert r['staleness_P_m'] == pytest.approx(0.) and r['staleness_C_m'] == pytest.approx(.03)
     assert r['P.asked.kimodo_fk_target_m'] == pytest.approx(.1) and r['P.asked.kimodo_angle_deg'] == pytest.approx(6)
     assert r['W.wrist_pos.2'] == pytest.approx(.02) and r['C.wrist_pos.2'] == pytest.approx(.02)
+    assert r['P.wrist_pos.lag'] == pytest.approx(0.) and r['P.wrist_pos.correction'] == pytest.approx(0.)
+    assert r['correction_plans'] == 0
+
+
+# ---- the planned path, the replayed correction and the walk ----------------------------------------------
+def test_planned_path_follows_the_smoothstep_and_slerps():
+    Rz = lambda deg: np.array([[np.cos(np.radians(deg)), -np.sin(np.radians(deg)), 0],
+                               [np.sin(np.radians(deg)), np.cos(np.radians(deg)), 0], [0, 0, 1]])
+    pieces = [(1., np.array([[1., 0, 0]] * 2), np.stack([Rz(90)] * 2))]
+    rest_pos, rest_rot = np.zeros((2, 3)), np.stack([np.eye(3)] * 2)
+    pos, rot = ss.planned_wrists(pieces, 0., rest_pos, rest_rot, .5)
+    assert np.allclose(pos[0], [.5, 0, 0]) and np.allclose(rot[1], Rz(45))
+    pos, rot = ss.planned_wrists(pieces, 0., rest_pos, rest_rot, 3.)
+    assert np.allclose(pos[0], [1, 0, 0]) and np.allclose(rot[0], Rz(90))
+    assert ss.planned_wrists(pieces, 0., rest_pos, rest_rot, .2)[0][0, 0] == pytest.approx(ss.smooth(.2))
+
+
+def test_correction_replay_is_bounded_and_applies_from_the_next_step():
+    history = ss.replay_bias([1., 1.1], wanted=lambda t: np.array([[1., 0, 0], [0, 0, 0]]),
+                             measured=lambda t: np.zeros((2, 3)), hands=(0, 1))
+    assert np.allclose(history[0][1][0], [.12, 0, 0])            # 0.7 m wanted, clipped to 0.12 m
+    assert np.allclose(history[0][1][1], 0.)
+    assert np.allclose(ss.bias_at(history, 1.0), 0.)              # the plan made at 1.0 acts from 1.02
+    assert np.allclose(ss.bias_at(history, 1.02)[0], [.12, 0, 0])
+    one = ss.replay_bias([1.], lambda t: np.ones((2, 3)), lambda t: np.zeros((2, 3)), hands=(1,))
+    assert np.allclose(one[0][1][0], 0.) and np.linalg.norm(one[0][1][1]) == pytest.approx(.12)
+
+
+def test_walk_is_compared_plan_by_plan_in_displacements(tmp_path):
+    run = tmp_path / 'walk'
+    run.mkdir()
+    write_jsonl(run / 'plans.jsonl', [{'kind': 'walk', 'round': 0, 'time': 0., 'end_error_m': .1},
+                                      {'kind': 'walk', 'round': 0, 'time': 1., 'end_error_m': .3}])
+    rounds = [{'round': 0, 'phase': 'settle', 'time': 2.}, {'round': 0, 'phase': 'raise', 'time': 2.5, 'walk_goal': [1., 0.]}]
+    # The reference root starts 3 m away from the robot: only displacements count.
+    row = lambda r, a: {'reference_root_world': [3 + r, 0, 0], 'after': {'root_pos': [a, 0, 0]}}
+    execution = {0: row(0, 0), 50: row(.5, .4), 100: row(1., .9)}
+    out = ss.walk_split(run, rounds, execution)
+    assert out['walk.root_pos.1'] == pytest.approx(.2) and out['walk.root_pos.2'] == pytest.approx(.1)
+    assert out['walk.travel_ratio'] == pytest.approx(.9) and out['walk.root_pos.total'] == pytest.approx(.1)
+    assert out['walk.native'] is False and out['walk.plans'] == 2
 
 
 def test_summary_groups_and_compares(tmp_path):
