@@ -77,24 +77,40 @@ class Hooks:
         box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
         return np.array(box.GetMin(), dtype=float), np.array(box.GetMax(), dtype=float)
 
-    def stage_extents(self, path):
-        """Edge lengths of a prim's bounding box in its own frame (scale applied, rotation not), and the box
-        centre in that frame. The axis-aligned world box of a turned prim is larger than the prim: VisionNavi's
-        slab (about 2.0 x 0.4 m from six episodes' boxes) turned 45 degrees reads 1.75 x 1.64 m."""
+    def turned_box_sizes(self, paths):
+        """Edge lengths of turned box-shaped prims that share one asset (VisionNavi's three slabs, three crates).
+
+        The stage reports a turned prim's axis-aligned world box, larger than the prim: a slab of 2.0 x 0.4 m
+        turned -42.5 degrees reads 1.74 x 1.65 m. That box is the slab turned by the prim's own world yaw, so
+        (a, b) = (L|c| + W|s|, L|s| + W|c|) is solved for (L, W) on the prim whose yaw separates them best
+        (|c^2 - s^2| largest), and the result applies to every prim of the asset. Near 45 degrees the two cannot
+        be told apart; if no prim is better than that the world boxes are kept (conservative)."""
         import omni.usd
         from pxr import Usd, UsdGeom
         stage = omni.usd.get_context().get_stage()
-        prim = stage.GetPrimAtPath(path)
-        if not prim or not prim.IsValid():
-            return None
         cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy])
-        # Bound in the prim's own space (its own transform left out), then the prim's own scale.
-        box = cache.ComputeUntransformedBound(prim).ComputeAlignedRange()
-        world = np.array(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()), dtype=float)
-        scale = np.linalg.norm(world[:3, :3], axis=1)          # Gf matrices act on row vectors: rows are the axes
-        size = np.array(box.GetSize(), dtype=float)*scale
-        centre = (np.array(box.GetMin(), dtype=float)+np.array(box.GetMax(), dtype=float))/2*scale
-        return size, centre
+        boxes, best = {}, None
+        for path in paths:
+            prim = stage.GetPrimAtPath(path)
+            if not prim or not prim.IsValid():
+                continue
+            box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+            size = np.array(box.GetMax(), dtype=float)-np.array(box.GetMin(), dtype=float)
+            world = np.array(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()), dtype=float)
+            yaw = float(np.arctan2(world[0, 1], world[0, 0]))       # row vectors: the first row is the prim's x axis
+            c, s_ = abs(np.cos(yaw)), abs(np.sin(yaw))
+            boxes[path] = {'world_box_m': size.tolist(), 'stage_yaw_deg': float(np.degrees(yaw))}
+            if best is None or abs(c*c-s_*s_) > best[0]:
+                best = (abs(c*c-s_*s_), c, s_, size)
+        if best is None:
+            return {}, boxes
+        if best[0] < .3:
+            return {p: b['world_box_m'] for p, b in boxes.items()}, boxes
+        _, c, s_, (a, b, h) = best
+        length, width = (a*c-b*s_)/(c*c-s_*s_), (b*c-a*s_)/(c*c-s_*s_)
+        if not (0. < width <= length <= max(a, b)+1e-6):
+            return {p: b_['world_box_m'] for p, b_ in boxes.items()}, boxes
+        return {p: [float(length), float(width), float(h)] for p in boxes}, boxes
 
     def parts(self, root, depth=None):
         """Axis-aligned bounds of every prim under ``root`` (``depth`` levels down only, if given)."""
@@ -151,14 +167,16 @@ class Hooks:
                 objects.append(region('target', [x0, y0, 0.], [x1, y1, 0.], shape='box', note='stand with both feet inside this area'))
             # The obstacles are rigid bodies placed by the episode's layout through physics, so the stage's boxes are
             # stale: only their sizes are taken from the stage, their poses come with the moving objects (movable()).
-            sizes, centres = {}, {}
-            for name in NAVI_OBSTACLES:
-                extents = self.stage_extents(f'/World/envs/env_0/{name}')
-                if extents is not None:
+            sizes, raw = {}, {}
+            for asset in ('Obstacle01', 'Obstacle02'):
+                paths = [f'/World/envs/env_0/{name}' for name in NAVI_OBSTACLES if name.startswith(asset)]
+                solved, seen = self.turned_box_sizes(paths)
+                for path, size in solved.items():
+                    name = path.rsplit('/', 1)[1]
                     key = 'obstacle_'+name[8:10]+'_'+name[-1].lower()
-                    sizes[key], centres[key] = extents[0].tolist(), extents[1].tolist()
+                    sizes[key], raw[key] = size, seen[path]
             extra.update({'target_region': [region_kind, list(values)], 'obstacle_sizes_m': sizes,
-                          'obstacle_box_centre_in_body_m': centres})
+                          'obstacle_stage_boxes': raw})
         else:
             seat = self.rewards._get_sofa_seat_boxes_world(self.env)[0]
             if seat is None:
@@ -174,9 +192,9 @@ class Hooks:
                 if np.linalg.norm((low[:2]+high[:2])/2-centre) <= 3. and size[2] > .1 and max(size[:2]) < 4.:
                     objects.append(region(part['name'], low, high, kind_of='furniture'))
             for key in ('carton_obstacle_01', 'carton_obstacle_02'):
-                extents = self.stage_extents(f'/World/envs/env_0/{"CartonObstacle0" + key[-1]}')
-                if extents is not None:
-                    extra[f'{key}_size_m'] = extents[0].tolist()
+                bounds = self.stage_bounds(f'/World/envs/env_0/{"CartonObstacle0" + key[-1]}')
+                if bounds is not None:
+                    extra[f'{key}_size_m'] = (bounds[1]-bounds[0]).tolist()
         # The walls: the baseboard runs along them, so its box is the walkable floor (VisionNavi 92000: a route
         # that ignored it squeezed between an obstacle and the east wall, and the right hand kept hitting the wall).
         board = next((p for p in extra['room_assets'] if p['name'] == 'baseboard'), None)
