@@ -315,9 +315,16 @@ class TaskScript:
                 # Lower the box in front of the shelf, then walk it in with the arms held (closed hands), open, back
                 # off. Pushing it in with the hands asked HITCH for wrists 0.49 m in front of the pelvis (k7heft 90002).
                 forward = float(np.dot(delta[:2], yawv[:2]))
+                # The measured wrists sit wider than the squeeze commanded them to (the box holds them apart):
+                # commanding them as they are released the grip (k8heft 90002: 13 N -> 0, the box fell while
+                # lowered). Each target keeps the first batch's squeeze inward.
+                left, right = (np.asarray(wrists[s]['position'], float) for s in ('left', 'right'))
+                inward = (right-left)*[1, 1, 0]
+                inward /= max(np.linalg.norm(inward), 1e-9)
+                squeeze = self.grasp['squeeze_m']*inward
+                lowered = {'left': left+squeeze+[0, 0, delta[2]], 'right': right-squeeze+[0, 0, delta[2]]}
                 self.queue = [
-                    {'type': 'hand_pose', 'duration_s': 2.0,
-                     'hands': {s: {'position': (np.asarray(wrists[s]['position'])+[0, 0, delta[2]]).tolist()} for s in ('left', 'right')}},
+                    {'type': 'hand_pose', 'duration_s': 2.0, 'hands': {s: {'position': lowered[s].tolist()} for s in ('left', 'right')}},
                     {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0},
                     {'type': 'hand', 'left': 'open', 'right': 'open'},
                     {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0}]
