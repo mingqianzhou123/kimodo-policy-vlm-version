@@ -91,9 +91,16 @@ def main():
                          'attempts_to_success': result.get('attempts_to_success'), **close}
                 report['affected'].append(entry)
                 print(json.dumps(entry))
+    # The bug's signature is one hand outside while the other (the one that fired on this tick) is inside.
+    # Both outside cannot come from this gate as configured now (older debug configurations, or a close
+    # the audit's reconstructed event does not describe), so those are listed apart.
+    one = [a for a in report['affected'] if sum(not h['inside'] for h in a['hands']) == 1]
+    report['one_hand_outside'] = [a['run'] for a in one]
+    report['both_outside'] = [a['run'] for a in report['affected'] if a not in one]
     out = RUNS/'p2e2-gate-audit.json'
     out.write_text(json.dumps(report, indent=1))
-    print(report['runs'], 'runs', report['closes'], 'closes', len(report['affected']), 'with a hand outside on the close tick')
+    print(report['runs'], 'runs', report['closes'], 'closes', len(report['affected']), 'with a hand outside on the close tick:',
+          len(one), 'one hand (the bug),', len(report['both_outside']), 'both')
     print(out)
 
 
