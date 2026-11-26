@@ -80,7 +80,7 @@ class Hooks:
     def stage_extents(self, path):
         """Edge lengths of a prim's bounding box in its own frame (scale applied, rotation not), and the box
         centre in that frame. The axis-aligned world box of a turned prim is larger than the prim: VisionNavi's
-        2.0 x 0.5 m slab turned 45 degrees reads 1.75 x 1.64 m."""
+        slab (about 2.0 x 0.4 m from six episodes' boxes) turned 45 degrees reads 1.75 x 1.64 m."""
         import omni.usd
         from pxr import Usd, UsdGeom
         stage = omni.usd.get_context().get_stage()
@@ -88,9 +88,10 @@ class Hooks:
         if not prim or not prim.IsValid():
             return None
         cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy])
-        bound = cache.ComputeWorldBound(prim)
-        box, matrix = bound.GetRange(), np.array(bound.GetMatrix(), dtype=float)
-        scale = np.linalg.norm(matrix[:3, :3], axis=1)        # Gf matrices act on row vectors: rows are the axes
+        # Bound in the prim's own space (its own transform left out), then the prim's own scale.
+        box = cache.ComputeUntransformedBound(prim).ComputeAlignedRange()
+        world = np.array(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()), dtype=float)
+        scale = np.linalg.norm(world[:3, :3], axis=1)          # Gf matrices act on row vectors: rows are the axes
         size = np.array(box.GetSize(), dtype=float)*scale
         centre = (np.array(box.GetMin(), dtype=float)+np.array(box.GetMax(), dtype=float))/2*scale
         return size, centre
