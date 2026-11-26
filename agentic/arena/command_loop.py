@@ -77,6 +77,24 @@ class Hooks:
         box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
         return np.array(box.GetMin(), dtype=float), np.array(box.GetMax(), dtype=float)
 
+    def stage_extents(self, path):
+        """Edge lengths of a prim's bounding box in its own frame (scale applied, rotation not), and the box
+        centre in that frame. The axis-aligned world box of a turned prim is larger than the prim: VisionNavi's
+        2.0 x 0.5 m slab turned 45 degrees reads 1.75 x 1.64 m."""
+        import omni.usd
+        from pxr import Usd, UsdGeom
+        stage = omni.usd.get_context().get_stage()
+        prim = stage.GetPrimAtPath(path)
+        if not prim or not prim.IsValid():
+            return None
+        cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy])
+        bound = cache.ComputeWorldBound(prim)
+        box, matrix = bound.GetRange(), np.array(bound.GetMatrix(), dtype=float)
+        scale = np.linalg.norm(matrix[:3, :3], axis=1)        # Gf matrices act on row vectors: rows are the axes
+        size = np.array(box.GetSize(), dtype=float)*scale
+        centre = (np.array(box.GetMin(), dtype=float)+np.array(box.GetMax(), dtype=float))/2*scale
+        return size, centre
+
     def parts(self, root, depth=None):
         """Axis-aligned bounds of every prim under ``root`` (``depth`` levels down only, if given)."""
         import omni.usd
@@ -132,12 +150,14 @@ class Hooks:
                 objects.append(region('target', [x0, y0, 0.], [x1, y1, 0.], shape='box', note='stand with both feet inside this area'))
             # The obstacles are rigid bodies placed by the episode's layout through physics, so the stage's boxes are
             # stale: only their sizes are taken from the stage, their poses come with the moving objects (movable()).
-            sizes = {}
+            sizes, centres = {}, {}
             for name in NAVI_OBSTACLES:
-                bounds = self.stage_bounds(f'/World/envs/env_0/{name}')
-                if bounds is not None:
-                    sizes['obstacle_'+name[8:10]+'_'+name[-1].lower()] = (bounds[1]-bounds[0]).tolist()
-            extra.update({'target_region': [region_kind, list(values)], 'obstacle_sizes_m': sizes})
+                extents = self.stage_extents(f'/World/envs/env_0/{name}')
+                if extents is not None:
+                    key = 'obstacle_'+name[8:10]+'_'+name[-1].lower()
+                    sizes[key], centres[key] = extents[0].tolist(), extents[1].tolist()
+            extra.update({'target_region': [region_kind, list(values)], 'obstacle_sizes_m': sizes,
+                          'obstacle_box_centre_in_body_m': centres})
         else:
             seat = self.rewards._get_sofa_seat_boxes_world(self.env)[0]
             if seat is None:
@@ -153,9 +173,9 @@ class Hooks:
                 if np.linalg.norm((low[:2]+high[:2])/2-centre) <= 3. and size[2] > .1 and max(size[:2]) < 4.:
                     objects.append(region(part['name'], low, high, kind_of='furniture'))
             for key in ('carton_obstacle_01', 'carton_obstacle_02'):
-                bounds = self.stage_bounds(f'/World/envs/env_0/{"CartonObstacle0" + key[-1]}')
-                if bounds is not None:
-                    extra[f'{key}_size_m'] = (bounds[1]-bounds[0]).tolist()
+                extents = self.stage_extents(f'/World/envs/env_0/{"CartonObstacle0" + key[-1]}')
+                if extents is not None:
+                    extra[f'{key}_size_m'] = extents[0].tolist()
         # The walls: the baseboard runs along them, so its box is the walkable floor (VisionNavi 92000: a route
         # that ignored it squeezed between an obstacle and the east wall, and the right hand kept hitting the wall).
         board = next((p for p in extra['room_assets'] if p['name'] == 'baseboard'), None)
