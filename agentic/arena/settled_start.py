@@ -39,7 +39,9 @@ def settle(env, provider, warm_action, run, markers=True, before=None, any_headi
         # A start turned about the vertical (the DoubleDesk hammer table): upright, any heading.
         # The action integrator is re-anchored at the placed pose, so that standing still means
         # standing still there, facing that way.
-        if not np.isclose(initial[3]**2 + initial[6]**2, 1., atol=1e-6):
+        # Upright: only w and z. 1e-3, not 1e-6: task configs write rounded quaternions (VisionNavi's start is
+        # (0.7071, 0, 0, 0.7071), squared norm 0.99998).
+        if not np.isclose(initial[3]**2 + initial[6]**2, 1., atol=1e-3):
             raise ValueError('Unexpected reset orientation: not upright')
         quat, xy = provider._get_current_robot_root_pose_for_vla()
         provider._lerobot_vla_runtime.reset(body_xy_world=xy, target_root_quat_wxyz=quat)
