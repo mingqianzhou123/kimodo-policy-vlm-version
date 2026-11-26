@@ -103,6 +103,8 @@ if a.command_loop:
         from kimodo_vla.vlm.backends import API_BACKENDS, QwenBackend
         backend = QwenBackend(Path(a.vlm_model)) if spec['backend'] == 'qwen' else API_BACKENDS[spec['backend']](spec['api'])
         commander = VLMCommander(backend, load_prompt(config_path.with_name(spec['page'])), limits, spec.get('max_tokens', 256))
+    # A commander may override planner settings (e.g. the wrist feedback of the first batch's grasp).
+    config = {**config, 'planner': {**config.get('planner', {}), **spec.get('planner', {})}}
     policy = CommandLoopPolicy(a.checkpoint, a.text_cache, a.run, config=config, task_text=task['task_text'],
         commander=commander, meta={'task': a.command_task, 'commander_name': a.commander, 'commander_spec': spec,
                                    'condition': a.condition, 'config': str(config_path)})

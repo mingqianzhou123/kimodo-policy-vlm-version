@@ -47,6 +47,7 @@ SETTINGS = {
     'hand_toggle_s': .6,            # an open / close command holds the body this long
     'wrist_feedback': False,        # off: the measured wrist error is not fed back (replacing link 3 is experiment 4's job)
     'wrist_feedback_gain': .7, 'wrist_feedback_max_m': .12,
+    'wrist_feedback_s': 1.,         # with feedback on, a hand_pose command runs this much longer, so the correction acts
     'hold_arms_when_closed': True,
 }
 
@@ -256,10 +257,11 @@ class KimodoPlanner(Planner):
                 goals[side] = (np.asarray(t['position'], dtype=float), rotation)
             feedback = ({'gain': self.settings['wrist_feedback_gain'], 'max_m': self.settings['wrist_feedback_max_m']}
                         if self.settings['wrist_feedback'] else None)
+            settle = self.settings['hand_settle_s']+(self.settings['wrist_feedback_s'] if feedback else 0.)
             self.reacher.run = self.folder
             self.folder.mkdir(parents=True, exist_ok=True)
             self.reacher.arm(obs, history[:-context.get('new_samples', 1)], heading, goals, command['duration_s'],
-                             self.settings['hand_settle_s'], feedback)
+                             settle, feedback)
             self.active = ('reach', self.reacher, None)
             target = {'wrists': {side: {'position': goals[side][0].tolist(), 'rotation': goals[side][1].tolist()}
                                  for side in goals}}
