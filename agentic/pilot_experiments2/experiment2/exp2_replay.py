@@ -200,35 +200,66 @@ class EpisodeReference:
 
 
 # ---- simulator side (imported by the bootstraps) -------------------------------------------------
-def place_recorded(env, episode_path, run):
-    """Arena's seeded object reset with the recording's seed, then the recorder's own read-back.
+def place_recorded(env, episode_path, run, tolerance_m=.01):
+    """Restore a recorded layout and check it with the recorder's own read-back (layout-applied.json).
 
-    This is how Arena's replay restores a recorded layout. The read-back uses the function the
-    recorder used (``collect_recordable_env_object_states``), so it is in the recording's frame: on
-    2026-11-26 a direct prim write of the recorded shelf pose landed 2.7 m off, because the recorder
-    reads the shelf in a frame offset from the one the pose writer uses; the seeded reset matched.
-    The read-back and its error against the recorded initial poses go to layout-applied.json.
+    First Arena's seeded object reset with the recording's seed, as Arena's replay does. Then the
+    read-back with the function the recorder used (``collect_recordable_env_object_states``), so in the
+    recording's frame. A rigid scene object that the seeded reset did not put within ``tolerance_m`` of
+    its recorded initial pose (SitSofa's cartons, 2026-11-26) is written there directly through its
+    scene entity, whose frame is the recorder's. A plain prim is never written: the recorder reads the
+    P&PBox shelf in a frame offset by about 2.7 m from the prim writer's, and the seeded reset already
+    matched it. Whatever is still off is reported, and the analysis marks the run.
     """
-    from common_env_objects import apply_deterministic_object_resets_with_seed, collect_recordable_env_object_states
+    import torch
+    from common_env_objects import (apply_deterministic_object_resets_with_seed, collect_recordable_env_object_states,
+                                    get_recordable_env_object_specs, resolve_env_object_scene_key)
     episode = json.loads(Path(episode_path).read_text())
     applied = apply_deterministic_object_resets_with_seed(env.cfg, env, episode_seed=int(episode['seed']),
                                                           seed_source='recorded')
     env.scene.write_data_to_sim()
-    states = collect_recordable_env_object_states(env, env.cfg)
-    readback, error = {}, {}
-    for name, recorded in episode['objects'].items():
-        state = states.get(name)
-        if state is None:
+    specs = {s['record_name']: s for s in get_recordable_env_object_specs(env.cfg)}
+
+    def check():
+        states = collect_recordable_env_object_states(env, env.cfg)
+        readback, error = {}, {}
+        for name, recorded in episode['objects'].items():
+            state = states.get(name)
+            if state is None:
+                continue
+            position = np.asarray(state['position'], dtype=float).reshape(-1)[:3]
+            orientation = np.asarray(state['orientation'], dtype=float).reshape(-1)[:4]
+            readback[name] = {'position': position.tolist(), 'orientation': orientation.tolist()}
+            dot = abs(float(np.dot(orientation/np.linalg.norm(orientation),
+                                   np.asarray(recorded['orientation'])/np.linalg.norm(recorded['orientation']))))
+            error[name] = {'position_m': float(np.linalg.norm(position-np.asarray(recorded['position']))),
+                           'angle_deg': float(np.degrees(2*np.arccos(min(1., dot))))}
+        return readback, error
+
+    readback, seeded_error = check()
+    written = {}
+    for name, e in seeded_error.items():
+        if e['position_m'] <= tolerance_m and e['angle_deg'] <= 1. or specs.get(name, {}).get('prim_paths'):
             continue
-        position = np.asarray(state['position'], dtype=float).reshape(-1)[:3]
-        orientation = np.asarray(state['orientation'], dtype=float).reshape(-1)[:4]
-        readback[name] = {'position': position.tolist(), 'orientation': orientation.tolist()}
-        dot = abs(float(np.dot(orientation/np.linalg.norm(orientation), np.asarray(recorded['orientation'])/np.linalg.norm(recorded['orientation']))))
-        error[name] = {'position_m': float(np.linalg.norm(position-np.asarray(recorded['position']))),
-                       'angle_deg': float(np.degrees(2*np.arccos(min(1., dot))))}
+        key = resolve_env_object_scene_key(env, env.cfg, name)
+        if key is None:
+            continue
+        entity, recorded = env.scene[key], episode['objects'][name]
+        state = entity.data.root_state_w.clone()
+        state[0, 0:3] = torch.as_tensor(recorded['position'], dtype=state.dtype, device=state.device)
+        state[0, 3:7] = torch.as_tensor(recorded['orientation'], dtype=state.dtype, device=state.device)
+        state[0, 7:] = 0.
+        entity.write_root_state_to_sim(state)
+        written[name] = key
+    if written:
+        env.scene.write_data_to_sim()
+        readback, error = check()
+    else:
+        error = seeded_error
     (Path(run)/'layout-applied.json').write_text(json.dumps(
-        {'seed': episode['seed'], 'seeded_reset': applied, 'readback': readback, 'error': error,
-         'missing': sorted(set(episode['objects'])-set(readback)), 'recorded': episode['objects']}, indent=1))
+        {'seed': episode['seed'], 'seeded_reset': applied, 'seeded_error': seeded_error, 'written': written,
+         'readback': readback, 'error': error, 'missing': sorted(set(episode['objects'])-set(readback)),
+         'recorded': episode['objects']}, indent=1))
 
 
 # ---- launching ----------------------------------------------------------------------------------
