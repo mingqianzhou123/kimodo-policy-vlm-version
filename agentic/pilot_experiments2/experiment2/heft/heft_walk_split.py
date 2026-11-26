@@ -30,7 +30,9 @@ import exp2_commands as E  # noqa: E402
 
 GROUPS = (('heft gain 2', 'p2e2heft-cmd-empty-{m}-20261127-s*', 8),
           ('heft gain 1', 'p2e2heft-gain1-cmd-empty-{m}-20261127-s*', 8),
-          ('sonic gain 2', 'p2e2-cmd-empty-{m}-20261126-s*', 0))
+          ('sonic gain 2', 'p2e2-cmd-empty-{m}-20261126-s*', 0),
+          ('heft open loop', 'p2e2heft-openloop-cmd-empty-{m}-20261127-s*', 8),
+          ('heft no lag', 'p2e2heft-nolag-cmd-empty-{m}-20261127-s*', 0))
 TOLERANCE_M = .05
 
 
