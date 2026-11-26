@@ -146,6 +146,11 @@ class TaskScript:
 
     # ---- VisionNavi: the interface self-check -------------------------------------------
     overhead_m = 1.3   # obstacles whose underside is higher than this do not block the walk
+    # Obstacles lower than this only need the legs to clear them: the walking reference carries the hands at
+    # 0.72-0.79 m. VisionNavi's slabs (2.0 x 0.4 x 0.25 m) leave gaps that a 0.32 m clearance cannot use: no route
+    # existed on development layouts 92000 and 92001 above 0.22 / 0.25 m. The feet are about 0.15 m from the centre line.
+    low_obstacle_top_m = .45
+    legs_clearance_m = .22
 
     def plan_navi(self, observation):
         target = obj(observation, 'target')
@@ -154,7 +159,8 @@ class TaskScript:
             low = [o for o in observation['objects'] if o['name'] not in ('target', 'room_floor')
                    and o.get('min', [0, 0, 0])[2] < self.overhead_m]
             self.route, self.stage, self.tries = route(observation['robot']['pelvis'][:2], goal, low,
-                                                       room=floor_area(observation)), 'walk', 0
+                                                       room=floor_area(observation), low_body=self.legs_clearance_m,
+                                                       low_top_m=self.low_obstacle_top_m), 'walk', 0
         while self.stage == 'walk' and self.route:
             step = self.walk_to(observation, self.route[0], .06 if len(self.route) == 1 else .2)
             if step and self.tries < 8:
@@ -349,17 +355,19 @@ def floor_area(observation):
     return next((o for o in observation['objects'] if o['name'] == 'room_floor'), None)
 
 
-def route(start, goal, obstacles, body=.32, near=None, step=.1, pad=4., room=None):
+def route(start, goal, obstacles, body=.32, near=None, step=.1, pad=4., room=None, low_body=None, low_top_m=.45):
     """Waypoints from ``start`` to ``goal`` that keep ``body`` clear of every obstacle (``near``: obstacles
     the robot may come right up to, such as the sofa it will sit on) and of the walls (``room``: the floor
-    area inside them). A* on a ``step`` grid, then shortened to the fewest straight legs that stay clear.
+    area inside them). Obstacles whose top is below ``low_top_m`` need only ``low_body`` (the legs) when given.
+    A* on a ``step`` grid, then shortened to the fewest straight legs that stay clear.
     Falls back to the straight line."""
     import heapq
     start, goal = np.asarray(start, dtype=float), np.asarray(goal, dtype=float)
     near = near or []
     walls = lambda p: (room is not None and (np.any(np.asarray(p) < np.asarray(room['min'][:2])+body)
                                              or np.any(np.asarray(p) > np.asarray(room['max'][:2])-body)))
-    blocked = lambda p: (walls(p) or any(clearance(p, o) <= body for o in obstacles)
+    radius = lambda o: low_body if low_body is not None and o.get('max', [0, 0, 9])[2] < low_top_m else body
+    blocked = lambda p: (walls(p) or any(clearance(p, o) <= radius(o) for o in obstacles)
                          or any(clearance(p, o) <= .02 for o in near))
 
     def free(a, b):

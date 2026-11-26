@@ -453,7 +453,8 @@ def test_navi_script_routes_around_low_obstacles_only():
     assert first['type'] == 'walk'
     legs = [[-1.9, -5.2]]+script.route
     assert len(script.route) > 1 and script.route[-1] == pytest.approx([-1.6, -1.])
-    assert all(clearance(np.asarray(a)+(np.asarray(b)-np.asarray(a))*u, wall) > .3
+    # The 0.3 m high slab needs only the legs' clearance; the hands pass over it.
+    assert all(clearance(np.asarray(a)+(np.asarray(b)-np.asarray(a))*u, wall) > script.legs_clearance_m-.01
                for a, b in zip(legs, legs[1:]) for u in np.linspace(0, 1, 30))
 
 
