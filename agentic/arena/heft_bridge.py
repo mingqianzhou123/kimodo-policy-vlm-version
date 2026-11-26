@@ -29,7 +29,9 @@ import numpy as np
 from kimodo_vla.controllers.heft import CHECKPOINT_ENV, HEFT_JOINT_NAMES, HeftTracker, Reference, quat_to_matrix
 
 ROOT = Path(__file__).resolve().parents[1]
-LAG = 8   # = the checkpoint's largest future step; checked against it below
+# Frames between the newest decoded frame and the one HEFT tracks; default 8 = the checkpoint's largest future step.
+# KVLA_HEFT_LAG=0 (diagnostic only) tracks the newest frame, its look-ahead held at that tail frame.
+LAG = int(os.environ.get('KVLA_HEFT_LAG', 8))
 
 
 def _array(t):
@@ -41,7 +43,7 @@ def attach(provider, env, run):
     import torch
     tracker = HeftTracker(os.environ[CHECKPOINT_ENV], threads=2)
     spec = tracker.spec
-    if spec.horizon != LAG or spec.control_hz != 50:
+    if not 0 <= LAG <= spec.horizon or spec.control_hz != 50:
         raise ValueError(f'checkpoint horizon {spec.horizon} / rate {spec.control_hz} differ from the adapter')
     robot = env.scene['robot']
     joint_names = list(robot.joint_names)
