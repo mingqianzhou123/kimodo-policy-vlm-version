@@ -168,21 +168,52 @@ class EpisodeReference:
 
 # ---- simulator side (imported by the bootstraps) -------------------------------------------------
 def place_recorded(env, episode_path, run):
-    """Arena's seeded object reset with the recording's seed; what it did goes to layout-applied.json."""
-    from common_env_objects import apply_deterministic_object_resets_with_seed
+    """Put every recorded object at its recorded initial pose; what was done goes to layout-applied.json.
+
+    Arena's seeded object reset with the recording's seed runs first, as Arena's replay does. In the
+    HumanoidArena version used here (44a7222) it restores the box exactly but not the shelf: the
+    shelf's sampling no longer matches the recordings (recorded shelf y lies outside the configured
+    range). So each recorded object is then written to its recorded initial pose with Arena's own
+    pose writers: rigid objects through their scene entity, plain prims (the shelf) through the
+    prim's world transform. Success is judged by Arena on the live shelf geometry, so it follows.
+    """
+    import torch
+    from common_env_objects import (_read_prim_world_pose, _write_prim_world_pose, apply_deterministic_object_resets_with_seed,
+                                    get_recordable_env_object_specs, resolve_env_object_scene_key)
     episode = json.loads(Path(episode_path).read_text())
     applied = apply_deterministic_object_resets_with_seed(env.cfg, env, episode_seed=int(episode['seed']),
                                                           seed_source='recorded')
-    placed = {}
-    for name in episode['objects']:
-        try:
-            state = env.scene[name].data.root_state_w[0].detach().cpu().numpy()
-        except (KeyError, AttributeError):   # not in the scene, or a plain prim (the shelf): see 'applied'
-            continue
-        placed[name] = {'position': state[:3].tolist(), 'orientation': state[3:7].tolist()}
+    specs = {s['record_name']: s for s in get_recordable_env_object_specs(env.cfg)}
+    written, readback = {}, {}
+    for name, recorded in episode['objects'].items():
+        spec = specs.get(name, {})
+        position = np.asarray(recorded['position'], dtype=float)
+        orientation = np.asarray(recorded['orientation'], dtype=float)
+        key = None if spec.get('prim_paths') else resolve_env_object_scene_key(env, env.cfg, name)
+        if key is not None:
+            entity = env.scene[key]
+            state = entity.data.root_state_w.clone()
+            state[0, 0:3] = torch.as_tensor(position, dtype=state.dtype, device=state.device)
+            state[0, 3:7] = torch.as_tensor(orientation, dtype=state.dtype, device=state.device)
+            state[0, 7:] = 0.
+            entity.write_root_state_to_sim(state)
+            written[name] = f'scene:{key}'
+        else:
+            for template in spec.get('prim_paths', []):
+                path = template.format(env_idx=0)
+                if _write_prim_world_pose(path, position, orientation):
+                    written[name] = f'prim:{path}'
+                    pose = _read_prim_world_pose(path)
+                    if pose is not None:
+                        readback[name] = {'position': np.asarray(pose[0]).tolist(), 'orientation': np.asarray(pose[1]).tolist()}
+                    break
+    env.scene.write_data_to_sim()
+    missing = sorted(set(episode['objects'])-set(written))
     (Path(run)/'layout-applied.json').write_text(json.dumps(
-        {'seed': episode['seed'], 'applied': applied, 'scene_state_after_write': placed,
-         'recorded': episode['objects']}, indent=1))
+        {'seed': episode['seed'], 'seeded_reset': applied, 'written': written, 'missing': missing,
+         'prim_readback': readback, 'recorded': episode['objects']}, indent=1))
+    if missing:
+        raise RuntimeError(f'Recorded objects not placed: {missing}')
 
 
 # ---- launching ----------------------------------------------------------------------------------
