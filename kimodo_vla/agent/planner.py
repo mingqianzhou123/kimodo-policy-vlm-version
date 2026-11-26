@@ -49,6 +49,8 @@ SETTINGS = {
     'wrist_feedback_gain': .7, 'wrist_feedback_max_m': .12,
     'wrist_feedback_s': 1.,         # with feedback on, a hand_pose command runs this much longer, so the correction acts
     'hold_arms_when_closed': True,
+    'reach_settle_s': [.3, 2.],     # before a hand_pose: hold at least / at most this long until the body is still
+    'settled_root_speed_mps': .02, 'settled_foot_speed_mps': .01,   # "still", as the first batch's grasp loop
 }
 
 
@@ -208,7 +210,7 @@ class KimodoPlanner(Planner):
                                   {'name': 'command-walk', 'root': {'xy': [.1, 0.]}})
         self.poser = make_native(self.reacher, PostureMove, text_cache, s['walk'],
                                  {'name': 'command-posture', 'lean': {'pitch_deg': 1.}})
-        self.active = None
+        self.active = self.settle = None
 
     # ---- the interface -----------------------------------------------------------------
     def start(self, command, context):
@@ -250,6 +252,9 @@ class KimodoPlanner(Planner):
                 target['behind_feet_m'] = command['behind_feet_m']
             plan = {'posture': posture}
         elif kind == 'hand_pose':
+            # The first batch's grasp loop lets the body settle after a walk before the hands move.
+            low, high = self.settings['reach_settle_s']
+            self.settle = (obs['time']+low, obs['time']+high)
             goals = {}
             for side, t in command['hands'].items():
                 rotation = (wrist_rotation(side, t['palm'], t['fingers']) if 'palm' in t
@@ -260,12 +265,12 @@ class KimodoPlanner(Planner):
             settle = self.settings['hand_settle_s']+(self.settings['wrist_feedback_s'] if feedback else 0.)
             self.reacher.run = self.folder
             self.folder.mkdir(parents=True, exist_ok=True)
-            self.reacher.arm(obs, history[:-context.get('new_samples', 1)], heading, goals, command['duration_s'],
-                             settle, feedback)
+            self.recent = list(history)[:len(history)-context.get('new_samples', 1)]
             self.active = ('reach', self.reacher, None)
+            self.pending = (command, history, heading, goals, settle, feedback)
             target = {'wrists': {side: {'position': goals[side][0].tolist(), 'rotation': goals[side][1].tolist()}
                                  for side in goals}}
-            plan = {'path_end_time': self.reacher.path_end, 'done_time': self.reacher.done_time}
+            plan = {'settle_s': self.settings['reach_settle_s'], 'duration_s': command['duration_s'], 'feedback': feedback}
         elif kind == 'hand':
             for i, side in enumerate(SIDES):
                 if side in command:
@@ -285,6 +290,14 @@ class KimodoPlanner(Planner):
             count = int(np.clip(round((executor-obs['time'])*50), 1, 25))
             return hold_rows(obs, self.heading, count, self.hands)
         if mode == 'reach':
+            if self.settle is not None:
+                new = request['observation']['oracle_history']
+                self.recent = (self.recent+list(new))[-400:]
+                if obs['time'] < self.settle[0]-1e-6 or (obs['time'] < self.settle[1]-1e-6 and not self.still()):
+                    return hold_rows(obs, self.heading, 5, self.hands)
+                command, _, heading, goals, settle, feedback = self.pending
+                self.settle = None
+                executor.arm(obs, self.recent[:-len(new)], heading, goals, command['duration_s'], settle, feedback)
             rows = executor.step(request)
         else:
             if self.first:
@@ -300,6 +313,16 @@ class KimodoPlanner(Planner):
             rows[:, [9+j for j in keep]] = self.held[keep]
         rows[:, 38:40] = self.hands
         return rows
+
+    def still(self):
+        """Pelvis and both ankles nearly at rest over the last 0.3 s (the first batch's ``settled``)."""
+        h = self.recent[-15:]
+        if len(h) < 15:
+            return False
+        dt = h[-1]['time']-h[0]['time']
+        root = np.linalg.norm(np.subtract(h[-1]['root_pos'], h[0]['root_pos']))/dt
+        feet = np.linalg.norm(np.subtract(h[-1]['foot_pos'], h[0]['foot_pos']), axis=1).max()/dt
+        return bool(root < self.settings['settled_root_speed_mps'] and feet < self.settings['settled_foot_speed_mps'])
 
     def hold(self, obs, count):
         return hold_rows(obs, self.heading, count, self.hands)

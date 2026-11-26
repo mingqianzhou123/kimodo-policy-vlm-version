@@ -240,11 +240,15 @@ def test_box_script_grasp_commands_are_valid():
     from exp3_scripted import TaskScript
     script = TaskScript('pp_box')
     box = {'name': 'box', 'position': [-.5, -4.8, .85], 'quat_wxyz': [1, 0, 0, 0], 'yaw_deg': 0., 'size': [.21]*3}
-    observation = {'robot': {'pelvis': [-1.6, -5.0, .78], 'heading_deg': 0.}, 'objects': [box]}
+    table = {'name': 'table', 'min': [-.641, -6.24, 0.], 'max': [.12, -3.76, .745]}
+    observation = {'robot': {'pelvis': [-1.6, -5.0, .78], 'heading_deg': 0.}, 'objects': [box, table]}
     first = script.next(observation)
     assert first['type'] == 'walk' and first['forward_m'] > .3
     stance = script.box_stance(box['position'])
-    observation['robot']['pelvis'] = [stance[0], stance[1], .78]
+    observation['robot']['pelvis'] = [-.641-.12, stance[1], .78]     # walked too close to the table edge
+    back = script.next(observation)
+    assert back['type'] == 'walk' and back['forward_m'] < -.05
+    observation['robot']['pelvis'] = [min(stance[0], -.641-.25), stance[1], .78]
     kinds = [validate(script.next(observation), pelvis=observation['robot']['pelvis'])['type'] for _ in range(6)]
     assert kinds == ['hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose', 'walk']
 
@@ -299,3 +303,40 @@ def test_task_scripts_on_recorded_scenes():
         for u in np.linspace(0, 1, 20):
             p = np.asarray(leg_start)+(np.asarray(leg_end)-np.asarray(leg_start))*u
             assert all(clearance(p, c) > .3 for c in cartons)
+
+
+def test_planner_settles_before_reaching():
+    """A hand_pose holds the body until it is still (at least the minimum), then arms the reach once."""
+    from kimodo_vla.agent.planner import KimodoPlanner, SETTINGS
+
+    class Reacher:
+        armed, run = [], None
+
+        def arm(self, obs, prior, heading, goals, duration, settle, feedback):
+            self.armed.append((obs['time'], [p['time'] for p in prior]))
+
+        def step(self, request):
+            return np.zeros((25, 40))
+    planner = KimodoPlanner.__new__(KimodoPlanner)
+    planner.settings, planner.fk, planner.reacher, planner.active, planner.settle = dict(SETTINGS), FK, Reacher(), None, None
+    q, root = standing()
+    history = [sample(round(.02*i, 2), q, root) for i in range(30)]
+    moving = [dict(s, root_pos=[s['time']*.1, 0., .784]) for s in history]      # still walking at 0.1 m/s
+    command = validate({'type': 'hand_pose', 'hands': {'left': {'position': [.3, .2, .9]}}})
+    import tempfile
+    planner.start(command, {'history': moving, 'hands': [0, 0], 'heading': np.eye(3), 'folder': tempfile.mkdtemp(),
+                            'seed': 1, 'new_samples': 5})
+    request = lambda samples: {'observation': {'oracle_history': samples}}
+    rows = planner.chunk(request(moving[-5:]))
+    assert rows.shape == (5, 40) and not planner.reacher.armed            # the minimum hold
+    t, armed_at = moving[-1]['time'], None
+    for _ in range(40):
+        new = [sample(round(t+.02*(i+1), 2), q, root) for i in range(5)]
+        t = new[-1]['time']
+        rows = planner.chunk(request(new))
+        if planner.reacher.armed:
+            armed_at = t
+            break
+    assert armed_at is not None and armed_at-moving[-1]['time'] >= SETTINGS['reach_settle_s'][0]-1e-6
+    at, prior = planner.reacher.armed[0]
+    assert at == armed_at and prior[-1] < at and len(prior) == len(set(prior))   # prior excludes this request, no repeats

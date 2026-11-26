@@ -138,6 +138,13 @@ class TaskScript:
             self.stage, self.tries = 'approach', 0
         if self.stage == 'approach':
             step = self.face(observation, 0.) or self.walk_to(observation, self.box_stance(box['position']))
+            # Never closer to the table than the first batch's minimum clearance, plus what raising the
+            # hands draws the body forward (4.6 cm in development episode 90002 at 16 cm from the edge, where the fingers then
+            # caught the table edge and the robot was shoved 31 cm back).
+            table = obj(observation, 'table')
+            closest = table['min'][0]-self.grasp['stance_min_clearance_m']-self.raise_drift_m
+            if step is None and observation['robot']['pelvis'][0] > closest:
+                step = {'type': 'walk', 'forward_m': float(closest-observation['robot']['pelvis'][0]-.02), 'left_m': 0.}
             if step and self.tries < 4:
                 self.tries += 1
                 self.queue = [step]
@@ -184,6 +191,8 @@ class TaskScript:
                 {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0}]
             return
         self.queue = []
+
+    raise_drift_m = .10
 
     def box_half(self):
         return 0.105
