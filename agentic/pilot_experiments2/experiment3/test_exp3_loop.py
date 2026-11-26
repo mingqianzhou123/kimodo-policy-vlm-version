@@ -268,7 +268,7 @@ def test_prompt_block_fills():
 
 def test_task_scripts_on_recorded_scenes():
     """Both rules on the geometry the smoke runs recorded (seed 90000 and 91000): valid commands, sensible targets."""
-    from exp3_scripted import TaskScript, nearest_face, route
+    from exp3_scripted import TaskScript, clearance, nearest_face
     shelf = {'name': 'shelf', 'min': [-3.316, -3.209, 0.], 'max': [-1.236, -2.146, 2.18]}
     layer = {'name': 'shelf_target_layer', 'min': [-3.316, -3.209, .648], 'max': [-1.236, -2.146, .648]}
     normal, _, inside = nearest_face(shelf, [-1.3, -5.2])
@@ -289,7 +289,13 @@ def test_task_scripts_on_recorded_scenes():
     turn = sofa.next(observation)
     assert turn['type'] == 'turn' and abs(turn['left_deg']) == pytest.approx(180.)
     assert sofa.sit_yaw == pytest.approx(90.) and sofa.stand[1] == pytest.approx(-.785+.10)
+    tea = {'name': 'model_teatable', 'kind': 'region', 'min': [-3.92, -.19, 0.], 'max': [-2.64, .51, .4]}
+    around = TaskScript('sit_sofa')
+    around.next({**observation, 'objects': [seat, tea]+cartons})
+    legs = [[-1.6, 2.0]]+around.route
+    assert len(around.route) > 1 and all(clearance(np.asarray(a)+(np.asarray(b)-np.asarray(a))*u, tea) > .3
+                                         for a, b in zip(legs, legs[1:]) for u in np.linspace(0, 1, 30))
     for leg_start, leg_end in zip([[-1.6, 2.0]]+sofa.route, sofa.route):
         for u in np.linspace(0, 1, 20):
             p = np.asarray(leg_start)+(np.asarray(leg_end)-np.asarray(leg_start))*u
-            assert all(np.max(np.abs(p-np.asarray(c['position'][:2]))) > .2+.3 for c in cartons)
+            assert all(clearance(p, c) > .3 for c in cartons)

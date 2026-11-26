@@ -207,7 +207,8 @@ class TaskScript:
                     best = (score, spot)
             self.stand = best[1]
             self.sit_yaw = float(np.degrees(np.arctan2(normal[1], normal[0])))   # back to the seat
-            self.route = route(pelvis, self.stand, obstacles)
+            sofa = [o for o in observation['objects'] if o['name'] != 'sofa_seat' and clearance(centre, o) == 0]
+            self.route = route(pelvis, self.stand, obstacles, near=sofa)
             self.stage, self.tries = 'turn', 0
         if self.stage == 'turn':
             step = self.face(observation, self.sit_yaw, 6.)
@@ -266,15 +267,51 @@ def clearance(point, region):
     return float(np.linalg.norm(np.maximum(0., np.maximum(low-point, point-high))))
 
 
-def route(start, goal, obstacles, body=.35):
-    """Straight, or through one corner (x first or y first), whichever keeps ``body`` clear of every obstacle."""
+def route(start, goal, obstacles, body=.32, near=None, step=.1):
+    """Waypoints from ``start`` to ``goal`` that keep ``body`` clear of every obstacle (``near``: obstacles
+    the robot may come right up to, such as the sofa it will sit on). A* on a ``step`` grid, then
+    shortened to the fewest straight legs that stay clear. Falls back to the straight line."""
+    import heapq
     start, goal = np.asarray(start, dtype=float), np.asarray(goal, dtype=float)
+    near = near or []
+    blocked = lambda p: (any(clearance(p, o) <= body for o in obstacles) or any(clearance(p, o) <= .02 for o in near))
 
     def free(a, b):
-        return all(clearance(a+(b-a)*u, o) > body for u in np.linspace(0, 1, 25) for o in obstacles)
-    for corner in (None, np.array([goal[0], start[1]]), np.array([start[0], goal[1]])):
-        legs = [goal] if corner is None else [corner, goal]
-        points = [start]+legs
-        if all(free(a, b) for a, b in zip(points, points[1:])):
-            return [p.tolist() for p in legs]
-    return [goal.tolist()]
+        n = max(2, int(np.linalg.norm(b-a)/(step/2)))
+        return all(not blocked(a+(b-a)*u) for u in np.linspace(0, 1, n)[1:-1])
+    if free(start, goal):
+        return [goal.tolist()]
+    low = np.minimum(start, goal)-2.
+    cell = lambda p: tuple(np.round((np.asarray(p)-low)/step).astype(int))
+    point = lambda c: low+np.asarray(c)*step
+    s, g = cell(start), cell(goal)
+    shape = tuple(cell(np.maximum(start, goal)+2.)[i]+1 for i in range(2))
+    frontier, came, cost = [(0., s)], {s: None}, {s: 0.}
+    while frontier:
+        _, c = heapq.heappop(frontier)
+        if c == g:
+            break
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                n = (c[0]+dx, c[1]+dy)
+                if n == c or not (0 <= n[0] < shape[0] and 0 <= n[1] < shape[1]):
+                    continue
+                if n != g and blocked(point(n)):
+                    continue
+                new = cost[c]+step*np.hypot(dx, dy)
+                if new < cost.get(n, np.inf):
+                    cost[n], came[n] = new, c
+                    heapq.heappush(frontier, (new+np.linalg.norm(point(n)-point(g)), n))
+    if g not in came:
+        return [goal.tolist()]
+    path, c = [], g
+    while c is not None:
+        path.append(point(c))
+        c = came[c]
+    path = [start]+path[::-1][1:-1]+[goal]
+    legs, i = [], 0
+    while i < len(path)-1:
+        j = next(k for k in range(len(path)-1, i, -1) if k == i+1 or free(path[i], path[k]))
+        legs.append(path[j])
+        i = j
+    return [p.tolist() for p in legs]
