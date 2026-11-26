@@ -184,8 +184,10 @@ def analyze_carry_run(run, fk=None):
     i = out['measured_index']
     grasp = steps[i].get('grasp') or {}
     z0, zi = samples[0]['box_com'][2], samples[i]['box_com'][2]
-    out.update(box_drop_m=float(z0-zi), held_at_measure=bool(grasp.get('left_n', 0) >= .05 and grasp.get('right_n', 0) >= .05
-                                                              and z0-zi < .05),
+    rest = json.loads((run/'grasp-result.json').read_text())['rest_height']
+    # Held: both hands press on it and it is clear of its resting height (as the grasp judge's lift, 5 cm).
+    out.update(box_drop_m=float(z0-zi), box_above_rest_m=float(zi-rest),
+               held_at_measure=bool(grasp.get('left_n', 0) >= .05 and grasp.get('right_n', 0) >= .05 and zi-rest >= .05),
                clear_lift_m=stages['clear'].get('lift_m'))
     return out
 
