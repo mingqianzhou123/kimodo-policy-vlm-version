@@ -43,9 +43,11 @@ sys.path.insert(0, str(AGENTIC/'scripts'))
 ARENA_SOURCE = 'sources/HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783/isaaclab_twist2_g1'
 TASKS = {
     'pp_box': {'task': 'Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody', 'folder': 'HOI_pp_box', 'track': 'box',
-               'config': {'sonic': 'tasks/common_test_config/base_test/pp_box_sonic_test.yaml'}},
+               'config': {'sonic': 'tasks/common_test_config/base_test/pp_box_sonic_test.yaml',
+                          'twist2': 'tasks/common_test_config/base_test/pp_box_twist2_test.yaml'}},
     'sit_sofa': {'task': 'Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody', 'folder': 'HSI_sit_sofa', 'track': 'carton_obstacle_01',
-                 'config': {'sonic': 'tasks/common_test_config/base_test/sit_sofa_sonic_test.yaml'}},
+                 'config': {'sonic': 'tasks/common_test_config/base_test/sit_sofa_sonic_test.yaml',
+                            'twist2': 'tasks/common_test_config/base_test/sit_sofa_twist2_test.yaml'}},
 }
 BLEND_S, HOLD_S, RATE = 1., 1., 50.
 SIM_SEED = 1000   # Arena's own seed: identical in every repeat, so that repeats differ only by the simulator
@@ -64,12 +66,13 @@ def episode_id(raw_path):
 # ---- prepare ------------------------------------------------------------------------------------
 def prepare(raw_path, tracker='sonic'):
     """An episode file's content from one raw recording (needs HumanoidArena's data tools on sys.path)."""
-    from smpl_lerobot_common import build_sonic_actions_from_recording
-    if tracker != 'sonic':
-        raise NotImplementedError('Only SONIC recordings are prepared here')
+    from smpl_lerobot_common import build_sonic_actions_from_recording, build_twist2_actions_from_recording
     data = np.load(raw_path, allow_pickle=True)
-    frames = int(np.asarray(data['num_frames']).item())
-    actions = build_sonic_actions_from_recording(data, num_frames=frames, align_heading_targets=True)
+    frames = int(np.asarray(data['num_frames']).item()) if 'num_frames' in data.files else len(data['robot_root_position'])
+    if tracker == 'sonic':
+        actions = build_sonic_actions_from_recording(data, num_frames=frames, align_heading_targets=True)
+    else:
+        actions = build_twist2_actions_from_recording(data, num_frames=frames, control_dt=1/RATE)
     objects, final = {}, {}
     for key in data.files:
         for field in ('position', 'orientation'):
@@ -114,9 +117,9 @@ class EpisodeReference:
     def __call__(self, request):
         from kimodo_vla.core.types import yaw_matrix, yaw_of
         from kimodo_vla.oracle.geometry import rotation_wxyz
-        samples = request['observation']['oracle_history']
+        samples = request.get('observation', {}).get('oracle_history')
         if not samples:
-            raise ValueError('Measured history required for the start pose and time')
+            return self.open_loop()
         sample = samples[-1]
         if self.timeline is None:
             first = samples[0]
@@ -139,6 +142,47 @@ class EpisodeReference:
                             for i, r in enumerate(actions)))
         self.plan += 1
         return {'action_chunk': actions.tolist(), 'oracle_target': self.target}
+
+    def open_loop(self, size=25):
+        """Without a measured history (a tracker other than SONIC, no oracle bridge): the recording from its
+        first frame, then its last frame held, ``size`` commands per request, each request taking the next ones."""
+        a = np.asarray(self.episode['actions'], dtype=float)
+        if self.timeline is None:
+            hold = np.tile(a[-1:], (int(round(HOLD_S*RATE)), 1))
+            hold[:, :2] = 0.
+            self.timeline, self.cursor = np.concatenate([a, hold]), 0
+            (self.run/'target.json').write_text(json.dumps({'source': 'official-raw-open-loop', 'episode': self.episode['episode'],
+                                                             'timeline_steps': len(self.timeline)}, indent=2))
+        rows = self.timeline[min(self.cursor, len(self.timeline)-1):self.cursor+size]
+        if len(rows) < size:
+            pad = np.tile(self.timeline[-1:], (size-len(rows), 1))
+            pad[:, :2] = 0.
+            rows = np.concatenate([rows, pad])
+        with (self.run/'plans.jsonl').open('a') as f:
+            f.write(json.dumps({'plan': self.plan, 'source': 'official-raw-open-loop', 'timeline_index': self.cursor,
+                                'commands': size})+'\n')
+        self.cursor += size
+        self.plan += 1
+        return {'action_chunk': rows.tolist()}
+
+
+# ---- simulator side (imported by the bootstraps) -------------------------------------------------
+def place_recorded(env, episode_path, run):
+    """Arena's seeded object reset with the recording's seed; what it did goes to layout-applied.json."""
+    from common_env_objects import apply_deterministic_object_resets_with_seed
+    episode = json.loads(Path(episode_path).read_text())
+    applied = apply_deterministic_object_resets_with_seed(env.cfg, env, episode_seed=int(episode['seed']),
+                                                          seed_source='recorded')
+    placed = {}
+    for name in episode['objects']:
+        try:
+            state = env.scene[name].data.root_state_w[0].detach().cpu().numpy()
+        except KeyError:
+            continue
+        placed[name] = {'position': state[:3].tolist(), 'orientation': state[3:7].tolist()}
+    (Path(run)/'layout-applied.json').write_text(json.dumps(
+        {'seed': episode['seed'], 'applied': applied, 'scene_state_after_write': placed,
+         'recorded': episode['objects']}, indent=1))
 
 
 # ---- launching ----------------------------------------------------------------------------------
@@ -188,22 +232,27 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label):
              'post_termination_record_steps': 0, 'model_label': f'official-raw-{episode["episode"]}',
              'eval_model_path': str(Path(episode_path).resolve())}
     (run/'episodes.json').write_text(json.dumps({'episodes': [batch]}, indent=2))
-    simcmd = [str(cache/'envs/isaaclab-2.2/bin/python'), '-u', str(HERE/'exp2_replay_bootstrap.py'),
-              str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'), '--headless', '--device', 'cuda:0', '--kit_args',
+    tracker = episode['tracker']
+    bootstrap = 'exp2_replay_bootstrap.py' if tracker == 'sonic' else 'exp2_twist2_bootstrap.py'
+    simcmd = [str(cache/'envs/isaaclab-2.2/bin/python'), '-u', str(HERE/bootstrap),
+              str(arena/f'script/eval_scripts/{tracker}/sim_eval_vla.py'), '--headless', '--device', 'cuda:0', '--kit_args',
               f'--allow-root --portable-root {runtime} --/renderer/activeGpu={gpu} --/renderer/multiGpu/enabled=false',
               '--task', TASKS[task]['task'], '--env_config_yaml', str(arena/config),
               '--seed', str(SIM_SEED), '--episode_seed', str(SIM_SEED), '--max_steps', str(steps),
               '--episode_batch_json', str(run/'episodes.json'),
-              '--lerobot_server_url', f'http://127.0.0.1:{port}', '--lerobot_server_timeout', '120', '--step_log_every_n', '50',
-              '--sonic_encoder_path', str(cache/'sim-assets/sonic/model_encoder.onnx'),
-              '--sonic_decoder_path', str(cache/'sim-assets/sonic/model_decoder.onnx')]
+              '--lerobot_server_url', f'http://127.0.0.1:{port}', '--lerobot_server_timeout', '120', '--step_log_every_n', '50']
+    if tracker == 'sonic':
+        simcmd += ['--sonic_encoder_path', str(cache/'sim-assets/sonic/model_encoder.onnx'),
+                   '--sonic_decoder_path', str(cache/'sim-assets/sonic/model_decoder.onnx')]
     record = {'status': 'starting', 'experiment': 'P2E2-OFFICIAL-REPLAY', 'label': label, 'task': task,
               'episode_file': str(Path(episode_path).resolve()), 'episode_sha256': sha256(episode_path),
               'raw_source': episode['source'], 'raw_sha256': episode['raw_sha256'], 'tracker': episode['tracker'],
               'sim_seed': SIM_SEED, 'steps': steps, 'gpu': gpu, 'gpu_uuid': uuid, 'dds_domain': dds_domain,
-              'dynamics_profile': 'actuator', 'sim_command': simcmd, 'policy_command': policycmd,
+              'dynamics_profile': 'actuator' if tracker == 'sonic' else None, 'settled_start': tracker == 'sonic',
+              'sim_command': simcmd, 'policy_command': policycmd,
               'git_commit': commit, 'started_unix': time.time(),
-              'tracker_sha256': {p.name: sha256(p) for p in (cache/'sim-assets/sonic').glob('model_*.onnx')},
+              'tracker_sha256': {p.name: sha256(p) for p in ((cache/'sim-assets/sonic').glob('model_*.onnx') if tracker == 'sonic'
+                                 else (arena.parent/'TWIST2/assets/ckpts').glob('*.onnx'))},
               'arena_config_sha256': sha256(arena/config)}
     manifest = run/'run.json'
     manifest.write_text(json.dumps(record, indent=2))
@@ -244,8 +293,8 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label):
             shutil.rmtree(runtime, ignore_errors=True)
 
 
-def run_name(label, task, episode, repeat):
-    return f'p2e2-rep-{label}-{task}-{episode}-r{repeat}'
+def run_name(label, task, episode, repeat, tracker='sonic'):
+    return f'p2e2-rep-{label}-{task}-{episode}-r{repeat}' if tracker == 'sonic' else f'p2e2-rep-{label}-{tracker}-{task}-{episode}-r{repeat}'
 
 
 def episode_files(task, tracker='sonic'):
@@ -255,7 +304,7 @@ def episode_files(task, tracker='sonic'):
 
 def launch(args):
     from paths import RUNS
-    files = episode_files(args.task)
+    files = episode_files(args.task, args.tracker)
     if args.episodes:
         files = [f for f in files if f.stem in args.episodes]
     elif args.first:
@@ -269,7 +318,7 @@ def launch(args):
                 if not jobs:
                     return
                 path, repeat = jobs.pop(0)
-            run_id = run_name(args.label, args.task, path.stem, repeat)
+            run_id = run_name(args.label, args.task, path.stem, repeat, args.tracker)
             manifest = RUNS/run_id/'run.json'
             if manifest.exists() and json.loads(manifest.read_text()).get('status') == 'completed':
                 print('SKIP', run_id, flush=True)
@@ -341,6 +390,7 @@ def main():
     p.add_argument('raw', nargs='*', type=Path)
     p.add_argument('--task', choices=list(TASKS), required=True)
     p.add_argument('--label', default='partb')
+    p.add_argument('--tracker', choices=['sonic', 'twist2'], default='sonic')
     p.add_argument('--repeats', type=int, default=1)
     p.add_argument('--gpus', type=int, nargs='+', default=[])
     p.add_argument('--episodes', nargs='+')
@@ -350,10 +400,10 @@ def main():
     if args.action == 'prepare':
         from paths import RUNS, sim_cache
         sys.path.insert(0, str(sim_cache()/ARENA_SOURCE/'tools/data_tools'))
-        out = RUNS/'p2e2-episodes'/'sonic'/args.task
+        out = RUNS/'p2e2-episodes'/args.tracker/args.task
         out.mkdir(parents=True, exist_ok=True)
         for raw in args.raw:
-            episode = prepare(raw)
+            episode = prepare(raw, args.tracker)
             if TASKS[args.task]['task'].split('-G129')[0] not in episode['task'].replace('Wholedoby', 'Wholebody'):
                 raise ValueError(f'{raw} is a {episode["task"]} recording')
             (out/f"{episode['episode']}.json").write_text(json.dumps(episode))
@@ -364,13 +414,15 @@ def main():
             raise SystemExit('--gpus is required')
         return launch(args)
     from paths import RUNS
-    results = [analyze_run(r) for r in sorted(RUNS.glob(f'p2e2-rep-{args.label}-{args.task}-*-r*')) if (r/'run.json').exists()]
+    pattern = run_name(args.label, args.task, '*', '*', args.tracker)
+    results = [analyze_run(r) for r in sorted(RUNS.glob(pattern)) if (r/'run.json').exists()
+               and json.loads((r/'run.json').read_text()).get('tracker') == args.tracker]
     table = verdicts(results, args.repeats)
     done = [r for r in results if 'success' in r]
     summary = {'runs': len(results), 'completed': len(done), 'successes': sum(r['success'] for r in done),
                'episodes': len(table), 'agree': sum(v['agree'] for v in table.values()),
                'V': sorted(e for e, v in table.items() if v['in_V'])}
-    out = RUNS/f'p2e2-rep-{args.label}-{args.task}.json'
+    out = RUNS/f"{run_name(args.label, args.task, 'all', 'all', args.tracker)}.json"
     out.write_text(json.dumps({'summary': summary, 'episodes': table, 'runs': results}, indent=1))
     for r in results:
         print(json.dumps(r))
