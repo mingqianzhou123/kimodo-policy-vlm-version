@@ -37,7 +37,11 @@ part may be left out. A third kind of goal stands still and leans the trunk forw
     {"name": "lean-30", "lean": {"pitch_deg": 30, "by": "waist"}}
 
 Its end pose is the start pose with the trunk pitched forward and the feet where they were, led by
-the waist joint or, with "by": "hips", by the pelvis; Kimodo generates the way there.
+the waist joint or, with "by": "hips", by the pelvis; Kimodo generates the way there. A squat goal
+(added 2026-11-26 for the second pilot batch's command test) lowers the pelvis with the trunk upright
+and the feet unmoved, and goes the lean's way (the same phase, one plan to the end pose):
+
+    {"name": "squat-15", "squat": {"drop_m": 0.15}}
 
 A root goal may also turn on the spot: ``{"xy": [0, 0], "yaw_deg": 90, "yaw_rate_deg_s": 45}``
 conditions the heading to turn toward 90 degrees left of where it faced when the walk began.
@@ -145,7 +149,7 @@ def approach_rotation(approach):
 def load_goal(source):
     """Validate a goal file or dict and fill in defaults; returns a plain dict."""
     goal = json.loads(Path(source).read_text()) if not isinstance(source, dict) else dict(source)
-    unknown = set(goal) - {'name', 'root', 'hand', 'lean', 'note'}
+    unknown = set(goal) - {'name', 'root', 'hand', 'lean', 'squat', 'note'}
     if unknown:
         raise ValueError(f'Unknown goal fields: {sorted(unknown)}')
     if not goal.get('name'):
@@ -180,8 +184,24 @@ def load_goal(source):
         if lean or len(out) > 1 or not 0 < pitch <= 45 or by not in ('waist', 'hips'):
             raise ValueError('lean needs pitch_deg in (0, 45], by "waist" or "hips", and cannot be combined with root or hand')
         out['lean'] = {'pitch_deg': pitch, 'by': by}
+    if 'squat' in goal:
+        squat = dict(goal['squat'])
+        drop = float(squat.pop('drop_m'))
+        if squat or len(out) > 1 or not 0 < drop <= .3:
+            raise ValueError('squat needs drop_m in (0, 0.3] and cannot be combined with root, hand or lean')
+        out['squat'] = {'drop_m': drop}
     if len(out) == 1:
-        raise ValueError('A goal needs a root target, a hand target, both, or a lean')
+        raise ValueError('A goal needs a root target, a hand target, both, a lean or a squat')
+    return out
+
+
+def anchored_goal(goal, facing_deg):
+    """The goal with its walking target turned by ``facing_deg``: from the robot's own start frame into a
+    frame in which the robot faces ``facing_deg`` to the left of x (the anchor frame of a mid-episode start)."""
+    out = json.loads(json.dumps(goal))
+    a = np.radians(facing_deg)
+    x, y = out['root']['xy']
+    out['root']['xy'] = [float(np.cos(a)*x-np.sin(a)*y), float(np.sin(a)*x+np.cos(a)*y)]
     return out
 
 
@@ -225,7 +245,7 @@ def episode_seconds(goal, hold=2., lead_s=0.):
         total += walk_allowance(goal)+2*1.6  # the walk can overrun by one plan, then the stop plan
     if 'hand' in goal:
         total += goal['hand']['duration_s']
-    if 'lean' in goal:
+    if 'lean' in goal or 'squat' in goal:
         total += LEAN_STEPS/50
     return total+hold
 
@@ -248,6 +268,58 @@ def ground_path(start, goal, speed0, cruise, accel=1., frames=CANVAS, dt=1/30):
         covered = min(distance, covered+speed*dt)
         out.append(start+direction*covered)
     return np.array(out)
+
+
+def squatted_pose(fk, joints, root, rotation, drop_m, foot_names):
+    """Joints, root position and rotation of the start pose with the pelvis ``drop_m`` lower, feet unmoved.
+
+    Both legs bend the same way: for a knee bend k the hip and ankle pitch joints are solved so that
+    the pelvis keeps its orientation and stays over the same ground point (along the heading), and
+    k is found so that the pelvis drops by ``drop_m``. Arms, waist and the other joints keep their
+    values. The root pose is solved from the left foot, as for the lean.
+    """
+    names = list(fk.joint_names)
+    hips = [names.index(f'{side}_hip_pitch_joint') for side in SIDES]
+    knees = [names.index(f'{side}_knee_joint') for side in SIDES]
+    ankles = [names.index(f'{side}_ankle_pitch_joint') for side in SIDES]
+    joints, root, rotation = np.array(joints, dtype=float), np.asarray(root, dtype=float), np.asarray(rotation)
+    foot, foot_rotation = (x[0] for x in fk(joints, root, rotation, body_names=foot_names[:1]))
+    forward = Rotation.from_euler('z', np.arctan2(rotation[1, 0], rotation[0, 0])).as_matrix()[:, 0]
+
+    def pose(q):
+        at, turned = (x[0] for x in fk(q, np.zeros(3), np.eye(3), body_names=foot_names[:1]))
+        new_rotation = foot_rotation @ turned.T
+        return foot-new_rotation @ at, new_rotation
+
+    def bent(k):
+        def residual(x):
+            q = joints.copy()
+            q[knees] += k
+            q[hips] += x[0]
+            q[ankles] += x[1]
+            new_root, new_rotation = pose(q)
+            turn = Rotation.from_matrix(new_rotation @ rotation.T).as_rotvec()
+            return np.r_[10*turn, (new_root-root) @ forward]
+        x = least_squares(residual, [-k/2, -k/2]).x
+        q = joints.copy()
+        q[knees] += k
+        q[hips] += x[0]
+        q[ankles] += x[1]
+        return q, *pose(q)
+
+    low, high = 0., 1.5
+    for _ in range(40):   # pelvis height falls monotonically with the knee bend over this range
+        k = (low+high)/2
+        if root[2]-bent(k)[1][2] < drop_m:
+            low = k
+        else:
+            high = k
+    squatted, new_root, new_rotation = bent((low+high)/2)
+    if abs(root[2]-new_root[2]-drop_m) > 1e-3:
+        raise ValueError('Squat depth not reachable')
+    if np.any(squatted < fk.joint_limits[:, 0]) or np.any(squatted > fk.joint_limits[:, 1]):
+        raise ValueError('Squatted pose exceeds joint limits')
+    return squatted, new_root, new_rotation
 
 
 def leaned_pose(fk, joints, root, rotation, pitch_deg, foot_names, by='waist', legs_back_deg=8.):
@@ -338,11 +410,12 @@ class LocomotionPolicy(OraclePolicy):
     clips, clip_walker = None, None
     generator_mode, segment_frames, segment_steps, transition_frames, walk_text = 'policy', CANVAS, 50, 5, None
     approach_gain, text_until_m, open_loop = 1., 0., False
+    anchor_heading = None
 
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
                  root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None,
                  generator='policy', segment_seconds=4., segment_steps=100, transition_frames=5, approach_gain=1.,
-                 text_until_m=0., open_loop=False, **kwargs):
+                 text_until_m=0., open_loop=False, anchor_heading=None, **kwargs):
         # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
         # are solved for the path pose; legs and trunk stay as Kimodo generated them.
         self.arm_ik = bool(arm_ik)
@@ -368,6 +441,9 @@ class LocomotionPolicy(OraclePolicy):
         elif not 25 <= walk_steps <= 80:
             raise ValueError('A plan covers 1.63 s; execute between 25 and 80 control steps of a walking plan')
         self.goal = load_goal(motion_goal)
+        # Off by default. A policy started mid-episode (kimodo_vla/oracle/carry_policy.py) passes the heading
+        # Arena's action decoder is anchored at; its walking goal stays in the robot's own start frame.
+        self.anchor_heading = None if anchor_heading is None else np.asarray(anchor_heading, dtype=float)
         self.walk_steps = int(walk_steps)
         self.noise_seed = noise_seed  # repeats of one goal differ only in Kimodo's sampling noise
         if root_constraints not in ROOT_CONSTRAINTS or not 1 <= int(history_frames) <= 100 or text_cfg < 0:
@@ -415,7 +491,10 @@ class LocomotionPolicy(OraclePolicy):
         return status
 
     def initialize(self, sample):
-        super().initialize(sample)  # measured start frame, standing features, both wrists held
+        if self.anchor_heading is not None and self.goal.get('root') and not self.goal['root'].get('yaw_deg'):
+            facing = self.anchor_heading.T @ rotation_wxyz(sample['root_quat'])
+            self.goal = anchored_goal(self.goal, float(np.degrees(np.arctan2(facing[1, 0], facing[0, 0]))))
+        super().initialize(sample, heading=self.anchor_heading)  # measured start frame, standing features, both wrists held
         heading, origin = self.frame.heading, self.frame.origin
         representation = self.model.representation
         self.root_end = np.asarray(self.root_goal, dtype=float).copy()
@@ -447,9 +526,13 @@ class LocomotionPolicy(OraclePolicy):
                         goal_displacement_m=np.linalg.norm(self.targets[:, 0]-sample['wrist_pos'], axis=1).tolist(),
                         hand_path='minimum-jerk world line and rotation from the wrist measured when the reach '
                                   'begins; the other hand is unconstrained')
-        if 'lean' in self.goal:
-            joints, root, rotation = leaned_pose(self.fk, self.initial_joints, self.initial_root, self.initial_rotation,
-                                                 self.goal['lean']['pitch_deg'], self.foot_names, self.goal['lean']['by'])
+        if 'lean' in self.goal or 'squat' in self.goal:
+            if 'lean' in self.goal:
+                joints, root, rotation = leaned_pose(self.fk, self.initial_joints, self.initial_root, self.initial_rotation,
+                                                     self.goal['lean']['pitch_deg'], self.foot_names, self.goal['lean']['by'])
+            else:
+                joints, root, rotation = squatted_pose(self.fk, self.initial_joints, self.initial_root, self.initial_rotation,
+                                                       self.goal['squat']['drop_m'], self.foot_names)
             pose = self.features.codec.decode_joint_configuration_pose(joints[None],
                 self.frame.points([root]) @ BASIS, root_rotation_matrices=np.array([heading.T @ rotation]),
                 joint_names=G1_JOINT_NAMES)
@@ -610,7 +693,7 @@ class LocomotionPolicy(OraclePolicy):
             if self.lead is not None:
                 self.enter('lead', obs)
             else:
-                self.enter('walk' if 'root' in self.goal else 'lean' if 'lean' in self.goal else 'reach', obs)
+                self.enter('walk' if 'root' in self.goal else 'lean' if 'lean' in self.goal or 'squat' in self.goal else 'reach', obs)
         if self.phase == 'lead' and self.lead_end_step is not None and step_of(obs, self.start_time) >= self.lead_end_step:
             self.enter('walk', obs)
         if self.phase == 'walk' and self.clips is not None:
