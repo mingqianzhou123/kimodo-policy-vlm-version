@@ -56,7 +56,7 @@ def test_turn_deviation_and_not_stopped():
 
 
 def test_stop_index_needs_the_full_window():
-    time = np.arange(0, 1., .02)
+    time = np.arange(0, 2., .02)
     root = np.zeros((len(time), 3))
     yaw = np.zeros(len(time))
     assert stop_index(time, root, yaw, 0.) == 24
