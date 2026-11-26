@@ -11,7 +11,7 @@ def walk_actions(stamps, speed=.3, yaw_rate=.2):
     """40-d actions of a root walking forward while turning, sampled at ``stamps``."""
     n = len(stamps)
     yaw = yaw_rate*stamps
-    r = Rotation.from_euler('z', yaw).as_matrix()
+    r = Rotation.from_euler('z', yaw[:, None]).as_matrix()
     world = np.zeros((n, 3))
     for t in range(1, n):
         world[t] = world[t-1]+r[t-1] @ [speed*(stamps[t]-stamps[t-1]), 0., 0.]
