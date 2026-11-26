@@ -579,7 +579,7 @@ def main():
     if args.action == 'compare':
         pairs = {}
         for label in args.labels:
-            for r in sorted(RUNS.glob(run_name(label, args.task, '*', 'r0', args.tracker))):
+            for r in sorted(RUNS.glob(run_name(label, args.task, '*', 0, args.tracker))):
                 a = analyze_run(r)
                 if 'success' in a:
                     pairs.setdefault(a['episode'], []).append((r, a['success']))
