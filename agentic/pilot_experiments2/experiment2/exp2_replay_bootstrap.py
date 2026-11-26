@@ -16,7 +16,7 @@ AGENTIC = HERE.parents[1]
 sys.path[:0] = [str(AGENTIC), str(HERE)]
 from arena import oracle_bridge
 from arena.settled_start import install
-from exp2_replay import place_recorded
+from exp2_replay import place_layout as place_recorded
 
 original = oracle_bridge.install_oracle_bridge
 

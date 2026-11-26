@@ -40,7 +40,7 @@ def install():
         def act(current_env):
             nonlocal placed
             if not placed:
-                from exp2_replay import place_recorded
+                from exp2_replay import place_layout as place_recorded
                 place_recorded(env, os.environ['KVLA_EXP2_EPISODE'], run)
                 placed = True
             before = state()

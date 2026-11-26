@@ -51,6 +51,16 @@ TASKS = {
 }
 BLEND_S, HOLD_S, RATE = 1., 1., 50.
 SIM_SEED = 1000   # Arena's own seed: identical in every repeat, so that repeats differ only by the simulator
+# HumanoidArena's official evaluation (script/eval_scripts/sonic/eval_vla_suite.py, test configs' test_defaults):
+# 60 episodes per task = group seeds 0, 1, 2 x repeat_idx 0-19, run in one persistent simulator.
+OFFICIAL_GROUPS, OFFICIAL_REPEATS = (0, 1, 2), 20
+
+
+def official_episode_seed(task_name, group_seed, repeat_idx):
+    """Arena's ``_derive_episode_seed``: sha256(task_name|group_seed|repeat_idx), last 4 bytes, positive int32.
+    With the test configs (object_reset_seed_source: env_seed) this seed fixes the episode's object layout."""
+    payload = f'{task_name}|{int(group_seed)}|{int(repeat_idx)}'.encode('utf-8')
+    return int.from_bytes(hashlib.sha256(payload).digest()[-4:], 'big', signed=False) & 0x7FFFFFFF
 
 
 def sha256(path):
@@ -200,6 +210,24 @@ class EpisodeReference:
 
 
 # ---- simulator side (imported by the bootstraps) -------------------------------------------------
+def record_layout(env, run):
+    """Official evaluation episode: Arena's own seeding placed the objects; write down where (recorder's frame)."""
+    from common_env_objects import collect_recordable_env_object_states, get_current_episode_object_seed_info
+    states = collect_recordable_env_object_states(env, env.cfg)
+    readback = {k: {'position': np.asarray(v['position'], dtype=float).reshape(-1)[:3].tolist(),
+                    'orientation': np.asarray(v['orientation'], dtype=float).reshape(-1)[:4].tolist()}
+                for k, v in states.items() if v is not None}
+    (Path(run)/'layout-applied.json').write_text(json.dumps(
+        {'official': True, 'seed_info': get_current_episode_object_seed_info(env.cfg), 'readback': readback,
+         'error': {}, 'missing': []}, indent=1, default=str))
+
+
+def place_layout(env, episode_path, run):
+    if os.environ.get('KVLA_EXP2_PLACE', 'recorded') == 'official':
+        return record_layout(env, run)
+    return place_recorded(env, episode_path, run)
+
+
 def place_recorded(env, episode_path, run, tolerance_m=.01):
     """Restore a recorded layout and check it with the recorder's own read-back (layout-applied.json).
 
@@ -280,7 +308,9 @@ def wait_free(gpu, mib=20000, timeout_s=7200):
     return False
 
 
-def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='actuator'):
+def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='actuator', official=None):
+    """``official``: (group seed, repeat_idx) of an official evaluation episode whose layout to restore (Arena's
+    own seeding); None restores the recording's layout instead."""
     from paths import CHECKPOINTS, RUNS, sim_cache
     cache = sim_cache()
     arena = cache/ARENA_SOURCE
@@ -300,7 +330,7 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='act
     env = {k: v for k, v in os.environ.items() if k.lower() not in ('http_proxy', 'https_proxy', 'all_proxy')}
     env.update(PYTHONUNBUFFERED='1', OMP_NUM_THREADS='4', ORACLE_RUN=str(run), SONIC_DYNAMICS_PROFILE='actuator',
                KVLA_EXP2_EPISODE=str(Path(episode_path).resolve()), KVLA_TRACK_OBJECT=TASKS[task]['track'],
-               KVLA_EXP2_DYNAMICS=dynamics,
+               KVLA_EXP2_DYNAMICS=dynamics, KVLA_EXP2_PLACE='official' if official else 'recorded',
                KVLA_DDS_DOMAIN=str(dds_domain))
     path = os.pathsep.join((str(HERE), str(AGENTIC), str(REPO)))
     policyenv = {**env, 'CUDA_VISIBLE_DEVICES': '', 'PYTHONPATH': path, 'HF_HUB_OFFLINE': '1'}
@@ -314,7 +344,11 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='act
     for key, folder in [('XDG_CACHE_HOME', 'cache'), ('XDG_DATA_HOME', 'data'), ('XDG_CONFIG_HOME', 'config'), ('CUDA_CACHE_PATH', 'cuda')]:
         simenv[key] = str(runtime/folder)
     config = TASKS[task]['config'][episode['tracker']]
-    batch = {'seed': SIM_SEED, 'episode_seed': SIM_SEED, 'repeat_idx': 0, 'episode_index': 0, 'max_steps': steps,
+    group, repeat_idx, seed = SIM_SEED, 0, SIM_SEED
+    if official:
+        group, repeat_idx = official
+        seed = official_episode_seed(TASKS[task]['task'], group, repeat_idx)
+    batch = {'seed': group, 'episode_seed': seed, 'repeat_idx': repeat_idx, 'episode_index': 0, 'max_steps': steps,
              'result_json': str(run/'episode.json'), 'success_video_dir': str(run/'videos'),
              'failure_video_dir': str(run/'videos'), 'recording_save_dir': str(run/'recordings'), 'video_fps': 30,
              'post_termination_record_steps': 0, 'model_label': f'official-raw-{episode["episode"]}',
@@ -327,7 +361,7 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='act
               str(arena/f'script/eval_scripts/{tracker}/sim_eval_vla.py'), '--headless', '--device', 'cuda:0', '--kit_args',
               f'--allow-root --portable-root {runtime} --/renderer/activeGpu={gpu} --/renderer/multiGpu/enabled=false',
               '--task', TASKS[task]['task'], '--env_config_yaml', str(arena/config),
-              '--seed', str(SIM_SEED), '--episode_seed', str(SIM_SEED), '--max_steps', str(steps),
+              '--seed', str(group), '--episode_seed', str(seed), '--max_steps', str(steps),
               '--episode_batch_json', str(run/'episodes.json'),
               '--lerobot_server_url', f'http://127.0.0.1:{port}', '--lerobot_server_timeout', '120', '--step_log_every_n', '50']
     if tracker == 'twist2':   # the stock evaluation's default TWIST2 checkpoint (run_vla_eval.sh)
@@ -338,7 +372,8 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='act
     record = {'status': 'starting', 'experiment': 'P2E2-OFFICIAL-REPLAY', 'label': label, 'task': task,
               'episode_file': str(Path(episode_path).resolve()), 'episode_sha256': sha256(episode_path),
               'raw_source': episode['source'], 'raw_sha256': episode['raw_sha256'], 'tracker': episode['tracker'],
-              'sim_seed': SIM_SEED, 'steps': steps, 'gpu': gpu, 'gpu_uuid': uuid, 'dds_domain': dds_domain,
+              'sim_seed': SIM_SEED if not official else None, 'official_episode': None if not official else
+              {'group_seed': group, 'repeat_idx': repeat_idx, 'episode_seed': seed}, 'steps': steps, 'gpu': gpu, 'gpu_uuid': uuid, 'dds_domain': dds_domain,
               'dynamics_profile': 'actuator' if settled else None, 'settled_start': settled,
               'sim_command': simcmd, 'policy_command': policycmd,
               'git_commit': commit, 'started_unix': time.time(),
@@ -396,6 +431,7 @@ def episode_files(task, tracker='sonic'):
 def launch(args):
     from paths import RUNS
     files = episode_files(args.task, args.tracker)
+    official = tuple(int(x) for x in args.official.split(':')) if args.official else None
     if args.episodes:
         files = [f for f in files if f.stem in args.episodes]
     elif args.first:
@@ -422,7 +458,7 @@ def launch(args):
                 continue
             print('START', run_id, 'gpu', gpu, flush=True)
             try:
-                launch_one(run_id, path, args.task, gpu, args.dds_domain+slot, args.label, args.dynamics)
+                launch_one(run_id, path, args.task, gpu, args.dds_domain+slot, args.label, args.dynamics, official)
                 print('COMPLETE', run_id, flush=True)
             except BaseException as exc:
                 print('FAILED', run_id, repr(exc)[:200], flush=True)
@@ -471,6 +507,26 @@ def analyze_run(run):
     return out
 
 
+def divergence(runs):
+    """How far identical repeats drift apart: per step, the largest pairwise distance between the runs' root
+    positions and tracked-object positions (aligned by control step, over the steps all of them have), the
+    largest of those over the episode, and the same at the first step (the restored layout)."""
+    paths = []
+    for run in runs:
+        rows = [json.loads(x)['after'] for x in (run/'execution.jsonl').read_text().splitlines() if x.strip()]
+        paths.append((np.array([r['root_pos'] for r in rows]), np.array([r['box_pos'] for r in rows])))
+    n = min(len(p[0]) for p in paths)
+
+    def spread(i, k):
+        pts = [p[k][i] for p in paths]
+        return max(float(np.linalg.norm(a-b)) for j, a in enumerate(pts) for b in pts[j+1:])
+    root = [spread(i, 0) for i in range(n)]
+    obj = [spread(i, 1) for i in range(n)]
+    return {'steps_compared': n, 'lengths': [len(p[0]) for p in paths], 'first_step_object_m': obj[0],
+            'max_root_m': max(root), 'max_object_m': max(obj), 'final_root_m': root[-1], 'final_object_m': obj[-1],
+            'first_step_root_over_1cm': next((i for i, d in enumerate(root) if d > .01), None)}
+
+
 def verdicts(results, repeats):
     """Per episode: successes over the repeats, whether they agree, and whether it enters V."""
     by = {}
@@ -498,6 +554,8 @@ def main():
     p.add_argument('--gpus', type=int, nargs='+', default=[])
     p.add_argument('--episodes', nargs='+')
     p.add_argument('--first', type=int)
+    p.add_argument('--official', help="GROUP:REPEAT - restore this official evaluation episode's layout (Arena's own "
+                   'seeding) instead of the recording\'s; the recording only supplies the fixed command sequence')
     p.add_argument('--dds-domain', type=int, default=70)
     args = p.parse_args()
     if args.action == 'prepare':
@@ -527,8 +585,16 @@ def main():
                'V': sorted(e for e, v in table.items() if v['in_V'])}
     out = RUNS/f'p2e2-replay-summary-{args.label}-{args.tracker}-{args.task}.json'
     out.write_text(json.dumps({'summary': summary, 'episodes': table, 'runs': results}, indent=1))
+    by_episode = {}
+    for r in results:
+        if 'success' in r:
+            by_episode.setdefault(r['episode'], []).append(RUNS/r['run'])
+    summary['divergence'] = {e: divergence(runs) for e, runs in by_episode.items() if len(runs) > 1}
+    out.write_text(json.dumps({'summary': summary, 'episodes': table, 'runs': results}, indent=1))
     for r in results:
         print(json.dumps(r))
+    for e, d in summary['divergence'].items():
+        print('DIVERGENCE', e, json.dumps(d))
     print(json.dumps({k: v for k, v in summary.items() if k != 'V'}), 'V size', len(summary['V']))
     print(out)
 
