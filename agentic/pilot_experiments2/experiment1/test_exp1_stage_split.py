@@ -204,10 +204,10 @@ def test_walk_is_compared_plan_by_plan_in_displacements(tmp_path):
     rounds = [{'round': 0, 'phase': 'settle', 'time': 2.}, {'round': 0, 'phase': 'raise', 'time': 2.5, 'walk_goal': [1., 0.]}]
     # The reference root starts 3 m away from the robot: only displacements count.
     row = lambda r, a: {'reference_root_world': [3 + r, 0, 0], 'after': {'root_pos': [a, 0, 0]}}
-    execution = {0: row(0, 0), 50: row(.5, .4), 100: row(1., .9)}
+    execution = {0: row(0, 0), 50: row(.5, .4), 100: row(1., .8)}
     out = ss.walk_split(run, rounds, execution)
     assert out['walk.root_pos.1'] == pytest.approx(.2) and out['walk.root_pos.2'] == pytest.approx(.1)
-    assert out['walk.travel_ratio'] == pytest.approx(.9) and out['walk.root_pos.total'] == pytest.approx(.1)
+    assert out['walk.travel_ratio'] == pytest.approx(.8) and out['walk.root_pos.total'] == pytest.approx(.2)
     assert out['walk.native'] is False and out['walk.plans'] == 2
 
 
