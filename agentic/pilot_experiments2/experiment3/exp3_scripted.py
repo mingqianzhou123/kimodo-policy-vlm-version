@@ -144,7 +144,7 @@ class TaskScript:
             low = [o for o in observation['objects'] if o['name'] not in ('target', 'room_floor')
                    and o.get('min', [0, 0, 0])[2] < self.overhead_m]
             self.route, self.stage, self.tries = route(observation['robot']['pelvis'][:2], goal, low,
-                                                       room=room(observation)), 'walk', 0
+                                                       room=floor_area(observation)), 'walk', 0
         while self.stage == 'walk' and self.route:
             step = self.walk_to(observation, self.route[0], .06 if len(self.route) == 1 else .2)
             if step and self.tries < 8:
@@ -250,7 +250,7 @@ class TaskScript:
             self.stand = best[1]
             self.sit_yaw = float(np.degrees(np.arctan2(normal[1], normal[0])))   # back to the seat
             sofa = [o for o in observation['objects'] if o['name'] not in ('sofa_seat', 'room_floor') and clearance(centre, o) == 0]
-            self.route = route(pelvis, self.stand, obstacles, near=sofa, room=room(observation))
+            self.route = route(pelvis, self.stand, obstacles, near=sofa, room=floor_area(observation))
             self.stage, self.tries = 'turn', 0
         if self.stage == 'turn':
             step = self.face(observation, self.sit_yaw, 6.)
@@ -315,7 +315,7 @@ def clearance(point, region):
     return float(np.linalg.norm(np.maximum(0., np.maximum(low-point, point-high))))
 
 
-def room(observation):
+def floor_area(observation):
     """The walkable floor (``room_floor``: the walls run along its edges), or None."""
     return next((o for o in observation['objects'] if o['name'] == 'room_floor'), None)
 
