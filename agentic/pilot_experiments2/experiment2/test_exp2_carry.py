@@ -14,6 +14,7 @@ def sample(t, x=0., box_z=.80, ref=0.):
 
 class Grasp:
     cfg = {'hold_s': .5}
+    episode_heading = np.eye(3)
 
     def __init__(self):
         self.round = SimpleNamespace(phase='lift', phase_time=0., box_pos=[0., 0., .75], index=0)
@@ -31,8 +32,8 @@ class Grasp:
 
 
 class Walk:
-    def __init__(self, goal, folder):
-        self.goal, self.phase = goal, None
+    def __init__(self, goal, folder, anchor_heading):
+        self.goal, self.phase, self.anchor = goal, None, anchor_heading
 
     def reset(self, seed=None):
         return {}
@@ -64,12 +65,13 @@ def test_grasp_then_clear_then_command_with_arms_locked(tmp_path):
     assert policy.stage == 'grasp'
     out = ask(policy, [sample(1.6, box_z=.90, ref=.3)])        # hold over, lifted 15 cm
     assert policy.stage == 'clear' and policy.clear.goal['root']['xy'] == [-.6, 0.]
+    assert policy.clear.anchor is Grasp.episode_heading and policy.command is None   # built when it begins
     actions = np.asarray(out['action_chunk'])
     assert np.all(actions[:, [9+i for i in ARM]] == .3) and np.all(actions[:, 0] == 7.)
     assert out['grasp']['hands'] == 'gate' and out['grasp']['event'] is None
     policy.clear.phase = 'hold'
     ask(policy, [sample(t, box_z=.90) for t in np.arange(1.62, 2.3, .02)])
-    assert policy.stage == 'command'
+    assert policy.stage == 'command' and policy.command.goal == {'name': 'p2e2-forward'}
     stages = json.loads((tmp_path/'carry.json').read_text())['stages']
     assert [s['stage'] for s in stages] == ['clear', 'command']
 
@@ -80,3 +82,13 @@ def test_an_unlifted_round_stays_with_the_grasp_policy(tmp_path):
     grasp.round.phase, grasp.round.phase_time = 'hold', 1.
     ask(policy, [sample(1.6, box_z=.80)])                     # 5 cm: not lifted
     assert policy.stage == 'grasp' and grasp.calls == 1
+
+
+def test_anchored_goal_keeps_forward_along_the_robot_facing():
+    from kimodo_vla.oracle.locomotion import anchored_goal
+    goal = {'name': 'g', 'root': {'xy': [.5, 0.], 'speed_m_s': .35}}
+    turned = anchored_goal(goal, 90.)
+    np.testing.assert_allclose(turned['root']['xy'], [0., .5], atol=1e-12)
+    assert goal['root']['xy'] == [.5, 0.] and turned['root']['speed_m_s'] == .35
+    np.testing.assert_allclose(anchored_goal({'name': 'g', 'root': {'xy': [0., .5]}}, -30.)['root']['xy'],
+                               [.5*np.sin(np.radians(30.)), .5*np.cos(np.radians(30.))], atol=1e-12)

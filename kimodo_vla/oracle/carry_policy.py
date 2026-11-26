@@ -10,6 +10,11 @@ Stages, in order, on the measured clock:
   command  once the clearing walk has reached its hold phase and the root has stood still for
            ``still_steps`` control steps, a second ``LocomotionPolicy`` runs the measured goal.
 
+Both locomotion stages start mid-episode, so they are built when they begin and decode their rotations in
+the heading Arena's action decoder is anchored at (the grasp policy's episode heading); their walking
+goals stay in the robot's own frame at that moment (``LocomotionPolicy(anchor_heading=...)``). Without
+this a robot whose heading had drifted turned on and on in the hold phase (runs of 2026-11-26).
+
 In ``clear`` and ``command`` every sent frame keeps the arm joints of the reference SONIC was
 consuming when the grasp ended (the squeezing pose), and the response tells the simulator side to
 keep the hands as the gate left them (closed). Switch times go to ``carry.json`` in the run folder;
@@ -49,16 +54,18 @@ class CarryPolicy:
         self.grasp, self.run = grasp, Path(run)
         self.lift_m, self.still_steps = float(lift_m), int(still_steps)
         clear = {'name': 'carry-clear', 'root': {'xy': [-float(clear_m), 0.], 'speed_m_s': .35}}
-        self.make = lambda name, g: make_locomotion(g, self.run/name)
+        self.make_locomotion = make_locomotion
         self.clear_goal, self.command_goal = clear, goal
         self.reset()
 
+    def make(self, name, goal):
+        policy = self.make_locomotion(goal, self.run/name, self.grasp.episode_heading)
+        policy.reset(self.seed)
+        return policy
+
     def reset(self, seed=None):
-        self.stage, self.arms, self.samples, self.log = 'grasp', None, [], {'stages': []}
-        self.clear = self.make('carry-clear', self.clear_goal)
-        self.command = self.make('carry-command', self.command_goal)
-        self.clear.reset(seed)
-        self.command.reset(seed)
+        self.stage, self.arms, self.samples, self.log, self.seed = 'grasp', None, [], {'stages': []}, seed
+        self.clear = self.command = None
         return self.grasp.reset(seed)
 
     def switch(self, stage, obs, **extra):
@@ -82,10 +89,12 @@ class CarryPolicy:
             self.info = {**self.grasp.grasp_info(), 'hands': 'gate', 'event': None}
             self.switch('clear', obs, lift_m=obs['box_com'][2]-self.grasp.round.box_pos[2], round=self.grasp.round.index,
                         arms=self.arms.tolist())
+            self.clear = self.make('carry-clear', self.clear_goal)
         if self.stage == 'grasp':
             return self.grasp(request)
         if self.stage == 'clear' and getattr(self.clear, 'phase', None) == 'hold' and still(self.samples, self.still_steps):
             self.switch('command', obs, box_com=obs['box_com'])
+            self.command = self.make('carry-command', self.command_goal)
         policy = self.clear if self.stage == 'clear' else self.command
         response = policy(request)
         actions = np.asarray(response['action_chunk'], dtype=float)

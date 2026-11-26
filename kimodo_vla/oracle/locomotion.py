@@ -195,6 +195,16 @@ def load_goal(source):
     return out
 
 
+def anchored_goal(goal, facing_deg):
+    """The goal with its walking target turned by ``facing_deg``: from the robot's own start frame into a
+    frame in which the robot faces ``facing_deg`` to the left of x (the anchor frame of a mid-episode start)."""
+    out = json.loads(json.dumps(goal))
+    a = np.radians(facing_deg)
+    x, y = out['root']['xy']
+    out['root']['xy'] = [float(np.cos(a)*x-np.sin(a)*y), float(np.sin(a)*x+np.cos(a)*y)]
+    return out
+
+
 def walk_allowance(goal):
     """Seconds a walk may take before it is stopped short: the distance at 0.05 m/s, plus 5 s.
 
@@ -404,7 +414,7 @@ class LocomotionPolicy(OraclePolicy):
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
                  root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None,
                  generator='policy', segment_seconds=4., segment_steps=100, transition_frames=5, approach_gain=1.,
-                 text_until_m=0., open_loop=False, **kwargs):
+                 text_until_m=0., open_loop=False, anchor_heading=None, **kwargs):
         # Reach configuration two: over the last 25 cm of the wrist's path the reaching arm's joints
         # are solved for the path pose; legs and trunk stay as Kimodo generated them.
         self.arm_ik = bool(arm_ik)
@@ -430,6 +440,9 @@ class LocomotionPolicy(OraclePolicy):
         elif not 25 <= walk_steps <= 80:
             raise ValueError('A plan covers 1.63 s; execute between 25 and 80 control steps of a walking plan')
         self.goal = load_goal(motion_goal)
+        # Off by default. A policy started mid-episode (kimodo_vla/oracle/carry_policy.py) passes the heading
+        # Arena's action decoder is anchored at; its walking goal stays in the robot's own start frame.
+        self.anchor_heading = None if anchor_heading is None else np.asarray(anchor_heading, dtype=float)
         self.walk_steps = int(walk_steps)
         self.noise_seed = noise_seed  # repeats of one goal differ only in Kimodo's sampling noise
         if root_constraints not in ROOT_CONSTRAINTS or not 1 <= int(history_frames) <= 100 or text_cfg < 0:
@@ -477,7 +490,10 @@ class LocomotionPolicy(OraclePolicy):
         return status
 
     def initialize(self, sample):
-        super().initialize(sample)  # measured start frame, standing features, both wrists held
+        if self.anchor_heading is not None and self.goal.get('root') and not self.goal['root'].get('yaw_deg'):
+            facing = self.anchor_heading.T @ rotation_wxyz(sample['root_quat'])
+            self.goal = anchored_goal(self.goal, float(np.degrees(np.arctan2(facing[1, 0], facing[0, 0]))))
+        super().initialize(sample, heading=self.anchor_heading)  # measured start frame, standing features, both wrists held
         heading, origin = self.frame.heading, self.frame.origin
         representation = self.model.representation
         self.root_end = np.asarray(self.root_goal, dtype=float).copy()

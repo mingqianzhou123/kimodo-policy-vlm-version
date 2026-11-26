@@ -179,7 +179,11 @@ def analyze_carry_run(run, fk=None):
     torso = None
     if fk is not None:
         torso = [fk(s['joints'], s['root_pos'], rotation_wxyz(s['root_quat']), body_names=['torso_link'])[1][0] for s in samples]
-    out.update(carry_status='measured', **measure(samples, np.array(target['heading']), MOTIONS[motion][1],
+    # The command's frame is the robot's facing when it began; target.json's heading is Arena's anchor.
+    facing = rotation_wxyz(samples[0]['root_quat'])
+    a = np.arctan2(facing[1, 0], facing[0, 0])
+    heading = np.array([[np.cos(a), -np.sin(a), 0.], [np.sin(a), np.cos(a), 0.], [0., 0., 1.]])
+    out.update(carry_status='measured', **measure(samples, heading, MOTIONS[motion][1],
                                                  phases.get('hold', target['arrival_time']), torso))
     i = out['measured_index']
     grasp = steps[i].get('grasp') or {}
