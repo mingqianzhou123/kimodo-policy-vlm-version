@@ -108,7 +108,7 @@ def resample(actions, stamps, rate=RATE):
     a, t = a[keep], t[keep]
     rotations = rot6d_rows(a)
     position = integrate_root(a, rotations)
-    grid = np.arange(0., t[-1]+1e-9, 1/rate)
+    grid = np.minimum(np.arange(int(np.ceil(t[-1]*rate-1e-9))+1)/rate, t[-1])   # ends on the last recorded frame
     out = np.zeros((len(grid), 40))
     p = np.stack([np.interp(grid, t, position[:, i]) for i in range(3)], axis=1)
     r = Slerp(t, Rotation.from_matrix(rotations))(grid).as_matrix()
