@@ -29,7 +29,8 @@ CONFIG = HERE/'exp3_harness.json'
 
 def played(run):
     try:
-        return json.loads((run/'episode.json').read_text()).get('failure_reason') is not None
+        # A simulator or policy-server crash ('sim_error', e.g. a GPU another job filled) is not a played episode.
+        return json.loads((run/'episode.json').read_text()).get('failure_reason') not in (None, 'sim_error')
     except (OSError, ValueError):
         return False
 
