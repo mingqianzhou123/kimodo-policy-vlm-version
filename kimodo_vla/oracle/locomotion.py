@@ -410,6 +410,7 @@ class LocomotionPolicy(OraclePolicy):
     clips, clip_walker = None, None
     generator_mode, segment_frames, segment_steps, transition_frames, walk_text = 'policy', CANVAS, 50, 5, None
     approach_gain, text_until_m, open_loop = 1., 0., False
+    anchor_heading = None
 
     def __init__(self, *args, motion_goal, noise_seed=None, walk_steps=75, arm_ik=False, text=None, text_cfg=2.,
                  root_constraints='dense', history_frames=100, lead_segment=None, walk_clips=None, model=None,

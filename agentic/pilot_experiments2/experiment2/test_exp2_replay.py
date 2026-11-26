@@ -22,7 +22,7 @@ def walk_actions(stamps, speed=.3, yaw_rate=.2):
     a[:, 2] = .78
     a[:, 3:9] = r[:, :, :2].reshape(n, 6)
     a[:, 9:38] = np.linspace(0, 1, n)[:, None]
-    a[:, 38] = stamps > stamps[-1]/2
+    a[:, 38] = stamps-stamps[0] > (stamps[-1]-stamps[0])/2
     return a, world
 
 
