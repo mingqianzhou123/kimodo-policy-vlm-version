@@ -69,7 +69,7 @@ def work(gpu, jobs, args, lock):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--task', required=True, choices=['pp_box', 'sit_sofa'])
+    p.add_argument('--task', required=True, choices=['pp_box', 'sit_sofa', 'vision_navi'])
     p.add_argument('--commander', required=True)
     p.add_argument('--tag', required=True)
     p.add_argument('--gpus', type=int, nargs='+', required=True)

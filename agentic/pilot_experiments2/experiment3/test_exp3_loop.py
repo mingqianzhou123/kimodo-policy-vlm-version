@@ -458,3 +458,10 @@ def test_navi_verdict(tmp_path):
     v = judge(load_episode(tmp_path), {})
     assert v['link'] == 'self-check failed' and v['reason'] == 'ended outside the target'
     assert v['margins']['final_pelvis_to_target_m'] == pytest.approx(1.)
+
+
+def test_runner_accepts_every_configured_task():
+    import subprocess, sys
+    config = json.loads((HERE/'exp3_harness.json').read_text())
+    text = subprocess.run([sys.executable, str(HERE/'exp3_run.py'), '--help'], capture_output=True, text=True).stdout
+    assert all(task in text for task in config['tasks'])
