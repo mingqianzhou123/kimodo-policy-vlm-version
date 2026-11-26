@@ -16,6 +16,10 @@ experiment 2's own SONIC analysis (``p2e2-cmd-*``) never picks them up.
   reference torso frame. The reference is the frame the tracker followed at that step: the newest decoded frame for
   SONIC, ``heft_reference`` (8 frames older) for HEFT.
 Writes ``<runs>/p2e2heft-cmd-empty-<date>.json`` and prints both tables, HEFT beside SONIC.
+
+Diagnostic (not the protocol): ``--variant gain1`` appends ``--approach-gain 1`` after the frozen planner flags
+(the launcher keeps the last value) and names the runs ``p2e2heft-gain1-cmd-...``; ``analyze --variant gain1``
+prints those runs per seed with the signed along-walk error, beside the protocol (gain 2) runs of ``--gain2-date``.
 """
 import argparse
 import json
@@ -30,12 +34,13 @@ sys.path.insert(0, str(HERE.parent))
 import exp2_commands as E  # noqa: E402  (also puts agentic/scripts on the path)
 
 PREFIX = 'p2e2heft'
+VARIANTS = {'gain1': ['--approach-gain', '1']}   # diagnostics only; the protocol passes --approach-gain 2
 WALK_MIN_M, MOVED_M = .2, .05
 ACCEPT_WALK, ACCEPT_HAND_M = .15, .02   # plan section 1.4: walk error above 15% or hand error above 2 cm fails
 
 
-def heft_run_name(condition, motion, date, seed):
-    return f'{PREFIX}-cmd-{condition}-{motion}-{date}-s{seed}'
+def heft_run_name(condition, motion, date, seed, variant=None):
+    return f"{PREFIX}{'-'+variant if variant else ''}-cmd-{condition}-{motion}-{date}-s{seed}"
 
 
 def hitch_errors(run, fk, upto=None, after_time=None):
@@ -157,17 +162,35 @@ def main():
     p.add_argument('--only', nargs='+', choices=list(E.MOTIONS))
     p.add_argument('--seeds', type=int, nargs='+')
     p.add_argument('--dds-domain', type=int, default=60)
+    p.add_argument('--variant', choices=list(VARIANTS), help='a labelled diagnostic, not the protocol')
+    p.add_argument('--gain2-date', help='with analyze --variant: the protocol HEFT runs to print beside it')
     args, extra = p.parse_known_args()
     if args.action == 'run':
         if not args.gpus:
             raise SystemExit('--gpus is required')
-        E.run_name = heft_run_name
+        E.run_name = lambda c, m, d, s: heft_run_name(c, m, d, s, args.variant)
         args.condition = 'empty'
-        return E.launch(args, extra+['--tracker', 'heft'])
+        return E.launch(args, extra+['--tracker', 'heft']+VARIANTS.get(args.variant, []))
     from paths import G1_XML
     from kimodo_vla.core.types import G1_JOINT_NAMES
     from kimodo_vla.oracle.geometry import XmlFK
     fk = XmlFK(G1_XML, G1_JOINT_NAMES)
+    if args.action == 'analyze' and args.variant:
+        out = {}
+        for label, prefix, date in ((args.variant, f'{PREFIX}-{args.variant}', args.date), ('gain2', PREFIX, args.gain2_date)):
+            rows = [r for r in analyze(prefix, 'empty', date, fk, 'heft') if not args.only or r['motion'] in args.only]
+            out[label] = {'date': date, 'runs': rows, 'protocol_table': E.summarize(rows), 'hitch_table': hitch_table(rows)}
+            print(f'\n## {label} ({date})\n| motion | seed | along cm (signed) | across cm | root cm | walk error % (paper) | stopped |')
+            for r in sorted(rows, key=lambda r: (r['motion'], r['seed'])):
+                print(f"| {r['motion']} | {r['seed']} | {100*r['root_along_m']:+.1f} | {100*r['root_across_m']:+.1f} | "
+                      f"{100*r['root_m']:.1f} | {100*r.get('walk_error', float('nan')):.0f} | {r['stopped']} |")
+            for m, e in out[label]['protocol_table'].items():
+                w = out[label]['hitch_table'].get(m, {}).get('walk_error')
+                print(f"mean {m}: along {100*e['root_along_m']['mean']:+.1f} ± {100*e['root_along_m']['sd']:.1f}, "
+                      f"root {100*e['root_m']['mean']:.1f} ± {100*e['root_m']['sd']:.1f} cm, "
+                      f"walk {100*w['mean']:.0f} ± {100*w['sd']:.0f}%, fell {e['fell']}")
+        (_runs()/f'{PREFIX}-{args.variant}-cmd-empty-{args.date}.json').write_text(json.dumps(out, indent=1))
+        return
     if args.action == 'hitchref':
         rows = analyze_hitchref(args.date, fk)
         keys = ('walk_error', 'hand_error_right_m', 'yaw_executed_deg', 'yaw_reference_deg', 'pelvis_drop_executed_m',
