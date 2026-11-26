@@ -584,6 +584,60 @@ def verdict(group):
             ('no', 'yes'): 'stage 2 separates (tracker side)', ('no', 'no'): 'neither stage separates'}[(s1, s2)]
 
 
+TABLE_ROWS = (
+    ('P.wrist_pos.1a', 'wrist position, Kimodo vs command (1a)', 100, 'cm'),
+    ('P.wrist_pos.1', 'wrist position, stage 1 (command -> consumed reference)', 100, 'cm'),
+    ('P.wrist_pos.2', 'wrist position, stage 2 (reference -> robot)', 100, 'cm'),
+    ('P.wrist_pos.correction', 'wrist position, closed-loop correction in force', 100, 'cm'),
+    ('P.wrist_pos.total', 'wrist position, task target -> robot', 100, 'cm'),
+    ('P.wrist_rot.1a', 'wrist orientation, 1a', 1, 'deg'),
+    ('P.wrist_rot.1', 'wrist orientation, stage 1', 1, 'deg'),
+    ('P.wrist_rot.2', 'wrist orientation, stage 2', 1, 'deg'),
+    ('P.root_pos.1a', 'root position, 1a', 100, 'cm'),
+    ('P.root_pos.1', 'root position, stage 1', 100, 'cm'),
+    ('P.root_pos.2', 'root position, stage 2', 100, 'cm'),
+    ('P.torso_rot.1a', 'torso orientation, 1a', 1, 'deg'),
+    ('P.torso_rot.1', 'torso orientation, stage 1', 1, 'deg'),
+    ('P.torso_rot.2', 'torso orientation, stage 2', 1, 'deg'),
+    ('walk.root_pos.1', 'walk, Kimodo root error per plan (stage 1)', 100, 'cm'),
+    ('walk.root_pos.2', 'walk, displacement error per plan (stage 2)', 100, 'cm'),
+    ('walk.travel_ratio', 'walk, robot travel / reference travel', 1, ''),
+    ('walk.root_pos.total', 'walk, stance vs walk goal', 100, 'cm'),
+    ('push_contact_to_close_m', 'object pushed, first contact -> close', 100, 'cm'),
+    ('staleness_P_m', 'target staleness at P', 100, 'cm'),
+    ('staleness_C_m', 'target staleness at close', 100, 'cm'),
+    ('C.wrist_pos.2', 'wrist position, stage 2 at close', 100, 'cm'),
+    ('W.wrist_pos.2', 'wrist position, stage 2, 0.5 s before P', 100, 'cm'),
+)
+
+
+def table(summary, rows=TABLE_ROWS):
+    """Markdown: per group, median (success / failure), AUC [95% CI], p and the rule's reading."""
+    lines = []
+    for g in summary['groups']:
+        modes = g['modes']
+        lines += [f"### {g['family']} · {g['condition']}", '',
+                  f"{g['n']} episodes ({', '.join(g['cells'])}); first-attempt success {g['first_success']}/{g['n']} "
+                  f"[{g['first_success_ci'][0]:.2f}, {g['first_success_ci'][1]:.2f}]; verdict: **{g['verdict']}**", '',
+                  f"first attempt, success / failure: never closed {modes['success']['never_closed']} / {modes['failure']['never_closed']}, "
+                  f"touched before closing {modes['success']['touched_before_close']} / {modes['failure']['touched_before_close']}, "
+                  f"closed first {modes['success']['closed_first']} / {modes['failure']['closed_first']}", '',
+                  '| quantity | n succ / fail | median succ | median fail | AUC [95% CI] | p | separates |',
+                  '|---|---|---|---|---|---|---|']
+        for name, label, scale, unit in rows:
+            m = g['metrics'].get(name)
+            if not m or not (m['n_succ'] + m['n_fail']):
+                continue
+            fmt = lambda v: '—' if v is None else f'{v * scale:.2f}'
+            ci = m['auc_ci']
+            auc_text = '—' if not np.isfinite(m['auc']) else (f"{m['auc']:.2f}" + ('' if not np.isfinite(ci[0]) else f" [{ci[0]:.2f}, {ci[1]:.2f}]"))
+            p = '—' if not np.isfinite(m['p']) else (f"{m['p']:.1e}" if m['p'] < .001 else f"{m['p']:.3f}")
+            lines.append(f"| {label}{' (' + unit + ')' if unit else ''} | {m['n_succ']} / {m['n_fail']} | {fmt(m['median_succ'])} | "
+                         f"{fmt(m['median_fail'])} | {auc_text} | {p} | {m['separates']} |")
+        lines.append('')
+    return '\n'.join(lines)
+
+
 # ---- entry points ------------------------------------------------------------------------------------------
 _FK = None
 
@@ -605,7 +659,7 @@ def _work(args):
 def main(argv=None):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    parser.add_argument('command', choices=('episodes', 'summary'))
+    parser.add_argument('command', choices=('episodes', 'summary', 'table'))
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--runs', type=Path)
     parser.add_argument('--workers', type=int, default=32)
@@ -623,6 +677,8 @@ def main(argv=None):
             for record in pool.imap_unordered(_work, [(str(r), args.threshold) for r in runs], chunksize=4):
                 f.write(json.dumps(record) + '\n')
         print(f'{len(runs)} run folders -> {args.out / "episodes.jsonl"}')
+    elif args.command == 'table':
+        print(table(json.loads((args.out / 'summary.json').read_text())))
     else:
         records = read_jsonl(args.out / 'episodes.jsonl')
         groups = summarize(records)
