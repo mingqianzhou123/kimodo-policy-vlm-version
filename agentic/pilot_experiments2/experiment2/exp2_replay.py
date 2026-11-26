@@ -270,6 +270,16 @@ def free_mib(gpu):
     return uuid, int(free)
 
 
+def wait_free(gpu, mib=17000, timeout_s=3600):
+    """Wait until ``gpu`` has ``mib`` free (other sessions share the box); False on timeout."""
+    deadline = time.monotonic()+timeout_s
+    while time.monotonic() < deadline:
+        if free_mib(gpu)[1] >= mib:
+            return True
+        time.sleep(20)
+    return False
+
+
 def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='actuator'):
     from paths import CHECKPOINTS, RUNS, sim_cache
     cache = sim_cache()
@@ -406,6 +416,9 @@ def launch(args):
                 continue
             if (RUNS/run_id).exists():
                 print('EXISTS-UNFINISHED', run_id, flush=True)
+                continue
+            if not wait_free(gpu):
+                print('GPU-BUSY', run_id, 'gpu', gpu, flush=True)
                 continue
             print('START', run_id, 'gpu', gpu, flush=True)
             try:

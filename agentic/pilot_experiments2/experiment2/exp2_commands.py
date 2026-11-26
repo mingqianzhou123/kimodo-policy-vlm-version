@@ -272,6 +272,10 @@ def launch(args, extra):
                        '--sim-gpu', str(gpu), '--policy-gpu', str(gpu), '--share-policy-sim-gpu',
                        '--gpu-min-free-mib', '16384', *PLANNER_FLAGS, *extra]
             env = dict(os.environ, KVLA_DDS_DOMAIN=str(args.dds_domain+slot))
+            from exp2_replay import wait_free
+            if not wait_free(gpu):
+                print('GPU-BUSY', run_id, 'gpu', gpu, flush=True)
+                continue
             print('START', run_id, 'gpu', gpu, flush=True)
             done = subprocess.run(cmd, cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             print('COMPLETE' if done.returncode == 0 else 'FAILED', run_id, flush=True)
