@@ -23,6 +23,7 @@ prints those runs per seed with the signed along-walk error, beside the protocol
 """
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -34,7 +35,13 @@ sys.path.insert(0, str(HERE.parent))
 import exp2_commands as E  # noqa: E402  (also puts agentic/scripts on the path)
 
 PREFIX = 'p2e2heft'
-VARIANTS = {'gain1': ['--approach-gain', '1']}   # diagnostics only; the protocol passes --approach-gain 2
+# Diagnostics only (the protocol passes --approach-gain 2 and closes the loop):
+# gain1     approach gain 1;
+# openloop  Kimodo plans from the reference's own position and heading (no re-anchoring onto the body), gain 1
+#           (the planner allows open loop only at gain 1);
+# nolag     protocol settings, HEFT tracks the newest decoded frame (KVLA_HEFT_LAG=0, look-ahead held at the tail).
+VARIANTS = {'gain1': ['--approach-gain', '1'], 'openloop': ['--approach-gain', '1', '--open-loop'], 'nolag': []}
+VARIANT_ENV = {'nolag': {'KVLA_HEFT_LAG': '0'}}
 WALK_MIN_M, MOVED_M = .2, .05
 ACCEPT_WALK, ACCEPT_HAND_M = .15, .02   # plan section 1.4: walk error above 15% or hand error above 2 cm fails
 
@@ -169,6 +176,7 @@ def main():
         if not args.gpus:
             raise SystemExit('--gpus is required')
         E.run_name = lambda c, m, d, s: heft_run_name(c, m, d, s, args.variant)
+        os.environ.update(VARIANT_ENV.get(args.variant, {}))   # inherited by run_oracle and the simulator
         args.condition = 'empty'
         return E.launch(args, extra+['--tracker', 'heft']+VARIANTS.get(args.variant, []))
     from paths import G1_XML
