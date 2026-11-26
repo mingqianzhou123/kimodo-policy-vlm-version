@@ -93,10 +93,12 @@ class SmokeScript:
 class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
-    def __init__(self, task):
-        if task not in ('pp_box', 'sit_sofa', 'vision_navi'):
-            raise ValueError(task)
-        self.task = task
+    def __init__(self, task, stop_after=None):
+        """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
+        'carry' after carrying it to the shelf front; None runs the whole task."""
+        if task not in ('pp_box', 'sit_sofa', 'vision_navi') or stop_after not in (None, 'hold', 'carry'):
+            raise ValueError((task, stop_after))
+        self.task, self.stop_after = task, stop_after
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -182,6 +184,9 @@ class TaskScript:
         self.queue = []
 
     def plan_box(self, observation):
+        if self.stage == 'stop':
+            self.queue = []
+            return
         box = obj(observation, 'box')
         if self.stage == 'start':
             self.stage, self.tries = 'approach', 0
@@ -209,6 +214,9 @@ class TaskScript:
                 {'type': 'hand_pose', 'hands': both('squeeze', 'rotation'), 'duration_s': self.grasp['squeeze_s']},
                 {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': self.grasp['lift_s']},
                 {'type': 'walk', 'forward_m': -0.35, 'left_m': 0.0}]
+            if self.stop_after == 'hold':   # hold the lifted box 2 s, then stop
+                self.queue[-1] = {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': 2.0}
+                self.stage = 'stop'
             return
         if self.stage == 'approach':
             # Face the table, then hands up and closed before walking: while it walks or stands the walking reference
@@ -273,6 +281,9 @@ class TaskScript:
             if step and self.tries < 6:
                 self.tries += 1
                 self.queue = [step]
+                return
+            if self.stop_after == 'carry':
+                self.stage, self.queue = 'stop', []
                 return
             self.stage = 'place'
             delta = np.r_[np.asarray(self.place_xy)-np.asarray(box['position'][:2]), self.place_z-box['position'][2]]

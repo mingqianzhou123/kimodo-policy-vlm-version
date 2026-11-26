@@ -195,6 +195,30 @@
    },
    "_about": "The same rule on the kinematic planner (kimodo_vla/agent/kinematic.py: HITCH's whole-body planner, $HITCH_PYTHON). The tracker is chosen with --tracker sonic|heft, so the two cells share the references. Development comparison (2026-11-27/28), not a frozen baseline."
   },
+  "scripted_hitch_hold": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "options": {
+    "stop_after": "hold"
+   },
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch, ending after the 'hold' stage (staged development runs: approach + reach + lift + hold first, then carry, then place)."
+  },
+  "scripted_hitch_carry": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "options": {
+    "stop_after": "carry"
+   },
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch, ending after the 'carry' stage (staged development runs: approach + reach + lift + hold first, then carry, then place)."
+  },
   "qwen": {
    "kind": "vlm",
    "backend": "qwen",

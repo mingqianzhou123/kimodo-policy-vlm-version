@@ -89,3 +89,15 @@ def test_refusals(tmp_path):
     info = planner.start({'type': 'hand', 'right': 'close'}, context)
     assert info['hands_closed'] == [False, True]
     assert planner.chunk({'observation': {'oracle_history': context['history']}})[0, 39] == 1.
+
+
+def test_box_rule_stops_after_the_hold_stage():
+    from exp3_scripted import TaskScript
+    script = TaskScript('pp_box', stop_after='hold')
+    box = {'name': 'box', 'position': [-.5, -4.8, .85], 'quat_wxyz': [1, 0, 0, 0], 'yaw_deg': 0., 'size': [.21]*3}
+    table = {'name': 'table', 'min': [-.641, -6.24, 0.], 'max': [.12, -3.76, .745]}
+    stance = script.final_stance({'objects': [box, table]}, box)
+    observation = {'robot': {'pelvis': [stance[0], stance[1], .78], 'heading_deg': 0.}, 'objects': [box, table]}
+    kinds = [script.next(observation) for _ in range(8)]
+    assert [k['type'] for k in kinds[:6]] == ['hand_pose', 'hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose']
+    assert kinds[6]['type'] == 'hand_pose' and kinds[6]['duration_s'] == 2.0 and kinds[7] is None
