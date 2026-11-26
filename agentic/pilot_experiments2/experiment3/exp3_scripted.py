@@ -141,8 +141,10 @@ class TaskScript:
         target = obj(observation, 'target')
         goal = np.asarray(target['center'][:2])
         if self.stage == 'start':
-            low = [o for o in observation['objects'] if o['name'] != 'target' and o.get('min', [0, 0, 0])[2] < self.overhead_m]
-            self.route, self.stage, self.tries = route(observation['robot']['pelvis'][:2], goal, low), 'walk', 0
+            low = [o for o in observation['objects'] if o['name'] not in ('target', 'room_floor')
+                   and o.get('min', [0, 0, 0])[2] < self.overhead_m]
+            self.route, self.stage, self.tries = route(observation['robot']['pelvis'][:2], goal, low,
+                                                       room=room(observation)), 'walk', 0
         while self.stage == 'walk' and self.route:
             step = self.walk_to(observation, self.route[0], .06 if len(self.route) == 1 else .2)
             if step and self.tries < 8:
@@ -236,7 +238,7 @@ class TaskScript:
             normal, along, inside = nearest_face(seat, pelvis)
             # Everything but the seat and the sofa it belongs to (any box around the seat's centre) is in the way.
             centre = (np.asarray(seat['min'][:2])+np.asarray(seat['max'][:2]))/2
-            obstacles = [o for o in observation['objects'] if o['name'] != 'sofa_seat' and clearance(centre, o) > 0]
+            obstacles = [o for o in observation['objects'] if o['name'] not in ('sofa_seat', 'room_floor') and clearance(centre, o) > 0]
             # The spot along the seat front with the most room in front of it, nearest the robot on ties.
             best = None
             for u in np.linspace(0.1, 0.9, 17):
@@ -247,8 +249,8 @@ class TaskScript:
                     best = (score, spot)
             self.stand = best[1]
             self.sit_yaw = float(np.degrees(np.arctan2(normal[1], normal[0])))   # back to the seat
-            sofa = [o for o in observation['objects'] if o['name'] != 'sofa_seat' and clearance(centre, o) == 0]
-            self.route = route(pelvis, self.stand, obstacles, near=sofa)
+            sofa = [o for o in observation['objects'] if o['name'] not in ('sofa_seat', 'room_floor') and clearance(centre, o) == 0]
+            self.route = route(pelvis, self.stand, obstacles, near=sofa, room=room(observation))
             self.stage, self.tries = 'turn', 0
         if self.stage == 'turn':
             step = self.face(observation, self.sit_yaw, 6.)
@@ -313,14 +315,23 @@ def clearance(point, region):
     return float(np.linalg.norm(np.maximum(0., np.maximum(low-point, point-high))))
 
 
-def route(start, goal, obstacles, body=.32, near=None, step=.1, pad=4.):
+def room(observation):
+    """The walkable floor (``room_floor``: the walls run along its edges), or None."""
+    return next((o for o in observation['objects'] if o['name'] == 'room_floor'), None)
+
+
+def route(start, goal, obstacles, body=.32, near=None, step=.1, pad=4., room=None):
     """Waypoints from ``start`` to ``goal`` that keep ``body`` clear of every obstacle (``near``: obstacles
-    the robot may come right up to, such as the sofa it will sit on). A* on a ``step`` grid, then
-    shortened to the fewest straight legs that stay clear. Falls back to the straight line."""
+    the robot may come right up to, such as the sofa it will sit on) and of the walls (``room``: the floor
+    area inside them). A* on a ``step`` grid, then shortened to the fewest straight legs that stay clear.
+    Falls back to the straight line."""
     import heapq
     start, goal = np.asarray(start, dtype=float), np.asarray(goal, dtype=float)
     near = near or []
-    blocked = lambda p: (any(clearance(p, o) <= body for o in obstacles) or any(clearance(p, o) <= .02 for o in near))
+    walls = lambda p: (room is not None and (np.any(np.asarray(p) < np.asarray(room['min'][:2])+body)
+                                             or np.any(np.asarray(p) > np.asarray(room['max'][:2])-body)))
+    blocked = lambda p: (walls(p) or any(clearance(p, o) <= body for o in obstacles)
+                         or any(clearance(p, o) <= .02 for o in near))
 
     def free(a, b):
         n = max(2, int(np.linalg.norm(b-a)/(step/2)))

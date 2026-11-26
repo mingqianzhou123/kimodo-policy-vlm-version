@@ -156,6 +156,12 @@ class Hooks:
                 bounds = self.stage_bounds(f'/World/envs/env_0/{"CartonObstacle0" + key[-1]}')
                 if bounds is not None:
                     extra[f'{key}_size_m'] = (bounds[1]-bounds[0]).tolist()
+        # The walls: the baseboard runs along them, so its box is the walkable floor (VisionNavi 92000: a route
+        # that ignored it squeezed between an obstacle and the east wall, and the right hand kept hitting the wall).
+        board = next((p for p in extra['room_assets'] if p['name'] == 'baseboard'), None)
+        if board is not None:
+            objects.append(region('room_floor', board['min'][:2]+[0.], board['max'][:2]+[0.], kind_of='walls',
+                                  note='the walls run along the edges of this area; the robot must stay inside it'))
         self.static = (objects, extra)
         return self.static
 
