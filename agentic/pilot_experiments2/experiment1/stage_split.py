@@ -415,9 +415,12 @@ def episode(run, fk, threshold=CONTACT_N, sensitivity=SENSITIVITY_N):
         return planned_wrists(path_pieces(kind, row, rest[0], rest[1]), anchor_time, rest[0], rest[1], t)[0]
 
     # The closed-loop wrist correction, replayed from the plans made after the advance should have ended.
-    reach_end = max((s['time'] for s in steps if s.get('round') == 0 and s.get('phase') == 'advance'), default=anchor_time)
+    # The call that leaves the advance (hands closed, or the gate's deadline) changes the phase first and
+    # skips the correction, so only plans strictly before that phase change count.
+    leave = next((r['time'] for r in rounds if r.get('round') == 0 and r.get('kind') == 'phase'
+                  and r.get('phase') in ('grip', 'release')), float('inf'))
     stand_plans = [p['time'] for p in read_jsonl(run / 'plans.jsonl') if 'kimodo_fk_target_m' in p]
-    corrections = [t for t in stand_plans if anchor_time - 1e-6 <= t <= reach_end + 1e-6
+    corrections = [t for t in stand_plans if anchor_time - 1e-6 <= t < leave - 1e-6
                    and t >= target_at(targets, t)[1]['advance_end'] - 1e-6]
     history = replay_bias(corrections, wanted, measured, hands)
 
@@ -439,7 +442,10 @@ def episode(run, fk, threshold=CONTACT_N, sensitivity=SENSITIVITY_N):
            'first_label': ((result.get('attempts') or [{}])[0] or {}).get('label'),
            'time_P': steps[P]['time'], 'phase_P': steps[P].get('phase'),
            'commands_at_P': key(steps[P]['time']) in commands}
-    for name, value in at(P).items():
+    at_P = at(P)
+    if at_P is None:
+        return {**base, 'skip': 'no execution row at P'}
+    for name, value in at_P.items():
         out[f'P.{name}'] = value
     window = [at(i) for i in range(max(P - WINDOW + 1, 0), P + 1) if steps[i].get('round') == 0]
     window = [w for w in window if w is not None]
@@ -560,6 +566,8 @@ def summarize(records):
         if 'skip' not in r:
             groups[(r['family'], r['condition'])].append(r)
     out = []
+    spread = lambda values, scale: [round(float(np.percentile(values, q)) * scale, 3) for q in (50, 95, 100)] if values else None
+    finite = lambda rows, name: [r[name] for r in rows if isinstance(r.get(name), (int, float)) and np.isfinite(r[name])]
     for (family, condition), rows in sorted(groups.items()):
         k = sum(r['first_success'] for r in rows)
         out.append({'family': family, 'condition': condition, 'n': len(rows), 'first_success': k,
@@ -570,6 +578,9 @@ def summarize(records):
                     'modes': {outcome: {m: sum(1 for r in rows if r['mode'] == m and r['first_success'] == ok)
                                         for m in ('never_closed', 'touched_before_close', 'closed_first')}
                               for outcome, ok in (('success', True), ('failure', False))},
+                    'checks': {'stage1_wrist_mm_p50_p95_max': spread(finite(rows, 'P.wrist_pos.1'), 1000),
+                               'handoff_wrist_mm_p50_p95_max': spread(finite(rows, 'P.wrist_pos.handoff'), 1000),
+                               'correction_replay_mm_p50_p95_max': spread(finite(rows, 'bias_replay_error_m'), 1000)},
                     'metrics': {name: compare(rows, name) for name in metrics(rows)}})
     return out
 
@@ -622,6 +633,8 @@ def table(summary, rows=TABLE_ROWS):
                   f"first attempt, success / failure: never closed {modes['success']['never_closed']} / {modes['failure']['never_closed']}, "
                   f"touched before closing {modes['success']['touched_before_close']} / {modes['failure']['touched_before_close']}, "
                   f"closed first {modes['success']['closed_first']} / {modes['failure']['closed_first']}", '',
+                  f"checks (P, mm, median / 95th percentile / max): stage 1 wrist position {g['checks']['stage1_wrist_mm_p50_p95_max']}, "
+                  f"hand-off {g['checks']['handoff_wrist_mm_p50_p95_max']}, replayed vs logged correction {g['checks']['correction_replay_mm_p50_p95_max']}", '',
                   '| quantity | n succ / fail | median succ | median fail | AUC [95% CI] | p | separates |',
                   '|---|---|---|---|---|---|---|']
         for name, label, scale, unit in rows:
@@ -635,6 +648,28 @@ def table(summary, rows=TABLE_ROWS):
             lines.append(f"| {label}{' (' + unit + ')' if unit else ''} | {m['n_succ']} / {m['n_fail']} | {fmt(m['median_succ'])} | "
                          f"{fmt(m['median_fail'])} | {auc_text} | {p} | {m['separates']} |")
         lines.append('')
+    return '\n'.join(lines)
+
+
+def cells(records):
+    """Markdown: one row per run cell, medians success / failure of the quantities that matter most."""
+    by = defaultdict(list)
+    for r in records:
+        if 'skip' not in r:
+            by[(r['family'], r['condition'], r['cell'])].append(r)
+    med = lambda rows, name, scale: ('—' if not [r for r in rows if np.isfinite(r.get(name, np.nan))] else
+                                     f"{np.median([r[name] for r in rows if np.isfinite(r.get(name, np.nan))]) * scale:.1f}")
+    lines = ['| family · condition | cell | n | 1st success | failures: never closed / touched first / closed first | '
+             'wrist stage 2 (cm) | root stage 2 (cm) | wrist orient. stage 2 (deg) | staleness at close (cm) | pushed (cm) |',
+             '|---|---|---|---|---|---|---|---|---|---|']
+    for (family, condition, cell), rows in sorted(by.items()):
+        s = [r for r in rows if r['first_success']]
+        f = [r for r in rows if not r['first_success']]
+        both = lambda name, scale: f'{med(s, name, scale)} / {med(f, name, scale)}'
+        modes = ' / '.join(str(sum(r['mode'] == m for r in f)) for m in ('never_closed', 'touched_before_close', 'closed_first'))
+        lines.append(f"| {family} · {condition} | {cell} | {len(rows)} | {len(s)} | {modes} | {both('P.wrist_pos.2', 100)} | "
+                     f"{both('P.root_pos.2', 100)} | {both('P.wrist_rot.2', 1)} | {both('staleness_C_m', 100)} | "
+                     f"{both('push_contact_to_close_m', 100)} |")
     return '\n'.join(lines)
 
 
@@ -659,7 +694,7 @@ def _work(args):
 def main(argv=None):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    parser.add_argument('command', choices=('episodes', 'summary', 'table'))
+    parser.add_argument('command', choices=('episodes', 'summary', 'table', 'cells'))
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--runs', type=Path)
     parser.add_argument('--workers', type=int, default=32)
@@ -677,6 +712,8 @@ def main(argv=None):
             for record in pool.imap_unordered(_work, [(str(r), args.threshold) for r in runs], chunksize=4):
                 f.write(json.dumps(record) + '\n')
         print(f'{len(runs)} run folders -> {args.out / "episodes.jsonl"}')
+    elif args.command == 'cells':
+        print(cells(read_jsonl(args.out / 'episodes.jsonl')))
     elif args.command == 'table':
         print(table(json.loads((args.out / 'summary.json').read_text())))
     else:
