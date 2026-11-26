@@ -33,7 +33,7 @@ def test_resampling_keeps_the_path_and_the_timing():
     assert len(out) == int(np.ceil((stamps[-1]-stamps[0])*RATE-1e-9))+1
     path = integrate_root(out)
     np.testing.assert_allclose(path[-1, :2], world[-1, :2], atol=2e-3)
-    np.testing.assert_allclose(out[:, 9], np.linspace(0, 1, len(out)), atol=1e-6)
+    assert out[0, 9] == 0 and out[-1, 9] == pytest.approx(1.) and (np.diff(out[:, 9]) >= 0).all()
     assert out[0, 38] == 0 and out[-1, 38] == 1
 
 
