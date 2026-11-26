@@ -366,7 +366,7 @@ def stage_errors(layers, targets, hands):
 
 def target_poses(kind, row, rest, anchor_torso, t, bias):
     """Task target, planned path and commanded target at time ``t`` as pose dicts."""
-    pieces = path_pieces(kind, row, *rest)
+    pieces = path_pieces(kind, row, rest[0], rest[1])
     task_pos, task_rot = pieces[-1][1], pieces[-1][2]
     plan_pos, plan_rot = planned_wrists(pieces, rest[2], rest[0], rest[1], t)
     common = {'root_pos': np.asarray(row['anchor_root'], float), 'torso_rot': anchor_torso}
@@ -412,7 +412,7 @@ def episode(run, fk, threshold=CONTACT_N, sensitivity=SENSITIVITY_N):
 
     def wanted(t):
         _, row = target_at(targets, t)
-        return planned_wrists(path_pieces(kind, row, *rest), anchor_time, rest[0], rest[1], t)[0]
+        return planned_wrists(path_pieces(kind, row, rest[0], rest[1]), anchor_time, rest[0], rest[1], t)[0]
 
     # The closed-loop wrist correction, replayed from the plans made after the advance should have ended.
     reach_end = max((s['time'] for s in steps if s.get('round') == 0 and s.get('phase') == 'advance'), default=anchor_time)
