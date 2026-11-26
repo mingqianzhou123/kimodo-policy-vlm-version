@@ -305,6 +305,8 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label):
               '--seed', str(SIM_SEED), '--episode_seed', str(SIM_SEED), '--max_steps', str(steps),
               '--episode_batch_json', str(run/'episodes.json'),
               '--lerobot_server_url', f'http://127.0.0.1:{port}', '--lerobot_server_timeout', '120', '--step_log_every_n', '50']
+    if tracker == 'twist2':   # the stock evaluation's default TWIST2 checkpoint (run_vla_eval.sh)
+        simcmd += ['--model_path', str(arena.parent/'TWIST2/assets/ckpts/twist2_1017_20k.onnx')]
     if tracker == 'sonic':
         simcmd += ['--sonic_encoder_path', str(cache/'sim-assets/sonic/model_encoder.onnx'),
                    '--sonic_decoder_path', str(cache/'sim-assets/sonic/model_decoder.onnx')]

@@ -94,6 +94,7 @@ if a.carry_goal:
     if not a.grasp_loop or a.grasp_task!='box':raise ValueError('--carry-goal carries the box after the box grasp loop')
     from kimodo_vla.oracle.carry_policy import CarryPolicy
     from kimodo_vla.oracle.locomotion import LocomotionPolicy
+    grasp_model = policy.model
 
     def make_locomotion(goal, folder):
         # The settings of the 2026-11-25 native walks (experiment 2's command test), on the grasp policy's model.
@@ -103,7 +104,7 @@ if a.carry_goal:
             handoff_seconds=a.handoff_seconds, joint_speed=a.joint_speed, support_constraints='none',
             hand_constraints='keyframes', trajectory_projection='none', motion_goal=goal, noise_seed=a.carry_noise_seed,
             walk_steps=50, generator='native', segment_seconds=5., segment_steps=100, transition_frames=5,
-            approach_gain=2., model=policy.model)
+            approach_gain=2., model=grasp_model)
     policy = CarryPolicy(policy, make_locomotion, json.loads(Path(a.carry_goal).read_text()), a.run)
 routes = {('GET','/health'):lambda _: (200,{'status':'ok','native':True}),
           ('POST','/reset'):lambda r: (200,policy.reset(r.get('seed'))),

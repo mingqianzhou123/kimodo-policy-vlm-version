@@ -30,7 +30,7 @@ def test_resampling_keeps_the_path_and_the_timing():
     stamps = 1000.+np.cumsum(np.r_[0., np.full(59, 1/12)])          # 12 Hz, 5 s
     a, world = walk_actions(stamps)
     out = resample(a, stamps)
-    assert len(out) == int(round((stamps[-1]-stamps[0])*RATE))+1
+    assert len(out) == int(np.floor((stamps[-1]-stamps[0])*RATE+1e-9))+1
     path = integrate_root(out)
     np.testing.assert_allclose(path[-1, :2], world[-1, :2], atol=2e-3)
     np.testing.assert_allclose(out[:, 9], np.linspace(0, 1, len(out)), atol=1e-6)
