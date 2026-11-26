@@ -226,7 +226,7 @@ def main():
             raise ValueError('Replay must consume exactly the archived frame count')
         if not a.capture_vision or not a.visual_markers or a.marker_reach_rad != fixture['marker_reach_rad'] or a.camera_lateral_m != fixture['camera_lateral_m']:
             raise ValueError('Replay scene must match the archived marker/camera configuration')
-    if a.vlm_model and (fixed or a.mode!='hold' or a.trajectory_projection!='ik-hold' or not a.visual_markers):
+    if a.vlm_model and not a.command_loop and (fixed or a.mode!='hold' or a.trajectory_projection!='ik-hold' or not a.visual_markers):
         raise ValueError('First VLM experiment requires visual markers and the standing IK-hold backend')
     if fixed and a.mode not in ('hold','reach'):  # a demo replay is logged as 'hold'
         raise ValueError('Fixed reference supports hold/reach only')
@@ -290,7 +290,7 @@ def main():
             env.pop(key,None)
         env.update(VLM_MARKER_REACH_RAD=str(a.marker_reach_rad),VLM_CAMERA_LATERAL_M=str(a.camera_lateral_m))
     if a.start_xy:env['KVLA_START_XY']=f'{a.start_xy[0]},{a.start_xy[1]}'
-    if a.capture_vision or a.vlm_model:
+    if a.capture_vision or (a.vlm_model and not a.command_loop):   # the command loop captures for itself
         env.update(VLM_CAPTURE='1',VLM_CAMERA=a.camera,ENABLE_DEPTH='1')
         if a.visual_markers:
             env.update(VLM_MARKERS='1',VLM_MARKER_REACH_RAD=str(a.marker_reach_rad),
