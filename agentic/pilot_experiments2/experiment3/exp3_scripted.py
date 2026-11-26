@@ -191,14 +191,17 @@ class TaskScript:
             self.hold = to_robot(observation, box['position'][:2])
             layer, shelf = obj(observation, 'shelf_target_layer'), obj(observation, 'shelf')
             normal, along, inside = nearest_face(shelf, observation['robot']['pelvis'][:2])
-            self.place_xy = inside(0.22, self.box_half()+0.15)
+            # Stop with the held box just short of the shelf's face, then move it in with the hands: in development
+            # episode 90000 (2026-11-27) walking until the box was 22 cm inside the shelf knocked it out of the hands.
+            self.place_xy = inside(self.place_depth_m, self.box_half()+0.15)
+            self.approach_xy = inside(-self.approach_gap_m, self.box_half()+0.15)
             self.place_z = layer['max'][2]+self.box_half()+0.02
             self.place_yaw = float(np.degrees(np.arctan2(-normal[1], -normal[0])))
             self.stage, self.tries = 'carry', 0
         if self.stage == 'carry':
             yaw = np.radians(self.place_yaw)
             c, s_ = np.cos(yaw), np.sin(yaw)
-            stand = np.asarray(self.place_xy)-np.array([c*self.hold[0]-s_*self.hold[1], s_*self.hold[0]+c*self.hold[1]])
+            stand = np.asarray(self.approach_xy)-np.array([c*self.hold[0]-s_*self.hold[1], s_*self.hold[0]+c*self.hold[1]])
             step = self.face(observation, self.place_yaw, 6.) or self.walk_to(observation, stand, .08)
             if step and self.tries < 6:
                 self.tries += 1
@@ -218,7 +221,9 @@ class TaskScript:
             return
         self.queue = []
 
-    over_m = .10   # the open hands travel this far above the grasp height before they come down beside the box
+    over_m = .10          # the open hands travel this far above the grasp height before they come down beside the box
+    approach_gap_m = .05  # the carried box stops this far short of the shelf's face
+    place_depth_m = .15   # and the hands put its centre this far inside it (Arena needs at least half the box, 0.105)
 
     def box_half(self):
         return 0.105
