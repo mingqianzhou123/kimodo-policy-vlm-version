@@ -66,6 +66,50 @@ def hand_points(side, angles):
     return np.array(points)
 
 
+def reference_points(row, fk):
+    """Hand points of the reference SONIC consumed at one step: XML FK of its joints and root, open fingers."""
+    pos, rot = fk(np.asarray(row['reference_joints'], float), np.asarray(row['reference_root_world'], float),
+                  quat_matrix(row['reference_root_quat']))
+    return np.concatenate([p + hand_points(side, {}) @ r.T for p, r, side in zip(pos, rot, ('left', 'right'))])
+
+
+def reference_episode(runs, record, reach, fk):
+    """Closest approach of the reference's own hands to the table during the raise (anchor .. raise end + 0.4 s)
+    and during the advance: does the plan itself take the fingers through the table's edge?"""
+    run = runs / record['run']
+    rounds = read_jsonl(run / 'rounds.jsonl')
+    first = round_targets(rounds)[0]
+    anchor, raise_end = first[0], first[2]['raise_end']
+    lo, hi = table_box(run)
+    out = {'run': record['run'], 'cell': record['cell'], 'group': reach['group'], 'first_success': record['first_success'],
+           'mode': record['mode']}
+    phases = {'raise': (anchor, raise_end + .4), 'advance': (raise_end + .4, record['time_P'])}
+    rows = [r for r in read_jsonl(run / 'execution.jsonl') if 'reference_joints' in r]
+    for name, (t0, t1) in phases.items():
+        best = None
+        for r in rows:
+            if t0 - 1e-6 <= r['after']['time'] <= t1 + 1e-6 and key(r['after']['time']) % 2 == 0:
+                pts = reference_points(r, fk)
+                d = box_distance(pts, lo, hi)
+                i = int(np.argmin(d))
+                if best is None or d[i] < best[0]:
+                    best = (float(d[i]), float(pts[i, 2] - hi[2]), float(pts[i, 0] - lo[0]))
+        if best is not None:
+            out.update({f'ref_{name}_clearance_m': best[0], f'ref_{name}_z_above_top_m': best[1],
+                        f'ref_{name}_x_beyond_edge_m': best[2]})
+    return out
+
+
+def _reference_work(args):
+    from paths import G1_XML
+    from kimodo_vla.core.types import G1_JOINT_NAMES
+    from kimodo_vla.oracle.geometry import XmlFK
+    global _FK
+    if '_FK' not in globals():
+        _FK = XmlFK(G1_XML, G1_JOINT_NAMES)
+    return reference_episode(*args, _FK)
+
+
 def world_points(after):
     out = []
     for h, side in enumerate(('left', 'right')):
@@ -219,7 +263,7 @@ def table(records, key_fields=('group', 'outcome')):
 def main(argv=None):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
     p = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    p.add_argument('action', choices=('logs', 'replays'))
+    p.add_argument('action', choices=('logs', 'replays', 'reference'))
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--reach-out', type=Path)
     p.add_argument('--stage-out', type=Path)
@@ -230,7 +274,29 @@ def main(argv=None):
     a = p.parse_args(argv)
     from paths import RUNS
     a.out.mkdir(parents=True, exist_ok=True)
-    if a.action == 'logs':
+    if a.action == 'reference':
+        reach = {r['run']: r for r in read_jsonl(a.reach_out / 'reach.jsonl') if 'skip' not in r and r['group'].startswith('box')}
+        records = [r for r in read_jsonl(a.stage_out / 'episodes.jsonl') if r.get('run') in reach]
+        from multiprocessing import Pool
+        with Pool(a.workers) as pool:
+            out = pool.map(_reference_work, [(RUNS, r, reach[r['run']]) for r in records])
+        with (a.out / 'reference-clearance.jsonl').open('w') as f:
+            f.write(''.join(json.dumps(r) + '\n' for r in out))
+        by = defaultdict(list)
+        for r in out:
+            outcome = 'success' if r['first_success'] else ('failure, never closed' if r['mode'] == 'never_closed' else 'failure, other')
+            by[(r['group'], outcome)].append(r)
+        lines = ['| group | outcome | n | reference hands, raise: closest to the table (cm) | inside the table box (n) | '
+                 'closest point above the top / beyond the edge (cm) | advance: closest (cm) | inside (n) |', '|---|---|---|---|---|---|---|---|']
+        med = lambda rows, k: f"{np.median([r[k] for r in rows if k in r]) * 100:.1f}" if any(k in r for r in rows) else '—'
+        for (g, o), rows in sorted(by.items()):
+            lines.append(f"| {g} | {o} | {len(rows)} | {med(rows, 'ref_raise_clearance_m')} | "
+                         f"{sum(1 for r in rows if r.get('ref_raise_clearance_m', 1) < 0)} | {med(rows, 'ref_raise_z_above_top_m')} / "
+                         f"{med(rows, 'ref_raise_x_beyond_edge_m')} | {med(rows, 'ref_advance_clearance_m')} | "
+                         f"{sum(1 for r in rows if r.get('ref_advance_clearance_m', 1) < 0)} |")
+        (a.out / 'reference-clearance.md').write_text('\n'.join(lines) + '\n')
+        print('\n'.join(lines))
+    elif a.action == 'logs':
         reach = {r['run']: r for r in read_jsonl(a.reach_out / 'reach.jsonl') if 'skip' not in r and r['group'].startswith('box')}
         records = [r for r in read_jsonl(a.stage_out / 'episodes.jsonl') if r.get('run') in reach]
         from multiprocessing import Pool
