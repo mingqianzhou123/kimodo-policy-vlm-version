@@ -76,6 +76,12 @@ def test_walk_request_and_correction(tmp_path):
     # the true root ended 0.5 m short: walked off again, from the new reference
     far = sample([1., 1.], 90.)
     assert planner.chunk({'observation': {'oracle_history': [far]}}) is not None and len(client.messages) == 2
+    # the reference already at the target but the true root 0.3 m short: the reference walks 0.3 m further
+    lag = sample([1., 1.5], 90.)
+    lag['root_pos'] = [1., 1.2, .77]
+    planner.queue, planner.corrections = None, 0
+    planner.chunk({'observation': {'oracle_history': [lag]}})
+    assert client.messages[-1]['request']['walk']['target'] == [pytest.approx(.3), pytest.approx(0., abs=1e-9)]
     near = sample([1., 1.49], 90.)
     planner.queue = None
     assert planner.chunk({'observation': {'oracle_history': [near]}}) is None

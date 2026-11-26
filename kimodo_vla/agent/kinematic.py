@@ -207,11 +207,14 @@ class KinematicPlanner(Planner):
                 heading_rad(obs['reference_root_quat'])]
 
     def plan_walk(self, obs, target):
+        """A walk of the reference by what the true root still lacks: the plan starts from the reference, which may be
+        ahead of (or behind) the measured root, so the reference goes to target + (reference - measured)."""
         frame = self.frame(obs)
         c, s = np.cos(frame[2]), np.sin(frame[2])
-        d = np.asarray(target['root_xy'], float)-frame[:2]
+        d = np.asarray(target['root_xy'], float)-np.asarray(obs['root_pos'][:2], float)
         local = [float(c*d[0]+s*d[1]), float(-s*d[0]+c*d[1])]
-        turn = int(round(wrap_deg(target['yaw_deg']-np.degrees(frame[2]))))
+        measured_yaw = yaw_deg(rotation_wxyz(obs['root_quat']))
+        turn = int(round(wrap_deg(target['yaw_deg']-measured_yaw)))
         request = {'walk': {'target': [round(v, 4) for v in local], 'turn_deg': int(np.clip(turn, -180, 180))}}
         if obs['reference_root_pos'][2] > WALK_HEIGHT_MAX:
             request['height'] = WALK_HEIGHT
