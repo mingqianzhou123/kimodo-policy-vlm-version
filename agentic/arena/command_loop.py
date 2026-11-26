@@ -130,11 +130,14 @@ class Hooks:
             else:
                 x0, x1, y0, y1 = values[:4]
                 objects.append(region('target', [x0, y0, 0.], [x1, y1, 0.], shape='box', note='stand with both feet inside this area'))
+            # The obstacles are rigid bodies placed by the episode's layout through physics, so the stage's boxes are
+            # stale: only their sizes are taken from the stage, their poses come with the moving objects (movable()).
+            sizes = {}
             for name in NAVI_OBSTACLES:
                 bounds = self.stage_bounds(f'/World/envs/env_0/{name}')
                 if bounds is not None:
-                    objects.append(region(name.lower(), *bounds, kind_of='obstacle'))
-            extra.update({'target_region': [region_kind, list(values)]})
+                    sizes['obstacle_'+name[8:10]+'_'+name[-1].lower()] = (bounds[1]-bounds[0]).tolist()
+            extra.update({'target_region': [region_kind, list(values)], 'obstacle_sizes_m': sizes})
         else:
             seat = self.rewards._get_sofa_seat_boxes_world(self.env)[0]
             if seat is None:
@@ -158,17 +161,24 @@ class Hooks:
 
     def movable(self):
         out = []
-        keys = {'pp_box': ['box'], 'sit_sofa': ['carton_obstacle_01', 'carton_obstacle_02']}.get(self.task, [])
+        keys = {'pp_box': ['box'], 'sit_sofa': ['carton_obstacle_01', 'carton_obstacle_02'],
+                'vision_navi': [f'obstacle_0{i}_{c}' for i in (1, 2) for c in 'abc']}.get(self.task, [])
         for key in keys:
             if key not in self.env.scene.keys():
                 continue
             data = self.env.scene[key].data
             pos = data.root_com_pos_w[0].detach().cpu().numpy() if key == 'box' else data.root_pos_w[0].detach().cpu().numpy()
             quat = data.root_quat_w[0].detach().cpu().numpy()
+            extra = self.static_objects()[1]
             size = (list(self.rewards._BOX_SIZE_M) if key == 'box'
-                    else self.static_objects()[1].get(f'{key}_size_m'))
-            out.append({'name': key, 'kind': 'object', 'position': pos.tolist(), 'yaw_deg': yaw_deg(quat),
-                        'quat_wxyz': quat.tolist(), 'size': size})
+                    else extra.get(f'{key}_size_m') or extra.get('obstacle_sizes_m', {}).get(key))
+            entry = {'name': key, 'kind': 'object', 'position': pos.tolist(), 'yaw_deg': yaw_deg(quat),
+                     'quat_wxyz': quat.tolist(), 'size': size}
+            if key.startswith('obstacle_') and size is not None:
+                # Conservative axis-aligned box whatever the yaw, so a route planner can test height and footprint.
+                half = np.array([max(size[:2])/2, max(size[:2])/2, size[2]/2])
+                entry.update(min=(pos-half).tolist(), max=(pos+half).tolist())
+            out.append(entry)
         return out
 
     def truth(self):
