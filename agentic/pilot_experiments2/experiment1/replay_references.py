@@ -97,7 +97,30 @@ def run_id(tag, tracker, date):
     return f'{PREFIX}-{tracker}-{tag}-{date}'
 
 
-def analyze_run(run, fk):
+def task_in_replay(original, record_time_P, replay_rows, replay_time, segment_start):
+    """The original task target (box: both ``pre`` wrists; hammer: ``grip``) carried into the replay's frame.
+
+    The segment starts on the original reference at the anchor; the replay's reference root at the
+    window start plays that role. Positions are moved with the yaw difference between the two.
+    Added after the first replays (see README): the replayed reference carries the closed-loop
+    correction, so "within 5 cm of the reference" is not "within the grasp gate of the target"."""
+    from stage_split import target_at
+    rounds = read_jsonl(original / 'rounds.jsonl')
+    targets = round_targets(rounds)
+    anchor = targets[0][0]
+    execution = {key(r['after']['time']): r for r in read_jsonl(original / 'execution.jsonl')}
+    a = execution[key(anchor)]
+    wrists, _ = target_at(targets, record_time_P)
+    task = np.asarray(wrists['pre'] if 'pre' in wrists else [wrists['grip']] * 2, float)
+    i = int(np.argmin(abs(replay_time - segment_start)))
+    b = replay_rows[i]
+    yaw = lambda q: np.arctan2(quat_matrix(q)[1, 0], quat_matrix(q)[0, 0])
+    d = yaw(b['reference_root_quat']) - yaw(a['reference_root_quat'])
+    turn = np.array([[np.cos(d), -np.sin(d), 0], [np.sin(d), np.cos(d), 0], [0, 0, 1]])
+    return (turn @ (task - np.asarray(a['reference_root_world'])).T).T + np.asarray(b['reference_root_world'])
+
+
+def analyze_run(run, fk, original=None, time_P=None):
     target = json.loads((run / 'target.json').read_text())
     rows = [r for r in read_jsonl(run / 'execution.jsonl') if 'reference_root_world' in r]
     time_ = np.array([r['after']['time'] for r in rows])
@@ -126,6 +149,13 @@ def analyze_run(run, fk):
     out = {'run': run.name, 'fell': fell, 'wrist_end_m': w, 'behind_end_m': b, 'lean_ref_end_deg': lr, 'lean_end_deg': la,
            'wrist_last_m': float(window[:, 0].mean()), 'behind_last_m': float(window[:, 1].mean())}
     out['follows'] = bool(not fell and out['wrist_last_m'] <= FOLLOW_WRIST_M and out['behind_last_m'] <= FOLLOW_BACKOFF_M)
+    if original is not None:
+        task = task_in_replay(original, time_P, rows, time_, target['window_time'][0])
+        hands = (0, 1) if 'exp1b-' not in original.name else (1,)
+        to_task = lambda i, which: float(np.mean([np.linalg.norm(np.asarray(rows[i][which][h] if which == 'reference_wrist_world'
+                                                                            else rows[i]['after']['wrist_pos'][h]) - task[h]) for h in hands]))
+        out['robot_to_task_last_m'] = float(np.mean([to_task(i, 'after') for i in last]))
+        out['reference_to_task_last_m'] = float(np.mean([to_task(i, 'reference_wrist_world') for i in last]))
     return out
 
 
@@ -205,10 +235,11 @@ def main(argv=None):
         rows = []
         for m in json.loads((a.out / 'manifest.json').read_text()):
             result = {}
+            time_P = json.loads((a.out / f"{m['tag']}.json").read_text())['time_P']
             for tracker in ('sonic', 'heft'):
                 run = RUNS / run_id(m['tag'], tracker, a.date)
                 ok = (run / 'run.json').exists() and json.loads((run / 'run.json').read_text()).get('status') == 'completed'
-                result[tracker] = analyze_run(run, fk) if ok else None
+                result[tracker] = analyze_run(run, fk, RUNS / m['run'], time_P) if ok else None
             rows.append({**m, **result, 'verdict': verdict(result['sonic'], result['heft']) if m['outcome'] == 'fail' else
                          ('controls: both follow' if all(x and x['follows'] for x in result.values()) else 'control not followed')})
         (a.out / 'replays.json').write_text(json.dumps(rows, indent=1))
