@@ -73,6 +73,9 @@ def prepare(raw_path, tracker='sonic'):
         actions = build_sonic_actions_from_recording(data, num_frames=frames, align_heading_targets=True)
     else:
         actions = build_twist2_actions_from_recording(data, num_frames=frames, control_dt=1/RATE)
+        if 'system_timestamp' in data.files:   # TWIST2 recordings tick at ~12 Hz; the simulator consumes 50 Hz
+            actions = resample(actions, np.asarray(data['system_timestamp'], dtype=float))
+            frames = len(actions)
     objects, final = {}, {}
     for key in data.files:
         for field in ('position', 'orientation'):
@@ -88,6 +91,36 @@ def prepare(raw_path, tracker='sonic'):
             'robot_start': {'position': np.asarray(data['robot_root_position'])[0].tolist(),
                             'orientation': np.asarray(data['robot_root_orientation'])[0].tolist()},
             'actions': np.asarray(actions, dtype=float).round(6).tolist()}
+
+
+def resample(actions, stamps, rate=RATE):
+    """40-d actions recorded at times ``stamps`` (s) -> the same motion on a ``rate`` Hz grid.
+
+    The root path is integrated in the world as Arena's decoder does (body-frame xy steps), positions
+    and joints are interpolated linearly, rotations by slerp, hand commands by the latest recorded
+    value; the body-frame xy steps are then taken again on the new grid.
+    """
+    from scipy.spatial.transform import Rotation, Slerp
+    from kimodo_vla.oracle.demo_walks import integrate_root, rot6d_rows
+    a = np.asarray(actions, dtype=float)
+    t = stamps-stamps[0]
+    keep = np.r_[True, np.diff(t) > 1e-6]
+    a, t = a[keep], t[keep]
+    rotations = rot6d_rows(a)
+    position = integrate_root(a, rotations)
+    grid = np.arange(0., t[-1]+1e-9, 1/rate)
+    out = np.zeros((len(grid), 40))
+    p = np.stack([np.interp(grid, t, position[:, i]) for i in range(3)], axis=1)
+    r = Slerp(t, Rotation.from_matrix(rotations))(grid).as_matrix()
+    step = np.zeros_like(p)
+    step[1:] = p[1:]-p[:-1]
+    out[:, :2] = np.einsum('tji,tj->ti', r, step)[:, :2]
+    out[:, 2] = p[:, 2]
+    out[:, 3:9] = r[:, :, :2].reshape(len(grid), 6)
+    out[:, 9:38] = np.stack([np.interp(grid, t, a[:, 9+j]) for j in range(29)], axis=1)
+    latest = np.searchsorted(t, grid, side='right')-1
+    out[:, 38:40] = a[latest, 38:40]
+    return out
 
 
 # ---- the reference served to the simulator ------------------------------------------------------
