@@ -17,7 +17,9 @@ section 4 of the six-experiment plan:
 
 A grasp attempt is a hand_pose command followed by closing the hands; a sit attempt is a
 pelvis_height command low enough to sit (or with ``behind_feet_m``). For a failed episode the
-judge walks the attempts in time and returns the first link whose check fails
+judge walks the attempts in time and returns the first link whose check fails (an attempt that
+lifted the box, or seated the hips, keeps its link 1-3 checks in the record as superseded: the
+body evidently got there)
 (``attribution='earliest'``, the plan's rule), or only the last attempt's
 (``attribution='last_attempt'``, an option for the team). Every check it made is returned with
 its value and threshold, so a reader can see why. A failed episode with no attempt, or one where
@@ -413,7 +415,13 @@ def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest
     if attempts:
         pool = attempts if attribution == 'earliest' else attempts[-1:]
         for rows in pool:
-            failed = checks.first_failure(rows)
+            # An attempt that lifted the box (or seated the hips) shows its body got there: its link 1-3 checks
+            # stay in the record but do not count as the failure (marked superseded).
+            if any(r['link'] == 4 and r['passed'] for r in rows):
+                for r in rows:
+                    if r['link'] in (1, 2, 3) and not r['passed'] and r.get('phase') != 'place':
+                        r['superseded'] = True
+            failed = checks.first_failure([r for r in rows if not r.get('superseded')])
             if failed:
                 break
     if failed is None and not tried:
@@ -423,7 +431,8 @@ def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest
         if problem is not None:
             failed = {'link': 1, 'check': problem[1], 'phase': 'approach', 'time': problem[0]}
     if failed is None:
-        verdict.update(link='unclassified', reason='no attempt' if not tried else 'every check passed')
+        verdict.update(link='unclassified', reason=('no attempt' if not tried else 'every check passed')
+                       + (f" (episode ended: {verdict['arena_failure_reason']})" if verdict['arena_failure_reason'] else ''))
         return verdict
     verdict.update(link=failed['link'], link_name=LINKS[failed['link']], phase=failed.get('phase'),
                    reason=failed['check'], failed_check=failed)

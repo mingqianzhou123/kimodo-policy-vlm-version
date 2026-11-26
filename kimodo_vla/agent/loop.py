@@ -146,7 +146,19 @@ class CommandLoopPolicy:
         context = {'history': self.history, 'hands': self.hands, 'heading': self.heading,
                    'folder': self.run/'loop'/f'cmd-{index:03d}', 'seed': self.seed*1000+index, 'new_samples': len(samples)}
         states = end_states(obs, self.fk)
-        info = self.planner.start(command, context)
+        try:
+            info = self.planner.start(command, context)
+        except ValueError as exc:
+            # A valid command the planner cannot carry out (e.g. a posture outside the joint limits from where the
+            # robot stands): logged as refused by the planner, the body holds, and the commander is asked again.
+            row = {'index': index, 'type': command['type'], 'time': obs['time'], 'command': command, 'source_call': source,
+                   'target': {}, 'measured': states['measured'], 'reference': states['reference']}
+            self.log.command({'kind': 'start', **row})
+            self.log.command({'kind': 'end', **row, 'duration_s': 0., 'status': 'planner_refused', 'error': str(exc)[:500],
+                              'hands_closed': hands_closed(obs), 'measured_error': {}, 'reference_error': {}})
+            self.last = {'command': command, 'status': 'planner_refused', 'error': str(exc)[:200]}
+            self.recent.append(command['type'])
+            return False
         self.hands = np.asarray([float(h) for h in info['hands_closed']])
         self.active = {'index': index, 'command': command, 'time': obs['time'], 'target': info['target']}
         self.log.command({'kind': 'start', 'index': index, 'type': command['type'], 'time': obs['time'], 'command': command,
@@ -154,6 +166,7 @@ class CommandLoopPolicy:
                           'hands_closed_before': hands_closed(obs), 'measured': states['measured'],
                           'reference': states['reference']})
         self.recent.append(command['type'])
+        return True
 
     def decide(self, obs, truth, vision):
         """Ask the commander until it gives a valid command or a budget runs out; returns the command or None."""
@@ -219,7 +232,8 @@ class CommandLoopPolicy:
         if command['type'] == 'done':
             self.end('commander_done', obs)
             return self.respond(obs, hold_rows(obs, self.heading, 25, self.hands))
-        self.launch(command, call, samples, obs)
+        if not self.launch(command, call, samples, obs):
+            return self.respond(obs, hold_rows(obs, self.heading, 5, self.hands))
         rows = self.planner.chunk(request)
         if rows is None:      # nothing to do (a toggle that is already over): hold a moment, decide again
             rows = hold_rows(obs, self.heading, 5, self.hands)

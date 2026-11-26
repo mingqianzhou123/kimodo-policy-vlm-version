@@ -105,17 +105,21 @@ def test_box_success(tmp_path):
 
 def test_box_all_checks_pass_on_the_reference_episode(tmp_path):
     v = verdict_box(tmp_path)
-    assert v['link'] == 'unclassified' and v['reason'] == 'every check passed'
+    assert v['link'] == 'unclassified' and v['reason'].startswith('every check passed')
     assert all(c['passed'] for c in v['checks'])
     assert {c['phase'] for c in v['checks']} == {'grasp', 'place'}
     assert v['margins']['box_region_m'] > 0
 
 
+NO_LIFT = {'lift': lambda t: 0., 'placed': False}   # a reach that went wrong does not lift the box afterwards
+
+
 @pytest.mark.parametrize('change, link, check', [
-    ({'contacts': {'torso_link': 80.}}, 1, 'body collision during the reach'),
-    ({'fall_at': 5.}, 1, 'stable during the reach'),
-    ({'left': [BOX[0]-.1, BOX[1]+HALF+.35, BOX[2]+.04]}, 2, 'left wrist beside its face'),
-    ({'reach_error': {'left_wrist_m': .15, 'left_wrist_deg': 5., 'right_wrist_m': .02, 'right_wrist_deg': 5.}}, 3, 'left wrist arrived'),
+    ({'contacts': {'torso_link': 80.}, **NO_LIFT}, 1, 'body collision during the reach'),
+    ({'fall_at': 5., **NO_LIFT}, 1, 'stable during the reach'),
+    ({'left': [BOX[0]-.1, BOX[1]+HALF+.35, BOX[2]+.04], **NO_LIFT}, 2, 'left wrist beside its face'),
+    ({'reach_error': {'left_wrist_m': .15, 'left_wrist_deg': 5., 'right_wrist_m': .02, 'right_wrist_deg': 5.}, **NO_LIFT},
+     3, 'left wrist arrived'),
     ({'lift': lambda t: 0.}, 4, 'box lifted after closing'),
     ({'lift': lambda t: .1 if 7. <= t < 9. else 0., 'hands_up': lambda t: 0. if t < 7. else .1, 'placed': False},
      5, 'kept the box until the hands opened')])
@@ -126,7 +130,7 @@ def test_box_one_episode_per_link(tmp_path, change, link, check):
 
 
 def test_box_out_of_reach_is_link_one(tmp_path):
-    commands, steps, scene = box_episode()
+    commands, steps, scene = box_episode(**NO_LIFT)
     far = copy.deepcopy(commands)
     far[1][0]['measured']['root'][0] -= .4          # the robot stood 40 cm further back when it reached
     v = judge(write(tmp_path, 'pp_box', scene, far, steps, False), THRESHOLDS, grasp_config=GRASP)
@@ -137,7 +141,7 @@ def test_box_out_of_reach_is_link_one(tmp_path):
 def test_box_without_an_attempt_is_unclassified(tmp_path):
     commands, steps, scene = box_episode()
     v = judge(write(tmp_path, 'pp_box', scene, commands[:1], steps, False, 'command_budget'), THRESHOLDS, grasp_config=GRASP)
-    assert v['link'] == 'unclassified' and v['reason'] == 'no attempt' and v['end_reason'] == 'command_budget'
+    assert v['link'] == 'unclassified' and v['reason'].startswith('no attempt') and v['end_reason'] == 'command_budget'
 
 
 def test_collision_on_the_way_without_an_attempt_is_link_one(tmp_path):
@@ -198,11 +202,14 @@ def test_sofa_all_checks_pass_on_the_reference_episode(tmp_path):
     assert v['margins']['pelvis_target_seat_m'] > 0
 
 
+UNSEATED = {'contact': lambda t: 0.}    # a sit that went wrong does not end with the seat carrying the hips
+
+
 @pytest.mark.parametrize('change, link, check', [
-    ({'yaw': 180.}, 1, 'back turned to the seat'),
-    ({'pelvis': [.3, 0., .78], 'end_root': [.1, 0., .56]}, 1, 'seat edge within reach behind the pelvis'),
-    ({'behind': 0.}, 2, 'pelvis target over the seat'),
-    ({'end_root': [-.44, 0., .70]}, 3, 'pelvis arrived (height)'),
+    ({'yaw': 180., **UNSEATED}, 1, 'back turned to the seat'),
+    ({'pelvis': [.3, 0., .78], 'end_root': [.1, 0., .56], **UNSEATED}, 1, 'seat edge within reach behind the pelvis'),
+    ({'behind': 0., **UNSEATED}, 2, 'pelvis target over the seat'),
+    ({'end_root': [-.44, 0., .70], **UNSEATED}, 3, 'pelvis arrived (height)'),
     ({'contact': lambda t: 0.}, 4, 'seat carries the hips'),
     ({'contact': lambda t: 200. if 4.8 <= t < 7. else 0., 'fall_at': 7.5}, 5, 'stayed seated')])
 def test_sofa_one_episode_per_link(tmp_path, change, link, check):
@@ -232,3 +239,15 @@ def test_every_threshold_is_named_and_marked():
     for name in used:
         entry = THRESHOLDS[name]
         assert entry['status'] in ('placeholder', 'fact') and entry['meaning']
+
+
+def test_a_lifted_box_supersedes_stance_and_arrival_checks(tmp_path):
+    """The box was lifted, then lost: links 1-3 of that attempt are noted, the failure is link 5."""
+    commands, steps, scene = box_episode(lift=lambda t: .1 if 7. <= t < 9. else 0., hands_up=lambda t: 0. if t < 7. else .1,
+                                         placed=False, reach_error={'left_wrist_m': .15, 'left_wrist_deg': 5.,
+                                                                    'right_wrist_m': .02, 'right_wrist_deg': 5.})
+    commands[1][0]['measured']['root'][0] -= .4      # also outside the validated reach region
+    v = judge(write(tmp_path, 'pp_box', scene, commands, steps, False), THRESHOLDS, grasp_config=GRASP)
+    assert v['link'] == 5
+    noted = [c for c in v['checks'] if c.get('superseded')]
+    assert {c['link'] for c in noted} == {1, 3}

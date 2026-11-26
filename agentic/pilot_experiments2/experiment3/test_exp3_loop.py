@@ -353,3 +353,19 @@ def test_loop_reports_a_target_before_the_first_reach_is_armed(tmp_path):
                                commander=commander, fk=FK)
     responses = drive(policy)
     assert responses[-1]['command_loop']['end'] and all('targets_world' in r['oracle_target'] for r in responses)
+
+
+def test_a_command_the_planner_cannot_carry_out_is_logged_and_asked_again(tmp_path):
+    class Refusing(StandInPlanner):
+        def start(self, command, context):
+            if command['type'] == 'pelvis_height':
+                raise ValueError('Posture out of reach')
+            return super().start(command, context)
+    commander = ListCommander([{'type': 'pelvis_height', 'height_m': .45, 'behind_feet_m': .3}, {'type': 'done'}])
+    policy = CommandLoopPolicy(None, None, tmp_path, config={'budgets': {}}, task_text='t', planner=Refusing(),
+                               commander=commander, fk=FK)
+    drive(policy)
+    episode = load_episode(tmp_path)
+    assert episode['commands'][0]['end']['status'] == 'planner_refused'
+    assert episode['summary']['end_reason'] == 'commander_done'
+    assert commander.seen[1][0]['last_command']['status'] == 'planner_refused'
