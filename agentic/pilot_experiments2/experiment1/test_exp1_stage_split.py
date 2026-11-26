@@ -28,7 +28,7 @@ def test_mannwhitney_matches_scipy():
 
 def test_wilson_interval():
     lo, hi = ss.wilson(27, 30)
-    assert lo == pytest.approx(.7347, abs=1e-3) and hi == pytest.approx(.9654, abs=1e-3)
+    assert lo == pytest.approx(.7438, abs=1e-3) and hi == pytest.approx(.9654, abs=1e-3)
 
 
 def test_separation_rule_needs_both_outcomes_and_a_clear_auc():
