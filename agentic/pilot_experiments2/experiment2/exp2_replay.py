@@ -270,7 +270,7 @@ def free_mib(gpu):
     return uuid, int(free)
 
 
-def launch_one(run_id, episode_path, task, gpu, dds_domain, label):
+def launch_one(run_id, episode_path, task, gpu, dds_domain, label, dynamics='actuator'):
     from paths import CHECKPOINTS, RUNS, sim_cache
     cache = sim_cache()
     arena = cache/ARENA_SOURCE
@@ -290,6 +290,7 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label):
     env = {k: v for k, v in os.environ.items() if k.lower() not in ('http_proxy', 'https_proxy', 'all_proxy')}
     env.update(PYTHONUNBUFFERED='1', OMP_NUM_THREADS='4', ORACLE_RUN=str(run), SONIC_DYNAMICS_PROFILE='actuator',
                KVLA_EXP2_EPISODE=str(Path(episode_path).resolve()), KVLA_TRACK_OBJECT=TASKS[task]['track'],
+               KVLA_EXP2_DYNAMICS=dynamics,
                KVLA_DDS_DOMAIN=str(dds_domain))
     path = os.pathsep.join((str(HERE), str(AGENTIC), str(REPO)))
     policyenv = {**env, 'CUDA_VISIBLE_DEVICES': '', 'PYTHONPATH': path, 'HF_HUB_OFFLINE': '1'}
@@ -327,7 +328,8 @@ def launch_one(run_id, episode_path, task, gpu, dds_domain, label):
               'episode_file': str(Path(episode_path).resolve()), 'episode_sha256': sha256(episode_path),
               'raw_source': episode['source'], 'raw_sha256': episode['raw_sha256'], 'tracker': episode['tracker'],
               'sim_seed': SIM_SEED, 'steps': steps, 'gpu': gpu, 'gpu_uuid': uuid, 'dds_domain': dds_domain,
-              'dynamics_profile': 'actuator' if tracker == 'sonic' else None, 'settled_start': tracker == 'sonic',
+              'dynamics_profile': (dynamics if dynamics != 'arena' else None) if tracker == 'sonic' else None,
+              'settled_start': tracker == 'sonic',
               'sim_command': simcmd, 'policy_command': policycmd,
               'git_commit': commit, 'started_unix': time.time(),
               'tracker_sha256': {p.name: sha256(p) for p in ((cache/'sim-assets/sonic').glob('model_*.onnx') if tracker == 'sonic'
@@ -407,7 +409,7 @@ def launch(args):
                 continue
             print('START', run_id, 'gpu', gpu, flush=True)
             try:
-                launch_one(run_id, path, args.task, gpu, args.dds_domain+slot, args.label)
+                launch_one(run_id, path, args.task, gpu, args.dds_domain+slot, args.label, args.dynamics)
                 print('COMPLETE', run_id, flush=True)
             except BaseException as exc:
                 print('FAILED', run_id, repr(exc)[:200], flush=True)
@@ -476,6 +478,8 @@ def main():
     p.add_argument('--task', choices=list(TASKS), required=True)
     p.add_argument('--label', default='partb')
     p.add_argument('--tracker', choices=['sonic', 'twist2'], default='sonic')
+    p.add_argument('--dynamics', choices=['actuator', 'arena'], default='actuator',
+                   help="SONIC: the aligned actuators of this line's runs since 2026-11-17, or Arena's own (as recorded)")
     p.add_argument('--repeats', type=int, default=1)
     p.add_argument('--gpus', type=int, nargs='+', default=[])
     p.add_argument('--episodes', nargs='+')
@@ -507,7 +511,7 @@ def main():
     summary = {'runs': len(results), 'completed': len(done), 'successes': sum(r['success'] for r in done),
                'episodes': len(table), 'agree': sum(v['agree'] for v in table.values()),
                'V': sorted(e for e, v in table.items() if v['in_V'])}
-    out = RUNS/f"{run_name(args.label, args.task, 'all', 'all', args.tracker)}.json"
+    out = RUNS/f'p2e2-replay-summary-{args.label}-{args.tracker}-{args.task}.json'
     out.write_text(json.dumps({'summary': summary, 'episodes': table, 'runs': results}, indent=1))
     for r in results:
         print(json.dumps(r))

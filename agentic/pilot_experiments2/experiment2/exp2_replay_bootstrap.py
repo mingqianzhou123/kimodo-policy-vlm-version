@@ -14,8 +14,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 AGENTIC = HERE.parents[1]
 sys.path[:0] = [str(AGENTIC), str(HERE)]
-from arena import oracle_bridge
+from arena import oracle_bridge, settled_start
 from arena.settled_start import install
+
+if os.environ.get('KVLA_EXP2_DYNAMICS', 'actuator') == 'arena':
+    settled_start.install_dynamics_override = lambda: None   # Arena's own actuators, as the demos were recorded
 from exp2_replay import place_recorded
 
 original = oracle_bridge.install_oracle_bridge
