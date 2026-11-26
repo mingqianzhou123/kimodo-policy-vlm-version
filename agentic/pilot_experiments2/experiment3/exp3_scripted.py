@@ -93,7 +93,7 @@ class SmokeScript:
 class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
-    def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False):
+    def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -107,6 +107,8 @@ class TaskScript:
             raise ValueError((task, stop_after))
         self.task, self.stop_after = task, stop_after
         self.stance_closer_m, self.min_clearance = float(stance_closer_m), bool(min_clearance)
+        # an explicit pelvis-to-table-edge clearance overrides both (k5heft: 0.12 m, below the validated range)
+        self.clearance_m = None if clearance_m is None else float(clearance_m)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -144,6 +146,8 @@ class TaskScript:
         raised = raised or self.min_clearance
         clearance_m = self.grasp['stance_min_clearance_m'] if raised else self.grasp['stance_clearance_m']-.01
         closest = table['min'][0]-(clearance_m+self.wide.get('stance_extra_m', 0.))
+        if self.clearance_m is not None:
+            closest = table['min'][0]-self.clearance_m
         final = self.box_stance(box['position'])
         final[0] += self.stance_closer_m
         final[0] = min(final[0], closest-.02)

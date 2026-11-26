@@ -227,6 +227,20 @@
    },
    "_about": "scripted_hitch, ending after the 'carry' stage (staged development runs: approach + reach + lift + hold first, then carry, then place)."
   },
+  "scripted_hitch_hold_close": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "options": {
+    "stop_after": "hold",
+    "stance_closer_m": 0.12,
+    "clearance_m": 0.12
+   },
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch_hold with the pelvis 0.12 m from the table edge (below the first batch's validated 0.17-0.24 m): HITCH refused the reach beside the box from 0.17 m (k4heft 90002, 90004)."
+  },
   "qwen": {
    "kind": "vlm",
    "backend": "qwen",
