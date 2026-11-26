@@ -44,7 +44,7 @@ ARENA_SOURCE = 'sources/HumanoidArena-44a72229f11bab47a145e12db39ed891b677e783/i
 TASKS = {
     'pp_box': {'task': 'Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody', 'folder': 'HOI_pp_box', 'track': 'box',
                'config': {'sonic': 'tasks/common_test_config/base_test/pp_box_sonic_test.yaml'}},
-    'sit_sofa': {'task': 'Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody', 'folder': 'HSI_sit_sofa', 'track': 'sofa',
+    'sit_sofa': {'task': 'Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody', 'folder': 'HSI_sit_sofa', 'track': 'carton_obstacle_01',
                  'config': {'sonic': 'tasks/common_test_config/base_test/sit_sofa_sonic_test.yaml'}},
 }
 BLEND_S, HOLD_S, RATE = 1., 1., 50.

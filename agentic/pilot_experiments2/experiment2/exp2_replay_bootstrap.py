@@ -36,5 +36,12 @@ def place_recorded(env):
          'recorded': episode['objects']}, indent=1))
 
 
-oracle_bridge.install_oracle_bridge = lambda: install(original, markers=False, audit=False, before=place_recorded)
+def any_heading():
+    """SitSofa starts turned 90 degrees; the settled start then re-anchors at the placed heading."""
+    w = json.loads(Path(os.environ['KVLA_EXP2_EPISODE']).read_text())['robot_start']['orientation'][0]
+    return abs(abs(w)-1.) > 1e-3
+
+
+oracle_bridge.install_oracle_bridge = lambda: install(original, markers=False, audit=False, before=place_recorded,
+                                                      any_heading=any_heading())
 runpy.run_path(str(AGENTIC/'scripts/oracle_sim_bootstrap.py'), run_name='__main__')
