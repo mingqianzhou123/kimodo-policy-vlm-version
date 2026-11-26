@@ -46,6 +46,8 @@ def settle(env, provider, warm_action, run, markers=True, before=None, any_headi
         quat, xy = provider._get_current_robot_root_pose_for_vla()
         provider._lerobot_vla_runtime.reset(body_xy_world=xy, target_root_quat_wxyz=quat)
         provider._vla_initial_robot_quat_wxyz = quat.copy()
+        if hasattr(provider, '_heft_reset'):   # HEFT's reference frames restart with the integrator
+            provider._heft_reset()
     # All five archived cases start at identity heading and orientation.
     elif not np.allclose(initial[3:7], [1, 0, 0, 0], atol=1e-6):
         raise ValueError('Unexpected reset orientation')
@@ -81,6 +83,8 @@ def settle(env, provider, warm_action, run, markers=True, before=None, any_headi
                 provider._lerobot_vla_runtime.reset(body_xy_world=xy, target_root_quat_wxyz=quat)
                 provider._vla_initial_robot_quat_wxyz = quat.copy()
                 provider._latest_pose_payload = {}
+                if hasattr(provider, '_heft_reset'):
+                    provider._heft_reset()
                 return
     raise RuntimeError('Double support did not stabilize within 5 s')
 
@@ -90,6 +94,9 @@ def install(install_bridge, *, markers=True, audit=True, before=None, any_headin
     ``any_heading`` lets ``before`` turn the robot about the vertical (off by default)."""
     factory = importlib.import_module('action_provider.create_action_provider')
     install_dynamics_override()
+    if os.environ.get('KVLA_TRACKER') == 'heft':   # HEFT replaces SONIC in the provider, settling included
+        from arena.heft_bridge import install_heft
+        install_heft()
     aligned = factory.create_action_provider
 
     def remember_warm_action(env, args):

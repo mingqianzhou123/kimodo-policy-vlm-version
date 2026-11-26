@@ -1,5 +1,6 @@
 """Native Kimodo experiment A, bound only to localhost."""
 import argparse
+import json
 import sys
 from pathlib import Path
 import kimodo_vla
@@ -54,6 +55,8 @@ p.add_argument('--commander',help='With --command-loop: which commander of the c
 p.add_argument('--command-task',choices=['pp_box','sit_sofa','vision_navi'],help='With --command-loop: the task')
 p.add_argument('--condition',default='',help='With --command-loop: condition name, recorded only')
 p.add_argument('--tracker',default='sonic',help='With --command-loop: the tracker under the planner (selects its avoid rules)')
+p.add_argument('--carry-goal',help='Grasp loop: after a lifted grasp, walk back and run this motion goal carrying the box (kimodo_vla/oracle/carry_policy.py)')
+p.add_argument('--carry-noise-seed',type=int,help='With --carry-goal: Kimodo sampling noise of the carrying walks')
 p.add_argument('--vlm-model')
 p.add_argument('--vlm-localizer',choices=['baseline','refined'],default='baseline')
 p.add_argument('--vlm-python',default=sys.executable)
@@ -114,6 +117,22 @@ if policy is None:
                           constraint_cfg=a.constraint_cfg, text_mode=a.text_mode, root_anchor=a.root_anchor,
                           variant=a.variant,handoff_seconds=a.handoff_seconds,joint_speed=a.joint_speed,
                           support_constraints=a.support_constraints,hand_constraints=a.hand_constraints,trajectory_projection=a.trajectory_projection,**extra)
+if a.carry_goal:
+    if not a.grasp_loop or a.grasp_task!='box':raise ValueError('--carry-goal carries the box after the box grasp loop')
+    from kimodo_vla.oracle.carry_policy import CarryPolicy
+    from kimodo_vla.oracle.locomotion import LocomotionPolicy
+    grasp_model = policy.model
+
+    def make_locomotion(goal, folder, anchor_heading):
+        # The settings of the 2026-11-25 native walks (experiment 2's command test), on the grasp policy's model.
+        folder.mkdir(parents=True, exist_ok=True)
+        return LocomotionPolicy(a.checkpoint, a.text_cache, str(folder), 'hold', diffusion_steps=a.diffusion_steps,
+            constraint_cfg=a.constraint_cfg, text_mode='none', root_anchor=a.root_anchor, variant='bounded',
+            handoff_seconds=a.handoff_seconds, joint_speed=a.joint_speed, support_constraints='none',
+            hand_constraints='keyframes', trajectory_projection='none', motion_goal=goal, noise_seed=a.carry_noise_seed,
+            walk_steps=50, generator='native', segment_seconds=5., segment_steps=100, transition_frames=5,
+            approach_gain=2., model=grasp_model, anchor_heading=anchor_heading)
+    policy = CarryPolicy(policy, make_locomotion, json.loads(Path(a.carry_goal).read_text()), a.run)
 routes = {('GET','/health'):lambda _: (200,{'status':'ok','native':True}),
           ('POST','/reset'):lambda r: (200,policy.reset(r.get('seed'))),
           ('POST','/infer'):lambda r: (200,policy(r))}

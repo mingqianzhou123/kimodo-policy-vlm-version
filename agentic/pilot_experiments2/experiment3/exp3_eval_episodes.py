@@ -5,9 +5,7 @@
 Arena's test configs (`tasks/common_test_config/base_test/<task>_sonic_test.yaml`) set seeds [0, 1, 2]
 and 20 repeats per seed; `script/eval_scripts/sonic/eval_vla_suite.py` runs each episode with
 seed = its group seed and episode_seed = `_derive_episode_seed(task_name, group_seed, repeat_idx)`,
-copied below (HumanoidArena 44a7222). It is the same function as experiment 2's
-`exp2_replay.official_episode_seed` (branch claude/exp2-tracker-base, PR #20, not merged yet; once it is,
-import that one instead of this copy); the test pins experiment 2's checked value for P&PBox (0, 0).
+computed by experiment 2's `exp2_replay.official_episode_seed` (its record, section 4).
 
 Restoring one (experiment 2's record, section 4): run Arena's evaluation with --seed <group> and
 --episode_seed <derived seed> and the episode batch entry {seed, episode_seed, repeat_idx}; Arena's
@@ -19,20 +17,17 @@ simulation clock (observation 'time' is env.sim.current_time, the simulator paus
 thinks; wall-clock time is only logged as latency), so closed-loop runs should repeat too - not tested.
 """
 import argparse
-import hashlib
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'experiment2'))
+from exp2_replay import OFFICIAL_GROUPS as GROUP_SEEDS, OFFICIAL_REPEATS as REPEATS, official_episode_seed  # noqa: E402
 
 TASK_NAMES = {'pp_box': 'Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody',
               'sit_sofa': 'Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody',
               'vision_navi': 'Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody'}
-GROUP_SEEDS, REPEATS = (0, 1, 2), 20
-
-
-def derive_episode_seed(task_name, group_seed, repeat_idx):
-    """Arena's `_derive_episode_seed` (eval_vla_suite.py), unchanged."""
-    payload = f'{task_name}|{int(group_seed)}|{int(repeat_idx)}'.encode('utf-8')
-    return int.from_bytes(hashlib.sha256(payload).digest()[-4:], 'big', signed=False) & 0x7FFFFFFF
+derive_episode_seed = official_episode_seed
 
 
 def official_episodes(task):

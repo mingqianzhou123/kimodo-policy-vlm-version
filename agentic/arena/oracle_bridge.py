@@ -39,7 +39,9 @@ def install_oracle_bridge():
         grasp = os.environ.get('GRASP_LOOP') == '1'
         # GRASP_TASK=hammer: the one-handed DoubleDesk hammer grasp (arena/hammer_loop.py); unset, the box.
         hammer = grasp and os.environ.get('GRASP_TASK') == 'hammer'
-        target_key = 'object_l' if hammer else 'box'
+        # KVLA_TRACK_OBJECT names the scene object logged as box_pos / box_quat outside the grasp loops
+        # (experiment 2's replays of SitSofa); unset, the box as before.
+        target_key = 'object_l' if hammer else 'box' if grasp else os.environ.get('KVLA_TRACK_OBJECT', 'box')
         # A scene without that object (SitSofa in the command loop) logs no object pose.
         has_target = target_key in env.scene.keys()
         loop = drive_rest = None
@@ -59,7 +61,9 @@ def install_oracle_bridge():
                           if 'PackingTable' in c['path']), None)
             if table is None or abs(table['min'][0]-config['scene']['table_edge_x_m']) > .01:
                 raise ValueError('The table edge in the scene differs from the grasp configuration')
-            loop = GraspLoop(run, config, stop=lambda: setattr(env.kvla_controller, 'is_running', False),
+            # KVLA_GRASP_KEEP_RUNNING=1 (run_oracle.py --carry-goal): a success no longer ends the episode.
+            keep = os.environ.get('KVLA_GRASP_KEEP_RUNNING') == '1'
+            loop = GraspLoop(run, config, stop=(lambda: None) if keep else lambda: setattr(env.kvla_controller, 'is_running', False),
                              layout=load_layout())
             apply_hands = provider._apply_hand_binary_targets
             # The policy's hand channel is ignored: both hands follow the measured-arrival gate.
@@ -158,6 +162,9 @@ def install_oracle_bridge():
             if loop is not None:
                 record.update(contact_sensor_available=True, grasp_attempted=loop.gate.fired_at is not None,
                               grasp=loop.after_step(after, read_contact(env)))
+            if getattr(provider, '_heft_reference', None) is not None:   # the frame HEFT tracked (arena/heft_bridge.py)
+                record['heft_reference'] = provider._heft_reference
+                record['heft_checks'] = dict(provider._heft_checks)
             payload = provider._latest_pose_payload
             if payload and all(k in payload for k in ('body_pos','body_quat_w','joint_pos')):
                 refp, refr = fk(np.asarray(payload['joint_pos']).reshape(29),
