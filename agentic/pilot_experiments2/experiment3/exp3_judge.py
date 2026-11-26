@@ -43,7 +43,11 @@ def main():
     fk = XmlFK(REPO/'kimodo_vla/skeleton/assets/g1skel34/xml/g1.xml', G1_JOINT_NAMES)
     verdicts = []
     for run in runs(a.runs):
-        v = judge(load_episode(run), thresholds, fk=fk, grasp_config=grasp, attribution=a.attribution)
+        try:
+            v = judge(load_episode(run), thresholds, fk=fk, grasp_config=grasp, attribution=a.attribution)
+        except Exception as exc:   # one unreadable run must not hide the others
+            print(f'{run.name}: NOT JUDGED ({exc!r})')
+            continue
         verdicts.append(v)
         margins = ' '.join(f'{k}={x:+.3f}' for k, x in v['margins'].items())
         what = 'success' if v['success'] else f"link {v['link']} ({v.get('phase')}: {v['reason']})"

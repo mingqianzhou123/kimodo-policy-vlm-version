@@ -403,7 +403,12 @@ def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest
     """Verdict for one episode: success, the failed link (1-5) or 'unclassified', and every check."""
     if attribution not in ('earliest', 'last_attempt'):
         raise ValueError(attribution)
-    task = (episode.get('meta') or {}).get('task') or (episode.get('scene') or {}).get('task')
+    task = ((episode.get('meta') or {}).get('task') or (episode.get('scene') or {}).get('task')
+            or (episode.get('manifest') or {}).get('task'))
+    if not episode.get('commands') and not episode.get('steps'):
+        return {'run': episode.get('run'), 'task': task, 'success': False, 'link': 'not played', 'reason': 'the loop never started',
+                'attempts': 0, 'checks': [], 'margins': {}, 'end_reason': None,
+                'arena_failure_reason': (episode.get('episode') or {}).get('failure_reason'), 'attribution': attribution}
     if task == 'pp_box':
         checks, margins, attempts, early_fall, tried = judge_box(episode, thresholds, fk, grasp_config)
     elif task == 'sit_sofa':
