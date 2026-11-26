@@ -29,7 +29,9 @@ TRACKERS={'sonic':lambda cache:['--sonic_encoder_path',str(cache/'sim-assets/son
                                 '--sonic_decoder_path',str(cache/'sim-assets/sonic/model_decoder.onnx')]}
 TASKS={'pp_box':('Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','tasks/common_test_config/base_test/pp_box_sonic_test.yaml'),
        'doubledesk':('Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody','tasks/common_test_config/base_test/doubledesk_sonic_test.yaml'),
-       'sit_sofa':('Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody','tasks/common_test_config/base_test/sit_sofa_sonic_test.yaml')}
+       'sit_sofa':('Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody','tasks/common_test_config/base_test/sit_sofa_sonic_test.yaml'),
+       'vision_navi':('Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody',
+                      'tasks/common_test_config/base_test/vision_navi_sonic_test.yaml')}
 
 
 def sha(p):
@@ -73,7 +75,7 @@ def parse_args(argv=None):
         '(kimodo_vla/oracle/grasp_walk.py, settings in configs/grasp-loop.json wide) instead of whole clips')
     p.add_argument('--box-speed',type=float,default=0.,help='With --box-in-region: drive the box back and forth '
         'across the region at this speed (m/s) from the first latch until a hand touches it')
-    p.add_argument('--task',choices=['pp_box','doubledesk','sit_sofa'],default='pp_box',help='Grasp loop task: the two-handed box '
+    p.add_argument('--task',choices=['pp_box','doubledesk','sit_sofa','vision_navi'],default='pp_box',help='Grasp loop task: the two-handed box '
         '(pp_box) or the one-handed hammer on DoubleDesk (experiment 1b; needs --stand-still and a --hammer-* placement); '
         'command loop: pp_box or sit_sofa')
     p.add_argument('--hammer-at',type=float,nargs=4,metavar=('DEPTH_M','LATERAL_M','YAW_DEG','EXTRA_M'),
@@ -144,8 +146,8 @@ def parse_args(argv=None):
     a=p.parse_args(argv)
     a.steps=a.steps or (1450 if a.grasp_loop else 3000 if a.command_loop else 400)
     if a.command_loop:
-        if not a.commander or a.task not in ('pp_box','sit_sofa'):
-            raise ValueError('--command-loop needs --commander and --task pp_box or sit_sofa')
+        if not a.commander or a.task not in ('pp_box','sit_sofa','vision_navi'):
+            raise ValueError('--command-loop needs --commander and --task pp_box, sit_sofa or vision_navi')
         if (a.grasp_loop or a.motion_goal or a.settled_goal or a.reference_source!='kimodo' or a.root_support
                 or a.capture_vision or a.visual_markers or a.actuator_audit or a.mode!='hold' or a.box_at or a.box_in_region
                 or a.box_wide or a.stand_still or a.start_at_stance):
@@ -154,7 +156,7 @@ def parse_args(argv=None):
         if a.tracker not in TRACKERS:
             raise SystemExit(f'Tracker {a.tracker!r} is not wired into this launcher yet (wired: {sorted(TRACKERS)})')
         a.dynamics_profile=a.dynamics_profile or 'actuator'   # the aligned actuators of every walking and grasping run
-    elif a.task=='sit_sofa' or a.commander or a.condition or a.tracker!='sonic':
+    elif a.task in ('sit_sofa','vision_navi') or a.commander or a.condition or a.tracker!='sonic':
         raise ValueError('--task sit_sofa, --commander and --condition belong to --command-loop')
     hammer=a.task=='doubledesk'
     placements=[bool(a.box_at),a.box_in_region] if not hammer else [bool(a.hammer_at),a.hammer_in_region]

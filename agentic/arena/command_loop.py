@@ -1,4 +1,4 @@
-"""Simulator side of the command loop (``kimodo_vla/agent/loop.py``), for P&PBox and SitSofa.
+"""Simulator side of the command loop (``kimodo_vla/agent/loop.py``), for P&PBox, SitSofa and VisionNavi.
 
 Installed inside the oracle bridge, so every request still carries the measured history. On each
 request it adds the ground-truth objects (``scene_truth``, world frame: x, y on the floor, z up,
@@ -18,7 +18,9 @@ import numpy as np
 from kimodo_vla.oracle.geometry import rotation_wxyz
 
 TASK_MODULES = {'pp_box': 'tasks.g1_tasks.move_pickplace_box_g1_29dof_dex3_wholebody.mdp.rewards',
-                'sit_sofa': 'tasks.g1_tasks.move_sit_sofa_g1_29dof_dex3_wholebody.mdp.rewards'}
+                'sit_sofa': 'tasks.g1_tasks.move_sit_sofa_g1_29dof_dex3_wholebody.mdp.rewards',
+                'vision_navi': 'tasks.g1_tasks.move_small_warehouse_vision_navigation_g1_29dof_dex3_wholebody.mdp.rewards'}
+NAVI_OBSTACLES = ('Obstacle01_A', 'Obstacle01_B', 'Obstacle01_C', 'Obstacle02_A', 'Obstacle02_B', 'Obstacle02_C')
 # Arena's own list of bodies that count as sitting (move_sit_sofa .../mdp/rewards.py), read here as the hip contact.
 HIP_BODIES = ('pelvis', 'pelvis_contour_link', 'imu_in_pelvis', 'waist_yaw_link', 'waist_roll_link', 'waist_pitch_link',
               'torso_link', 'left_hip_pitch_link', 'right_hip_pitch_link', 'left_hip_roll_link', 'right_hip_roll_link',
@@ -117,6 +119,22 @@ class Hooks:
             extra.update({'shelf_parts': self.parts('/World/envs/env_0/Shelf'),
                      'shelf_support_surfaces': [list(s) for s in surfaces], 'shelf_base_top_z': base,
                      'shelf_target_top_z': target_top, 'box_size_m': list(self.rewards._BOX_SIZE_M)})
+        elif self.task == 'vision_navi':
+            # Arena's own target region (the yellow box, else the target sign's ring) and the six laid-out obstacles.
+            region_kind, values = self.rewards._get_stage_target_regions_world(
+                self.env, self.rewards._get_target_positions(self.env))[0]
+            if region_kind == 'circle':
+                cx, cy, r = values
+                objects.append(region('target', [cx-r, cy-r, 0.], [cx+r, cy+r, 0.], shape='circle', radius=r,
+                                      note='stand with both feet inside this circle'))
+            else:
+                x0, x1, y0, y1 = values[:4]
+                objects.append(region('target', [x0, y0, 0.], [x1, y1, 0.], shape='box', note='stand with both feet inside this area'))
+            for name in NAVI_OBSTACLES:
+                bounds = self.stage_bounds(f'/World/envs/env_0/{name}')
+                if bounds is not None:
+                    objects.append(region(name.lower(), *bounds, kind_of='obstacle'))
+            extra.update({'target_region': [region_kind, list(values)]})
         else:
             seat = self.rewards._get_sofa_seat_boxes_world(self.env)[0]
             if seat is None:
@@ -140,7 +158,7 @@ class Hooks:
 
     def movable(self):
         out = []
-        keys = ['box'] if self.task == 'pp_box' else ['carton_obstacle_01', 'carton_obstacle_02']
+        keys = {'pp_box': ['box'], 'sit_sofa': ['carton_obstacle_01', 'carton_obstacle_02']}.get(self.task, [])
         for key in keys:
             if key not in self.env.scene.keys():
                 continue

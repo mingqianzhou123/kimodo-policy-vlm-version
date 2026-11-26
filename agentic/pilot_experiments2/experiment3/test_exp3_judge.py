@@ -109,6 +109,8 @@ def test_box_all_checks_pass_on_the_reference_episode(tmp_path):
     assert all(c['passed'] for c in v['checks'])
     assert {c['phase'] for c in v['checks']} == {'pick', 'place'}
     assert v['margins']['box_region_m'] > 0
+    assert v['arrived'] == {'pick:1': True, 'pick:2': True, 'pick:3': True, 'pick:4': True, 'pick:5': True,
+                            'place:2': True, 'place:3': True, 'place:4': True}
 
 
 NO_LIFT = {'lift': lambda t: 0., 'placed': False}   # a reach that went wrong does not lift the box afterwards

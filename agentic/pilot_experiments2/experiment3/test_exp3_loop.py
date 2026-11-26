@@ -258,7 +258,8 @@ def test_box_script_grasp_commands_are_valid():
 def test_config_names_dev_seeds_and_commanders():
     config = json.loads((HERE/'exp3_harness.json').read_text())
     seeds = config['tasks']['pp_box']['dev_seeds']+config['tasks']['sit_sofa']['dev_seeds']
-    assert len(set(seeds)) == len(seeds) == 20
+    seeds += config['tasks']['vision_navi']['dev_seeds']
+    assert len(set(seeds)) == len(seeds) == 30
     for spec in config['commanders'].values():
         assert (HERE/spec.get('file', spec.get('page', ''))).is_file()
 
@@ -375,7 +376,7 @@ def test_development_seeds_are_not_evaluation_episodes():
     """Plan v3: debugging stays off the 60 official evaluation episodes of each task."""
     from exp3_eval_episodes import derive_episode_seed, official_episodes
     config = json.loads((HERE/'exp3_harness.json').read_text())
-    for task in ('pp_box', 'sit_sofa'):
+    for task in ('pp_box', 'sit_sofa', 'vision_navi'):
         episodes = official_episodes(task)
         assert len(episodes) == 60 and len({e['episode_seed'] for e in episodes}) == 60
         evaluation = {e['episode_seed'] for e in episodes} | {e['group_seed'] for e in episodes}
@@ -426,3 +427,33 @@ def test_planner_moves_avoid_rules_and_corrections():
         assert not planner.next_move(there)
     finally:
         module.prime = original
+
+
+def test_navi_script_routes_around_low_obstacles_only():
+    from exp3_scripted import TaskScript, clearance
+    target = {'name': 'target', 'kind': 'region', 'min': [-1.9, -1.3, 0.], 'max': [-1.3, -.7, 0.], 'center': [-1.6, -1., 0.]}
+    wall = {'name': 'obstacle01_a', 'kind': 'region', 'min': [-2.4, -3.3, 0.], 'max': [-.8, -3.0, .3]}
+    beam = {'name': 'obstacle02_c', 'kind': 'region', 'min': [-2.4, -2.3, 1.6], 'max': [-.8, -2.0, 2.0]}
+    script = TaskScript('vision_navi')
+    observation = {'robot': {'pelvis': [-1.9, -5.2, .78], 'heading_deg': 90.}, 'objects': [target, wall, beam]}
+    first = validate(script.next(observation))
+    assert first['type'] == 'walk'
+    legs = [[-1.9, -5.2]]+script.route
+    assert len(script.route) > 1 and script.route[-1] == pytest.approx([-1.6, -1.])
+    assert all(clearance(np.asarray(a)+(np.asarray(b)-np.asarray(a))*u, wall) > .3
+               for a, b in zip(legs, legs[1:]) for u in np.linspace(0, 1, 30))
+
+
+def test_navi_verdict(tmp_path):
+    from kimodo_vla.agent.judge import judge
+    loop = tmp_path/'loop'
+    loop.mkdir()
+    (loop/'meta.json').write_text(json.dumps({'task': 'vision_navi'}))
+    (loop/'scene.json').write_text(json.dumps({'objects': [{'name': 'target', 'center': [0., 0., 0.], 'min': [-.3, -.3, 0.],
+                                                             'max': [.3, .3, 0.]}]}))
+    (loop/'commands.jsonl').write_text('')
+    (loop/'steps.jsonl').write_text(json.dumps({'time': 1., 'root_pos': [1., 0., .78], 'fallen': False})+'\n')
+    (tmp_path/'episode.json').write_text(json.dumps({'success': False, 'failure_reason': 'timeout'}))
+    v = judge(load_episode(tmp_path), {})
+    assert v['link'] == 'self-check failed' and v['reason'] == 'ended outside the target'
+    assert v['margins']['final_pelvis_to_target_m'] == pytest.approx(1.)

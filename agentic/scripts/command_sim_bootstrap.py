@@ -1,5 +1,5 @@
 """Command loop: the settled start without markers or audit, the task's contact reporting, and the
-loop's simulator hooks (``arena/command_loop.py``). COMMAND_TASK is pp_box or sit_sofa."""
+loop's simulator hooks (``arena/command_loop.py``). COMMAND_TASK is pp_box, sit_sofa or vision_navi."""
 import os
 import runpy
 from pathlib import Path
@@ -19,7 +19,7 @@ def install_all():
     def bridge():
         original()
         install_command_hooks()
-    # SitSofa starts the robot turned about the vertical; P&PBox at identity, as the grasp loop.
+    # SitSofa and VisionNavi start the robot turned about the vertical; P&PBox at identity, as the grasp loop.
     install(bridge, markers=False, audit=False, any_heading=task != 'pp_box')
 
 

@@ -91,10 +91,10 @@ class SmokeScript:
 
 
 class TaskScript:
-    """The fixed rule for one task (``task``: 'pp_box' or 'sit_sofa')."""
+    """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
     def __init__(self, task):
-        if task not in ('pp_box', 'sit_sofa'):
+        if task not in ('pp_box', 'sit_sofa', 'vision_navi'):
             raise ValueError(task)
         self.task = task
         self.queue, self.stage, self.tries = [], 'start', 0
@@ -129,8 +129,28 @@ class TaskScript:
     def plan(self, observation):
         if self.task == 'pp_box':
             self.plan_box(observation)
+        elif self.task == 'vision_navi':
+            self.plan_navi(observation)
         else:
             self.plan_sofa(observation)
+
+    # ---- VisionNavi: the interface self-check -------------------------------------------
+    overhead_m = 1.3   # obstacles whose underside is higher than this do not block the walk
+
+    def plan_navi(self, observation):
+        target = obj(observation, 'target')
+        goal = np.asarray(target['center'][:2])
+        if self.stage == 'start':
+            low = [o for o in observation['objects'] if o['name'] != 'target' and o.get('min', [0, 0, 0])[2] < self.overhead_m]
+            self.route, self.stage, self.tries = route(observation['robot']['pelvis'][:2], goal, low), 'walk', 0
+        while self.stage == 'walk' and self.route:
+            step = self.walk_to(observation, self.route[0], .06 if len(self.route) == 1 else .2)
+            if step and self.tries < 8:
+                self.tries += 1
+                self.queue = [step]
+                return
+            self.route.pop(0)
+        self.queue = []
 
     def plan_box(self, observation):
         box = obj(observation, 'box')

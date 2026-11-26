@@ -431,6 +431,37 @@ def judge_sofa(episode, t):
     return checks, margins, results, early_fall, bool(attempts)
 
 
+def arrival_flags(rows):
+    """Per stage and link, whether every check of the last attempt held (the plan's per-link 'arrived' record);
+    None for a link that was never checked. Superseded checks count as held."""
+    last = max((r.get('attempt', 0) for r in rows), default=None)
+    flags = {}
+    for r in rows:
+        if r.get('attempt', 0) != last:
+            continue
+        key = f"{r.get('phase', 'pick')}:{r['link']}"
+        flags[key] = flags.get(key, True) and (r['passed'] or bool(r.get('superseded')))
+    return flags
+
+
+def judge_navi(episode, attribution):
+    """The interface self-check (VisionNavi, plan v3 section 2 item 7) has no five links: it passes when Arena
+    says the robot stands in the target; otherwise the verdict says how far the pelvis ended from it."""
+    target = scene_object(episode, 'target')
+    steps = episode['steps']
+    verdict = {'run': episode.get('run'), 'task': 'vision_navi', 'success': success_of(episode), 'link': None, 'phase': 'self-check',
+               'reason': None, 'attempts': 0, 'checks': [], 'margins': {}, 'attribution': attribution,
+               'end_reason': (episode.get('summary') or {}).get('end_reason'),
+               'arena_failure_reason': (episode.get('episode') or {}).get('failure_reason')}
+    if steps and target is not None:
+        off = float(np.linalg.norm(np.subtract(steps[-1]['root_pos'][:2], target['center'][:2])))
+        verdict['margins']['final_pelvis_to_target_m'] = off
+    if not verdict['success']:
+        fell = fall_time(steps)
+        verdict.update(link='self-check failed', reason='fell' if fell is not None else 'ended outside the target')
+    return verdict
+
+
 def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest'):
     """Verdict for one episode: success, the failed link (1-5) or 'unclassified', and every check."""
     if attribution not in ('earliest', 'last_attempt'):
@@ -441,6 +472,8 @@ def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest
         return {'run': episode.get('run'), 'task': task, 'success': False, 'link': 'not played', 'reason': 'the loop never started',
                 'attempts': 0, 'checks': [], 'margins': {}, 'end_reason': None,
                 'arena_failure_reason': (episode.get('episode') or {}).get('failure_reason'), 'attribution': attribution}
+    if task == 'vision_navi':
+        return judge_navi(episode, attribution)
     if task == 'pp_box':
         checks, margins, attempts, early_fall, tried = judge_box(episode, thresholds, fk, grasp_config)
     elif task == 'sit_sofa':
@@ -452,6 +485,7 @@ def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest
                'phase': None, 'reason': None, 'attempts': len(attempts), 'checks': checks.rows, 'margins': margins,
                'end_reason': (episode.get('summary') or {}).get('end_reason'),
                'arena_failure_reason': (episode.get('episode') or {}).get('failure_reason'), 'attribution': attribution}
+    verdict['arrived'] = arrival_flags(checks.rows)
     if success:
         return verdict
     failed = None

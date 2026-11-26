@@ -51,7 +51,7 @@ p.add_argument('--stand-still',action='store_true',help='Grasp loop: never walk,
 p.add_argument('--native-walk',action='store_true',help='Grasp loop: walk the official Kimodo way (settings: the configuration\'s wide section)')
 p.add_argument('--command-loop',help='Command loop configuration (JSON): a commander issues body commands one at a time (kimodo_vla/agent)')
 p.add_argument('--commander',help='With --command-loop: which commander of the configuration')
-p.add_argument('--command-task',choices=['pp_box','sit_sofa'],help='With --command-loop: the task')
+p.add_argument('--command-task',choices=['pp_box','sit_sofa','vision_navi'],help='With --command-loop: the task')
 p.add_argument('--condition',default='',help='With --command-loop: condition name, recorded only')
 p.add_argument('--tracker',default='sonic',help='With --command-loop: the tracker under the planner (selects its avoid rules)')
 p.add_argument('--vlm-model')

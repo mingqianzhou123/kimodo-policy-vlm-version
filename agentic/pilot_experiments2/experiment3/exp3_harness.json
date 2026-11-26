@@ -32,6 +32,22 @@
     91009
    ],
    "_dev_seeds": "As for pp_box: development only, never in V."
+  },
+  "vision_navi": {
+   "task_text": "Walk to the target marked on the floor and stop with both feet inside it.",
+   "dev_seeds": [
+    92000,
+    92001,
+    92002,
+    92003,
+    92004,
+    92005,
+    92006,
+    92007,
+    92008,
+    92009
+   ],
+   "_dev_seeds": "Interface self-check (plan v3, section 2 item 7): if the loop fails here, nothing else is read. Development only, never an evaluation episode."
   }
  },
  "budgets": {

@@ -18,7 +18,15 @@ written as the episode runs, so a crashed episode keeps what happened up to the 
                    object poses, contact forces (each hand on the object, rest of the robot on it,
                    hip / pelvis bodies on anything, other robot bodies touching anything), Arena's
                    success check, fallen flag
-  summary.json     why the loop ended, counts, budgets used
+  summary.json     why the loop ended, counts, budgets used (absent when Arena ended the episode first)
+  verdict.json     (written by the judge afterwards) success, failed link, every check, reach margins and
+                   the per-stage, per-link 'arrived' flags
+
+Plan v3 section 2 item 9, field by field: episode id = run.json (seed / group seed, episode_seed,
+repeat_idx) and meta.json; condition = run.json and meta.json; raw VLM output = vlm.jsonl 'raw'; command
+targets = commands.jsonl 'target'; the 40-d sequence sent = sent.jsonl; root and wrist trajectories and
+contact forces and the object trajectory = steps.jsonl; per-link arrival = verdict.json 'arrived';
+outcome = episode.json; fall = steps.jsonl 'fallen' and episode.json failure_reason 'fall'.
 
 The measured trajectory at full detail (joints, reference, decoder target) stays in the existing
 ``execution.jsonl`` one level up; ``steps.jsonl`` repeats what the judge needs so that the
