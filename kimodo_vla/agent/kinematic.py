@@ -224,6 +224,9 @@ class KinematicPlanner(Planner):
         message = {'request': request, 'start_pose': start.tolist(), 'frame': self.frame(obs), 'torso': list(self.torso),
                    'hands': None, 'wrist_targets': wrists}
         reply = self.connect().plan(message)
+        if not reply.get('ok') and reply.get('code') == 'PLAN_REJECTED' or reply.get('ok') and not reply.get('passed'):
+            # as HITCH's own session does: once more with its slower default timing (limits.SLOWER)
+            reply = self.connect().plan({**message, 'slower': True})
         self.log.append({'time': obs['time'], 'message': message, 'reply': {k: v for k, v in reply.items() if k != 'world'}})
         if not reply.get('ok'):
             raise ValueError(f"HITCH refused: {reply.get('code')}: {reply.get('error')}")

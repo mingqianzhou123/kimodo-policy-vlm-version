@@ -7,7 +7,7 @@ cannot live in the policy server's environment. ``kinematic.KinematicPlanner`` s
 environment and talks to it with one JSON object per line on stdin / stdout.
 
 Request: ``{"request": <HITCH request>, "start_pose": [36], "frame": [x, y, yaw], "torso": [lean, turn],
-"hands": <intents or null>, "wrist_targets": {side: {"position": [3], "rotation": [3][3]}}}`` in the world W.
+"hands": <intents or null>, "slower": bool, "wrist_targets": {side: {"position": [3], "rotation": [3][3]}}}`` in the world W.
 ``start_pose`` is root xyz, root quat wxyz and the 29 joints in HITCH's order (``wbc.core.layout.JOINTS``), the
 reference pose the plan starts from; ``frame`` is the plan frame O in W, exactly as HITCH's own session builds them
 (``wbc.session.session._plan``: the start is the reference tail expressed in O). ``wrist_targets`` (optional) are
@@ -56,7 +56,7 @@ def main():
             pose = to_plan.apply_poses(np.asarray(message['start_pose'], float))
             start = StartState(pose, posture_for_height(float(pose[2])), tuple(message.get('torso') or (0, 0)),
                                message.get('hands'))
-            planned = plan(parse_request(request), start=start, frame=frame, horizon=8)
+            planned = plan(parse_request(request), start=start, frame=frame, horizon=8, slower=bool(message.get('slower')))
             motion = planned.motion
             reply = {'ok': True, 'world': np.asarray(planned.world).tolist(), 'passed': bool(planned.report.passed),
                      'failures': planned.report.findings(blocking=True),
