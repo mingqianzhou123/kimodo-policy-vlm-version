@@ -38,10 +38,13 @@ def heft_run_name(condition, motion, date, seed):
     return f'{PREFIX}-cmd-{condition}-{motion}-{date}-s{seed}'
 
 
-def hitch_errors(run, fk, upto=None):
-    """HITCH appendix D errors of one empty-handed run, over the whole command (up to sample ``upto``)."""
+def hitch_errors(run, fk, upto=None, after_time=None):
+    """HITCH appendix D errors of one empty-handed run, over the whole command (up to sample ``upto``; from
+    ``after_time`` on, if given), plus the body quantities of the command (yaw, pelvis height, torso pitch change)."""
     steps = [json.loads(x) for x in (run/'execution.jsonl').read_text().splitlines() if x.strip()]
     steps = [s for s in steps if 'reference_joints' in s][:None if upto is None else upto+1]
+    if after_time is not None:
+        steps = [s for s in steps if s['after']['time'] >= after_time-1e-6]
     if not steps:
         return {}
 
@@ -62,6 +65,18 @@ def hitch_errors(run, fk, upto=None):
         out['walk_error'] = float(np.linalg.norm(da-dr)/np.linalg.norm(dr))
     ref_bodies = [fk(q, p, R, body_names=names) for p, R, q in refs]
     act_root_rot = [E.rotation_wxyz(s['after']['root_quat']) for s in steps]
+    act_torso = [fk(s['after']['joints'], s['after']['root_pos'], R, body_names=['torso_link'])[1][0]
+                 for s, R in zip(steps, act_root_rot)]
+    yaw = lambda R: np.degrees(np.arctan2(R[1, 0], R[0, 0]))
+    pitch = lambda R: np.degrees(np.arctan2(R[0, 2]*np.cos(np.radians(yaw(R)))+R[1, 2]*np.sin(np.radians(yaw(R))), R[2, 2]))
+    wrap = lambda a: (a+180) % 360-180
+    out.update(yaw_executed_deg=float(wrap(yaw(act_root_rot[-1])-yaw(act_root_rot[0]))),
+               yaw_reference_deg=float(wrap(yaw(refs[-1][1])-yaw(refs[0][1]))),
+               pelvis_drop_executed_m=float(actual_root[-1, 2]-actual_root[0, 2]),
+               pelvis_drop_reference_m=float(ref_root[-1, 2]-ref_root[0, 2]),
+               torso_pitch_executed_deg=float(pitch(act_torso[-1])-pitch(act_torso[0])),
+               torso_pitch_reference_deg=float(pitch(ref_bodies[-1][1][1])-pitch(ref_bodies[0][1][1])),
+               fell=bool((actual_root[:, 2] < E.FALL_HEIGHT_M).any()))
     for side, k in (('left', 2), ('right', 3)):
         torso = [b[1][1].T@(b[0][k]-b[0][1]) for b in ref_bodies]
         moved = np.array([np.linalg.norm(t-torso[0]) >= MOVED_M for t in torso])
@@ -72,6 +87,23 @@ def hitch_errors(run, fk, upto=None):
                               for s, R in zip(steps, act_root_rot)])
         out[f'hand_error_{side}_m'] = float(np.linalg.norm(act_local-ref_local, axis=1)[moved].mean())
     return out
+
+
+def analyze_hitchref(date, fk):
+    """Arm B: HITCH-planned references replayed open loop (heft_segments.py), measured over the planned motion
+    (from the segment window's start to the end of the episode, the last frame held)."""
+    rows = []
+    for run in sorted(_runs().glob(f'{PREFIX}-hitchref-*-{date}')):
+        manifest = run/'run.json'
+        if not manifest.exists() or json.loads(manifest.read_text()).get('status') != 'completed':
+            print('NOT-COMPLETED', run.name)
+            continue
+        target = json.loads((run/'target.json').read_text())
+        tracker, motion = run.name.split('-')[2:4]
+        row = {'run': run.name, 'tracker': tracker, 'motion': motion,
+               **hitch_errors(run, fk, after_time=target['window_time'][0])}
+        rows.append(row)
+    return rows
 
 
 def analyze(prefix, condition, date, fk, tracker):
@@ -118,7 +150,7 @@ def verdict(table):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('action', choices=['run', 'analyze'])
+    p.add_argument('action', choices=['run', 'analyze', 'hitchref'])
     p.add_argument('--date', default=time.strftime('%Y%m%d'))
     p.add_argument('--sonic-date', help='date tag of experiment 2\'s SONIC empty-handed runs')
     p.add_argument('--gpus', type=int, nargs='+', default=[])
@@ -136,6 +168,18 @@ def main():
     from kimodo_vla.core.types import G1_JOINT_NAMES
     from kimodo_vla.oracle.geometry import XmlFK
     fk = XmlFK(G1_XML, G1_JOINT_NAMES)
+    if args.action == 'hitchref':
+        rows = analyze_hitchref(args.date, fk)
+        keys = ('walk_error', 'hand_error_right_m', 'yaw_executed_deg', 'yaw_reference_deg', 'pelvis_drop_executed_m',
+                'pelvis_drop_reference_m', 'torso_pitch_executed_deg', 'torso_pitch_reference_deg', 'fell')
+        print('| tracker | motion | ' + ' | '.join(keys) + ' |')
+        for r in rows:
+            print(f"| {r['tracker']} | {r['motion']} | " + ' | '.join(
+                (f'{r[k]:.3f}' if isinstance(r.get(k), float) else str(r.get(k, '—'))) for k in keys) + ' |')
+        out = _runs()/f'{PREFIX}-hitchref-{args.date}.json'
+        out.write_text(json.dumps(rows, indent=1))
+        print(out)
+        return
     result = {}
     for tracker, prefix, date in (('heft', PREFIX, args.date), ('sonic', 'p2e2', args.sonic_date)):
         if date is None:
