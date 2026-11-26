@@ -43,8 +43,10 @@ def body_state(sample, fk, which='measured'):
         palm, fingers = palm_and_fingers(side, rotations[i])
         wrists[side] = {'position': positions[i].tolist(), 'rotation': np.asarray(rotations[i]).tolist(),
                         'palm': palm.tolist(), 'fingers': fingers.tolist()}
+    shoulders = fk(joints, root, rotation, body_names=[f'{side}_shoulder_pitch_link' for side in SIDES])[0]
     return {'root': root.tolist(), 'yaw_deg': yaw_deg(rotation), 'pelvis_height_m': float(root[2]),
-            'torso_pitch_deg': torso_pitch_deg(fk, joints, root, rotation), 'wrists': wrists}
+            'torso_pitch_deg': torso_pitch_deg(fk, joints, root, rotation), 'wrists': wrists,
+            'shoulders': {side: shoulders[i].tolist() for i, side in enumerate(SIDES)}}
 
 
 def hands_closed(sample):

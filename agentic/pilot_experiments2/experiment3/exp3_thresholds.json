@@ -1,0 +1,33 @@
+{
+ "_about": "Every number the five-link judge (kimodo_vla/agent/judge.py) uses. Values marked placeholder were written before any experiment-3 episode was looked at; they are not tuned on outcomes and must be fixed by the team before the formal run (write the date and the decision in experiment3/README.md). Distances in metres, angles in degrees, forces in newtons, times in seconds.",
+ "_status": "placeholder: to be fixed by the team before the formal run",
+ "box_size_m": {"value": 0.21, "status": "fact", "meaning": "Edge of the P&PBox box (Arena, move_pickplace_box .../mdp/rewards.py _BOX_SIZE_M)."},
+
+ "collision_force_n": {"value": 20, "status": "placeholder", "link": 1, "meaning": "A robot body other than the feet, ankles, hands and wrists pressing on anything with at least this force during a reach counts as a collision."},
+ "stable_tilt_max_deg": {"value": 20, "status": "placeholder", "link": 1, "meaning": "Largest pelvis tilt from upright allowed during a reach."},
+ "reach_region_pad_m": {"value": 0.0, "status": "placeholder", "link": 1, "meaning": "Padding added on every side of the box region validated in the first batch (configs/grasp-loop.json stand.region, both yaws pooled) before the reach margin is measured."},
+ "reach_margin_min_m": {"value": 0.0, "status": "placeholder", "link": 1, "meaning": "Smallest reach margin (box region and each arm) that counts as reachable; negative margins are outside."},
+
+ "grasp_face_gap_m": {"value": [-0.06, 0.12], "status": "placeholder", "link": 2, "meaning": "Commanded wrist distance outside the box face on its side (negative: inside the box), robot-aligned box frame."},
+ "grasp_forward_m": {"value": [-0.25, 0.10], "status": "placeholder", "link": 2, "meaning": "Commanded wrist position along the face, from the box centre, along the robot's facing direction."},
+ "grasp_height_m": {"value": [-0.12, 0.15], "status": "placeholder", "link": 2, "meaning": "Commanded wrist height relative to the box centre."},
+ "palm_angle_max_deg": {"value": 45, "status": "placeholder", "link": 2, "meaning": "Largest angle between the commanded palm direction and the direction into the box from that hand's side."},
+ "place_bottom_gap_m": {"value": [-0.02, 0.10], "status": "placeholder", "link": 2, "meaning": "Placement: where the commanded wrists would put the box bottom, relative to the target layer's top."},
+
+ "wrist_arrival_m": {"value": 0.05, "status": "placeholder", "link": 3, "meaning": "Measured wrist position off the commanded one, at the end of the command."},
+ "wrist_arrival_deg": {"value": 20, "status": "placeholder", "link": 3, "meaning": "Measured wrist orientation off the commanded one, at the end of the command."},
+ "pelvis_arrival_m": {"value": 0.06, "status": "placeholder", "link": 3, "meaning": "Measured pelvis off the commanded pelvis target (ground distance, and height separately), at the end of the sit command."},
+
+ "lifted_height_m": {"value": 0.05, "status": "placeholder", "link": 4, "meaning": "Box raised at least this much above where it rested at the start counts as lifted (the first batch's grasp success used 0.10 m)."},
+ "lifted_hold_s": {"value": 0.5, "status": "placeholder", "link": 4, "meaning": "For at least this long."},
+ "support_window_s": {"value": 1.0, "status": "placeholder", "link": 4, "meaning": "Window after the sit command in which the seat must carry the hips."},
+ "support_force_n": {"value": 50, "status": "placeholder", "link": 4, "meaning": "Median contact force on the pelvis and hip bodies over that window (Arena's own success check needs 5 N on one body)."},
+
+ "dropped_drift_m": {"value": 0.08, "status": "placeholder", "link": 5, "meaning": "After lifting and before the hands open, the box's offset from the midpoint of the two wrists changing by more than this counts as lost (slipped or knocked out of the hands)."},
+
+ "sit_height_max_m": {"value": 0.70, "status": "placeholder", "link": "attempt", "meaning": "A pelvis_height command at or below this height (or with behind_feet_m) is a sit attempt."},
+ "sit_facing_max_deg": {"value": 30, "status": "placeholder", "link": 1, "meaning": "Largest angle between the robot's backward direction and the direction to the seat centre when it starts to sit."},
+ "sit_entry_distance_m": {"value": [0.0, 0.35], "status": "placeholder", "link": 1, "meaning": "Distance behind the pelvis to the seat box's edge, when it starts to sit."},
+ "seat_margin_min_m": {"value": 0.03, "status": "placeholder", "link": 2, "meaning": "The commanded pelvis target at least this far inside the seat box (ground plane)."},
+ "sit_height_above_seat_m": {"value": [0.0, 0.30], "status": "placeholder", "link": 2, "meaning": "Commanded pelvis height above the seat top."}
+}

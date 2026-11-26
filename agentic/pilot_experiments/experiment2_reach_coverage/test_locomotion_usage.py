@@ -66,7 +66,8 @@ def test_a_half_turn_goes_left_and_is_tracked_past_180_degrees(tmp_path):
     walk = policy.model.calls[0]['values'][:, policy.heading_slice].numpy()
     left = policy.heading_features([0., 10.]).numpy()
     # the conditioned heading moves the way +10 degrees (left) moves it
-    assert np.sign(np.cross(walk[1], walk[-1])) == np.sign(np.cross(left[0], left[1]))
+    cross = lambda a, b: a[0]*b[1]-a[1]*b[0]   # NumPy 2 no longer takes 2-d vectors in np.cross
+    assert np.sign(cross(walk[1], walk[-1])) == np.sign(cross(left[0], left[1]))
     for yaw in (90., 170., 200., 260.):                       # the body keeps turning left
         sample = dict(start, root_quat=np.roll(Rotation.from_matrix(
             Rotation.from_euler('z', np.radians(yaw)).as_matrix() @ rotation).as_quat(), 1).tolist())
