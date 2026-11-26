@@ -369,3 +369,16 @@ def test_a_command_the_planner_cannot_carry_out_is_logged_and_asked_again(tmp_pa
     assert episode['commands'][0]['end']['status'] == 'planner_refused'
     assert episode['summary']['end_reason'] == 'commander_done'
     assert commander.seen[1][0]['last_command']['status'] == 'planner_refused'
+
+
+def test_development_seeds_are_not_evaluation_episodes():
+    """Plan v3: debugging stays off the 60 official evaluation episodes of each task."""
+    from exp3_eval_episodes import derive_episode_seed, official_episodes
+    config = json.loads((HERE/'exp3_harness.json').read_text())
+    for task in ('pp_box', 'sit_sofa'):
+        episodes = official_episodes(task)
+        assert len(episodes) == 60 and len({e['episode_seed'] for e in episodes}) == 60
+        evaluation = {e['episode_seed'] for e in episodes} | {e['group_seed'] for e in episodes}
+        dev = set(config['tasks'][task]['dev_seeds'])
+        assert not dev & evaluation       # a development run uses seed = episode seed = its dev seed
+    assert derive_episode_seed('X', 0, 0) == derive_episode_seed('X', 0, 0) < 2**31

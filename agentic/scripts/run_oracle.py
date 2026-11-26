@@ -48,6 +48,9 @@ def parse_args(argv=None):
     p.add_argument('--commander',help='With --command-loop: the commander named in the configuration')
     p.add_argument('--condition',default='',help='With --command-loop: condition name, recorded in run.json')
     p.add_argument('--seed',type=int,default=1000,help='Episode seed: object placement and generator noise')
+    p.add_argument('--episode-seed',type=int,help='Arena episode seed when it differs from --seed (an official evaluation '
+        'episode runs with seed = its group seed and its own episode seed); default: --seed')
+    p.add_argument('--repeat-idx',type=int,default=0,help='With --episode-seed: the evaluation episode\'s repeat index (recorded)')
     p.add_argument('--grasp-loop',action='store_true',help='Blocking grasp rounds on the box: latch its pose, wait, '
         'walk, reach, close both hands on measured arrival, lift; retry until success, fall or the step limit')
     p.add_argument('--latch-delay-steps',type=int,default=75,help='Control steps each round waits after latching the box pose')
@@ -344,7 +347,8 @@ def main():
         shutil.copytree(a.sim_cache_seed,runtime/'cache',ignore=shutil.ignore_patterns('*.lock'))
     for key,folder in [('XDG_CACHE_HOME','cache'),('XDG_DATA_HOME','data'),('XDG_CONFIG_HOME','config'),('CUDA_CACHE_PATH','cuda')]:
         simenv[key]=str(runtime/folder)
-    episode={'seed':a.seed,'episode_seed':a.seed,'repeat_idx':0,'episode_index':0,'max_steps':a.steps,
+    episode_seed=a.seed if a.episode_seed is None else a.episode_seed
+    episode={'seed':a.seed,'episode_seed':episode_seed,'repeat_idx':a.repeat_idx,'episode_index':0,'max_steps':a.steps,
         'result_json':str(run/'episode.json'),'success_video_dir':str(run/'videos'),
         'failure_video_dir':str(run/'videos'),'recording_save_dir':str(run/'recordings'),'video_fps':30,
         'post_termination_record_steps':0,'model_label':('command-loop-' if a.command_loop else 'demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
@@ -354,7 +358,7 @@ def main():
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
         '--task',TASKS[a.task][0],'--env_config_yaml',str(arena/TASKS[a.task][1]),
-        '--seed',str(a.seed),'--episode_seed',str(a.seed),'--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
+        '--seed',str(a.seed),'--episode_seed',str(episode_seed),'--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
         '--lerobot_server_url',f'http://127.0.0.1:{port}','--lerobot_server_timeout','660' if a.vlm_model or a.command_loop else '120','--step_log_every_n','50',
         '--sonic_encoder_path',str(CACHE/'sim-assets/sonic/model_encoder.onnx'),
         '--sonic_decoder_path',str(CACHE/'sim-assets/sonic/model_decoder.onnx')]
@@ -401,7 +405,8 @@ def main():
     if hammer:record.update(experiment='HAMMER-GRASP-LOOP',task=a.task,env_config=TASKS[a.task][1])
     if a.command_loop:record.update(experiment='COMMAND-LOOP',oracle=False,task=a.task,env_config=TASKS[a.task][1],
         target_source='commander',command_loop=str(a.command_loop.resolve()),command_loop_sha256=sha(a.command_loop),
-        commander=a.commander,condition=a.condition,layout_id=a.seed,max_steps=a.steps,
+        commander=a.commander,condition=a.condition,layout_id=a.seed,episode_seed=episode_seed,repeat_idx=a.repeat_idx,
+        max_steps=a.steps,
         vlm_model=str(a.vlm_model) if a.vlm_model else None)
     record['arena_sha256']={f:sha(arena/f) for f in (
         'action_provider/action_provider_sonic.py','action_provider/vla_robot_current_local_runtime_v3.py',
