@@ -8,6 +8,18 @@ from kimodo_vla.core.types import G1_JOINT_NAMES
 from kimodo_vla.oracle.geometry import XmlFK, rotation_wxyz, angle_deg
 
 
+def log_body_contacts(env, floor_n=1.):
+    sensor = env.scene.sensors['contact_forces']
+    forces = np.linalg.norm(sensor.data.net_forces_w[0].detach().cpu().numpy(), axis=-1)
+    out = {'body_contacts_n': {n: float(f) for n, f in zip(sensor.body_names, forces)
+                               if f >= floor_n and 'ankle' not in n and 'foot' not in n}}
+    if 'box_contact' in env.scene.sensors:
+        from arena.grasp_scene import read_contact
+        box = read_contact(env)
+        out['box_contact_n'] = {k: float(box[k]) for k in ('left_n', 'right_n', 'robot_other_n', 'external_n')}
+    return out
+
+
 def install_oracle_bridge():
     factory = importlib.import_module('action_provider.create_action_provider')
     original_create = factory.create_action_provider
@@ -37,6 +49,9 @@ def install_oracle_bridge():
         run = Path(os.environ['ORACLE_RUN'])
         vision = None
         grasp = os.environ.get('GRASP_LOOP') == '1'
+        # Default off. On (demo replays in the grasp scene): per step, the net contact force on every non-foot
+        # robot body of at least 1 N, and the box's contact report when the scene has one.
+        body_contacts = os.environ.get('KVLA_LOG_BODY_CONTACTS') == '1' and log_body_contacts
         # GRASP_TASK=hammer: the one-handed DoubleDesk hammer grasp (arena/hammer_loop.py); unset, the box.
         hammer = grasp and os.environ.get('GRASP_TASK') == 'hammer'
         # KVLA_TRACK_OBJECT names the scene object logged as box_pos / box_quat outside the grasp loops
@@ -198,6 +213,8 @@ def install_oracle_bridge():
                     record['measured_target_angle_deg'] = [angle_deg(a,b) for a,b in
                         zip(np.asarray(after['wrist_rot']),np.asarray(target['wrist_rotation_world']))]
                     record['after_arrival'] = after['time'] >= target['arrival_time']
+            if body_contacts:
+                record.update(body_contacts(env))
             with (run/'execution.jsonl').open('a') as f:
                 f.write(json.dumps(record)+'\n')
             return action

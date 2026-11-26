@@ -85,6 +85,9 @@ def parse_args(argv=None):
     p.add_argument('--reference-source',choices=['kimodo','fixed','replay','demo'],default='kimodo',
         help='demo: replay a walking segment that did not come from Kimodo (kimodo_vla/oracle/demo_walks.py); needs --demo-segment and --start-xy')
     p.add_argument('--demo-segment',type=Path,help='With --reference-source demo: the segment file to replay')
+    p.add_argument('--demo-in-scene',action='store_true',help='With --reference-source demo: replay in the box task\'s grasp scene '
+        '(table and box) instead of the open floor; the robot starts where --box-at (a map cell, with --seed) or --start-at-stance '
+        '(with --seed) puts it, and every step logs the contact force on each non-foot robot body and on the box. Off by default')
     p.add_argument('--settled-goal',type=Path,help='Start from stable double support, keeping archived hand goals in world coordinates; '
         'implies --visual-markers --actuator-audit --dynamics-profile actuator')
     p.add_argument('--replay-fixture',type=Path)
@@ -142,7 +145,7 @@ def parse_args(argv=None):
     if hammer and (a.hammer_speed<0 or (a.hammer_speed and a.inject) or (a.hammer_direction and not a.hammer_speed)
                    or (a.hammer_speed and not a.hammer_direction and not a.hammer_in_region)):
         raise ValueError('--hammer-speed is non-negative, excludes --inject, and needs a direction outside the region')
-    if any(placements) != a.stand_still or all(placements):
+    if not a.demo_in_scene and (any(placements) != a.stand_still or all(placements)):
         raise ValueError('--stand-still goes with exactly one placement: --box-at or --box-in-region '
                          '(--hammer-at or --hammer-in-region with --task doubledesk)')
     if a.stand_still and (not a.grasp_loop or a.start_at_stance):
@@ -178,7 +181,11 @@ def main():
     fixed=a.reference_source in ('fixed','replay','demo')
     if demo != (a.demo_segment is not None):
         raise ValueError('The demo source needs --demo-segment, and --demo-segment needs the demo source')
-    if demo and (not a.start_xy or a.motion_goal or a.grasp_loop or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision
+    if a.demo_in_scene:
+        if not demo or a.start_xy or a.grasp_loop or a.tracker!='sonic' or a.task!='pp_box' or bool(a.box_at)==bool(a.start_at_stance):
+            raise ValueError('--demo-in-scene replays a demo segment with SONIC in the box scene, placed by exactly one of '
+                             '--box-at or --start-at-stance, without --start-xy or the grasp loop')
+    if demo and ((not a.start_xy and not a.demo_in_scene) or a.motion_goal or a.grasp_loop or a.settled_goal or a.vlm_model or a.root_support or a.capture_vision
                  or a.visual_markers or a.actuator_audit or a.dynamics_profile!='actuator' or a.mode!='hold'):
         raise ValueError('Demo replays start on the open floor (--start-xy) with aligned actuators and nothing else')
     if demo and not a.demo_segment.is_file():raise FileNotFoundError(a.demo_segment)
@@ -260,7 +267,7 @@ def main():
     if a.carry_goal:env['KVLA_GRASP_KEEP_RUNNING']='1'   # success no longer ends the episode
     if hammer:env['GRASP_TASK']='hammer'
     if a.start_at_stance:
-        if not a.grasp_loop:raise ValueError('--start-at-stance belongs to the grasp loop')
+        if not a.grasp_loop and not a.demo_in_scene:raise ValueError('--start-at-stance belongs to the grasp loop')
         env['GRASP_START_AT_STANCE']='1'
     layout=None
     if a.box_at:
@@ -286,6 +293,7 @@ def main():
             env.pop(key,None)
         env.update(VLM_MARKER_REACH_RAD=str(a.marker_reach_rad),VLM_CAMERA_LATERAL_M=str(a.camera_lateral_m))
     if a.start_xy:env['KVLA_START_XY']=f'{a.start_xy[0]},{a.start_xy[1]}'
+    if a.demo_in_scene:env['KVLA_LOG_BODY_CONTACTS']='1'
     if a.capture_vision or a.vlm_model:
         env.update(VLM_CAPTURE='1',VLM_CAMERA=a.camera,ENABLE_DEPTH='1')
         if a.visual_markers:
@@ -344,7 +352,7 @@ def main():
         'post_termination_record_steps':0,'model_label':('demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
         'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(a.demo_segment.resolve()) if demo else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
-    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal or demo else ('hammer_sim_bootstrap.py' if hammer else 'grasp_sim_bootstrap.py') if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
+    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('grasp_sim_bootstrap.py' if a.demo_in_scene else 'free_sim_bootstrap.py' if a.motion_goal or demo else ('hammer_sim_bootstrap.py' if hammer else 'grasp_sim_bootstrap.py') if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
         '--task',TASKS[a.task][0],'--env_config_yaml',str(arena/TASKS[a.task][1]),
@@ -392,7 +400,8 @@ def main():
         transition_frames=a.transition_frames if a.generator=='native' else None,
         approach_gain=a.approach_gain,text_until_m=a.text_until_m or None,open_loop=a.open_loop)
     if demo:record.update(experiment='DEMO-REPLAY',oracle=False,target_source='demo_segment',
-        demo_segment=str(a.demo_segment.resolve()),demo_segment_sha256=sha(a.demo_segment),start_xy=a.start_xy)
+        demo_segment=str(a.demo_segment.resolve()),demo_segment_sha256=sha(a.demo_segment),start_xy=a.start_xy,
+        demo_in_scene=a.demo_in_scene)
     if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',
         grasp_config_sha256=sha(grasp_config))
     if hammer:record.update(experiment='HAMMER-GRASP-LOOP',task=a.task,env_config=TASKS[a.task][1])

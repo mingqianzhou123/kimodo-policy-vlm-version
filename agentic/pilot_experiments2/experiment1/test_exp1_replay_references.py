@@ -42,3 +42,24 @@ def test_verdict():
     assert rr.verdict(no, no).startswith('reference')
     assert rr.verdict(yes, no) == 'does not reproduce open loop'
     assert rr.verdict(None, yes) == 'incomplete'
+
+
+def test_scene_placement_from_the_original_run(tmp_path):
+    import json
+    a, b = tmp_path / 'map', tmp_path / 'stance'
+    a.mkdir(), b.mkdir()
+    (a / 'run.json').write_text(json.dumps({'seed': 7003, 'layout_request': {'cell': {'depth': .08, 'lateral': .1, 'yaw': 0., 'extra': 0.}}}))
+    (b / 'run.json').write_text(json.dumps({'seed': 3000, 'layout_request': None, 'start_at_stance': True}))
+    assert rr.placement(a) == ['--seed', '7003', '--box-at', '0.08', '0.1', '0.0', '0.0']
+    assert rr.placement(b) == ['--seed', '3000', '--start-at-stance']
+
+
+def test_scene_contacts_and_reading():
+    rows = [{'after': {'time': t, 'root_pos': [-b, 0, .78]}, 'body_contacts_n': c, 'box_contact_n': {'left_n': 0.}}
+            for t, b, c in ((1., 0., {}), (1.2, .01, {'right_hand_index_1_link': 150.}), (1.4, .06, {'right_hand_index_1_link': 90.}))]
+    out = rr.contacts(rows, 1., 2., np.array([1., 0.]), np.array([0., 0.]))
+    assert out['peak_contact_n'] == {'right_hand_index_1_link': 150.}
+    assert out['first_contact']['body'] == 'right_hand_index_1_link' and out['contact_before_backoff'] is True
+    assert rr.scene_reading({'max_backoff_m': .2, 'contact_before_backoff': True}) == 'back-off with contact first'
+    assert rr.scene_reading({'max_backoff_m': .2, 'contact_before_backoff': False}) == 'back-off without prior contact'
+    assert rr.scene_reading({'max_backoff_m': .01}) == 'no back-off'

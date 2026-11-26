@@ -45,3 +45,14 @@ def test_contact_after_the_raise():
     a = tc.advance_contact(tr, .8)
     assert a['advance_min_clearance_m'] == .004 and a['advance_edge_contact'] is True and a['advance_contact_s'] == 1.
     assert tc.advance_contact(tr, 1.5)['advance_edge_contact'] is False
+
+
+def test_bridge_logs_non_foot_body_contacts():
+    torch = pytest.importorskip('torch')
+    from types import SimpleNamespace
+    from arena.oracle_bridge import log_body_contacts
+    forces = torch.tensor([[[0., 0., 300.], [3., 4., 0.], [0., 0., .5], [100., 0., 0.]]])
+    sensor = SimpleNamespace(body_names=['left_ankle_roll_link', 'right_hand_index_1_link', 'pelvis', 'torso_link'],
+                             data=SimpleNamespace(net_forces_w=forces))
+    env = SimpleNamespace(scene=SimpleNamespace(sensors={'contact_forces': sensor}))
+    assert log_body_contacts(env) == {'body_contacts_n': {'right_hand_index_1_link': 5., 'torso_link': 100.}}
