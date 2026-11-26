@@ -176,6 +176,16 @@
    },
    "_about": "As scripted, with the first batch's reach feedback (measured wrist shortfall added to the command, gain 0.7, at most 12 cm) switched on in the planner. Whether the formal baseline has it is a team decision: it closes part of link 3 inside the planner."
   },
+  "scripted_feedback_open_walk": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "wrist_feedback": true,
+    "move_corrections": 0
+   },
+   "_about": "As scripted_feedback, without the planner's closed-loop correction walks (move_corrections 0), as in development round d7 (3 of 4 lifted). In d9 the correction walks near the table swung the hands into its edge (up to 621 N). A development variant, not a candidate baseline: it switches off plan v3 item 4 for this commander."
+  },
   "qwen": {
    "kind": "vlm",
    "backend": "qwen",

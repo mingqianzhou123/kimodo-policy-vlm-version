@@ -238,10 +238,16 @@ def test_smoke_script_is_valid_throughout():
 
 def test_box_script_grasp_commands_are_valid():
     from exp3_scripted import TaskScript
-    script = TaskScript('pp_box')
     box = {'name': 'box', 'position': [-.5, -4.8, .85], 'quat_wxyz': [1, 0, 0, 0], 'yaw_deg': 0., 'size': [.21]*3}
     table = {'name': 'table', 'min': [-.641, -6.24, 0.], 'max': [.12, -3.76, .745]}
     observation = {'robot': {'pelvis': [-1.6, -5.0, .78], 'heading_deg': 0.}, 'objects': [box, table]}
+    plain = TaskScript('pp_box')                     # default: walk in with the hands in the walking pose (d7)
+    assert plain.next(observation)['type'] == 'walk'
+    observation['robot']['pelvis'] = [-.641-.20, -4.75, .78]
+    assert plain.next(observation) == {'type': 'walk', 'forward_m': pytest.approx(-.04, abs=.011), 'left_m': 0.}
+    observation['robot']['pelvis'] = [-1.6, -5.0, .78]
+    script = TaskScript('pp_box')
+    script.raise_before_walk = True
     raised = validate(script.next(observation), pelvis=observation['robot']['pelvis'])     # hands up before walking
     assert raised['type'] == 'hand_pose' and min(h['position'][2] for h in raised['hands'].values()) > .85+.105+.05
     assert script.next(observation) == {'type': 'hand', 'left': 'close', 'right': 'close'}

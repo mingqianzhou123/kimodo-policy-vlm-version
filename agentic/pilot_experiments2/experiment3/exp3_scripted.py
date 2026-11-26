@@ -185,6 +185,31 @@ class TaskScript:
         box = obj(observation, 'box')
         if self.stage == 'start':
             self.stage, self.tries = 'approach', 0
+        if self.stage == 'approach' and not self.raise_before_walk:
+            # The walk-to-the-stance of d7 (hands in the walking pose, never closer than 0.24 m to the edge), then the
+            # reach from the hanging pose. See raise_before_walk for why the other variant is off.
+            step = self.face(observation, 0.) or self.walk_to(observation, self.box_stance(box['position']))
+            final = self.final_stance(observation, box)
+            if step is None and observation['robot']['pelvis'][0] > final[0]+.02:
+                step = {'type': 'walk', 'forward_m': float(final[0]-observation['robot']['pelvis'][0]), 'left_m': 0.}
+            if step and self.tries < 4:
+                self.tries += 1
+                self.queue = [step]
+                return
+            self.stage = 'grasp'
+            w = waypoints(box['position'], box['quat_wxyz'], observation['robot']['pelvis'][:2], self.grasp)
+            both = lambda key, rot: {s: pose(s, w[key][i], w[rot][i]) for i, s in enumerate(('left', 'right'))}
+            w['over'] = np.asarray(w['pre']).copy()
+            w['over'][:, 2] += self.over_m
+            self.queue = [
+                {'type': 'hand_pose', 'hands': both('via', 'via_rotation'), 'duration_s': self.grasp['raise_s']},
+                {'type': 'hand_pose', 'hands': both('over', 'rotation'), 'duration_s': self.grasp['advance_s']},
+                {'type': 'hand_pose', 'hands': both('pre', 'rotation'), 'duration_s': 1.0},
+                {'type': 'hand', 'left': 'close', 'right': 'close'},
+                {'type': 'hand_pose', 'hands': both('squeeze', 'rotation'), 'duration_s': self.grasp['squeeze_s']},
+                {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': self.grasp['lift_s']},
+                {'type': 'walk', 'forward_m': -0.35, 'left_m': 0.0}]
+            return
         if self.stage == 'approach':
             # Face the table, then hands up and closed before walking: while it walks or stands the walking reference
             # carries both hands in front of the body at 0.72-0.79 m, the height of the table top (0.745 m), and in
@@ -264,6 +289,12 @@ class TaskScript:
         self.queue = []
 
     over_m = .10          # the open hands travel this far above the grasp height before they come down beside the box
+    # Hands up and closed before the walk in (no finger on the table edge: 0 hand contacts above 40 N on the approach
+    # in the seven b1-b3 episodes of 2026-11-27), then down beside the box. Off: from that start the walk ended 4-12 cm
+    # short and SONIC stepped or sat back 12-30 cm during the reach (wrists 15-50 cm off, reference 3-9 cm), 0 of 7
+    # grasped; the d7 reach from the hanging pose stayed within 1-3 cm. Kept for the record and for a planner that
+    # carries the hands differently.
+    raise_before_walk = False
     raised_above_box_m = .08   # before the walk in the wrists go this far above the box top,
     raised_forward_m = .12     # this far in front of the pelvis,
     raised_half_width_m = .22  # and this far to either side of it
