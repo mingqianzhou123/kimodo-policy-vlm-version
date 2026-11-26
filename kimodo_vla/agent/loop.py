@@ -86,8 +86,9 @@ class CommandLoopPolicy:
                        'start_time': first['time'], 'scene_truth_at_start': truth})
 
     def target_info(self, obs):
-        if self.active is not None and self.active['command']['type'] == 'hand_pose':
-            return self.planner.reacher.target_info
+        info = getattr(getattr(self.planner, 'reacher', None), 'target_info', None)
+        if self.active is not None and self.active['command']['type'] == 'hand_pose' and info is not None:
+            return info    # the reach being executed (or, while the body settles, the previous one)
         wrists = np.asarray(obs['wrist_pos'])
         return {'mode': 'command-loop', 'targets_world': np.repeat(wrists[:, None], 2, 1).tolist(),
                 'wrist_rotation_world': obs['wrist_rot'], 'arrival_time': obs['time']}

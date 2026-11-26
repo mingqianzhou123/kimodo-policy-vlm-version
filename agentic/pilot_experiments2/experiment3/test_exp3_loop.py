@@ -340,3 +340,14 @@ def test_planner_settles_before_reaching():
     assert armed_at is not None and armed_at-moving[-1]['time'] >= SETTINGS['reach_settle_s'][0]-1e-6
     at, prior = planner.reacher.armed[0]
     assert at == armed_at and prior[-1] < at and len(prior) == len(set(prior))   # prior excludes this request, no repeats
+
+
+def test_loop_reports_a_target_before_the_first_reach_is_armed(tmp_path):
+    """While the planner holds the body still before its first hand_pose, the reacher has no target yet."""
+    class Settling(StandInPlanner):
+        reacher = object()
+    commander = ListCommander([{'type': 'hand_pose', 'hands': {'left': {'position': [.3, .2, .9]}}}, {'type': 'done'}])
+    policy = CommandLoopPolicy(None, None, tmp_path, config={'budgets': {}}, task_text='t', planner=Settling(),
+                               commander=commander, fk=FK)
+    responses = drive(policy)
+    assert responses[-1]['command_loop']['end'] and all('targets_world' in r['oracle_target'] for r in responses)
