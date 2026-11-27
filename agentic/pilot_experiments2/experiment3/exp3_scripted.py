@@ -94,7 +94,7 @@ class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
-                 place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02):
+                 place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02, place_end_margin_m=.15):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -119,6 +119,9 @@ class TaskScript:
         # board, its front caught the board's edge and it was left propped and slid off after release (m3heft 90002); the
         # box also sags 4-7 cm in the grip while lowered, so at 0.05 it still struck the edge (m4heft 90000, 90004)
         self.place_clearance_m = float(place_clearance_m)
+        # the box centre stays this much plus half the box from either end of the shelf, along its face: a box carried
+        # turned 45 degrees reaches 0.15 m out, and at 0.15 + 0.105 its corner struck the end post (m5heft 90004)
+        self.place_end_margin_m = float(place_end_margin_m)
         if place_depth_m is not None:   # how far inside the shelf's face the box centre goes (class default 0.15 m)
             self.place_depth_m = float(place_depth_m)
         self.queue, self.stage, self.tries = [], 'start', 0
@@ -307,11 +310,11 @@ class TaskScript:
             normal, along, inside = nearest_face(shelf, observation['robot']['pelvis'][:2])
             # Stop with the held box just short of the shelf's face, then move it in with the hands: in development
             # episode 90000 (2026-11-27) walking until the box was 22 cm inside the shelf knocked it out of the hands.
-            self.place_xy = inside(self.place_depth_m, self.box_half()+0.15)
+            self.place_xy = inside(self.place_depth_m, self.box_half()+self.place_end_margin_m)
             # the box's front face (not its centre) stops approach_gap_m short of the shelf's face: with the centre
             # there, the front was already 5.5 cm inside, and on a layout whose shelf stands nearer (k9heft 90004,
             # face at y -3.355) the box was carried into the frame at 1.05 m
-            self.approach_xy = inside(-(self.approach_gap_m+self.box_half()), self.box_half()+0.15)
+            self.approach_xy = inside(-(self.approach_gap_m+self.box_half()), self.box_half()+self.place_end_margin_m)
             self.place_z = layer['max'][2]+self.box_half()+self.place_clearance_m
             self.place_yaw = float(np.degrees(np.arctan2(-normal[1], -normal[0])))
             self.stage, self.tries = 'carry', 0
