@@ -265,7 +265,7 @@
     "place_end_margin_m": 0.3,
     "true_shelf": true,
     "carry_turn_max_deg": 45,
-    "loosen_before_open_m": 0.02
+    "loosen_before_open_m": 0.06
    }
   },
   "scripted_kimodo_main": {

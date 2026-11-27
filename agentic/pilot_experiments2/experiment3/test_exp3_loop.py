@@ -550,4 +550,4 @@ def test_loosen_before_open():
     assert TaskScript('pp_box', true_shelf=True).loosen_before_open_m is None
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
-                                                          'loosen_before_open_m': .02}
+                                                          'loosen_before_open_m': .06}

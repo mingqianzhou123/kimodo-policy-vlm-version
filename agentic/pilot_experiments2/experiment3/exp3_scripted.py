@@ -146,7 +146,9 @@ class TaskScript:
         # With the box set down on the board, before the hands open: each wrist this far outside where it is measured,
         # fists still closed, so the palms stop pressing. Opening the fingers while the wrists were still commanded 3.5 cm
         # inside the box let the palms' squeeze pop it out toward the back of the shelf, the wrists closing 5-8 cm
-        # behind it (7 of the first 60 official layouts thrown off the back; 2026-11-28).
+        # behind it (7 of the first 60 official layouts thrown off the back; 2026-11-28). The box weighs about 50 g
+        # (0.49 N on the board): at 2 cm the opening fingers still flicked it 0.21 m inward (r1heft 90000), so the fists
+        # go far enough out that the opening fingers clear it.
         self.loosen_before_open_m = None if loosen_before_open_m is None else float(loosen_before_open_m)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
