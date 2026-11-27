@@ -184,6 +184,17 @@ class Hooks:
         if self.static is not None:
             return self.static
         objects, extra = [], {'room_assets': self.parts('/World/envs/env_0/Room/Assets', depth=1)}
+        # Where Arena's own seeding put the objects, read with the recorder's function (recorder's frame), so an
+        # official evaluation episode can be checked against experiment 2's layout-applied.json read-back.
+        try:
+            from common_env_objects import collect_recordable_env_object_states, get_current_episode_object_seed_info
+            states = collect_recordable_env_object_states(self.env, self.env.cfg)
+            extra['layout_readback'] = {k: {'position': np.asarray(v['position'], dtype=float).reshape(-1)[:3].tolist(),
+                                            'orientation': np.asarray(v['orientation'], dtype=float).reshape(-1)[:4].tolist()}
+                                        for k, v in states.items() if v is not None}
+            extra['object_seed_info'] = json.loads(json.dumps(get_current_episode_object_seed_info(self.env.cfg), default=str))
+        except Exception as error:   # recorder helpers missing: the run goes on without the read-back
+            extra['layout_readback_error'] = repr(error)
         if self.task == 'pp_box':
             scene = json.loads((self.run/'grasp-scene.json').read_text())
             table = next(c for c in scene['colliders_near_box'] if 'PackingTable' in c['path'])
