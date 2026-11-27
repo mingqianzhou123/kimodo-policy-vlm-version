@@ -508,14 +508,19 @@ def test_true_shelf_face_carry_height_and_insert_check():
     box = {'name': 'box', 'position': [-.85, -5.2, 1.07], 'quat_wxyz': [np.cos(tilt/2), 0, np.sin(tilt/2), 0]}
     wrists = {s: {'position': [-.95, -5.2+(.15 if s == 'left' else -.15), 1.1]} for s in ('left', 'right')}
     observation = {'robot': {'pelvis': [-1.3, -5.2, .78], 'heading_deg': 0., 'wrists': wrists}, 'objects': [box, shelf, layer]}
-    down = script.next(observation)        # carried at 1.07 m: first comes down under the board above (1.104 m)
+    turn = script.next(observation)        # first a turn of at most 45 degrees toward the shelf
+    assert turn['type'] == 'turn' and turn['left_deg'] == pytest.approx(45.)
+    assert script.place_yaw == pytest.approx(np.degrees(np.arctan2(-normal[1], -normal[0])))
+    facing = {**observation, 'robot': {**observation['robot'], 'heading_deg': script.place_yaw}}
+    down = script.next(facing)             # facing the shelf, carried at 1.07 m: down under the board above (1.104 m)
     ceiling = .648+.456-script.carry_clear_m
     assert down['type'] == 'hand_pose'
-    dz = down['hands']['left']['position'][2]-1.1
-    assert dz == pytest.approx(ceiling-corner_heights(box, .105)[1])
-    assert script.place_yaw == pytest.approx(np.degrees(np.arctan2(-normal[1], -normal[0])))
-    turn = script.next(observation)        # then a turn of at most 45 degrees toward the shelf
-    assert turn['type'] == 'turn' and turn['left_deg'] == pytest.approx(45.)
+    assert down['hands']['left']['position'][2]-1.1 == pytest.approx(ceiling-corner_heights(box, .105)[1])
+    walk = script.next(facing)             # then the carrying walk, at most 0.9 m
+    assert walk['type'] == 'walk' and np.hypot(walk['forward_m'], walk['left_m']) == pytest.approx(.9)
+    refused = {**facing, 'last_command': {'status': 'planner_refused', 'command': walk}}
+    shorter = script.next(refused)
+    assert np.hypot(shorter['forward_m'], shorter['left_m']) == pytest.approx(.45)
     # in front of the shelf, the lowering puts the lowest corner 0.10 m over the board, and the check leaves a box
     # that is in the room alone
     placed = {**box, 'position': [-.85, -5.2, .9]}
@@ -526,3 +531,7 @@ def test_true_shelf_face_carry_height_and_insert_check():
     sagged = {**level, 'position': [-.85, -5.2, .648+.105+.02]}
     fix = script.insert_check({**observation, 'objects': [sagged, shelf, layer]})
     assert fix['hands']['left']['position'][2]-1.1 == pytest.approx(.08)
+    resting = {**level, 'position': [-.85, -5.2, .648+.105+.10]}
+    put = script.set_down({**observation, 'objects': [resting, shelf, layer]})
+    assert put['hands']['left']['position'][2]-1.1 == pytest.approx(.02-.10)
+    assert script.set_down({**observation, 'objects': [{**level, 'position': [-.85, -5.2, .648+.105+.02]}, shelf, layer]}) is None

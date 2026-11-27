@@ -191,11 +191,11 @@ class TaskScript:
         final[0] = min(final[0], closest-.02)
         return final
 
-    def walk_to(self, observation, goal_xy, tolerance=.06):
+    def walk_to(self, observation, goal_xy, tolerance=.06, max_m=2.0):
         d = to_robot(observation, goal_xy)
         if np.linalg.norm(d) <= tolerance:
             return None
-        scale = min(1., 2.0/np.linalg.norm(d))
+        scale = min(1., max_m/np.linalg.norm(d))
         return {'type': 'walk', 'forward_m': float(d[0]*scale), 'left_m': float(d[1]*scale)}
 
     def face(self, observation, yaw_deg, tolerance=4.):
@@ -344,9 +344,7 @@ class TaskScript:
             self.place_z = layer['max'][2]+self.box_half()+self.place_clearance_m
             self.place_yaw = float(np.degrees(np.arctan2(-normal[1], -normal[0])))
             self.stage, self.tries = 'carry', 0
-            if self.true_shelf:
-                self.queue = [self.carry_height]
-                return
+            self.carry_lowered, self.carry_walk_m = not self.true_shelf, self.carry_walk_max_m
         if self.stage == 'carry':
             yaw = np.radians(self.place_yaw)
             c, s_ = np.cos(yaw), np.sin(yaw)
@@ -354,8 +352,18 @@ class TaskScript:
             step = self.face(observation, self.place_yaw, 6.)
             if step and self.carry_turn_max_deg:
                 step['left_deg'] = float(np.clip(step['left_deg'], -self.carry_turn_max_deg, self.carry_turn_max_deg))
-            step = step or self.walk_to(observation, stand, .08)
-            if step and self.tries < (6 if self.carry_turn_max_deg is None else 8):
+            if step is None and not self.carry_lowered:
+                # facing the shelf, away from the table: bring the box under the board above (lowered right after the
+                # walk back, the box struck the table edge in the following turn and fell, n1heft 90005)
+                self.carry_lowered = True
+                self.queue = [self.carry_height]
+                return
+            last = observation.get('last_command') or {}
+            if self.true_shelf and last.get('status') == 'planner_refused' and last.get('command', {}).get('type') == 'walk':
+                # HITCH refuses a long carrying walk ("exceeds the path, duration or collection budget"): shorter
+                self.carry_walk_m = max(.3, self.carry_walk_m/2)
+            step = step or self.walk_to(observation, stand, .08, max_m=self.carry_walk_m if self.true_shelf else 2.0)
+            if step and self.tries < (6 if self.carry_turn_max_deg is None else 10):
                 self.tries += 1
                 self.queue = [step]
                 return
@@ -391,7 +399,8 @@ class TaskScript:
                     first = self.held_move(observation, self.insert_dz(observation), 2.0)
                 self.queue = [
                     first] + ([self.insert_check] if self.true_shelf else []) + [
-                    {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0},
+                    {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0}] + (
+                    [self.set_down] if self.true_shelf else []) + [
                     {'type': 'hand', 'left': 'open', 'right': 'open'},
                     release,
                     {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0},
@@ -425,6 +434,8 @@ class TaskScript:
         return 0.105
 
     carry_clear_m = .05     # the carried box's highest corner stays this far under the board above the target
+    carry_walk_max_m = .9   # carrying walks at most this long per command (HITCH refused 1.6-1.9 m sideways ones)
+    release_above_m = .02   # before the hands open, the box's lowest corner comes down to this far above the board
     insert_min_m = .05      # before walking in, the lowest corner at least this far above the target board
 
     def held_move(self, observation, dz, duration_s=None):
@@ -464,6 +475,14 @@ class TaskScript:
         if ceiling is not None and high+dz > ceiling:
             dz = (top+ceiling)/2-(low+high)/2
         return float(dz)
+
+    def set_down(self, observation):
+        """Inside the shelf, before opening: the box down onto the board. Opening the hands pushes the box (53 N on
+        each fist); released 12 cm above the board it was thrown off the back of the shelf (n1heft 90000, 90002)."""
+        top, _ = self.window(observation)
+        low, _ = corner_heights(obj(observation, 'box'), self.box_half())
+        dz = top+self.release_above_m-low
+        return self.held_move(observation, dz, 1.5) if dz < -.01 else None
 
     def insert_check(self, observation):
         """After the lowering (the box sags 4-7 cm in the grip): put it right again if a corner is out of the room."""
