@@ -124,8 +124,9 @@ class TaskScript:
         # turned 45 degrees reaches 0.15 m out, and at 0.15 + 0.105 its corner struck the end post (m5heft 90004)
         self.place_end_margin_m = float(place_end_margin_m)
         # with place_by_walk: how far short of the shelf's face the carried box stops before it is lowered (class
-        # default 0.05 m). Carried at 1.05 m it struck what stands on the board above (95 N, m6heft 90000); stopping
-        # 0.25 m short, it is lowered to the target board's height in the open and walked in from there.
+        # default 0.05 m). Tried 0.25 m (m7heft) against the box striking what stands on the board above while carried
+        # at 1.05 m (m6heft 90000): worse - the lowered box, sagging in the grip, struck the shelf front on the longer
+        # walk in (280 N, 90004). Not used.
         if approach_gap_m is not None:
             self.approach_gap_m = float(approach_gap_m)
         if place_depth_m is not None:   # how far inside the shelf's face the box centre goes (class default 0.15 m)
