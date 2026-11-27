@@ -201,6 +201,22 @@
     "tuck_m": 0.1
    }
   },
+  "scripted_hitch_deep": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch with the box walked 0.35 m inside the shelf's face (0.15 by default): a probe of where the target board physically is (m1/m2 heft 90002: released 0.21 m inside at board height, the box fell to the floor).",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35
+   }
+  },
   "scripted_hitch_hold": {
    "kind": "scripted",
    "file": "exp3_scripted.py",

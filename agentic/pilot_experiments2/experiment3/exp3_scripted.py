@@ -94,7 +94,7 @@ class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
-                 place_by_walk=False, tuck_m=0.):
+                 place_by_walk=False, tuck_m=0., place_depth_m=None):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -115,6 +115,8 @@ class TaskScript:
         # after lifting, the wrists come this much toward the body before the walk back: the box was carried 17 cm in
         # front of the wrists and slid out sideways in a 90 degree turn (k6heft 90005)
         self.tuck_m = float(tuck_m)
+        if place_depth_m is not None:   # how far inside the shelf's face the box centre goes (class default 0.15 m)
+            self.place_depth_m = float(place_depth_m)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
