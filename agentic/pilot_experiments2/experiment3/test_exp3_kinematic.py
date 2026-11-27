@@ -134,3 +134,21 @@ def test_refused_reach_leans_and_the_next_walk_straightens(tmp_path):
     assert info['plan']['lean_deg'] == 10 and planner.torso == (10, 0)
     planner.start({'type': 'walk', 'forward_m': .3, 'left_m': 0.}, context)
     assert client.messages[-1]['request']['torso'] == {'pitch_deg': 0, 'yaw_deg': 0}
+
+
+class SlowOnly(FakeClient):
+    def plan(self, message):
+        w = message.get('wrist_targets') or {}
+        if w and any(t['duration_s'] < 4. for t in w.values()):
+            self.messages.append(message)
+            return {'ok': False, 'code': 'PLAN_REJECTED', 'error': 'The motion from 0.00 s to 1.20 s needs 4.84 s, more than twice'}
+        return super().plan(message)
+
+
+def test_hand_pose_retried_at_the_duration_hitch_needs(tmp_path):
+    client = SlowOnly()
+    planner = KinematicPlanner(tmp_path, fk=FK(), client=client)
+    context = {'history': [sample([0., 0.], 0.)], 'hands': [1, 1], 'heading': np.eye(3), 'folder': tmp_path}
+    info = planner.start({'type': 'hand_pose', 'duration_s': 1.2, 'hands': {'left': {'position': [.3, .1, 1.]}}}, context)
+    assert client.messages[-1]['wrist_targets']['left']['duration_s'] == pytest.approx(4.84*1.05)
+    assert info['plan']['duration_s_asked'] == 1.2

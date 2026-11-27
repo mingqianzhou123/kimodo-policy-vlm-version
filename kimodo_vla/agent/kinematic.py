@@ -24,6 +24,7 @@ and asks the commander again. ``KimodoPlanner`` is unchanged; the planner is cho
 """
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -172,7 +173,17 @@ class KinematicPlanner(Planner):
                 wrists[side] = {**goals[side], 'duration_s': float(command['duration_s'])}
             target = {'wrists': goals}
             try:
-                plan = self.plan_request(obs, {}, wrists)
+                try:
+                    plan = self.plan_request(obs, {}, wrists)
+                except ValueError as slow:
+                    # "... needs 4.84 s, more than twice ..." (HITCH's timing check): once more with that duration
+                    # (k5/m1heft 90005: the tuck after the lift asked for 1.2 s)
+                    found = re.search(r'needs ([0-9.]+) s', str(slow))
+                    if not found:
+                        raise
+                    seconds = min(8., float(found.group(1))*1.05)
+                    wrists = {side: {**w, 'duration_s': seconds} for side, w in wrists.items()}
+                    plan = {**self.plan_request(obs, {}, wrists), 'duration_s_asked': float(command['duration_s'])}
             except ValueError as refused:
                 # HITCH's arm reach is judged on an upright torso; lean as its agent would (k5heft 90000: the last
                 # reach beside the box was refused after the body settled 4 cm back, and planned with a 10 degree lean)
