@@ -548,6 +548,23 @@ def test_loosen_before_open():
     assert step['hands']['left']['position'] == pytest.approx([-1.9, -2.58, .85])
     assert step['hands']['right']['position'] == pytest.approx([-1.9, -2.86, .85])
     assert TaskScript('pp_box', true_shelf=True).loosen_before_open_m is None
+    # with loosen_clear_m, a wrist still inside the box's side goes on until it is that far outside it
+    from exp3_scripted import box_reach
+    turned = np.radians(45.)
+    assert box_reach({'quat_wxyz': [np.cos(turned/2), 0, 0, np.sin(turned/2)]}, .105, [0, 1, 0]) == pytest.approx(
+        .105*np.sqrt(2))
+    script = TaskScript('pp_box', place_by_walk=True, true_shelf=True, loosen_before_open_m=.06, loosen_clear_m=.06)
+    box = {'name': 'box', 'position': [-1.9, -2.72, .754], 'quat_wxyz': [1, 0, 0, 0]}   # centred: gaps 0.015
+    step = script.loosen({'robot': {'wrists': wrists}, 'objects': [box]})
+    assert step['hands']['left']['position'] == pytest.approx([-1.9, -2.54, .85])      # the plain 6 cm
+    assert step['hands']['right']['position'] == pytest.approx([-1.9, -2.90, .85])
+    box['position'] = [-1.9, -2.76, .754]                                               # right wrist 2.5 cm inside
+    step = script.loosen({'robot': {'wrists': wrists}, 'objects': [box]})
+    assert step['hands']['left']['position'] == pytest.approx([-1.9, -2.54, .85])
+    assert step['hands']['right']['position'] == pytest.approx([-1.9, -2.925, .85])    # 8.5 cm out
+    box['position'] = [-1.9, -2.84, .754]                                               # right wrist 10.5 cm inside
+    step = script.loosen({'robot': {'wrists': wrists}, 'objects': [box]})
+    assert step['hands']['right']['position'] == pytest.approx([-1.9, -2.84-.105-.06, .85])
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
-                                                          'loosen_before_open_m': .06}
+                                                          'loosen_before_open_m': .06, 'loosen_clear_m': .06}
