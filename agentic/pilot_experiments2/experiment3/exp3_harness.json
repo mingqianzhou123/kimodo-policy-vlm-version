@@ -15,7 +15,20 @@
     90008,
     90009
    ],
-   "_dev_seeds": "Development layouts only (Arena's own seeded reset of box and shelf). Set aside on 2026-11-26 for building the harness; they must not be in the valid layout set V of experiment 2."
+   "_dev_seeds": "Development layouts only (Arena's own seeded reset of box and shelf). Set aside on 2026-11-26 for building the harness; they must not be in the valid layout set V of experiment 2.",
+   "check_seeds": [
+    90010,
+    90011,
+    90012,
+    90013,
+    90014,
+    90015,
+    90016,
+    90017,
+    90018,
+    90019
+   ],
+   "_check_seeds": "Development layouts never looked at while the rule was tuned (2026-11-27): the HEFT main line's scripted rule is run once on each, only after it was fixed on dev_seeds, and reported apart as the figure for new layouts. Not the 60 official evaluation episodes."
   },
   "sit_sofa": {
    "task_text": "Sit down on the sofa.",

@@ -109,7 +109,8 @@ def main():
         for e in episodes:
             jobs.put((f"exp3eval-{a.task}-{a.commander}-{a.tag}-g{e['group_seed']}r{e['repeat_idx']:02d}", e['group_seed'], e))
     else:
-        allowed = config['tasks'][a.task]['dev_seeds']
+        # development seeds, and the untouched ones kept for checking a fixed rule on new layouts
+        allowed = config['tasks'][a.task]['dev_seeds']+config['tasks'][a.task].get('check_seeds', [])
         seeds = a.seeds or allowed
         if set(seeds)-set(allowed):
             raise SystemExit(f'Only development seeds of {a.task}: {allowed}')
