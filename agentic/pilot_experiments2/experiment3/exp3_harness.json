@@ -200,7 +200,7 @@
     "place_by_walk": true,
     "tuck_m": 0.1,
     "place_depth_m": 0.35,
-    "place_clearance_m": 0.05
+    "place_clearance_m": 0.1
    }
   },
   "scripted_hitch_deep": {
@@ -217,7 +217,7 @@
     "place_by_walk": true,
     "tuck_m": 0.1,
     "place_depth_m": 0.35,
-    "place_clearance_m": 0.05
+    "place_clearance_m": 0.1
    }
   },
   "scripted_hitch_hold": {
@@ -231,7 +231,7 @@
     "place_by_walk": true,
     "tuck_m": 0.1,
     "place_depth_m": 0.35,
-    "place_clearance_m": 0.05
+    "place_clearance_m": 0.1
    },
    "planner": {
     "name": "hitch"
@@ -249,7 +249,7 @@
     "place_by_walk": true,
     "tuck_m": 0.1,
     "place_depth_m": 0.35,
-    "place_clearance_m": 0.05
+    "place_clearance_m": 0.1
    },
    "planner": {
     "name": "hitch"
@@ -266,7 +266,7 @@
     "clearance_m": 0.12,
     "tuck_m": 0.1,
     "place_depth_m": 0.35,
-    "place_clearance_m": 0.05
+    "place_clearance_m": 0.1
    },
    "planner": {
     "name": "hitch"

@@ -116,7 +116,8 @@ class TaskScript:
         # front of the wrists and slid out sideways in a 90 degree turn (k6heft 90005)
         self.tuck_m = float(tuck_m)
         # the box bottom this far above the target board while it goes in: at 0.02 m the grip's sag left it level with the
-        # board, its front caught the board's edge and it was left propped and slid off after release (m3heft 90002)
+        # board, its front caught the board's edge and it was left propped and slid off after release (m3heft 90002); the
+        # box also sags 4-7 cm in the grip while lowered, so at 0.05 it still struck the edge (m4heft 90000, 90004)
         self.place_clearance_m = float(place_clearance_m)
         if place_depth_m is not None:   # how far inside the shelf's face the box centre goes (class default 0.15 m)
             self.place_depth_m = float(place_depth_m)
