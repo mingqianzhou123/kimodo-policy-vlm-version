@@ -26,9 +26,19 @@
     90016,
     90017,
     90018,
-    90019
+    90019,
+    90020,
+    90021,
+    90022,
+    90023,
+    90024,
+    90025,
+    90026,
+    90027,
+    90028,
+    90029
    ],
-   "_check_seeds": "Development layouts never looked at while the rule was tuned (2026-11-27): the HEFT main line's scripted rule is run once on each, only after it was fixed on dev_seeds, and reported apart as the figure for new layouts. Not the 60 official evaluation episodes."
+   "_check_seeds": "Development layouts never looked at while the rule was tuned (2026-11-27): the HEFT main line's scripted rule is run once on each, only after it was fixed on dev_seeds, and reported apart as the figure for new layouts. Not the 60 official evaluation episodes. 90020-90029 added 2026-11-28 as the unseen group for the release fix (scripted_hitch_main2)."
   },
   "sit_sofa": {
    "task_text": "Sit down on the sofa.",
@@ -235,6 +245,27 @@
     "place_end_margin_m": 0.3,
     "true_shelf": true,
     "carry_turn_max_deg": 45
+   }
+  },
+  "scripted_hitch_main2": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch_main plus loosen_before_open_m (2026-11-28): with the box set down on the board, each wrist goes this far outside where it is measured, fists still closed, before the hands open, so the palms stop squeezing the box. Fixes the release that threw the box off the back of the shelf (7 of the first measurement on the 60 official layouts). Tuned on development layouts only.",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3,
+    "true_shelf": true,
+    "carry_turn_max_deg": 45,
+    "loosen_before_open_m": 0.02
    }
   },
   "scripted_kimodo_main": {

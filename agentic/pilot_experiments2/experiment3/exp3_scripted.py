@@ -95,7 +95,7 @@ class TaskScript:
 
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
                  place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02, place_end_margin_m=.15,
-                 approach_gap_m=None, true_shelf=False, carry_turn_max_deg=None):
+                 approach_gap_m=None, true_shelf=False, carry_turn_max_deg=None, loosen_before_open_m=None):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -143,6 +143,11 @@ class TaskScript:
         # Turns while carrying, at most this many degrees per command: the box slipped out at the end of one 89
         # degree turn (f1heft 90008, grip 7-17 N per hand, gone as the turn stopped).
         self.carry_turn_max_deg = None if carry_turn_max_deg is None else float(carry_turn_max_deg)
+        # With the box set down on the board, before the hands open: each wrist this far outside where it is measured,
+        # fists still closed, so the palms stop pressing. Opening the fingers while the wrists were still commanded 3.5 cm
+        # inside the box let the palms' squeeze pop it out toward the back of the shelf, the wrists closing 5-8 cm
+        # behind it (7 of the first 60 official layouts thrown off the back; 2026-11-28).
+        self.loosen_before_open_m = None if loosen_before_open_m is None else float(loosen_before_open_m)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -400,7 +405,8 @@ class TaskScript:
                 self.queue = [
                     first] + ([self.insert_check] if self.true_shelf else []) + [
                     {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0}] + (
-                    [self.set_down] if self.true_shelf else []) + [
+                    [self.set_down] if self.true_shelf else []) + (
+                    [self.loosen] if self.loosen_before_open_m is not None else []) + [
                     {'type': 'hand', 'left': 'open', 'right': 'open'},
                     release,
                     {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0},
@@ -487,6 +493,16 @@ class TaskScript:
         low, _ = corner_heights(obj(observation, 'box'), self.box_half())
         dz = top+self.release_above_m-low
         return self.held_move(observation, dz, 1.5) if dz < -.01 else None
+
+    def loosen(self, observation):
+        """Before the hands open on the set-down box: each wrist loosen_before_open_m outside its measured position,
+        hands still closed, so the palms no longer squeeze it."""
+        wrists = observation['robot']['wrists']
+        left, right = (np.asarray(wrists[s]['position'], float) for s in ('left', 'right'))
+        out = (left-right)*[1, 1, 0]
+        out = self.loosen_before_open_m*out/max(np.linalg.norm(out), 1e-9)
+        return {'type': 'hand_pose', 'duration_s': 0.8,
+                'hands': {'left': {'position': (left+out).tolist()}, 'right': {'position': (right-out).tolist()}}}
 
     def insert_check(self, observation):
         """After the lowering (the box sags 4-7 cm in the grip): put it right again if a corner is out of the room."""

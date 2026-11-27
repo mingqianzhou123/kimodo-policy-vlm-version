@@ -535,3 +535,19 @@ def test_true_shelf_face_carry_height_and_insert_check():
     put = script.set_down({**observation, 'objects': [resting, shelf, layer]})
     assert put['hands']['left']['position'][2]-1.1 == pytest.approx(0.-.10)
     assert script.set_down({**observation, 'objects': [{**level, 'position': [-.85, -5.2, .648+.105+.005]}, shelf, layer]}) is None
+
+
+def test_loosen_before_open():
+    """loosen_before_open_m: with the box set down, the closed fists go this far outside their measured positions
+    before the hands open; without the option the queue is as before."""
+    from exp3_scripted import TaskScript
+    wrists = {'left': {'position': [-1.9, -2.6, .85]}, 'right': {'position': [-1.9, -2.84, .85]}}
+    script = TaskScript('pp_box', place_by_walk=True, true_shelf=True, loosen_before_open_m=.02)
+    step = script.loosen({'robot': {'wrists': wrists}})
+    assert step['type'] == 'hand_pose' and 'left' not in {k for k in step if k != 'hands'}
+    assert step['hands']['left']['position'] == pytest.approx([-1.9, -2.58, .85])
+    assert step['hands']['right']['position'] == pytest.approx([-1.9, -2.86, .85])
+    assert TaskScript('pp_box', true_shelf=True).loosen_before_open_m is None
+    config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
+    assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
+                                                          'loosen_before_open_m': .02}
