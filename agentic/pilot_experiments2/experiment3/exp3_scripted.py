@@ -94,7 +94,8 @@ class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
-                 place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02, place_end_margin_m=.15):
+                 place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02, place_end_margin_m=.15,
+                 approach_gap_m=None):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -122,6 +123,11 @@ class TaskScript:
         # the box centre stays this much plus half the box from either end of the shelf, along its face: a box carried
         # turned 45 degrees reaches 0.15 m out, and at 0.15 + 0.105 its corner struck the end post (m5heft 90004)
         self.place_end_margin_m = float(place_end_margin_m)
+        # with place_by_walk: how far short of the shelf's face the carried box stops before it is lowered (class
+        # default 0.05 m). Carried at 1.05 m it struck what stands on the board above (95 N, m6heft 90000); stopping
+        # 0.25 m short, it is lowered to the target board's height in the open and walked in from there.
+        if approach_gap_m is not None:
+            self.approach_gap_m = float(approach_gap_m)
         if place_depth_m is not None:   # how far inside the shelf's face the box centre goes (class default 0.15 m)
             self.place_depth_m = float(place_depth_m)
         self.queue, self.stage, self.tries = [], 'start', 0
