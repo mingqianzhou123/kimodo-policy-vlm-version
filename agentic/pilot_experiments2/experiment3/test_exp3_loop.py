@@ -570,7 +570,21 @@ def test_loosen_before_open():
     step = script.loosen({'robot': {'wrists': wrists, 'pelvis': [-1.4, -2.6, .78]}, 'objects': [box]})
     assert step['hands']['left']['position'] == pytest.approx([-1.82, -2.54, .85])
     assert step['hands']['right']['position'] == pytest.approx([-1.82, -2.90, .85])
+    # loosen_min_gap_m: no going back in the loosening; afterwards only a wrist still within 3 cm of the box's side
+    # goes out to 6 cm and 8 cm back
+    script = TaskScript('pp_box', place_by_walk=True, true_shelf=True, loosen_before_open_m=.06, loosen_clear_m=.06,
+                        loosen_back_m=.08, loosen_min_gap_m=.03)
+    pelvis = [-1.4, -2.6, .78]
+    box['position'] = [-1.9, -2.72, .754]
+    step = script.loosen({'robot': {'wrists': wrists, 'pelvis': pelvis}, 'objects': [box]})
+    assert step['hands']['left']['position'] == pytest.approx([-1.9, -2.54, .85])
+    apart = {'left': {'position': [-1.9, -2.54, .85]}, 'right': {'position': [-1.9, -2.90, .85]}}
+    assert script.loosen_check({'robot': {'wrists': apart, 'pelvis': pelvis}, 'objects': [box]}) is None
+    box['position'] = [-1.9, -2.66, .754]                  # dragged 6 cm along with the left hand: left gap 0.015
+    again = script.loosen_check({'robot': {'wrists': apart, 'pelvis': pelvis}, 'objects': [box]})
+    assert again['hands']['left']['position'] == pytest.approx([-1.82, -2.495, .85])
+    assert again['hands']['right']['position'] == pytest.approx([-1.9, -2.90, .85])
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
                                                           'loosen_before_open_m': .06, 'loosen_clear_m': .06,
-                                                          'loosen_back_m': .08}
+                                                          'loosen_back_m': .08, 'loosen_min_gap_m': .03}

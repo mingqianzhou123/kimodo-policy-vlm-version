@@ -96,7 +96,7 @@ class TaskScript:
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
                  place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02, place_end_margin_m=.15,
                  approach_gap_m=None, true_shelf=False, carry_turn_max_deg=None, loosen_before_open_m=None,
-                 loosen_clear_m=None, loosen_back_m=None):
+                 loosen_clear_m=None, loosen_back_m=None, loosen_min_gap_m=None):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -155,10 +155,14 @@ class TaskScript:
         # between the wrists (from the box's pose): the set-down box is not always centred between the hands, and
         # a wrist still 2-3 cm inside its side flicked it 0.17-0.2 m inward on opening (a1heft 90017, 90022).
         self.loosen_clear_m = None if loosen_clear_m is None else float(loosen_clear_m)
-        # ... and at the same time this far back toward the pelvis: going only outward, a closed fist dragged the box
-        # 7 of its 9.5 cm along (the thumb wraps the box's near face), was still against it, and the opening flung it
-        # off the back (r3heft 90022).
+        # After that, checked against the box's pose: a wrist still closer than loosen_min_gap_m to the box's side
+        # goes out to loosen_clear_m again and loosen_back_m back toward the pelvis, before the hands open. Going only
+        # outward, a closed fist dragged the box 7 of its 9.5 cm along (the thumb wraps the box's near face), was still
+        # against it, and the opening flung it off the back (r3heft 90022). Both hands always going back as well
+        # (r4heft) pressed a hand that could not reach its target against something and left it 2 cm from the box,
+        # which then got flicked 8 cm in (90029), so only the hand that needs it goes back.
         self.loosen_back_m = None if loosen_back_m is None else float(loosen_back_m)
+        self.loosen_min_gap_m = None if loosen_min_gap_m is None else float(loosen_min_gap_m)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -417,7 +421,8 @@ class TaskScript:
                     first] + ([self.insert_check] if self.true_shelf else []) + [
                     {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0}] + (
                     [self.set_down] if self.true_shelf else []) + (
-                    [self.loosen] if self.loosen_before_open_m is not None else []) + [
+                    [self.loosen] if self.loosen_before_open_m is not None else []) + (
+                    [self.loosen_check] if self.loosen_min_gap_m is not None else []) + [
                     {'type': 'hand', 'left': 'open', 'right': 'open'},
                     release,
                     {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0},
@@ -505,30 +510,59 @@ class TaskScript:
         dz = top+self.release_above_m-low
         return self.held_move(observation, dz, 1.5) if dz < -.01 else None
 
+    def box_gaps(self, observation):
+        """Line between the wrists (outward for the left wrist) and how far each wrist is outside the box's side."""
+        wrists = observation['robot']['wrists']
+        left, right = (np.asarray(wrists[s]['position'], float) for s in ('left', 'right'))
+        out = (left-right)*[1, 1, 0]
+        out = out/max(np.linalg.norm(out), 1e-9)
+        box = obj(observation, 'box')
+        centre = np.asarray(box['position'], float)
+        reach = box_reach(box, self.box_half(), out)
+        gaps = {side: sign*float(np.dot(wrist-centre, out))-reach
+                for side, wrist, sign in (('left', left, 1.), ('right', right, -1.))}
+        return left, right, out, gaps
+
+    def back_toward_pelvis(self, observation, left, right, out):
+        toward = (np.asarray(observation['robot']['pelvis'], float)-(left+right)/2)*[1, 1, 0]
+        toward -= np.dot(toward, out)*out
+        return self.loosen_back_m*toward/max(np.linalg.norm(toward), 1e-9)
+
     def loosen(self, observation):
         """Before the hands open on the set-down box: each wrist loosen_before_open_m outside its measured position,
-        or further until it is loosen_clear_m outside the box's side, and loosen_back_m back toward the pelvis, hands
-        still closed, so the palms no longer squeeze it and the opening fingers and thumbs clear it."""
+        or further until it is loosen_clear_m outside the box's side, hands still closed, so the palms no longer
+        squeeze it and the opening fingers clear it. Without loosen_min_gap_m, both hands also go loosen_back_m back
+        toward the pelvis (r4heft)."""
         wrists = observation['robot']['wrists']
         left, right = (np.asarray(wrists[s]['position'], float) for s in ('left', 'right'))
         out = (left-right)*[1, 1, 0]
         out = out/max(np.linalg.norm(out), 1e-9)
         shift = {'left': self.loosen_before_open_m, 'right': self.loosen_before_open_m}
         if self.loosen_clear_m is not None:
-            box = obj(observation, 'box')
-            centre = np.asarray(box['position'], float)
-            reach = box_reach(box, self.box_half(), out)
-            for side, wrist, sign in (('left', left, 1.), ('right', right, -1.)):
-                gap = sign*float(np.dot(wrist-centre, out))-reach
-                shift[side] = max(shift[side], self.loosen_clear_m-gap)
+            _, _, _, gaps = self.box_gaps(observation)
+            for side in ('left', 'right'):
+                shift[side] = max(shift[side], self.loosen_clear_m-gaps[side])
         back = np.zeros(3)
-        if self.loosen_back_m:
-            toward = (np.asarray(observation['robot']['pelvis'], float)-(left+right)/2)*[1, 1, 0]
-            toward -= np.dot(toward, out)*out
-            back = self.loosen_back_m*toward/max(np.linalg.norm(toward), 1e-9)
+        if self.loosen_back_m and self.loosen_min_gap_m is None:
+            back = self.back_toward_pelvis(observation, left, right, out)
         return {'type': 'hand_pose', 'duration_s': 0.8,
                 'hands': {'left': {'position': (left+shift['left']*out+back).tolist()},
                           'right': {'position': (right-shift['right']*out+back).tolist()}}}
+
+    def loosen_check(self, observation):
+        """After the loosening: a wrist still closer than loosen_min_gap_m to the box's side (the box came along with
+        it, or the hand was stopped) goes out to loosen_clear_m and loosen_back_m back toward the pelvis; None if
+        both are clear."""
+        left, right, out, gaps = self.box_gaps(observation)
+        if min(gaps.values()) >= self.loosen_min_gap_m:
+            return None
+        back = self.back_toward_pelvis(observation, left, right, out) if self.loosen_back_m else np.zeros(3)
+        target = {'left': left, 'right': right}
+        for side, sign in (('left', 1.), ('right', -1.)):
+            if gaps[side] < self.loosen_min_gap_m:
+                target[side] = target[side]+sign*max(0., (self.loosen_clear_m or 0.)-gaps[side])*out+back
+        return {'type': 'hand_pose', 'duration_s': 0.8,
+                'hands': {s: {'position': target[s].tolist()} for s in ('left', 'right')}}
 
     def insert_check(self, observation):
         """After the lowering (the box sags 4-7 cm in the grip): put it right again if a corner is out of the room."""

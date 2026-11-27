@@ -46,9 +46,19 @@
     90036,
     90037,
     90038,
-    90039
+    90039,
+    90040,
+    90041,
+    90042,
+    90043,
+    90044,
+    90045,
+    90046,
+    90047,
+    90048,
+    90049
    ],
-   "_check_seeds": "Development layouts never looked at while the rule was tuned (2026-11-27): the HEFT main line's scripted rule is run once on each, only after it was fixed on dev_seeds, and reported apart as the figure for new layouts. Not the 60 official evaluation episodes. 90020-90029 added 2026-11-28 as the unseen group for the release fix (scripted_hitch_main2); they were looked at under its 6 cm version (a1heft) and the rule was changed after, so they count as seen; 90030-90039 are its unseen group."
+   "_check_seeds": "Development layouts never looked at while the rule was tuned (2026-11-27): the HEFT main line's scripted rule is run once on each, only after it was fixed on dev_seeds, and reported apart as the figure for new layouts. Not the 60 official evaluation episodes. 90020-90029 added 2026-11-28 as the unseen group for the release fix (scripted_hitch_main2); they were looked at under its 6 cm version (a1heft) and the rule was changed after, so they count as seen; 90030-90039 were meant as its unseen group, but 90030-90035 were run (and 90030-90032 looked at) under a version changed after (r4heft), so 90040-90049 are the unseen group of the final version."
   },
   "sit_sofa": {
    "task_text": "Sit down on the sofa.",
@@ -264,7 +274,7 @@
    "planner": {
     "name": "hitch"
    },
-   "_about": "scripted_hitch_main plus loosen_before_open_m (2026-11-28): with the box set down on the board, each wrist goes this far outside where it is measured, fists still closed, before the hands open, so the palms stop squeezing the box; and further, until each wrist is loosen_clear_m outside the box's side (from the box's pose), so the opening fingers clear it; and loosen_back_m back toward the pelvis at the same time, so the thumbs come off the box's near face. Fixes the release that threw the box off the back of the shelf (7 of the first measurement on the 60 official layouts). Tuned on development layouts only.",
+   "_about": "scripted_hitch_main plus loosen_before_open_m (2026-11-28): with the box set down on the board, each wrist goes this far outside where it is measured, fists still closed, before the hands open, so the palms stop squeezing the box; and further, until each wrist is loosen_clear_m outside the box's side (from the box's pose), so the opening fingers clear it; then, checked against the box's pose, a wrist still within loosen_min_gap_m of the box's side goes out to loosen_clear_m again and loosen_back_m back toward the pelvis, so its thumb comes off the box's near face. Fixes the release that threw the box off the back of the shelf (7 of the first measurement on the 60 official layouts). Tuned on development layouts only.",
    "options": {
     "stance_closer_m": 0.08,
     "min_clearance": true,
@@ -277,7 +287,8 @@
     "carry_turn_max_deg": 45,
     "loosen_before_open_m": 0.06,
     "loosen_clear_m": 0.06,
-    "loosen_back_m": 0.08
+    "loosen_back_m": 0.08,
+    "loosen_min_gap_m": 0.03
    }
   },
   "scripted_kimodo_main": {
