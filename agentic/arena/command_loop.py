@@ -113,9 +113,10 @@ class Hooks:
         return {p: [float(length), float(width), float(h)] for p in boxes}, boxes
 
     def parts(self, root, depth=None):
-        """Axis-aligned bounds of every prim under ``root`` (``depth`` levels down only, if given)."""
+        """Axis-aligned bounds of every prim under ``root`` (``depth`` levels down only, if given), and whether it has
+        physics collision applied (``collision``; its approximation when it does)."""
         import omni.usd
-        from pxr import Usd, UsdGeom
+        from pxr import Usd, UsdGeom, UsdPhysics
         stage = omni.usd.get_context().get_stage()
         top = stage.GetPrimAtPath(root)
         if not top or not top.IsValid():
@@ -130,7 +131,14 @@ class Hooks:
             if box.IsEmpty():
                 continue
             low, high = np.array(box.GetMin(), dtype=float), np.array(box.GetMax(), dtype=float)
-            out.append({'path': str(prim.GetPath()), 'name': prim.GetName(), 'min': low.tolist(), 'max': high.tolist()})
+            entry = {'path': str(prim.GetPath()), 'name': prim.GetName(), 'min': low.tolist(), 'max': high.tolist(),
+                     'collision': bool(prim.HasAPI(UsdPhysics.CollisionAPI))}
+            if entry['collision'] and prim.HasAPI(UsdPhysics.MeshCollisionAPI):
+                entry['approximation'] = str(UsdPhysics.MeshCollisionAPI(prim).GetApproximationAttr().Get())
+            if entry['collision']:
+                enabled = UsdPhysics.CollisionAPI(prim).GetCollisionEnabledAttr().Get()
+                entry['collision_enabled'] = None if enabled is None else bool(enabled)
+            out.append(entry)
         return out
 
     def static_objects(self):
