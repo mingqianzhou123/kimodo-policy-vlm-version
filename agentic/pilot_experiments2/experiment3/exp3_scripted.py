@@ -435,7 +435,10 @@ class TaskScript:
 
     carry_clear_m = .05     # the carried box's highest corner stays this far under the board above the target
     carry_walk_max_m = .9   # carrying walks at most this long per command (HITCH refused 1.6-1.9 m sideways ones)
-    release_above_m = .02   # before the hands open, the box's lowest corner comes down to this far above the board
+    # before the hands open, the box's lowest corner comes down to this far above the board: at 0.02 m (resting 3.6 cm
+    # up, tilted) the opening fists flung it 1.5 m through the shelf (n2heft 90000); at 0 it sits on the board
+    release_above_m = 0.
+    hold_extra_m = .01      # moving the held box, each wrist this much further inward than the first batch's squeeze
     insert_min_m = .05      # before walking in, the lowest corner at least this far above the target board
 
     def held_move(self, observation, dz, duration_s=None):
@@ -445,7 +448,8 @@ class TaskScript:
         left, right = (np.asarray(wrists[s]['position'], float) for s in ('left', 'right'))
         inward = (right-left)*[1, 1, 0]
         inward /= max(np.linalg.norm(inward), 1e-9)
-        squeeze = self.grasp['squeeze_m']*inward
+        # 7-12 N per hand while carried; the box slipped out as the first walk after lowering started (n2heft 90008)
+        squeeze = (self.grasp['squeeze_m']+self.hold_extra_m)*inward
         duration = duration_s if duration_s is not None else max(1.0, abs(dz)/.1)
         return {'type': 'hand_pose', 'duration_s': float(duration),
                 'hands': {'left': {'position': (left+squeeze+[0, 0, dz]).tolist()},

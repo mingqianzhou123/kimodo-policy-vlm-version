@@ -533,5 +533,5 @@ def test_true_shelf_face_carry_height_and_insert_check():
     assert fix['hands']['left']['position'][2]-1.1 == pytest.approx(.08)
     resting = {**level, 'position': [-.85, -5.2, .648+.105+.10]}
     put = script.set_down({**observation, 'objects': [resting, shelf, layer]})
-    assert put['hands']['left']['position'][2]-1.1 == pytest.approx(.02-.10)
-    assert script.set_down({**observation, 'objects': [{**level, 'position': [-.85, -5.2, .648+.105+.02]}, shelf, layer]}) is None
+    assert put['hands']['left']['position'][2]-1.1 == pytest.approx(0.-.10)
+    assert script.set_down({**observation, 'objects': [{**level, 'position': [-.85, -5.2, .648+.105+.005]}, shelf, layer]}) is None
