@@ -204,6 +204,21 @@
     "place_end_margin_m": 0.3
    }
   },
+  "scripted_kimodo_main": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3
+   },
+   "_about": "Control cell (2026-11-29): the final scripted_hitch rule, options identical, on the default KimodoPlanner. Fixed before any run; not tuned. Not available on Kimodo and so absent: HITCH's slower carrying timing, the lean retry of a refused reach, the retry at HITCH's needed duration (all inside KinematicPlanner). Tracker chosen with --tracker (heft or sonic)."
+  },
   "scripted_hitch_deep": {
    "kind": "scripted",
    "file": "exp3_scripted.py",
