@@ -94,7 +94,7 @@ class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
-                 place_by_walk=False, tuck_m=0., place_depth_m=None):
+                 place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -115,6 +115,9 @@ class TaskScript:
         # after lifting, the wrists come this much toward the body before the walk back: the box was carried 17 cm in
         # front of the wrists and slid out sideways in a 90 degree turn (k6heft 90005)
         self.tuck_m = float(tuck_m)
+        # the box bottom this far above the target board while it goes in: at 0.02 m the grip's sag left it level with the
+        # board, its front caught the board's edge and it was left propped and slid off after release (m3heft 90002)
+        self.place_clearance_m = float(place_clearance_m)
         if place_depth_m is not None:   # how far inside the shelf's face the box centre goes (class default 0.15 m)
             self.place_depth_m = float(place_depth_m)
         self.queue, self.stage, self.tries = [], 'start', 0
@@ -308,7 +311,7 @@ class TaskScript:
             # there, the front was already 5.5 cm inside, and on a layout whose shelf stands nearer (k9heft 90004,
             # face at y -3.355) the box was carried into the frame at 1.05 m
             self.approach_xy = inside(-(self.approach_gap_m+self.box_half()), self.box_half()+0.15)
-            self.place_z = layer['max'][2]+self.box_half()+0.02
+            self.place_z = layer['max'][2]+self.box_half()+self.place_clearance_m
             self.place_yaw = float(np.degrees(np.arctan2(-normal[1], -normal[0])))
             self.stage, self.tries = 'carry', 0
         if self.stage == 'carry':
