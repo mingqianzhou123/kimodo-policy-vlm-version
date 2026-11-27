@@ -565,6 +565,12 @@ def test_loosen_before_open():
     box['position'] = [-1.9, -2.84, .754]                                               # right wrist 10.5 cm inside
     step = script.loosen({'robot': {'wrists': wrists}, 'objects': [box]})
     assert step['hands']['right']['position'] == pytest.approx([-1.9, -2.84-.105-.06, .85])
+    # loosen_back_m: both wrists also go back toward the pelvis, square to the line between them
+    script = TaskScript('pp_box', place_by_walk=True, true_shelf=True, loosen_before_open_m=.06, loosen_back_m=.08)
+    step = script.loosen({'robot': {'wrists': wrists, 'pelvis': [-1.4, -2.6, .78]}, 'objects': [box]})
+    assert step['hands']['left']['position'] == pytest.approx([-1.82, -2.54, .85])
+    assert step['hands']['right']['position'] == pytest.approx([-1.82, -2.90, .85])
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
-                                                          'loosen_before_open_m': .06, 'loosen_clear_m': .06}
+                                                          'loosen_before_open_m': .06, 'loosen_clear_m': .06,
+                                                          'loosen_back_m': .08}
