@@ -481,3 +481,48 @@ def test_runner_accepts_every_configured_task():
     config = json.loads((HERE/'exp3_harness.json').read_text())
     text = subprocess.run([sys.executable, str(HERE/'exp3_run.py'), '--help'], capture_output=True, text=True).stdout
     assert all(task in text for task in config['tasks'])
+
+
+def test_true_shelf_face_carry_height_and_insert_check():
+    """true_shelf: the turned shelf's long side, the carried box under the board above, its corners checked before it
+    goes in; carry_turn_max_deg splits a carrying turn."""
+    from exp3_scripted import TaskScript, corner_heights, open_face
+    yaw = 15.
+    oriented = {'center': [-2.27, -2.7, 1.14], 'yaw_deg': yaw, 'size': [1.93, .6, 2.08]}
+    normal, along, inside = open_face(oriented, [-1.3, -5.2])
+    r = np.radians(yaw)
+    assert normal == pytest.approx([np.sin(r), -np.cos(r)]) and along == pytest.approx([np.cos(r), np.sin(r)])
+    face_point = np.asarray(inside(0., 0., .5))
+    assert face_point == pytest.approx(np.asarray(oriented['center'][:2])+normal*.3)
+    assert np.dot(np.asarray(inside(.35, .4))-face_point, normal) == pytest.approx(-.35)
+    tilt = np.radians(18.)
+    tilted = {'position': [0, 0, 1.05], 'quat_wxyz': [np.cos(tilt/2), np.sin(tilt/2), 0, 0]}
+    low, high = corner_heights(tilted, .105)
+    assert high-1.05 == pytest.approx(.105*(np.cos(tilt)+np.sin(tilt))) and low == pytest.approx(2.1-high)
+
+    shelf = {'name': 'shelf', 'min': [-3.3, -3.2, 0.], 'max': [-1.2, -2.2, 2.18], 'oriented': oriented}
+    layer = {'name': 'shelf_target_layer', 'min': [-3.3, -3.2, .648], 'max': [-1.2, -2.2, .648], 'clear_height_m': .456}
+    script = TaskScript('pp_box', place_by_walk=True, place_depth_m=.35, place_clearance_m=.1, place_end_margin_m=.3,
+                        true_shelf=True, carry_turn_max_deg=45)
+    script.stage = 'grasp'
+    box = {'name': 'box', 'position': [-.85, -5.2, 1.07], 'quat_wxyz': [np.cos(tilt/2), 0, np.sin(tilt/2), 0]}
+    wrists = {s: {'position': [-.95, -5.2+(.15 if s == 'left' else -.15), 1.1]} for s in ('left', 'right')}
+    observation = {'robot': {'pelvis': [-1.3, -5.2, .78], 'heading_deg': 0., 'wrists': wrists}, 'objects': [box, shelf, layer]}
+    down = script.next(observation)        # carried at 1.07 m: first comes down under the board above (1.104 m)
+    ceiling = .648+.456-script.carry_clear_m
+    assert down['type'] == 'hand_pose'
+    dz = down['hands']['left']['position'][2]-1.1
+    assert dz == pytest.approx(ceiling-corner_heights(box, .105)[1])
+    assert script.place_yaw == pytest.approx(np.degrees(np.arctan2(-normal[1], -normal[0])))
+    turn = script.next(observation)        # then a turn of at most 45 degrees toward the shelf
+    assert turn['type'] == 'turn' and turn['left_deg'] == pytest.approx(45.)
+    # in front of the shelf, the lowering puts the lowest corner 0.10 m over the board, and the check leaves a box
+    # that is in the room alone
+    placed = {**box, 'position': [-.85, -5.2, .9]}
+    assert script.insert_dz({**observation, 'objects': [placed, shelf, layer]}) == pytest.approx(
+        .748-corner_heights(placed, .105)[0])
+    level = {**box, 'quat_wxyz': [1, 0, 0, 0], 'position': [-.85, -5.2, .648+.105+.08]}
+    assert script.insert_check({**observation, 'objects': [level, shelf, layer]}) is None
+    sagged = {**level, 'position': [-.85, -5.2, .648+.105+.02]}
+    fix = script.insert_check({**observation, 'objects': [sagged, shelf, layer]})
+    assert fix['hands']['left']['position'][2]-1.1 == pytest.approx(.08)

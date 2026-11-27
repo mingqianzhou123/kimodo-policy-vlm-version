@@ -204,6 +204,26 @@
     "place_end_margin_m": 0.3
    }
   },
+  "scripted_hitch_main": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "HEFT main line after the three remaining failures (2026-11-27): scripted_hitch's options plus true_shelf (place against the shelf as turned, carry the box under the board above, check the box's corners before walking it in) and carry_turn_max_deg 45 (turns while carrying split into steps of at most 45 degrees).",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3,
+    "true_shelf": true,
+    "carry_turn_max_deg": 45
+   }
+  },
   "scripted_kimodo_main": {
    "kind": "scripted",
    "file": "exp3_scripted.py",

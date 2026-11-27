@@ -95,7 +95,7 @@ class TaskScript:
 
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
                  place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02, place_end_margin_m=.15,
-                 approach_gap_m=None):
+                 approach_gap_m=None, true_shelf=False, carry_turn_max_deg=None):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -131,6 +131,18 @@ class TaskScript:
             self.approach_gap_m = float(approach_gap_m)
         if place_depth_m is not None:   # how far inside the shelf's face the box centre goes (class default 0.15 m)
             self.place_depth_m = float(place_depth_m)
+        # Place against the shelf as it stands (its turned frame and the room under the board above, from the
+        # observation's 'oriented' / 'clear_height_m'), not its axis-aligned box. Arena turns the shelf up to +-15
+        # degrees per layout; the axis-aligned face is then up to 0.25 m off at the ends. With it: the box goes in
+        # through the long side facing the robot, square to it; after the walk back the carried box comes down until
+        # its highest corner is carry_clear_m under the board above the target (carried at 1.05 m its top corner
+        # reached 1.16-1.20 m and struck that board's underside at 1.10 m, m6heft 90000); and before it is walked in,
+        # its lowest corner (the box sits tilted 8-18 degrees in the grip) is put place_clearance_m above the target
+        # board and checked again after the lowering.
+        self.true_shelf = bool(true_shelf)
+        # Turns while carrying, at most this many degrees per command: the box slipped out at the end of one 89
+        # degree turn (f1heft 90008, grip 7-17 N per hand, gone as the turn stopped).
+        self.carry_turn_max_deg = None if carry_turn_max_deg is None else float(carry_turn_max_deg)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -143,10 +155,14 @@ class TaskScript:
             return None
         if not self.queue:
             self.plan(observation)
-        if not self.queue:
-            return None
-        item = self.queue.pop(0)
-        return item(observation) if callable(item) else item
+        while self.queue:
+            item = self.queue.pop(0)
+            item = item(observation) if callable(item) else item
+            if item is not None:   # a step computed when it is due may find nothing to do
+                return item
+            if not self.queue:
+                self.plan(observation)
+        return None
 
     # ---- P&PBox -------------------------------------------------------------------------
     def box_stance(self, box_pos):
@@ -314,7 +330,10 @@ class TaskScript:
             # Where the held box sits relative to the pelvis, and where it should go on the shelf.
             self.hold = to_robot(observation, box['position'][:2])
             layer, shelf = obj(observation, 'shelf_target_layer'), obj(observation, 'shelf')
-            normal, along, inside = nearest_face(shelf, observation['robot']['pelvis'][:2])
+            if self.true_shelf and shelf.get('oriented'):
+                normal, along, inside = open_face(shelf['oriented'], observation['robot']['pelvis'][:2])
+            else:
+                normal, along, inside = nearest_face(shelf, observation['robot']['pelvis'][:2])
             # Stop with the held box just short of the shelf's face, then move it in with the hands: in development
             # episode 90000 (2026-11-27) walking until the box was 22 cm inside the shelf knocked it out of the hands.
             self.place_xy = inside(self.place_depth_m, self.box_half()+self.place_end_margin_m)
@@ -325,12 +344,18 @@ class TaskScript:
             self.place_z = layer['max'][2]+self.box_half()+self.place_clearance_m
             self.place_yaw = float(np.degrees(np.arctan2(-normal[1], -normal[0])))
             self.stage, self.tries = 'carry', 0
+            if self.true_shelf:
+                self.queue = [self.carry_height]
+                return
         if self.stage == 'carry':
             yaw = np.radians(self.place_yaw)
             c, s_ = np.cos(yaw), np.sin(yaw)
             stand = np.asarray(self.approach_xy)-np.array([c*self.hold[0]-s_*self.hold[1], s_*self.hold[0]+c*self.hold[1]])
-            step = self.face(observation, self.place_yaw, 6.) or self.walk_to(observation, stand, .08)
-            if step and self.tries < 6:
+            step = self.face(observation, self.place_yaw, 6.)
+            if step and self.carry_turn_max_deg:
+                step['left_deg'] = float(np.clip(step['left_deg'], -self.carry_turn_max_deg, self.carry_turn_max_deg))
+            step = step or self.walk_to(observation, stand, .08)
+            if step and self.tries < (6 if self.carry_turn_max_deg is None else 8):
                 self.tries += 1
                 self.queue = [step]
                 return
@@ -361,8 +386,11 @@ class TaskScript:
                     out = .06*out/max(np.linalg.norm(out), 1e-9)
                     return {'type': 'hand_pose', 'duration_s': 1.0, 'hands': {'left': {'position': (l+out+[0, 0, .04]).tolist()},
                                                                               'right': {'position': (r-out+[0, 0, .04]).tolist()}}}
+                first = {'type': 'hand_pose', 'duration_s': 2.0, 'hands': {s: {'position': lowered[s].tolist()} for s in ('left', 'right')}}
+                if self.true_shelf and obj(observation, 'shelf_target_layer').get('clear_height_m') is not None:
+                    first = self.held_move(observation, self.insert_dz(observation), 2.0)
                 self.queue = [
-                    {'type': 'hand_pose', 'duration_s': 2.0, 'hands': {s: {'position': lowered[s].tolist()} for s in ('left', 'right')}},
+                    first] + ([self.insert_check] if self.true_shelf else []) + [
                     {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0},
                     {'type': 'hand', 'left': 'open', 'right': 'open'},
                     release,
@@ -395,6 +423,55 @@ class TaskScript:
 
     def box_half(self):
         return 0.105
+
+    carry_clear_m = .05     # the carried box's highest corner stays this far under the board above the target
+    insert_min_m = .05      # before walking in, the lowest corner at least this far above the target board
+
+    def held_move(self, observation, dz, duration_s=None):
+        """Move the held box up or down by ``dz`` with the measured wrists, each target keeping the first batch's
+        squeeze inward (commanding the wrists as measured releases the grip, k8heft 90002)."""
+        wrists = observation['robot']['wrists']
+        left, right = (np.asarray(wrists[s]['position'], float) for s in ('left', 'right'))
+        inward = (right-left)*[1, 1, 0]
+        inward /= max(np.linalg.norm(inward), 1e-9)
+        squeeze = self.grasp['squeeze_m']*inward
+        duration = duration_s if duration_s is not None else max(1.0, abs(dz)/.1)
+        return {'type': 'hand_pose', 'duration_s': float(duration),
+                'hands': {'left': {'position': (left+squeeze+[0, 0, dz]).tolist()},
+                          'right': {'position': (right-squeeze+[0, 0, dz]).tolist()}}}
+
+    def window(self, observation):
+        """Target board top and the highest the carried box may reach under the board above (None if unknown)."""
+        layer = obj(observation, 'shelf_target_layer')
+        top = layer['max'][2]
+        clear = layer.get('clear_height_m')
+        return top, (None if clear is None else top+clear-self.carry_clear_m)
+
+    def carry_height(self, observation):
+        """After the walk back: bring the box down until its highest corner clears the board above the target."""
+        _, ceiling = self.window(observation)
+        low, high = corner_heights(obj(observation, 'box'), self.box_half())
+        if ceiling is None or high <= ceiling:
+            return None
+        return self.held_move(observation, ceiling-high)
+
+    def insert_dz(self, observation):
+        """How far to move the box so its lowest corner is place_clearance_m above the target board, without its
+        highest corner rising above the ceiling (if both cannot hold, the middle of the room)."""
+        top, ceiling = self.window(observation)
+        low, high = corner_heights(obj(observation, 'box'), self.box_half())
+        dz = top+self.place_clearance_m-low
+        if ceiling is not None and high+dz > ceiling:
+            dz = (top+ceiling)/2-(low+high)/2
+        return float(dz)
+
+    def insert_check(self, observation):
+        """After the lowering (the box sags 4-7 cm in the grip): put it right again if a corner is out of the room."""
+        top, ceiling = self.window(observation)
+        low, high = corner_heights(obj(observation, 'box'), self.box_half())
+        if low >= top+self.insert_min_m and (ceiling is None or high <= ceiling):
+            return None
+        return self.held_move(observation, self.insert_dz(observation))
 
     # ---- SitSofa ------------------------------------------------------------------------
     def plan_sofa(self, observation):
@@ -463,6 +540,38 @@ def nearest_face(region, point):
             p[other] = low[other]+u*(high[other]-low[other])
         return p.tolist()
     return normal, along, inside
+
+
+def open_face(oriented, point):
+    """The long side of a turned shelf that faces ``point``, as ``nearest_face`` gives it: (outward normal, unit
+    vector along it, inside(depth, margin, u)). The shelf asset's ends are braced at every height and its long
+    sides are open, so boxes go in through a long side. ``oriented``: centre, yaw_deg (of the long axis), size."""
+    centre = np.asarray(oriented['center'][:2], dtype=float)
+    yaw = np.radians(oriented['yaw_deg'])
+    length, depth = float(oriented['size'][0]), float(oriented['size'][1])
+    axis_x, axis_y = np.array([np.cos(yaw), np.sin(yaw)]), np.array([-np.sin(yaw), np.cos(yaw)])
+    if depth > length:   # the long axis is the prim's y axis
+        axis_x, axis_y, length, depth = axis_y, -axis_x, depth, length
+    offset = np.asarray(point, dtype=float)[:2]-centre
+    normal = axis_y*(np.sign(np.dot(offset, axis_y)) or 1.)
+    face = centre+normal*depth/2
+
+    def inside(depth_m, margin, u=None):
+        if u is None:
+            t = float(np.clip(np.dot(offset, axis_x), -length/2+margin, length/2-margin))
+        else:
+            t = -length/2+u*length
+        return (face-normal*depth_m+axis_x*t).tolist()
+    return normal, axis_x, inside
+
+
+def corner_heights(box, half):
+    """Lowest and highest corner of a cube of half-size ``half`` at the box's position and orientation."""
+    w, x, y, z = (float(v) for v in box['quat_wxyz'])
+    row = np.array([2*(x*z-w*y), 2*(y*z+w*x), 1-2*(x*x+y*y)])   # the world z row of the rotation
+    reach = half*float(np.abs(row).sum())
+    centre = float(box['position'][2])
+    return centre-reach, centre+reach
 
 
 def clearance(point, region):

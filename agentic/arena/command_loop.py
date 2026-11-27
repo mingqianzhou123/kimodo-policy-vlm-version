@@ -77,6 +77,44 @@ class Hooks:
         box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
         return np.array(box.GetMin(), dtype=float), np.array(box.GetMax(), dtype=float)
 
+    def oriented_bounds(self, path):
+        """A prim's own box in the world: centre, yaw (degrees, of its x axis) and edge lengths along its own axes.
+        The stage's axis-aligned box of a turned prim is larger than the prim: Arena turns the shelf by up to
+        +-15 degrees per layout (deterministic_object_resets, yaw +-0.2618 rad), so the axis-aligned face is up to
+        L/2 sin 15 = 0.25 m off the real one at the shelf's ends."""
+        import omni.usd
+        from pxr import Usd, UsdGeom
+        prim = omni.usd.get_context().get_stage().GetPrimAtPath(path)
+        if not prim or not prim.IsValid():
+            return None
+        cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy])
+        bound = cache.ComputeWorldBound(prim)
+        span = bound.GetRange()
+        if span.IsEmpty():
+            return None
+        matrix = np.array(bound.GetMatrix(), dtype=float)   # row vectors: rows 0-2 are the prim's axes in the world
+        low, high = np.array(span.GetMin(), dtype=float), np.array(span.GetMax(), dtype=float)
+        axes = matrix[:3, :3]
+        centre = ((low+high)/2)@axes+matrix[3, :3]
+        size = (high-low)*np.linalg.norm(axes, axis=1)
+        return {'center': centre.tolist(), 'yaw_deg': float(np.degrees(np.arctan2(axes[0, 1], axes[0, 0]))),
+                'size': size.tolist()}
+
+    def board_levels(self, path, gap_m=.05):
+        """World heights (bottom, top) of the slabs of a mesh made of horizontal boards (the shelf's boards are one
+        mesh), from its vertices: consecutive vertex heights more than ``gap_m`` apart separate two slabs."""
+        import omni.usd
+        from pxr import Usd, UsdGeom
+        prim = omni.usd.get_context().get_stage().GetPrimAtPath(path)
+        if not prim or not prim.IsValid() or not prim.IsA(UsdGeom.Mesh):
+            return []
+        points = np.asarray(UsdGeom.Mesh(prim).GetPointsAttr().Get(), dtype=float)
+        world = np.array(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()), dtype=float)
+        z = np.sort((points@world[:3, :3]+world[3, :3])[:, 2])
+        cuts = np.where(np.diff(z) > gap_m)[0]
+        starts, ends = np.r_[0, cuts+1], np.r_[cuts, len(z)-1]
+        return [[float(z[a]), float(z[b])] for a, b in zip(starts, ends)]
+
     def turned_box_sizes(self, paths):
         """Edge lengths of turned box-shaped prims that share one asset (VisionNavi's three slabs, three crates).
 
@@ -154,12 +192,22 @@ class Hooks:
             base = min(s[4] for s in surfaces)
             target_top = base+self.rewards._SHELF_ACTIVE_LAYER_Z_FROM_BASE_M
             widest = max(surfaces, key=lambda s: (s[1]-s[0])*(s[3]-s[2]))
+            parts = self.parts('/World/envs/env_0/Shelf')
+            # The shelf asset's frame and its boards (one mesh with every board): their own turned boxes, and how
+            # much room there is between the target board and the underside of the board above it.
+            frame = next((p['path'] for p in parts if p['name'].endswith('_Frame') and p['collision']), None)
+            boards = next((p['path'] for p in parts if p['name'].endswith('_Shelf') and p['collision']), None)
+            above = [b for b, _ in (self.board_levels(boards) if boards else []) if b > target_top+.01]
             shelf = self.stage_bounds('/World/envs/env_0/Shelf')
             if shelf is not None:
-                objects.append(region('shelf', *shelf))
+                objects.append(region('shelf', *shelf, oriented=self.oriented_bounds(frame) if frame else None,
+                                      note='oriented: the frame as turned in the world; boxes go in through its long sides'))
             objects.append(region('shelf_target_layer', [widest[0], widest[2], target_top], [widest[1], widest[3], target_top],
-                note='place the box so that its centre is over this area and its bottom rests at top z'))
-            extra.update({'shelf_parts': self.parts('/World/envs/env_0/Shelf'),
+                note='place the box so that its centre is over this area and its bottom rests at top z',
+                oriented=self.oriented_bounds(boards) if boards else None,
+                clear_height_m=(min(above)-target_top) if above else None))
+            extra.update({'shelf_parts': parts,
+                          'shelf_board_levels': self.board_levels(boards) if boards else [],
                      'shelf_support_surfaces': [list(s) for s in surfaces], 'shelf_base_top_z': base,
                      'shelf_target_top_z': target_top, 'box_size_m': list(self.rewards._BOX_SIZE_M)})
         elif self.task == 'vision_navi':
