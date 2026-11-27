@@ -242,8 +242,12 @@ class TaskScript:
                 {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': self.grasp['lift_s']},
                 {'type': 'walk', 'forward_m': -0.35, 'left_m': 0.0}]
             if self.tuck_m:
-                back = np.array([np.cos(heading(observation)), np.sin(heading(observation)), 0.])*self.tuck_m
-                w['tuck'] = np.asarray(w['lift'])-back
+                # never closer than 0.15 m in front of the pelvis: on a near stance (m2heft 90005, wrists 0.17 m ahead)
+                # a full 10 cm tuck pressed the box's back face against the torso, the wrists spread from 0.30 to
+                # 0.40 m apart and the box slipped out
+                ahead = np.array([np.cos(heading(observation)), np.sin(heading(observation)), 0.])
+                forward = float(np.dot(np.mean(np.asarray(w['lift']), axis=0)[:2]-observation['robot']['pelvis'][:2], ahead[:2]))
+                w['tuck'] = np.asarray(w['lift'])-ahead*float(np.clip(forward-.15, 0., self.tuck_m))
                 self.queue.insert(-1, {'type': 'hand_pose', 'hands': both('tuck', 'rotation'), 'duration_s': 1.2})
             if self.stop_after == 'hold':   # hold the lifted box 2 s, then stop
                 self.queue[-1] = {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': 2.0}

@@ -193,12 +193,13 @@
    "planner": {
     "name": "hitch"
    },
-   "_about": "The same rule on the kinematic planner (kimodo_vla/agent/kinematic.py: HITCH's whole-body planner, $HITCH_PYTHON). The tracker is chosen with --tracker sonic|heft, so the two cells share the references. Development comparison (2026-11-27/28), not a frozen baseline.",
+   "_about": "The same rule on the kinematic planner (kimodo_vla/agent/kinematic.py: HITCH's whole-body planner, $HITCH_PYTHON). The tracker is chosen with --tracker sonic|heft, so the two cells share the references. Development comparison (2026-11-27/28), not a frozen baseline. Places the box 0.35 m inside the shelf's face: the target board starts further back than the frame (m1/m2 heft 90002 fell through at 0.21 m, probe p1heft 90002 stayed at 0.35 m).",
    "options": {
     "stance_closer_m": 0.08,
     "min_clearance": true,
     "place_by_walk": true,
-    "tuck_m": 0.1
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35
    }
   },
   "scripted_hitch_deep": {
@@ -226,7 +227,8 @@
     "stance_closer_m": 0.08,
     "min_clearance": true,
     "place_by_walk": true,
-    "tuck_m": 0.1
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35
    },
    "planner": {
     "name": "hitch"
@@ -242,7 +244,8 @@
     "stance_closer_m": 0.08,
     "min_clearance": true,
     "place_by_walk": true,
-    "tuck_m": 0.1
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35
    },
    "planner": {
     "name": "hitch"
@@ -257,7 +260,8 @@
     "stop_after": "hold",
     "stance_closer_m": 0.12,
     "clearance_m": 0.12,
-    "tuck_m": 0.1
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35
    },
    "planner": {
     "name": "hitch"
