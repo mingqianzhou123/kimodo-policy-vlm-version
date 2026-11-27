@@ -197,7 +197,8 @@
    "options": {
     "stance_closer_m": 0.08,
     "min_clearance": true,
-    "place_by_walk": true
+    "place_by_walk": true,
+    "tuck_m": 0.1
    }
   },
   "scripted_hitch_hold": {
@@ -208,7 +209,8 @@
     "stop_after": "hold",
     "stance_closer_m": 0.08,
     "min_clearance": true,
-    "place_by_walk": true
+    "place_by_walk": true,
+    "tuck_m": 0.1
    },
    "planner": {
     "name": "hitch"
@@ -223,7 +225,8 @@
     "stop_after": "carry",
     "stance_closer_m": 0.08,
     "min_clearance": true,
-    "place_by_walk": true
+    "place_by_walk": true,
+    "tuck_m": 0.1
    },
    "planner": {
     "name": "hitch"
@@ -237,7 +240,8 @@
    "options": {
     "stop_after": "hold",
     "stance_closer_m": 0.12,
-    "clearance_m": 0.12
+    "clearance_m": 0.12,
+    "tuck_m": 0.1
    },
    "planner": {
     "name": "hitch"

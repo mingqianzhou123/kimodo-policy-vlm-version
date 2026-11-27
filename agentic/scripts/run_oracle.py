@@ -58,6 +58,9 @@ def parse_args(argv=None):
     p.add_argument('--episode-seed',type=int,help='Arena episode seed when it differs from --seed (an official evaluation '
         'episode runs with seed = its group seed and its own episode seed); default: --seed')
     p.add_argument('--repeat-idx',type=int,default=0,help='With --episode-seed: the evaluation episode\'s repeat index (recorded)')
+    p.add_argument('--after-success-steps',type=int,default=0,help='With --command-loop: keep stepping this many control '
+        'steps after Arena first reports success (its post-termination recording), so the commander can release the '
+        'object and step away; the verdict stays Arena\'s first success, the steps log shows what followed. Default 0')
     p.add_argument('--grasp-loop',action='store_true',help='Blocking grasp rounds on the box: latch its pose, wait, '
         'walk, reach, close both hands on measured arrival, lift; retry until success, fall or the step limit')
     p.add_argument('--latch-delay-steps',type=int,default=75,help='Control steps each round waits after latching the box pose')
@@ -159,10 +162,11 @@ def parse_args(argv=None):
                 or a.box_wide or a.stand_still or a.start_at_stance):
             raise ValueError('The command loop runs on its own: no grasp loop, goal file, replay, markers or placement flags')
         if not a.command_loop.is_file():raise FileNotFoundError(a.command_loop)
+        if a.after_success_steps<0:raise ValueError('--after-success-steps must be >= 0')
         if a.tracker not in TRACKERS:
             raise SystemExit(f'Tracker {a.tracker!r} is not wired into this launcher yet (wired: {sorted(TRACKERS)})')
         a.dynamics_profile=a.dynamics_profile or 'actuator'   # the aligned actuators of every walking and grasping run
-    elif a.task in ('sit_sofa','vision_navi') or a.commander or a.condition:
+    elif a.task in ('sit_sofa','vision_navi') or a.commander or a.condition or a.after_success_steps:
         raise ValueError('--task sit_sofa, --commander and --condition belong to --command-loop')
     hammer=a.task=='doubledesk'
     placements=[bool(a.box_at),a.box_in_region] if not hammer else [bool(a.hammer_at),a.hammer_in_region]
@@ -378,7 +382,7 @@ def main():
     episode={'seed':a.seed,'episode_seed':episode_seed,'repeat_idx':a.repeat_idx,'episode_index':0,'max_steps':a.steps,
         'result_json':str(run/'episode.json'),'success_video_dir':str(run/'videos'),
         'failure_video_dir':str(run/'videos'),'recording_save_dir':str(run/'recordings'),'video_fps':30,
-        'post_termination_record_steps':0,'model_label':('command-loop-' if a.command_loop else 'demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
+        'post_termination_record_steps':a.after_success_steps,'model_label':('command-loop-' if a.command_loop else 'demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
         'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(a.demo_segment.resolve()) if demo else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
     simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('command_sim_bootstrap.py' if a.command_loop else 'free_sim_bootstrap.py' if a.motion_goal or demo else ('hammer_sim_bootstrap.py' if hammer else 'grasp_sim_bootstrap.py') if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),

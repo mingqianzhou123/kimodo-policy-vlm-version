@@ -53,7 +53,9 @@ CHUNK = 25
 
 SETTINGS = {k: KIMODO_SETTINGS[k] for k in ('hand_toggle_s', 'walk_tolerance_m', 'turn_tolerance_deg', 'move_corrections',
                                              'tracker', 'avoid_rules')}
-SETTINGS.update(hitch_python=None, hand='dex3', walk_palms=[.10, .30, .95])
+SETTINGS.update(hitch_python=None, hand='dex3', walk_palms=[.10, .30, .95],
+                reach_lean_deg=[10, 20],      # a refused reach is retried with this torso lean (HITCH plans both together)
+                slower_when_carrying=True)    # walks with a hand closed at HITCH's slower timing
 
 
 def wrap_deg(angle):
@@ -169,7 +171,21 @@ class KinematicPlanner(Planner):
                 goals[side] = {'position': np.asarray(t['position'], float).tolist(), 'rotation': np.asarray(rotation).tolist()}
                 wrists[side] = {**goals[side], 'duration_s': float(command['duration_s'])}
             target = {'wrists': goals}
-            plan = self.plan_request(obs, {}, wrists)
+            try:
+                plan = self.plan_request(obs, {}, wrists)
+            except ValueError as refused:
+                # HITCH's arm reach is judged on an upright torso; lean as its agent would (k5heft 90000: the last
+                # reach beside the box was refused after the body settled 4 cm back, and planned with a 10 degree lean)
+                plan = None
+                for lean in self.settings['reach_lean_deg']:
+                    try:
+                        plan = {**self.plan_request(obs, {'torso': {'pitch_deg': int(lean), 'yaw_deg': 0}}, wrists),
+                                'lean_deg': int(lean)}
+                        break
+                    except ValueError:
+                        continue
+                if plan is None:
+                    raise refused
         elif kind == 'hand':
             for i, side in enumerate(SIDES):
                 if side in command:
@@ -229,6 +245,8 @@ class KinematicPlanner(Planner):
         if obs['reference_root_pos'][2] > WALK_HEIGHT_MAX:
             request['height'] = WALK_HEIGHT
         palms = self.settings['walk_palms']
+        if tuple(self.torso) != (0, 0):   # HITCH walks with the torso in its standard posture (a reach may have leaned it)
+            request['torso'] = {'pitch_deg': 0, 'yaw_deg': 0}
         if palms and not np.any(self.hands >= .5):
             request['hands'] = {side: {'waypoints': [{'position': [palms[0], palms[1]*(1 if side == 'left' else -1), palms[2]],
                                                       'duration_s': 1.2, 'orientation': {'palm': 'inward'}}]} for side in SIDES}
@@ -238,7 +256,9 @@ class KinematicPlanner(Planner):
         start = to_hitch_pose([obs['root_pos'][0], obs['root_pos'][1], obs['reference_root_pos'][2]],
                               obs['reference_root_quat'], obs['reference_joints'])
         message = {'request': request, 'start_pose': start.tolist(), 'frame': self.frame(obs), 'torso': list(self.torso),
-                   'hands': None, 'wrist_targets': wrists}
+                   'hands': None, 'wrist_targets': wrists,
+                   # carrying: HITCH's slower timing (k6heft 90005 lost the box in a 90 degree turn at the default one)
+                   'slower': bool(self.settings['slower_when_carrying'] and 'walk' in request and np.any(self.hands >= .5))}
         reply = self.connect().plan(message)
         if not reply.get('ok') and reply.get('code') == 'PLAN_REJECTED' or reply.get('ok') and not reply.get('passed'):
             # as HITCH's own session does: once more with its slower default timing (limits.SLOWER)

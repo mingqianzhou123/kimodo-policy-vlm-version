@@ -112,3 +112,25 @@ def test_box_rule_stops_after_the_hold_stage():
     kinds = [script.next(observation) for _ in range(8)]
     assert [k['type'] for k in kinds[:6]] == ['hand_pose', 'hand_pose', 'hand_pose', 'hand', 'hand_pose', 'hand_pose']
     assert kinds[6]['type'] == 'hand_pose' and kinds[6]['duration_s'] == 2.0 and kinds[7] is None
+
+
+class LeanOnly(FakeClient):
+    """Refuses a reach unless the torso leans (as HITCH did for k5heft 90000)."""
+
+    def plan(self, message):
+        if message.get('wrist_targets') and 'torso' not in message['request']:
+            self.messages.append(message)
+            return {'ok': False, 'code': 'PLAN_REJECTED', 'error': 'An arm cannot hold its palm pose'}
+        reply = super().plan(message)
+        reply['end_torso'] = [message['request'].get('torso', {}).get('pitch_deg', 0), 0]
+        return reply
+
+
+def test_refused_reach_leans_and_the_next_walk_straightens(tmp_path):
+    client = LeanOnly()
+    planner = KinematicPlanner(tmp_path, fk=FK(), client=client)
+    context = {'history': [sample([0., 0.], 0.)], 'hands': [0, 0], 'heading': np.eye(3), 'folder': tmp_path}
+    info = planner.start({'type': 'hand_pose', 'duration_s': 1., 'hands': {'right': {'position': [.4, -.2, .9]}}}, context)
+    assert info['plan']['lean_deg'] == 10 and planner.torso == (10, 0)
+    planner.start({'type': 'walk', 'forward_m': .3, 'left_m': 0.}, context)
+    assert client.messages[-1]['request']['torso'] == {'pitch_deg': 0, 'yaw_deg': 0}

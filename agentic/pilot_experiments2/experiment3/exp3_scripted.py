@@ -94,7 +94,7 @@ class TaskScript:
     """The fixed rule for one task (``task``: 'pp_box', 'sit_sofa' or 'vision_navi')."""
 
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
-                 place_by_walk=False):
+                 place_by_walk=False, tuck_m=0.):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -112,6 +112,9 @@ class TaskScript:
         self.clearance_m = None if clearance_m is None else float(clearance_m)
         # place: lower the box in front of the shelf and walk it in, instead of pushing it in with the hands
         self.place_by_walk = bool(place_by_walk)
+        # after lifting, the wrists come this much toward the body before the walk back: the box was carried 17 cm in
+        # front of the wrists and slid out sideways in a 90 degree turn (k6heft 90005)
+        self.tuck_m = float(tuck_m)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -236,6 +239,10 @@ class TaskScript:
                 {'type': 'hand_pose', 'hands': both('squeeze', 'rotation'), 'duration_s': self.grasp['squeeze_s']},
                 {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': self.grasp['lift_s']},
                 {'type': 'walk', 'forward_m': -0.35, 'left_m': 0.0}]
+            if self.tuck_m:
+                back = np.array([np.cos(heading(observation)), np.sin(heading(observation)), 0.])*self.tuck_m
+                w['tuck'] = np.asarray(w['lift'])-back
+                self.queue.insert(-1, {'type': 'hand_pose', 'hands': both('tuck', 'rotation'), 'duration_s': 1.2})
             if self.stop_after == 'hold':   # hold the lifted box 2 s, then stop
                 self.queue[-1] = {'type': 'hand_pose', 'hands': both('lift', 'rotation'), 'duration_s': 2.0}
                 self.stage = 'stop'
@@ -291,7 +298,10 @@ class TaskScript:
             # Stop with the held box just short of the shelf's face, then move it in with the hands: in development
             # episode 90000 (2026-11-27) walking until the box was 22 cm inside the shelf knocked it out of the hands.
             self.place_xy = inside(self.place_depth_m, self.box_half()+0.15)
-            self.approach_xy = inside(-self.approach_gap_m, self.box_half()+0.15)
+            # the box's front face (not its centre) stops approach_gap_m short of the shelf's face: with the centre
+            # there, the front was already 5.5 cm inside, and on a layout whose shelf stands nearer (k9heft 90004,
+            # face at y -3.355) the box was carried into the frame at 1.05 m
+            self.approach_xy = inside(-(self.approach_gap_m+self.box_half()), self.box_half()+0.15)
             self.place_z = layer['max'][2]+self.box_half()+0.02
             self.place_yaw = float(np.degrees(np.arctan2(-normal[1], -normal[0])))
             self.stage, self.tries = 'carry', 0
@@ -323,11 +333,22 @@ class TaskScript:
                 inward /= max(np.linalg.norm(inward), 1e-9)
                 squeeze = self.grasp['squeeze_m']*inward
                 lowered = {'left': left+squeeze+[0, 0, delta[2]], 'right': right-squeeze+[0, 0, delta[2]]}
+                # After opening: hands out and up off the box before stepping back (walking back with the hands at
+                # its sides could drag it), then stand a moment so the log shows whether the box stays.
+                def release(o):
+                    l, r = (np.asarray(o['robot']['wrists'][s]['position'], float) for s in ('left', 'right'))
+                    out = (l-r)*[1, 1, 0]
+                    out = .06*out/max(np.linalg.norm(out), 1e-9)
+                    return {'type': 'hand_pose', 'duration_s': 1.0, 'hands': {'left': {'position': (l+out+[0, 0, .04]).tolist()},
+                                                                              'right': {'position': (r-out+[0, 0, .04]).tolist()}}}
                 self.queue = [
                     {'type': 'hand_pose', 'duration_s': 2.0, 'hands': {s: {'position': lowered[s].tolist()} for s in ('left', 'right')}},
                     {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0},
                     {'type': 'hand', 'left': 'open', 'right': 'open'},
-                    {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0}]
+                    release,
+                    {'type': 'walk', 'forward_m': -0.3, 'left_m': 0.0},
+                    {'type': 'hand', 'left': 'open', 'right': 'open'},
+                    {'type': 'hand', 'left': 'open', 'right': 'open'}]
                 return
             self.queue = [
                 {'type': 'hand_pose', 'duration_s': 2.0,

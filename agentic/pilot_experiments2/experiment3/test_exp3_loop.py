@@ -299,7 +299,7 @@ def test_task_scripts_on_recorded_scenes():
     first = script.next(observation)
     assert first == {'type': 'turn', 'left_deg': 90.}
     assert script.place_yaw == pytest.approx(90.) and script.place_z == pytest.approx(.648+.105+.02)
-    assert script.approach_xy[1] == pytest.approx(-3.209-.05) and script.place_xy[1] == pytest.approx(-3.209+.15)
+    assert script.approach_xy[1] == pytest.approx(-3.209-.05-.105) and script.place_xy[1] == pytest.approx(-3.209+.15)
     seat = {'name': 'sofa_seat', 'min': [-4.306, -1.690, -.31], 'max': [-2.326, -.785, .31]}
     cartons = [{'name': 'carton_obstacle_01', 'position': [-1.86, .60, 0.], 'size': [.41, .41, .42]},
                {'name': 'carton_obstacle_02', 'position': [-1.92, .08, 0.], 'size': [.41, .41, .42]}]
