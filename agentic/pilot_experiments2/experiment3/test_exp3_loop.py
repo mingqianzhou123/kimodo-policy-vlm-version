@@ -655,3 +655,19 @@ def test_loosen_before_open():
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
                                                           'loosen_before_open_m': .06, 'loosen_clear_m': .06}
+
+
+def test_a_summary_is_written_when_arena_ends_the_episode(tmp_path):
+    """Arena's step limit ended the episode (v1heft 90001): the runner writes loop/summary.json from the logs."""
+    from exp3_run import fill_summary
+    run = tmp_path/'run'
+    (run/'loop').mkdir(parents=True)
+    (run/'episode.json').write_text(json.dumps({'success': False, 'failure_reason': 'max_steps'}))
+    (run/'loop'/'commands.jsonl').write_text(json.dumps({'kind': 'start'})+'\n'+json.dumps({'kind': 'end'})+'\n')
+    (run/'loop'/'vlm.jsonl').write_text(json.dumps({'call': 0})+'\n'+json.dumps({'call': 1})+'\n')
+    (run/'loop'/'steps.jsonl').write_text(json.dumps({'time': 171.4})+'\n')
+    assert fill_summary(run)
+    summary = json.loads((run/'loop'/'summary.json').read_text())
+    assert summary['end_reason'] == 'arena_ended' and summary['arena_failure_reason'] == 'max_steps'
+    assert (summary['commands'], summary['commander_calls'], summary['time']) == (1, 2, 171.4)
+    assert not fill_summary(run)      # an existing summary is left alone
