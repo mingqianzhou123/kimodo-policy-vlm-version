@@ -912,6 +912,16 @@ v2 里不合法的回复是三种：掌心和手指同向（每个回合 6–16 
 
 运行文件夹：`exp3dev-pp_box-gpt-c2gpt-s*`、`exp3dev-pp_box-gemini-c2gem-s*`。
 
+### 正式回合：Qwen3-VL-4B（实验 3 第一批正式结果，2026-11-28 起）
+
+**冻结提交 c7dfe88**（用户 2026-11-28 确认冻结；代码和 e8120e7 相同，只多了 `vlm-config.md` 和本记录）。开跑前写定，跑的过程中和跑完以后都不改提示词、阈值、判定和预算；不挑回合重跑，只有基础设施故障没出结果的回合原样重跑，逐个写明原因。
+
+**设置**：
+- 指令来源 `qwen`：Qwen3-VL-4B-Instruct，本地 bf16，贪心解码，最多 400 个输出 token，权重目录 `vlm version/checkpoints/Qwen3-VL-4B-Instruct`。规划器 `hitch`（运动学规划器），`--tracker heft`。
+- 每回合上限：40 条指令、60 次调用、连续 3 次不合法就结束；`--steps 7000`。`--after-success-steps 1500`：Arena 首次判成功后回合不马上结束，5 s 读数才看得到。另有 `--gpu-min-free-mib 16384`、`KVLA_DDS_DOMAIN=37`。
+- 成功：松手 5 s 后箱子还在层板上、两手已离开（判定程序的 `success`）；Arena 自己的判定并列记录（`arena_success`）。
+- 回合清单：`exp3eval-pp_box-episodes-ev2heft.json`，就是参考策略两次测量用的那一份，组种子 0、1、2 × 重复 0–19，每个跑 1 次。运行文件夹 `exp3eval-pp_box-qwen-e1qwen-g<组>r<重复>`。
+
 ### 正式回合前还缺什么
 
 - 主底座（实验 2 的记录已定稿，PR #20 没合并）。tracker 在启动器里是可选的一项（`--tracker sonic|heft`，两个都已接上，命令循环也能用 HEFT），正式回合用哪个要定；P&PBox 的脚本指令只在 HEFT 上完成过。评测回合的还原方法已按实验 2 的记录写进上面，开跑前要核对一次开局物体读数。
