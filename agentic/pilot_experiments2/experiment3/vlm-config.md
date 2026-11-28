@@ -46,19 +46,21 @@
 
 | 指令 | 规划器怎么做 | 和指令格式允许的范围的差别 |
 |---|---|---|
-| `walk` | HITCH 走路规划；走完按真实骨盆位置再补走，最多 2 次，误差到 8 cm、6° 以内为止（`walk_tolerance_m`、`turn_tolerance_deg`）。两只手都张开时，先把手放到身体两侧再走；有一只手合着，手臂保持原样 | 无 |
+| `walk` | 一条最多 1.9 m（VLM 指令来源的 `limits.walk_max_m`；HITCH 一次请求的走路上限是 2.0 m 脚步路径，直走 2.0 m 被拒过）。HITCH 走路规划；走完按真实骨盆位置再补走，最多 2 次，误差到 8 cm、6° 以内为止（`walk_tolerance_m`、`turn_tolerance_deg`）。两只手都张开时，先把手放到身体两侧再走；有一只手合着，手臂保持原样 | 指令格式共用的上限是 2 m，VLM 的收到 1.9 m |
 | `turn` | 原地转，转角取整到 1° | 无 |
-| `pelvis_height` | 蹲下 / 站起，HITCH 的高度范围 0.30–0.79 m | 指令允许 0.40–0.80，0.80 按 0.79 做；**没有 `behind_feet_m`**（坐到身后的姿态），带了这一项会被规划器拒收 |
+| `pelvis_height` | 蹲下 / 站起，HITCH 的高度范围 0.30–0.79 m | VLM 的指令范围收到 0.40–0.79（共用的是 0.40–0.80）；**没有 `behind_feet_m`**（坐到身后的姿态），带了这一项会被规划器拒收 |
 | `torso_pitch` | 躯干前倾，按 5° 取整 | 指令允许 0–45° 任意值 |
 | `hand_pose` | 手腕目标位姿，变成 HITCH 的掌心路径点。HITCH 嫌给的时长太短时，按它需要的时长再规划一次；够不到时，自己前倾 10°、20° 再试 | 无 |
 | `hand` | 开 / 合，一只或两只 | 无 |
 | `done` | 结束回合 | 无 |
 
-被规划器拒收（够不到、关节超限、HITCH 的检查没过）的指令不执行，身体保持不动，拒收原话作为错误回给模型再问（`kimodo_vla/agent/loop.py`）。
+被规划器拒收（够不到、关节超限、HITCH 的检查没过）的指令不执行，身体保持不动，拒收原话作为错误回给模型再问（`kimodo_vla/agent/loop.py`）。原话包括 HITCH 给的明细（哪一项超限、要了多少、上限多少），没有明细时只有那句话。
+
+指令格式本身的检查（`commands.py`，不合法就拒收、告诉原因再问）还有两条，现在也写进了提示词：手腕目标离骨盆不超过 1.2 m（`workspace_radius_m`），掌心方向和手指方向至少差 45°（`min_palm_finger_angle_deg`）。VLM 的指令来源在 `exp3_harness.json` 里有自己的 `limits`（走路 1.9 m、骨盆 0.40–0.79），脚本指令仍用共用的那份，参考策略不受影响。
 
 ## 和上一版草案（KimodoPlanner）比，提示词改了什么
 
-只改了和规划器有关的事实，没有加脚本规则里的解题步骤或调出来的数（站位距离、撤手 6 cm、先放到层板上再张手这类都没有写进去）。逐条：
+只改了和规划器、指令检查有关的事实，没有加脚本规则里的解题步骤或调出来的数（站位距离、撤手 6 cm、先放到层板上再张手这类都没有写进去）。逐条：
 
 1. **删去 `pelvis_height` 带 `behind_feet_m` 的那一行**（“坐到身后的座面上”）。理由：运动学规划器没有这个姿态，发了一定被拒收；这一轮只做 P&PBox，用不到坐下。
 2. **`pelvis_height` 的范围写成 0.40–0.79**（原来 0.40–0.80）。理由：HITCH 的上限是 0.79 m。
@@ -66,7 +68,9 @@
 4. **走路的精度改成“走完后按 8 cm、6° 以内补走”**（原来写“走完离目标 5–10 cm、转身差几度”，那是 Kimodo 走路的经验数）。理由：运动学规划器的走路是闭环补走，这两个数是它的设置值，不是按结果调出来的。
 5. **加一句：两只手都张开时，走路前先把手放到身体两侧**。理由：这是规划器自己的动作（模型会看到手腕位置变了），不说明会让它误以为手被别的东西碰了。
 6. **加一句：规划器做不了的指令不执行，原因会告诉它**。理由：这是接口行为，模型需要知道被拒的指令没有执行。
-7. **没改的**：身体描述、“两手夹住物体”那一句（用户定保留）、坐标约定、其余指令格式、输出要求。
+7. **走路的上限写成 1.9 m**（原来 2 m），自检后改。理由：自检第一轮（v1heft）三个布局的第一条指令都是直走 2.0 m，都被 HITCH 拒收（一次请求的走路超出范围）；HITCH 的上限是 2.0 m 脚步路径，脚步路径比直线略长。VLM 的指令检查同时收到 1.9 m，确切边界没测。
+8. **`hand_pose` 那一行加上“离骨盆不超过 1.2 m、掌心和手指至少差 45°”**，自检后改。理由：这是指令检查本来就有的两条规则，提示词里没写；自检第一轮里 2 个回合各连续 3 次发了掌心和手指方向相同的伸手指令，被拒收到回合结束。只把规则写出来，没有写怎么定掌心方向。
+9. **没改的**：身体描述、“两手夹住物体”那一句（用户定保留）、坐标约定、其余指令格式、输出要求。
 
 ## 提示词全文
 
@@ -90,12 +94,13 @@ FRAMES AND UNITS
 - The robot's facing direction is heading_deg in the observation; "palm" is the direction a palm faces, "fingers" the direction the straight fingers point.
 
 COMMANDS (reply with exactly one, as one JSON object, and nothing else)
-{"type": "walk", "forward_m": <-2..2>, "left_m": <-2..2>}            total distance 0.02 to 2 m
+{"type": "walk", "forward_m": <-1.9..1.9>, "left_m": <-1.9..1.9>}    total distance 0.02 to 1.9 m
 {"type": "turn", "left_deg": <-180..180>}                            at least 2 degrees
 {"type": "pelvis_height", "height_m": <0.40..0.79>}                  crouch or stand, feet stay, body balanced over the feet
 {"type": "torso_pitch", "pitch_deg": <0..45>}                        lean the upper body forward (0 = upright), in steps of 5 degrees
 {"type": "hand_pose", "hands": {"left": {"position": [x, y, z], "palm": [x, y, z], "fingers": [x, y, z]}, "right": {...}}, "duration_s": <0.5..4>}
                                                                      move one or both wrists; a hand left out keeps its pose; palm and fingers may be left out to keep the orientation
+                                                                     each position at most 1.2 m from the pelvis; palm and fingers at least 45 degrees apart
 {"type": "hand", "left": "open" | "close", "right": "open" | "close"}   either or both
 {"type": "done"}                                                     when the task is complete, or cannot be completed
 

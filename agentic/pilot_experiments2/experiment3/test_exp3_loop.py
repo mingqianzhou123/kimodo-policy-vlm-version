@@ -284,6 +284,27 @@ def test_prompt_block_fills():
     assert 'refused' not in fill(template, {'task': 't'})
 
 
+def test_vlm_commanders_use_the_kinematic_planner_and_its_limits():
+    """2026-11-28: the VLM commanders run on HITCH; their limits are narrowed to what it carries out, the scripted
+    ones keep the shared limits (as serve_oracle.py merges them)."""
+    from kimodo_vla.agent.commander import load_prompt
+    config = json.loads((HERE/'exp3_harness.json').read_text())
+    for name in ('qwen', 'gpt', 'gemini'):
+        spec = config['commanders'][name]
+        assert spec['planner'] == {'name': 'hitch'}
+        limits = {**config['limits'], **spec['limits']}
+        validate({'type': 'walk', 'forward_m': 1.9})
+        with pytest.raises(CommandError):
+            validate({'type': 'walk', 'forward_m': 2.0}, limits)
+        with pytest.raises(CommandError):
+            validate({'type': 'pelvis_height', 'height_m': .8}, limits)
+    assert 'limits' not in config['commanders']['scripted_hitch_main2']
+    validate({'type': 'walk', 'forward_m': 2.0}, config['limits'])
+    template = load_prompt(HERE/'vlm-config.md')
+    assert 'total distance 0.02 to 1.9 m' in template and 'behind_feet_m' not in template
+    assert '45 degrees apart' in template and '1.2 m from the pelvis' in template
+
+
 def test_task_scripts_on_recorded_scenes():
     """Both rules on the geometry the smoke runs recorded (seed 90000 and 91000): valid commands, sensible targets."""
     from exp3_scripted import TaskScript, clearance, nearest_face

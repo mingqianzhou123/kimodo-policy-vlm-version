@@ -99,7 +99,8 @@ if a.command_loop:
     config_path = Path(a.command_loop).resolve()
     config = json.loads(config_path.read_text())
     spec, task = config['commanders'][a.commander], config['tasks'][a.command_task]
-    limits = config.get('limits')
+    # A commander may narrow the command limits (the VLM commanders: to what the kinematic planner carries out).
+    limits = {**config.get('limits', {}), **spec.get('limits', {})}
     if spec['kind'] == 'scripted':
         commander = ScriptedCommander.from_file(config_path.with_name(spec['file']), spec['name'],
                                                 {**spec.get('options', {}), 'task': a.command_task}, limits)

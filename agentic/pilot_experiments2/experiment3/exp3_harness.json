@@ -380,6 +380,14 @@
   },
   "qwen": {
    "kind": "vlm",
+   "limits": {
+    "_about": "Narrower than the shared limits, to what the kinematic planner carries out (2026-11-28): HITCH refused a 2.0 m straight walk (its per-request walking range is 2.0 m of footstep path, wbc/skills/walking/trajectory.py MAX_PATH_M; v1heft, three layouts), so a walk stops at 1.9 m; HITCH's pelvis height goes up to 0.79 m. The scripted commanders keep the shared limits.",
+    "walk_max_m": 1.9,
+    "pelvis_height_m": [
+     0.4,
+     0.79
+    ]
+   },
    "planner": {
     "name": "hitch"
    },
@@ -390,6 +398,14 @@
   },
   "gpt": {
    "kind": "vlm",
+   "limits": {
+    "_about": "Narrower than the shared limits, to what the kinematic planner carries out (2026-11-28): HITCH refused a 2.0 m straight walk (its per-request walking range is 2.0 m of footstep path, wbc/skills/walking/trajectory.py MAX_PATH_M; v1heft, three layouts), so a walk stops at 1.9 m; HITCH's pelvis height goes up to 0.79 m. The scripted commanders keep the shared limits.",
+    "walk_max_m": 1.9,
+    "pelvis_height_m": [
+     0.4,
+     0.79
+    ]
+   },
    "planner": {
     "name": "hitch"
    },
@@ -410,6 +426,14 @@
   },
   "gemini": {
    "kind": "vlm",
+   "limits": {
+    "_about": "Narrower than the shared limits, to what the kinematic planner carries out (2026-11-28): HITCH refused a 2.0 m straight walk (its per-request walking range is 2.0 m of footstep path, wbc/skills/walking/trajectory.py MAX_PATH_M; v1heft, three layouts), so a walk stops at 1.9 m; HITCH's pelvis height goes up to 0.79 m. The scripted commanders keep the shared limits.",
+    "walk_max_m": 1.9,
+    "pelvis_height_m": [
+     0.4,
+     0.79
+    ]
+   },
    "planner": {
     "name": "hitch"
    },

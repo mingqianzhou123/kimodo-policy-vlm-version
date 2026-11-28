@@ -276,7 +276,8 @@ class KinematicPlanner(Planner):
             reply = self.connect().plan({**message, 'slower': True})
         self.log.append({'time': obs['time'], 'message': message, 'reply': {k: v for k, v in reply.items() if k != 'world'}})
         if not reply.get('ok'):
-            raise ValueError(f"HITCH refused: {reply.get('code')}: {reply.get('error')}")
+            details = reply.get('details')
+            raise ValueError(f"HITCH refused: {reply.get('code')}: {reply.get('error')}" + (f' {json.dumps(details)}' if details else ''))
         if not reply.get('passed'):
             raise ValueError(f"HITCH checks failed: {[f.get('name') for f in reply.get('failures', [])]}")
         self.torso = tuple(reply.get('end_torso') or (0, 0))
