@@ -718,3 +718,23 @@ def test_hosted_calls_use_the_proxy_the_launcher_passes(monkeypatch):
     assert handlers and handlers[0].proxies == {'https': 'http://proxy.invalid:3128'}
     source = (HERE.parents[1]/'scripts'/'run_oracle.py').read_text()
     assert "env[f'KVLA_API_{name.upper()}_PROXY']=value" in source
+
+
+def test_the_27b_commander_differs_from_the_4b_only_in_model_and_endpoint(monkeypatch):
+    """2026-11-28: Qwen3.8-27B under the frozen configuration, served locally by vLLM (no key, no proxy, thinking off)."""
+    from PIL import Image
+    from kimodo_vla.vlm import backends
+    config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
+    big, small = config['qwen38_27b'], config['qwen']
+    assert {k: v for k, v in big.items() if k not in ('_about', 'backend', 'api')} == {k: v for k, v in small.items() if k not in ('_about', 'backend')}
+    assert big['api']['request'] == {'max_tokens': 400, 'temperature': 0, 'chat_template_kwargs': {'enable_thinking': False}}
+    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+    sent = {}
+    def post(url, headers, body, timeout):
+        sent.update(url=url, headers=headers, body=body)
+        return 200, {'model': 'Qwen/Qwen3.8-27B', 'choices': [{'message': {'content': '{"type": "done"}'}}],
+                     'usage': {'prompt_tokens': 10, 'completion_tokens': 3}}
+    record = backends.API_BACKENDS['vllm'](big['api'], post).generate(Image.new('RGB', (4, 4)), 'p', 400)
+    assert sent['url'] == 'http://127.0.0.1:8765/v1/chat/completions' and sent['headers'] == {}
+    assert sent['body']['temperature'] == 0 and sent['body']['chat_template_kwargs'] == {'enable_thinking': False}
+    assert record['text'] == '{"type": "done"}' and record['cost_usd'] is None

@@ -70,10 +70,11 @@ def api_opener():
     return urllib.request.build_opener(urllib.request.ProxyHandler(proxies)) if proxies else urllib.request.build_opener()
 
 
-def post_json(url, headers, body, timeout):
+def post_json(url, headers, body, timeout, local=False):
     request = urllib.request.Request(url, json.dumps(body).encode(), {**headers, 'Content-Type': 'application/json'})
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({})) if local else api_opener()
     try:
-        with api_opener().open(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             return response.status, json.load(response)
     except urllib.error.HTTPError as exc:
         return exc.code, {'error_body': exc.read().decode(errors='replace')[:2000]}
@@ -101,8 +102,8 @@ class ApiBackend:
     def __init__(self, config, post=post_json, sleep=time.sleep):
         if not config.get('model'):
             raise SystemExit(f"Set the exact model version for '{self.name}' in agentic/pilot_experiments/experiment3_pointing/pointing-backends.json (field 'model')")
-        self.key = os.environ.get(self.key_variable)
-        if not self.key:
+        self.key = os.environ.get(self.key_variable) if self.key_variable else None
+        if self.key_variable and not self.key:
             raise SystemExit(f'{self.key_variable} is not set: put it in agentic/env.local.sh and source that file')
         self.config, self.post, self.sleep = config, post, sleep
         self.info = {'model': config['model'], 'base_url': config['base_url'], 'request': config.get('request', {}),
@@ -175,4 +176,17 @@ class GeminiBackend(ApiBackend):
                 'input_tokens': usage.get('promptTokenCount'), 'output_tokens': sum(billed) if billed else None}
 
 
-API_BACKENDS = {'openai': OpenAIBackend, 'gemini': GeminiBackend}
+class LocalOpenAIBackend(OpenAIBackend):
+    """A model served on this machine behind an OpenAI-compatible endpoint (vLLM's ``vllm serve``): no key, no
+    proxy. One server answers every episode; ``config['request']`` carries the decoding settings."""
+    name, key_variable = 'vllm', None
+
+    def __init__(self, config, post=None, sleep=time.sleep):
+        super().__init__(config, post or (lambda url, headers, body, timeout: post_json(url, headers, body, timeout, local=True)), sleep)
+
+    def request(self, prompt, image_b64):
+        url, _, body = super().request(prompt, image_b64)
+        return url, {}, body
+
+
+API_BACKENDS = {'openai': OpenAIBackend, 'gemini': GeminiBackend, 'vllm': LocalOpenAIBackend}

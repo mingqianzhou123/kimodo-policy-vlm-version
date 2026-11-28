@@ -396,6 +396,37 @@
    "max_tokens": 400,
    "_about": "Qwen3-VL-4B-Instruct, local (--vlm-model). Prompt: the prompt block of vlm-config.md. On the kinematic planner (HITCH) since 2026-11-28 (user: only HEFT + kinematic planner this round; run with --tracker heft); before that the default Kimodo planner (the q1-q7 development runs in experiment3/README.md)."
   },
+  "qwen38_27b": {
+   "kind": "vlm",
+   "_about": "Qwen3.8-27B (Hugging Face Qwen/Qwen3.8-27B, revision 37561816, Apache 2.0), added 2026-11-28 under the frozen configuration (c7dfe88): the same prompt, limits, planner, judge and budgets as qwen; only the model and its endpoint differ. Served once for all episodes by vLLM's OpenAI-compatible server on this machine (no key, no proxy). Decoding aligned with the 4B: temperature 0, at most 400 output tokens, thinking off (the model thinks by default).",
+   "limits": {
+    "_about": "Narrower than the shared limits, to what the kinematic planner carries out (2026-11-28): HITCH refused a 2.0 m straight walk (its per-request walking range is 2.0 m of footstep path, wbc/skills/walking/trajectory.py MAX_PATH_M; v1heft, three layouts), so a walk stops at 1.9 m; HITCH's pelvis height goes up to 0.79 m. The scripted commanders keep the shared limits.",
+    "walk_max_m": 1.9,
+    "pelvis_height_m": [
+     0.4,
+     0.79
+    ]
+   },
+   "planner": {
+    "name": "hitch"
+   },
+   "backend": "vllm",
+   "page": "vlm-config.md",
+   "max_tokens": 400,
+   "api": {
+    "model": "Qwen/Qwen3.8-27B",
+    "base_url": "http://127.0.0.1:8765/v1",
+    "request": {
+     "max_tokens": 400,
+     "temperature": 0,
+     "chat_template_kwargs": {
+      "enable_thinking": false
+     }
+    },
+    "timeout_s": 180,
+    "transport_retries": 4
+   }
+  },
   "gpt": {
    "kind": "vlm",
    "limits": {
