@@ -76,7 +76,7 @@ def box_episode(**change):
     lift = change.get('lift', lambda t: 0. if t < 7. else .1)
     steps = []
     hands_up = change.get('hands_up', lift)
-    for t in np.arange(0., 16., .1):
+    for t in np.arange(0., 20.5, .1):
         t = round(float(t), 2)
         carried = t >= 8. and hands_up(t) > 0.
         x = 1.95 if carried or (t >= 14. and change.get('placed', True)) else BOX[0]
@@ -87,7 +87,10 @@ def box_episode(**change):
              'objects': [{'name': 'box', 'position': [x, 0., z], 'yaw_deg': 0.}],
              'wrist_pos': [[x-.1, HALF+.04, hz+.04], [x-.1, -HALF-.04, hz+.04]],
              'other_contacts_n': change.get('contacts', {}) if change.get('contact_window', (4., 6.))[0] <= t <= change.get('contact_window', (4., 6.))[1] else {},
-             'arena_success': bool(change.get('stays', True) and change.get('placed', True) and t >= 14.6)}
+             'arena_success': bool(change.get('stays', True) and change.get('placed', True) and t >= 14.6),
+             # the hands press the box while closed (6.6-14 s), and after opening only if they stay on it
+             'box_contact': {'left_n': 8. if 6.6 <= t < 14. or change.get('hands_on') else 0.,
+                             'right_n': 8. if 6.6 <= t < 14. else 0.}}
         steps.append(s)
     scene = {'objects': [{'name': 'box', 'kind': 'object', 'position': BOX, 'yaw_deg': 0., 'size': [.21]*3}, layer]}
     return commands, steps, scene
@@ -99,13 +102,35 @@ def verdict_box(tmp_path, success=False, **change):
 
 
 def test_box_success(tmp_path):
-    v = verdict_box(tmp_path, success=True)
-    assert v['success'] and v['link'] is None
+    """P&PBox success is the 5 s reading (2026-11-28), not Arena's flag: kept on the target 5 s after the hands
+    open, with both hands off it."""
+    v = verdict_box(tmp_path, success=False)
+    assert v['success'] and v['link'] is None and v['arena_success'] is False
+    assert v['success_rule'] == 'released_and_kept' and v['openings'] == [{'time': 14., 'kept': True}]
+
+
+def test_box_arena_success_without_release_is_not_success(tmp_path):
+    """Arena saw the box over the shelf once (it fell past it), the hands never opened: not a success, link 5."""
+    v = verdict_box(tmp_path, success=True, lift=lambda t: .1 if 7. <= t < 9. else 0., hands_up=lambda t: 0. if t < 7. else .1,
+                    placed=False)
+    assert v['arena_success'] is True and v['success'] is False
+    assert (v['link'], v['reason']) == (5, 'kept the box until the hands opened')
+
+
+def test_box_hands_still_on_the_box_is_not_kept(tmp_path):
+    v = verdict_box(tmp_path, hands_on=True)
+    assert v['success'] is False and (v['link'], v['reason']) == (4, 'place: box stayed on the target after release')
+
+
+def test_box_log_ending_before_the_hold_is_not_kept(tmp_path):
+    commands, steps, scene = box_episode()
+    v = judge(write(tmp_path, 'pp_box', scene, commands, [s for s in steps if s['time'] < 18.], True), THRESHOLDS, grasp_config=GRASP)
+    assert v['success'] is False and v['openings'] == [{'time': 14., 'kept': None}] and v['link'] == 4
 
 
 def test_box_all_checks_pass_on_the_reference_episode(tmp_path):
     v = verdict_box(tmp_path)
-    assert v['link'] == 'unclassified' and v['reason'].startswith('every check passed')
+    assert v['success'] and v['link'] is None
     assert all(c['passed'] for c in v['checks'])
     assert {c['phase'] for c in v['checks']} == {'pick', 'place'}
     assert v['margins']['box_region_m'] > 0
@@ -122,11 +147,11 @@ NO_LIFT = {'lift': lambda t: 0., 'placed': False}   # a reach that went wrong do
     ({'left': [BOX[0]-.1, BOX[1]+HALF+.35, BOX[2]+.04], **NO_LIFT}, 2, 'left wrist beside its face'),
     ({'reach_error': {'left_wrist_m': .15, 'left_wrist_deg': 5., 'right_wrist_m': .02, 'right_wrist_deg': 5.}, **NO_LIFT},
      3, 'left wrist arrived'),
-    ({'lift': lambda t: 0.}, 4, 'box lifted after closing'),
+    ({'lift': lambda t: 0., 'placed': False}, 4, 'box lifted after closing'),
     ({'walk_error': .2, **NO_LIFT}, 3, 'pick: root arrived (last walk)'),
     ({'lift': lambda t: .1 if 7. <= t < 9. else 0., 'hands_up': lambda t: 0. if t < 7. else .1, 'placed': False},
      5, 'kept the box until the hands opened'),
-    ({'carry_error': .3}, 3, 'place: root arrived (last walk)'),
+    ({'carry_error': .3, 'stays': False}, 4, 'place: box stayed on the target after release'),
     ({'stays': False}, 4, 'place: box stayed on the target after release')])
 def test_box_one_episode_per_link(tmp_path, change, link, check):
     v = verdict_box(tmp_path, **change)
@@ -244,7 +269,8 @@ def test_every_threshold_is_named_and_marked():
     assert used <= set(THRESHOLDS)
     for name in used:
         entry = THRESHOLDS[name]
-        assert entry['status'] in ('placeholder', 'fact') and entry['meaning']
+        assert (entry['status'] == 'fact' or entry['status'].startswith(('fixed 2026-11-28', 'decided 2026-11-28'))) and entry['meaning']
+    assert THRESHOLDS['place_hold_s']['value'] == 5.0 and 'place_settle_s' not in THRESHOLDS
 
 
 def test_a_lifted_box_supersedes_stance_and_arrival_checks(tmp_path):
@@ -271,3 +297,52 @@ def test_unfinished_and_refused_sits(tmp_path):
               'objects': []} for t in np.arange(0., 4., .1)]
     v = judge(write(tmp_path, 'sit_sofa', {'objects': [SEAT]}, [refused, unfinished], steps, False), THRESHOLDS)
     assert v['attempts'] == 1 and v['link'] in (5, 'unclassified', 1, 2, 3, 4)
+
+
+def quat_z(deg):
+    a = np.radians(deg)/2
+    return [float(np.cos(a)), 0., 0., float(np.sin(a))]
+
+
+def test_turning_with_the_box_held_is_not_a_drop(tmp_path):
+    """Link 5 measures the box's offset from the wrists in the body's heading frame (2026-11-28): a 90 degree turn
+    in place with the box held 14 cm in front of the wrists is not a drop; the box falling out still is."""
+    from kimodo_vla.agent.judge import held_offset
+    def step(yaw, box_ahead=.14, drop=0.):
+        a = np.radians(yaw)
+        fwd, left = np.array([np.cos(a), np.sin(a), 0.]), np.array([-np.sin(a), np.cos(a), 0.])
+        mid = np.array([0., 0., 1.])
+        return {'root_quat': quat_z(yaw), 'wrist_pos': [(mid+.15*left).tolist(), (mid-.15*left).tolist()],
+                'objects': [{'name': 'box', 'position': (mid+box_ahead*fwd-[0, 0, drop]).tolist()}]}
+    held = held_offset(step(0.))
+    assert np.linalg.norm(held_offset(step(90.))-held) < 1e-9          # turned with it: same offset
+    world = lambda s: np.subtract(s['objects'][0]['position'], np.mean(s['wrist_pos'], axis=0))
+    assert np.linalg.norm(world(step(90.))-world(step(0.))) > .19         # the world frame would have moved 0.2 m
+    assert np.linalg.norm(held_offset(step(90., drop=.5))-held) > .4      # fell out: still a drop
+    assert np.allclose(held_offset({k: v for k, v in step(30.).items() if k != 'root_quat'}), world(step(30.)))
+
+
+def test_a_carrying_turn_in_an_episode_is_not_link_five(tmp_path):
+    """The reference episode, but the robot turns 90 degrees while carrying (the box turns with the hands)."""
+    commands, steps, scene = box_episode()
+    for s in steps:
+        yaw = 0. if s['time'] < 9. else min(90., (s['time']-9.)*45.) if s['time'] < 12. else 0.
+        if 8. <= s['time'] < 12.:
+            a = np.radians(yaw)
+            mid = np.mean(s['wrist_pos'], axis=0)
+            box = np.asarray(s['objects'][0]['position'])
+            d = box-mid
+            rot = np.array([[np.cos(a), -np.sin(a), 0.], [np.sin(a), np.cos(a), 0.], [0., 0., 1.]])
+            s['objects'][0]['position'] = (mid+rot @ d).tolist()
+            s['root_quat'] = quat_z(yaw)
+    v = judge(write(tmp_path, 'pp_box', scene, commands, steps, False), THRESHOLDS, grasp_config=GRASP)
+    assert v['success'] and not any(c['link'] == 5 and not c['passed'] for c in v['checks'])
+
+
+def test_the_place_stage_does_not_check_the_root(tmp_path):
+    """2026-11-28 (user, departing from the plan's text): the walk before placing is not a link-3 check; the pick
+    stage keeps its root check."""
+    v = verdict_box(tmp_path/'a', carry_error=.3)
+    assert v['success'] and not any(c.get('phase') == 'place' and 'root' in c['check'] for c in v['checks'])
+    v = verdict_box(tmp_path/'b', walk_error=.2, **NO_LIFT)
+    assert (v['link'], v['reason']) == (3, 'pick: root arrived (last walk)')

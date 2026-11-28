@@ -159,7 +159,10 @@ class CommandLoopPolicy:
             self.log.command({'kind': 'start', **row})
             self.log.command({'kind': 'end', **row, 'duration_s': 0., 'status': 'planner_refused', 'error': str(exc)[:500],
                               'hands_closed': hands_closed(obs), 'measured_error': {}, 'reference_error': {}})
-            self.last = {'command': command, 'status': 'planner_refused', 'error': str(exc)[:200]}
+            self.last = {'command': command, 'status': 'planner_refused', 'error': str(exc)[:500]}
+            # The planner's reason goes back to the commander as it is, like a refused reply (the prompt's
+            # {error}); it does not count toward max_refused_in_row (the reply itself was valid).
+            self.last_error = f'planner_refused: {str(exc)[:500]}'
             self.recent.append(command['type'])
             return False
         self.hands = np.asarray([float(h) for h in info['hands_closed']])
@@ -186,6 +189,11 @@ class CommandLoopPolicy:
             self.log.vlm({'call': call, 'time': obs['time'], 'wall_s': time.perf_counter()-begin,
                           'image': vision['capture_path'] if vision else None, 'observation': observation,
                           'refusal_note': self.last_error, **record})
+            if record.get('infra_failure'):
+                # The hosted model could not be reached after its retries (connection, proxy, server): not the
+                # model's reply. The episode ends as an infrastructure failure, to be rerun as it was.
+                self.end('vlm_unreachable', obs)
+                return None, None
             if record['error'] is None:
                 self.refused, self.last_error = 0, None
                 return record['command'], call

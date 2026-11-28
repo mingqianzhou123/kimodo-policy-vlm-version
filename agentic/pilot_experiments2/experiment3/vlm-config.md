@@ -1,39 +1,96 @@
-# 实验 3 的 VLM 配置（草案，待团队冻结）
+# 实验 3 的 VLM 配置（已冻结）
 
-状态：草案，2026-11-26。冻结前只在开发布局（`exp3_harness.json` 的 `dev_seeds`）上调试，不在 V 上调。冻结时在这里写日期和提交号，之后改动就是新配置、要重跑。
+状态：**已冻结，用户 2026-11-28 确认（“按建议走”）。冻结提交见 README“正式回合：Qwen3-VL-4B”一节开头**（代码、提示词、阈值、判定、预算都在那个提交里）。之后提示词、阈值、判定、预算都不再改；要改就是新配置，要重跑。调试只在开发布局（`exp3_harness.json` 的 `dev_seeds`）上做过，没有在 60 个官方评测回合上做。
 
 下面的提示词块（` ```prompt ` 那一段）就是代码读的那一份（`kimodo_vla/agent/commander.py` 的 `load_prompt`），不另存副本。
+
+## 已定的（用户 2026-11-28：“都按建议”；模型和密钥除外）
+
+1. 底层只用 HEFT（`--tracker heft`）+ 运动学规划器（HITCH，`planner.name: hitch`）。SONIC 这一轮不跑：脚本指令在 SONIC + 运动学规划器上一次也没走到过抓取站位（README“HEFT 对比”：0/4 到站位）。
+2. 任务先只做 P&PBox；SitSofa 以后再说（运动学规划器没有“坐到身后的座面上”这种姿态，见下面的指令表）。
+3. 模型：先用本地 Qwen3-VL-4B-Instruct 把流程跑通。闭源模型：用户 2026-11-28 定“沿用之前的模型”，即第一批指点实验用的那两个（确切版本见下表）；密钥由用户自己填进开发机的 `agentic/env.local.sh`。闭源的 60 个正式回合要等用户看过用量估计、点头后再跑。
+4. VLM 看到的数值和脚本指令一样（同一份观测），包括货架的真实（转过的）位姿和目标层上方到上一层隔板底面的净空；相机只给头部前视一张图。
+5. 提示词里“两手夹住物体”那一句保留。
+6. 成功以“松手 5 s 后箱子还在层板上、两手已离开”为准；Arena 自带的判定并列记录（判定程序的 `success` 和 `arena_success`）。
+7. 阈值：`exp3_thresholds.json` 的草案值原样定死（2026-11-28）；只把第 4 环的“稳定放置”改成第 6 条的 5 s 标准。
+8. 每回合上限：40 条指令、60 次调用、7000 步（140 s 仿真时间，`--steps 7000`）。
+9. 判定的三条规则按现在的实现定下（用户 2026-11-28 确认）：已抬起的那次尝试，它的第 1–3 环只记录、不当失败；一次都没尝试的回合，途中有碰撞或不稳归第 1 环，否则“未归类”；多次尝试按最早那次归环。
+10. 第 5 环“抬起后丢箱”的偏移改成跟着身体朝向转的坐标（用户 2026-11-28 确认）：按世界坐标算时，搬着箱子转身会误判成丢箱。
+11. 放置阶段的第 3 环只看两只手腕到没到，去掉“放之前最后一次走路到位”这一项（用户 2026-11-28 定，偏离计划原文）。依据：参考策略第二次测量 57 次成功放置，这一项全部不过（偏差 8–25 cm），留着会把放置阶段的每个失败都归到第 3 环。取的阶段这一项不动（两次测量的成功回合里 50/50、57/57 都过，最大 4.6 cm）。
 
 ## 模型和档位
 
 | 项 | 开源 | 闭源前沿 |
 |---|---|---|
-| 模型 | Qwen3-VL-4B-Instruct，本地 bf16，权重目录见 `--vlm-model` | **待定**：GPT 或 Gemini 的确切版本号（第一批指点实验用过 GPT-6.2 Astra、Gemini 4 Argon，版本号写在 `pilot_experiments/experiment3_pointing/pointing-backends.json`） |
-| 推理档位 | 贪心解码（`do_sample=False`），最多 400 个输出 token | 待定：推理档位、温度、输出上限，写进 `exp3_harness.json` 的 `commanders.<名字>.api.request` |
+| 模型 | Qwen3-VL-4B-Instruct，本地 bf16，权重目录见 `--vlm-model` | `gpt-6.2-astra`（OpenAI，指令来源 `gpt`）和 `gemini-4-argon`（Google，指令来源 `gemini`），和第一批指点实验相同（`pilot_experiments/experiment3_pointing/pointing-backends.json`）；连通调用里接口回报的版本号也是这两个 |
+| 推理档位 | 贪心解码（`do_sample=False`），最多 400 个输出 token | 和指点实验一样不另设（`api.request` 为空 = 厂商默认的推理档位、温度和输出上限）。三个模型用同一份提示词 |
 | 一次调用看到什么 | 一张头部前视相机 RGB 图（`front_camera`，仿真暂停时拍，和下面的数值同一时刻）+ 提示词 | 同左 |
 | 每次输出 | 一条身体指令（JSON） | 同左 |
-| 回复不合法 | 拒收，告诉它原因再问；连续 3 次不合法结束回合（`budgets.max_refused_in_row`） | 同左 |
-| 预算 | 每回合最多 40 条指令、60 次调用；Arena 步数上限：草案 3000 步（60 s 仿真时间）；开发回合实际用了 4000 步（80 s），P&PBox 和 VisionNavi 后来用 6000 步（120 s），正式值要团队定 | 同左 |
+| 回复不合法 | 拒收，把原因告诉它再问；连续 3 次不合法结束回合（`budgets.max_refused_in_row`） | 同左 |
+| 连不上 | — | 没回应或接口临时出错（408、429、5xx）就重发，最多 4 次（等 5、15、30、60 s），单独计数（`transport_retries`），不算模型的错；4 次都不行，回合以 `vlm_unreachable` 结束，按基础设施故障原样重跑。日志不记请求头和密钥，错误内容里形似密钥的字符串会被去掉 |
+| 规划器拒收 | 指令合法但规划器做不了（例如手的目标超出从站的地方能够到的范围）：身体不动，规划器的原话作为错误告诉它，再问；不算进“连续不合法” | 同左 |
+| 预算 | 每回合最多 40 条指令、60 次调用、7000 步（140 s） | 同左 |
 
-## 它能看到的数值（全部是仿真真值）
+## 冻结配置下新增的模型：Qwen3.8-27B（2026-11-29，用户 2026-11-28 定）
+
+提示词、判定、阈值、预算和上面冻结的完全一样（c7dfe88），只加了模型和接口代码（提交见 README“正式回合：Qwen3.8-27B”一节）。
+
+| 项 | 值 |
+|---|---|
+| 指令来源 | `qwen38_27b`；`qwen`（4B）那一项和它的结果不动 |
+| 权重 | Hugging Face 官方仓库 `Qwen/Qwen3.8-27B`，版本 37561816（发布者 Qwen，Apache 2.0，约 277.8 亿参数，BF16）。19 个权重大文件的 sha256 和大小都和仓库登记的一致。放在 4B 权重的同一个目录下 |
+| 精度、卡 | 原精度 BF16。2 张 RTX 5090（各 32 GB）按张量平分放不下（测算显存时爆了）；它的 KV 头分不到 3 张卡上，所以改成 3 张卡按层分段（流水线并行 3），每张占 26–29 GB |
+| 服务 | 一个 vLLM 0.18.0 的 OpenAI 兼容服务（本机 127.0.0.1:8765），所有回合都问它；本机流量不走代理，没有密钥 |
+| 解码 | 和 4B 对齐：温度 0、最多 400 个输出 token、关掉思考模式（`chat_template_kwargs.enable_thinking = false`）。和模型卡的差别：模型卡默认开思考模式，不思考模式下推荐温度 0.7、top_p 0.8、top_k 20、presence_penalty 1.5；这里按 4B 用确定性解码，没用推荐的采样参数 |
+| 调用失败 | 同闭源模型：重发最多 4 次，单独计数，仍不通按 `vlm_unreachable` 结束，算基础设施故障。服务中途挂掉也算 |
+
+## 它能看到的数值（全部是仿真真值，和脚本指令看到的是同一份）
 
 - 机器人：骨盆位置（世界坐标）、朝向角、躯干前倾角、两个手腕的位置和掌心 / 手指方向、两只手开还是合。
 - 物体（世界坐标，x、y 在地面，z 朝上，单位米，朝向角从 +x 逆时针）：
-  - P&PBox：箱子（中心、朝向、尺寸 0.21 m 立方）、桌子（轴对齐包围盒和台面高度）、货架（包围盒）、货架目标层（要放的那一层：中心落在这个区域内、底面落在这个高度，Arena 的判定就是这个）。
-  - SitSofa：座面（轴对齐包围盒，Arena 判定坐下用的那个盒子）、两个纸箱障碍物（中心和尺寸）。
-- 上一条指令的结果：完成与否、用时、目标、实测与目标的偏差；最近 6 条指令的类型。
+  - 箱子：中心、朝向（角度和四元数）、尺寸（0.21 m 立方）；
+  - 桌子：轴对齐包围盒、台面高度；
+  - 货架：轴对齐包围盒，加上 `oriented`，即货架框架的真实位姿（中心、朝向角、尺寸；Arena 每个布局把货架转最多 ±15°）。附说明“boxes go in through its long sides”，这是货架的几何事实：长边敞开、端部有立柱；
+  - 货架目标层：要放的区域，Arena 判定就用它，说明是“中心落在这个区域上方、底面落在这个高度”。另有 `oriented`（隔板的真实位姿）和 `clear_height_m`（目标层面到上一层隔板底面的净空）。
+- 上一条指令的结果：完成与否、用时、目标、实测与目标的偏差；被规划器拒收时是拒收的原话。还有最近 6 条指令的类型和剩余预算。
 
-## 它能发的指令
+货架的 `oriented` 和 `clear_height_m` 从 fdb865c（2026-11-27）起就在观测里（为脚本指令加的）。VLM 用同一份观测，所以这次没有改代码，只在自检时核对它们确实进了提示词（见 README）。
 
-`kimodo_vla/agent/commands.py` 的七种：走路位移、转身、骨盆高度（可选“骨盆落到脚后方多远”，用来坐下）、躯干前倾、手部目标位姿（位置 + 掌心朝向 + 手指方向，一只或两只手）、开合手、结束。每条的取值范围在 `exp3_harness.json` 的 `limits`。
+## 它能发的指令（按运动学规划器能做的写）
 
-## 指令经哪个规划器变成 40 维参考
+`kimodo_vla/agent/commands.py` 的指令格式不变，取值范围在 `exp3_harness.json` 的 `limits`。经运动学规划器（`kimodo_vla/agent/kinematic.py`）执行时：
 
-`kimodo_vla/agent/planner.py` 的 `KimodoPlanner`：走路和转身用实验二验证过的官方方式 Kimodo 走路；骨盆高度和躯干前倾用新写的姿态求解（双脚不动）加一段 Kimodo 生成；手部位姿用第一批抓箱的站立 IK 投影后端；开合手直接改 40 维里的两位。规划器是一个接口，实验 1 的结论如果要求换运动学规划器，只换这一层。
+| 指令 | 规划器怎么做 | 和指令格式允许的范围的差别 |
+|---|---|---|
+| `walk` | 一条最多 1.9 m（VLM 指令来源的 `limits.walk_max_m`；HITCH 一次请求的走路上限是 2.0 m 脚步路径，直走 2.0 m 被拒过）。HITCH 走路规划；走完按真实骨盆位置再补走，最多 2 次，误差到 8 cm、6° 以内为止（`walk_tolerance_m`、`turn_tolerance_deg`）。两只手都张开时，先把手放到身体两侧再走；有一只手合着，手臂保持原样 | 指令格式共用的上限是 2 m，VLM 的收到 1.9 m |
+| `turn` | 原地转，转角取整到 1° | 无 |
+| `pelvis_height` | 蹲下 / 站起，HITCH 的高度范围 0.30–0.79 m | VLM 的指令范围收到 0.40–0.79（共用的是 0.40–0.80）；**没有 `behind_feet_m`**（坐到身后的姿态），带了这一项会被规划器拒收 |
+| `torso_pitch` | 躯干前倾，按 5° 取整 | 指令允许 0–45° 任意值 |
+| `hand_pose` | 手腕目标位姿，变成 HITCH 的掌心路径点。HITCH 嫌给的时长太短时，按它需要的时长再规划一次；够不到时，自己前倾 10°、20° 再试 | 无 |
+| `hand` | 开 / 合，一只或两只 | 无 |
+| `done` | 结束回合 | 无 |
+
+被规划器拒收（够不到、关节超限、HITCH 的检查没过）的指令不执行，身体保持不动，拒收原话作为错误回给模型再问（`kimodo_vla/agent/loop.py`）。原话包括 HITCH 给的明细（哪一项超限、要了多少、上限多少），没有明细时只有那句话。
+
+指令格式本身的检查（`commands.py`，不合法就拒收、告诉原因再问）还有两条，现在也写进了提示词：手腕目标离骨盆不超过 1.2 m（`workspace_radius_m`），掌心方向和手指方向至少差 45°（`min_palm_finger_angle_deg`）。VLM 的指令来源在 `exp3_harness.json` 里有自己的 `limits`（走路 1.9 m、骨盆 0.40–0.79），脚本指令仍用共用的那份，参考策略不受影响。
+
+## 和上一版草案（KimodoPlanner）比，提示词改了什么
+
+只改了和规划器、指令检查有关的事实，没有加脚本规则里的解题步骤或调出来的数（站位距离、撤手 6 cm、先放到层板上再张手这类都没有写进去）。逐条：
+
+1. **删去 `pelvis_height` 带 `behind_feet_m` 的那一行**（“坐到身后的座面上”）。理由：运动学规划器没有这个姿态，发了一定被拒收；这一轮只做 P&PBox，用不到坐下。
+2. **`pelvis_height` 的范围写成 0.40–0.79**（原来 0.40–0.80）。理由：HITCH 的上限是 0.79 m。
+3. **`torso_pitch` 注明“按 5° 取整”**。理由：HITCH 的躯干姿态只接受 5° 的整数倍，规划器会取整。
+4. **走路的精度改成“走完后按 8 cm、6° 以内补走”**（原来写“走完离目标 5–10 cm、转身差几度”，那是 Kimodo 走路的经验数）。理由：运动学规划器的走路是闭环补走，这两个数是它的设置值，不是按结果调出来的。
+5. **加一句：两只手都张开时，走路前先把手放到身体两侧**。理由：这是规划器自己的动作（模型会看到手腕位置变了），不说明会让它误以为手被别的东西碰了。
+6. **加一句：规划器做不了的指令不执行，原因会告诉它**。理由：这是接口行为，模型需要知道被拒的指令没有执行。
+7. **走路的上限写成 1.9 m**（原来 2 m），自检后改。理由：自检第一轮（v1heft）三个布局的第一条指令都是直走 2.0 m，都被 HITCH 拒收（一次请求的走路超出范围）；HITCH 的上限是 2.0 m 脚步路径，脚步路径比直线略长。VLM 的指令检查同时收到 1.9 m，确切边界没测。
+8. **`hand_pose` 那一行加上“离骨盆不超过 1.2 m、掌心和手指至少差 45°”**，自检后改。理由：这是指令检查本来就有的两条规则，提示词里没写；自检第一轮里 2 个回合各连续 3 次发了掌心和手指方向相同的伸手指令，被拒收到回合结束。只把规则写出来，没有写怎么定掌心方向。
+9. **没改的**：身体描述、“两手夹住物体”那一句（用户定保留）、坐标约定、其余指令格式、输出要求。
 
 ## 提示词全文
 
-`{observation}` 换成当时的观测 JSON，`{error}` 换成上一条被拒的原因（没有就是空）。
+`{observation}` 换成当时的观测 JSON，`{task}` 换成任务说明，`{error}` 换成上一条被拒的原因（回复不合法，或规划器拒收；没有就是空）。
 
 ```prompt
 You control a Unitree G1 humanoid robot in a physics simulator, one body command at a time.
@@ -42,8 +99,9 @@ After each command is carried out you will get a new camera image and a new obse
 THE ROBOT
 - About 1.3 m tall. Standing, its pelvis is about 0.78 m above the floor; the shoulders are about 0.3 m above the pelvis and 0.2 m to either side of its centre line.
 - Each arm reaches about 0.55 m from its shoulder. The hands can only open or close (no finger control). To hold an object between two hands, put the palms against opposite faces of it and close both hands.
-- It walks with a learned balance controller: walks end within about 5-10 cm of the commanded spot, turns within a few degrees. It cannot jump or climb. Carrying something, it walks with its arms held as they were.
+- It walks with a learned balance controller. After a walk or turn, the remaining error is walked off again until the robot is within about 8 cm and 6 degrees of the commanded spot. It cannot jump or climb. With both hands open, it first brings the hands to its sides before walking; with a hand closed, it walks with its arms held as they were.
 - Everything you command is executed whole before you are asked again; the simulator is paused while you think.
+- A command the motion planner cannot carry out (for example a hand target beyond the arm's reach from where the robot stands) is not executed; you are told the planner's reason and choose again.
 
 FRAMES AND UNITS
 - World frame: x and y on the floor, z up, metres, floor at z = 0. Angles in degrees, counter-clockwise seen from above, 0 = the world +x direction.
@@ -52,13 +110,13 @@ FRAMES AND UNITS
 - The robot's facing direction is heading_deg in the observation; "palm" is the direction a palm faces, "fingers" the direction the straight fingers point.
 
 COMMANDS (reply with exactly one, as one JSON object, and nothing else)
-{"type": "walk", "forward_m": <-2..2>, "left_m": <-2..2>}            total distance 0.02 to 2 m
+{"type": "walk", "forward_m": <-1.9..1.9>, "left_m": <-1.9..1.9>}    total distance 0.02 to 1.9 m
 {"type": "turn", "left_deg": <-180..180>}                            at least 2 degrees
-{"type": "pelvis_height", "height_m": <0.40..0.80>}                  crouch or stand, feet stay, body balanced over the feet
-{"type": "pelvis_height", "height_m": <0.40..0.80>, "behind_feet_m": <0..0.30>}   the pelvis ends this far behind the feet: this is how to sit down on a seat behind you
-{"type": "torso_pitch", "pitch_deg": <0..45>}                        lean the upper body forward (0 = upright)
+{"type": "pelvis_height", "height_m": <0.40..0.79>}                  crouch or stand, feet stay, body balanced over the feet
+{"type": "torso_pitch", "pitch_deg": <0..45>}                        lean the upper body forward (0 = upright), in steps of 5 degrees
 {"type": "hand_pose", "hands": {"left": {"position": [x, y, z], "palm": [x, y, z], "fingers": [x, y, z]}, "right": {...}}, "duration_s": <0.5..4>}
                                                                      move one or both wrists; a hand left out keeps its pose; palm and fingers may be left out to keep the orientation
+                                                                     each position at most 1.2 m from the pelvis; palm and fingers at least 45 degrees apart
 {"type": "hand", "left": "open" | "close", "right": "open" | "close"}   either or both
 {"type": "done"}                                                     when the task is complete, or cannot be completed
 
@@ -71,9 +129,16 @@ OBSERVATION (ground truth from the simulator)
 {error}Reply with one JSON command.
 ```
 
-## 冻结前要定的
+## 判定（改完的）
 
-- 闭源模型用哪个、确切版本号、推理档位和 API 预算（一次连通测试之外不花闭源预算，等用户同意）。
-- 提示词里的身体描述和“两手夹住物体”这一句提示是否保留：它给了抓取方式的常识，可能让第 2 类失败变少。这是选择，不是事实。
-- 预算（40 条指令、60 次调用、60 s 仿真时间）和不合法回复的处理（拒收重问，连续 3 次结束）。
-- 相机：现在只给头部前视一张图。要不要再给一张俯视的世界相机图。
+- **成功**（P&PBox，2026-11-28 定）：某次张手指令（在第一次合手之后）发出后 5 s，Arena 的在架判定在前后 10 个记录步上都为真，且两只手对箱子的力都小于 1 N。读法和 `exp3_release_check.py` 相同。代码是 `kimodo_vla/agent/judge.py` 的 `released_and_kept`，阈值是 `place_hold_s`、`place_window_steps`、`place_hands_off_n`。Arena 自己的判定记为 `arena_success`。
+- 第 4 环“放稳”（放置阶段）用同一条读法，替换原来的“张手后 1 s 内 Arena 判过一次在架”（`place_settle_s`，已删）。
+- 第 5 环“抬起后丢箱”：箱子相对两手中点的偏移，在身体朝向的坐标里算（`judge.py` 的 `held_offset`），变化超过 8 cm 算丢箱。
+- 放置阶段的第 3 环只看两只手腕到没到（见上面第 11 条）。
+- 其余阈值原样定死，标“fixed 2026-11-28 (draft value)”。
+
+## 冻结时仍然开放的
+
+- **闭源模型的正式回合**：确切版本已定（见上表），预算用户还没给数。用量估计和自检结果写在 README，等用户看过、点头再跑。
+- **规划器拒收的指令也算进“每回合 40 条指令”**：这是现有实现（`loop.py`，一条指令不论执行还是被拒都占一个名额），冻结时没改。闭源模型自检时每回合 40 条里有 14–26 条被规划器拒收，Qwen 第二轮是 0–4 条。要不要改（比如被拒的不算名额）由用户定；改了就是新配置。
+- **相机**：现在只给头部前视一张图（第 4 条已定）。以后要不要加一张俯视的世界相机图，留作以后的选择。

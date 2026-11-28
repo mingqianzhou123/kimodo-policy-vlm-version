@@ -62,11 +62,14 @@ def main():
     else:
         from kimodo_vla.vlm.backends import API_BACKENDS
         backend = API_BACKENDS[spec['backend']](spec['api'])
-    commander = VLMCommander(backend, load_prompt(HERE/spec['page']), config.get('limits'), spec.get('max_tokens', 256))
+    limits = {**config.get('limits', {}), **spec.get('limits', {})}   # as serve_oracle.py merges them
+    commander = VLMCommander(backend, load_prompt(HERE/spec['page']), limits, spec.get('max_tokens', 256))
     record = commander.next(observation, image)
     record.update(image=str(captures[0]) if captures else 'grey placeholder', episode=str(a.episode), commander=a.commander)
     print('RAW:', record['raw'])
     print('COMMAND:', record['command'], 'ERROR:', record['error'], 'LATENCY_S:', round(record.get('latency_s', 0.), 2))
+    print('HTTP:', record.get('http_status'), 'MODEL:', record.get('model_version'), 'TOKENS:', record.get('input_tokens'), record.get('output_tokens'),
+          'RETRIES:', record.get('transport_retries'), 'INFRA:', record.get('infra_failure'), 'ERROR_SUMMARY:', record.get('error_summary'))
     if a.out:
         with a.out.open('a') as f:
             f.write(json.dumps(record, default=str)+'\n')

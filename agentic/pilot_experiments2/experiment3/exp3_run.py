@@ -38,6 +38,22 @@ def played(run):
         return False
 
 
+def fill_summary(run):
+    """The loop writes loop/summary.json only when it ends the episode itself (done, a budget). When Arena ends it
+    (its step limit, a fall, its own success check) there is none: write one from the logs, marked as such."""
+    loop = run/'loop'
+    if not loop.is_dir() or (loop/'summary.json').exists() or not played(run):
+        return False
+    lines = lambda name: [json.loads(l) for l in (loop/name).read_text().splitlines() if l.strip()] if (loop/name).exists() else []
+    commands, calls, steps = lines('commands.jsonl'), lines('vlm.jsonl'), lines('steps.jsonl')
+    episode = json.loads((run/'episode.json').read_text())
+    (loop/'summary.json').write_text(json.dumps({
+        'end_reason': 'arena_ended', 'arena_failure_reason': episode.get('failure_reason'),
+        'time': steps[-1]['time'] if steps else None, 'commands': sum(c['kind'] == 'start' for c in commands),
+        'commander_calls': len(calls), 'written_by': 'exp3_run.fill_summary (the loop did not end the episode)'}, indent=1))
+    return True
+
+
 lock_print = threading.Lock()
 
 
@@ -77,6 +93,7 @@ def work(gpu, jobs, args, lock):
                 continue
             attempt += 1
             time.sleep(20)
+        fill_summary(run)
         lock.unlink(missing_ok=True)
 
 

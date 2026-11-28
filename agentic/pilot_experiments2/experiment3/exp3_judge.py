@@ -1,5 +1,8 @@
 """Judge command-loop episodes: success, the first failed link (1-5) or unclassified, reach margins.
 
+P&PBox success is the 5 s reading decided 2026-11-28 (kimodo_vla.agent.judge.released_and_kept); Arena's own
+flag is printed beside it.
+
     python agentic/pilot_experiments2/experiment3/exp3_judge.py 'exp3dev-pp_box-scripted-20261126-d1-*'
     python agentic/pilot_experiments2/experiment3/exp3_judge.py <run folder> --attribution last_attempt --out verdicts.json
 
@@ -55,7 +58,8 @@ def main():
             (run/'loop'/'verdict.json').write_text(json.dumps(v, indent=1, default=str))
         margins = ' '.join(f'{k}={x:+.3f}' for k, x in v['margins'].items())
         what = 'success' if v['success'] else f"link {v['link']} ({v.get('phase')}: {v['reason']})"
-        print(f"{run.name}: {what}; attempts {v['attempts']}; end {v['end_reason']} / arena {v['arena_failure_reason']}; {margins}")
+        print(f"{run.name}: {what}; arena success {v.get('arena_success')}; attempts {v['attempts']}; "
+              f"end {v['end_reason']} / arena {v['arena_failure_reason']}; {margins}")
     counts = Counter('success' if v['success'] else str(v['link']) for v in verdicts)
     print('counts:', dict(sorted(counts.items())))
     if a.out:

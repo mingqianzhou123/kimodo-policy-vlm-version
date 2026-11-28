@@ -284,6 +284,27 @@ def test_prompt_block_fills():
     assert 'refused' not in fill(template, {'task': 't'})
 
 
+def test_vlm_commanders_use_the_kinematic_planner_and_its_limits():
+    """2026-11-28: the VLM commanders run on HITCH; their limits are narrowed to what it carries out, the scripted
+    ones keep the shared limits (as serve_oracle.py merges them)."""
+    from kimodo_vla.agent.commander import load_prompt
+    config = json.loads((HERE/'exp3_harness.json').read_text())
+    for name in ('qwen', 'gpt', 'gemini'):
+        spec = config['commanders'][name]
+        assert spec['planner'] == {'name': 'hitch'}
+        limits = {**config['limits'], **spec['limits']}
+        validate({'type': 'walk', 'forward_m': 1.9})
+        with pytest.raises(CommandError):
+            validate({'type': 'walk', 'forward_m': 2.0}, limits)
+        with pytest.raises(CommandError):
+            validate({'type': 'pelvis_height', 'height_m': .8}, limits)
+    assert 'limits' not in config['commanders']['scripted_hitch_main2']
+    validate({'type': 'walk', 'forward_m': 2.0}, config['limits'])
+    template = load_prompt(HERE/'vlm-config.md')
+    assert 'total distance 0.02 to 1.9 m' in template and 'behind_feet_m' not in template
+    assert '45 degrees apart' in template and '1.2 m from the pelvis' in template
+
+
 def test_task_scripts_on_recorded_scenes():
     """Both rules on the geometry the smoke runs recorded (seed 90000 and 91000): valid commands, sensible targets."""
     from exp3_scripted import TaskScript, clearance, nearest_face
@@ -382,6 +403,8 @@ def test_a_command_the_planner_cannot_carry_out_is_logged_and_asked_again(tmp_pa
     assert episode['commands'][0]['end']['status'] == 'planner_refused'
     assert episode['summary']['end_reason'] == 'commander_done'
     assert commander.seen[1][0]['last_command']['status'] == 'planner_refused'
+    assert commander.seen[1][2] == 'planner_refused: Posture out of reach'   # the reason, as it is, as the next error
+    assert commander.seen[0][2] is None
 
 
 def test_development_seeds_are_not_evaluation_episodes():
@@ -632,3 +655,86 @@ def test_loosen_before_open():
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
                                                           'loosen_before_open_m': .06, 'loosen_clear_m': .06}
+
+
+def test_a_summary_is_written_when_arena_ends_the_episode(tmp_path):
+    """Arena's step limit ended the episode (v1heft 90001): the runner writes loop/summary.json from the logs."""
+    from exp3_run import fill_summary
+    run = tmp_path/'run'
+    (run/'loop').mkdir(parents=True)
+    (run/'episode.json').write_text(json.dumps({'success': False, 'failure_reason': 'max_steps'}))
+    (run/'loop'/'commands.jsonl').write_text(json.dumps({'kind': 'start'})+'\n'+json.dumps({'kind': 'end'})+'\n')
+    (run/'loop'/'vlm.jsonl').write_text(json.dumps({'call': 0})+'\n'+json.dumps({'call': 1})+'\n')
+    (run/'loop'/'steps.jsonl').write_text(json.dumps({'time': 171.4})+'\n')
+    assert fill_summary(run)
+    summary = json.loads((run/'loop'/'summary.json').read_text())
+    assert summary['end_reason'] == 'arena_ended' and summary['arena_failure_reason'] == 'max_steps'
+    assert (summary['commands'], summary['commander_calls'], summary['time']) == (1, 2, 171.4)
+    assert not fill_summary(run)      # an existing summary is left alone
+
+
+def test_hosted_backend_retries_transient_failures_and_keeps_the_key_out(monkeypatch):
+    """Connection failures are retried and counted apart from the model's replies; the key never reaches the record."""
+    from PIL import Image
+    from kimodo_vla.vlm import backends
+    monkeypatch.setenv('OPENAI_API_KEY', 'sk-secretsecret123')
+    replies = [OSError('proxy refused'), (502, {'error_body': 'bad gateway sk-secretsecret123'}),
+               (200, {'model': 'm-1', 'choices': [{'message': {'content': '{"type": "done"}'}}],
+                      'usage': {'prompt_tokens': 10, 'completion_tokens': 3}})]
+    def post(url, headers, body, timeout):
+        r = replies.pop(0)
+        if isinstance(r, Exception):
+            raise r
+        return r
+    waited = []
+    config = {'model': 'm', 'base_url': 'https://example.invalid/v1', 'request': {}, 'transport_retries': 4}
+    record = backends.OpenAIBackend(config, post, sleep=waited.append).generate(Image.new('RGB', (4, 4)), 'p', 64)
+    assert record['text'] == '{"type": "done"}' and record['transport_retries'] == 2 and not record['infra_failure']
+    assert waited == [5, 15] and 'secret' not in json.dumps(record, default=str)
+    down = backends.OpenAIBackend({**config, 'transport_retries': 1}, lambda *a: (503, {'error_body': 'key sk-secretsecret123'}),
+                                  sleep=waited.append).generate(Image.new('RGB', (4, 4)), 'p', 64)
+    assert down['infra_failure'] and down['transport_retries'] == 1 and 'secret' not in json.dumps(down, default=str)
+    bad_request = backends.OpenAIBackend(config, lambda *a: (400, {'error_body': 'bad'}), sleep=waited.append).generate(
+        Image.new('RGB', (4, 4)), 'p', 64)
+    assert not bad_request['infra_failure'] and bad_request['transport_retries'] == 0 and bad_request['error_summary'] == 'bad'
+
+
+def test_an_unreachable_model_ends_the_episode_as_infrastructure(tmp_path):
+    class Down(ListCommander):
+        def next(self, observation, image=None, error=None):
+            return {'source': 'api', 'raw': '', 'command': None, 'error': 'no_json: empty', 'infra_failure': True}
+    policy = CommandLoopPolicy(None, None, tmp_path, config={'budgets': {}}, task_text='t', planner=StandInPlanner(),
+                               commander=Down([]), fk=FK)
+    drive(policy)
+    episode = load_episode(tmp_path)
+    assert episode['summary']['end_reason'] == 'vlm_unreachable' and not episode['commands']
+
+
+def test_hosted_calls_use_the_proxy_the_launcher_passes(monkeypatch):
+    """run_oracle.py keeps the proxy off for local traffic and passes it under KVLA_API_*_PROXY for the API calls."""
+    from kimodo_vla.vlm import backends
+    monkeypatch.setenv('KVLA_API_HTTPS_PROXY', 'http://proxy.invalid:3128')
+    handlers = [h for h in backends.api_opener().handlers if type(h).__name__ == 'ProxyHandler']
+    assert handlers and handlers[0].proxies == {'https': 'http://proxy.invalid:3128'}
+    source = (HERE.parents[1]/'scripts'/'run_oracle.py').read_text()
+    assert "env[f'KVLA_API_{name.upper()}_PROXY']=value" in source
+
+
+def test_the_27b_commander_differs_from_the_4b_only_in_model_and_endpoint(monkeypatch):
+    """2026-11-28: Qwen3.8-27B under the frozen configuration, served locally by vLLM (no key, no proxy, thinking off)."""
+    from PIL import Image
+    from kimodo_vla.vlm import backends
+    config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
+    big, small = config['qwen38_27b'], config['qwen']
+    assert {k: v for k, v in big.items() if k not in ('_about', 'backend', 'api')} == {k: v for k, v in small.items() if k not in ('_about', 'backend')}
+    assert big['api']['request'] == {'max_tokens': 400, 'temperature': 0, 'chat_template_kwargs': {'enable_thinking': False}}
+    monkeypatch.delenv('OPENAI_API_KEY', raising=False)
+    sent = {}
+    def post(url, headers, body, timeout):
+        sent.update(url=url, headers=headers, body=body)
+        return 200, {'model': 'Qwen/Qwen3.8-27B', 'choices': [{'message': {'content': '{"type": "done"}'}}],
+                     'usage': {'prompt_tokens': 10, 'completion_tokens': 3}}
+    record = backends.API_BACKENDS['vllm'](big['api'], post).generate(Image.new('RGB', (4, 4)), 'p', 400)
+    assert sent['url'] == 'http://127.0.0.1:8765/v1/chat/completions' and sent['headers'] == {}
+    assert sent['body']['temperature'] == 0 and sent['body']['chat_template_kwargs'] == {'enable_thinking': False}
+    assert record['text'] == '{"type": "done"}' and record['cost_usd'] is None

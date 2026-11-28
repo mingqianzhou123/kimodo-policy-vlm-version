@@ -97,6 +97,13 @@ def test_refusals(tmp_path):
     context = {'history': [sample([0., 0.], 0.)], 'hands': [0, 0], 'heading': np.eye(3), 'folder': tmp_path}
     with pytest.raises(ValueError):
         planner.start({'type': 'pelvis_height', 'height_m': .5, 'behind_feet_m': .1}, context)
+    class Refusing(FakeClient):
+        def plan(self, message):
+            return {'ok': False, 'code': 'PLAN_REJECTED', 'error': 'too far', 'details': {'limit': 'root_distance_m', 'requested': 2.0}}
+    refusing = KinematicPlanner(tmp_path, fk=FK(), client=Refusing())
+    with pytest.raises(ValueError) as refused:
+        refusing.start({'type': 'walk', 'forward_m': 1.5, 'left_m': 0.}, context)
+    assert str(refused.value) == 'HITCH refused: PLAN_REJECTED: too far {"limit": "root_distance_m", "requested": 2.0}'
     info = planner.start({'type': 'hand', 'right': 'close'}, context)
     assert info['hands_closed'] == [False, True]
     assert planner.chunk({'observation': {'oracle_history': context['history']}})[0, 39] == 1.

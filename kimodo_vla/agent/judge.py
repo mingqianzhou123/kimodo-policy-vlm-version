@@ -25,9 +25,16 @@ body evidently got there)
 its value and threshold, so a reader can see why. A failed episode with no attempt, or one where
 every check passed, is 'unclassified' with the reason; the judge does not force it into a link.
 
-P&PBox is judged in two stages, 'pick' and 'place' (plan v3, section 5): link 3 covers the root
-(the last walk or turn before the stage) as well as the wrists; in the place stage link 2 is a wrong
+P&PBox is judged in two stages, 'pick' and 'place' (plan v3, section 5): in the pick stage link 3 covers
+the root (the last walk or turn before it) as well as the wrists, in the place stage only the wrists (user
+2026-11-28, a departure from the plan); in the place stage link 2 is a wrong
 placement target and link 4 is "released, but the box did not stay on the target".
+
+P&PBox success (decided 2026-11-28) is not Arena's flag: ``place_hold_s`` after a hand-opening command
+(one that follows the first closing), Arena's on-shelf check holds on every sample within
+``place_window_steps`` logged steps of that moment and both hands press the box with less than
+``place_hands_off_n`` (``released_and_kept``; the same reading as experiment 3's exp3_release_check.py).
+Arena's own flag is kept beside it as ``arena_success``. Other tasks use Arena's flag.
 """
 import numpy as np
 
@@ -143,6 +150,34 @@ def success_of(episode):
     return any(s.get('arena_success') for s in episode['steps'])
 
 
+def kept_after(steps, opened, t):
+    """``place_hold_s`` after ``opened``: Arena's on-shelf check holds on every logged sample within
+    ``place_window_steps`` steps and both hands press the box with less than ``place_hands_off_n``.
+    None when the log ends before that moment."""
+    times = np.array([s['time'] for s in steps])
+    i = int(np.searchsorted(times, opened+value(t, 'place_hold_s')))
+    if i >= len(steps):
+        return None
+    n = int(value(t, 'place_window_steps'))
+    window = [s for s in steps[max(0, i-n):i+n] if s.get('arena_success') is not None]
+    contact = steps[i].get('box_contact') or {}
+    off = value(t, 'place_hands_off_n')
+    return bool(window and all(s['arena_success'] for s in window)
+                and contact.get('left_n', np.inf) < off and contact.get('right_n', np.inf) < off)
+
+
+def released_and_kept(episode, t):
+    """P&PBox success: some hand opening after the first closing is followed by the box kept on the target
+    (``kept_after``). Returns (success, [(opening time, kept or None), ...])."""
+    commands = [c for c in episode['commands'] if not refused(c)]
+    hand = lambda c, v: c['type'] == 'hand' and v in (c['command'].get('left'), c['command'].get('right'))
+    closed = next((c['time'] for c in commands if hand(c, 'close')), None)
+    if closed is None:
+        return False, []
+    openings = [(c['time'], kept_after(episode['steps'], c['time'], t)) for c in commands if hand(c, 'open') and c['time'] > closed]
+    return any(k for _, k in openings), openings
+
+
 def fall_time(steps, start=0., end=None):
     return next((s['time'] for s in steps_between(steps, start, end) if s.get('fallen')), None)
 
@@ -175,6 +210,20 @@ def grasp_attempts(commands):
             attempts.append({'reach': reach, 'close': c, 'open': opening, 'after': commands[i+1:]})
             reach = None
     return attempts
+
+
+def held_offset(step):
+    """The box's offset from the wrists' midpoint in the body's heading frame (yaw of the root; world frame when the
+    step has no root orientation). Measured in the world frame, a turn while carrying moved a firmly held box by
+    11 cm and read as a drop (first measurement g2r08, 2026-11-28; changed with the user's agreement)."""
+    d = np.subtract(next(o['position'] for o in step['objects'] if o['name'] == 'box'), np.mean(step['wrist_pos'], axis=0))
+    q = step.get('root_quat')
+    if q is None:
+        return d
+    w, x, y, z = (float(v) for v in q)
+    yaw = np.arctan2(2*(w*z+x*y), 1-2*(y*y+z*z))
+    c, s_ = np.cos(yaw), np.sin(yaw)
+    return np.array([c*d[0]+s_*d[1], -s_*d[0]+c*d[1], d[2]])
 
 
 def wrist_in_box_frame(position, box_position, yaw_deg):
@@ -291,7 +340,7 @@ def judge_box(episode, t, fk=None, grasp_config=None):
             # Lost = the box moved away from the hands (its offset from the wrists' midpoint changed) while
             # they were still closed, or the robot fell. The box going down with the hands is a placement.
             later = [s for s in steps_between(steps, lifted_at, stop) if s.get('wrist_pos') and (stop is None or s['time'] < stop)]
-            offset = lambda s: np.subtract(next(o['position'] for o in s['objects'] if o['name'] == 'box'), np.mean(s['wrist_pos'], axis=0))
+            offset = lambda s: held_offset(s)
             dropped, drift = None, 0.
             if later:
                 held = offset(later[0])
@@ -313,7 +362,8 @@ def judge_box(episode, t, fk=None, grasp_config=None):
 
 def judge_place(checks, place, grasp, box, episode, t, k, opening=None, move=None):
     """The place stage with the same links: 2 the commanded wrists would not put the box on the target layer,
-    3 the root or the wrists did not get where commanded, 4 released but the box did not stay on the target."""
+    3 the wrists did not get where commanded (not the root: see below), 4 released but the box did not stay on the
+    target."""
     layer = scene_object(episode, 'shelf_target_layer')
     if place is None or layer is None or place is grasp:
         return
@@ -337,18 +387,20 @@ def judge_place(checks, place, grasp, box, episode, t, k, opening=None, move=Non
     lo, hi = value(t, 'place_bottom_gap_m')
     checks.add(2, 'place: box bottom at the layer', lo <= bottom <= hi, value=float(bottom), threshold=[lo, hi],
                time=place['time'], phase='place', attempt=k)
-    root_arrival(checks, move, t, k, 'place')
+    # No root arrival in the place stage (user 2026-11-28, a departure from the plan's text): the reference policy's
+    # walk into the shelf ended 8-25 cm short of its command on all 57 successful placements of the second
+    # measurement, so the check would put every place-stage failure on link 3. Only the wrists count here.
     error = (place.get('end') or {}).get('measured_error', {})
     for side in wrists:
         checks.add(3, f'place: {side} wrist arrived', error.get(f'{side}_wrist_m', np.inf) <= value(t, 'wrist_arrival_m'),
                    value=error.get(f'{side}_wrist_m'), threshold=value(t, 'wrist_arrival_m'), time=(place.get('end') or {}).get('time'),
                    phase='place', attempt=k)
     if opening is not None:
-        released = (opening.get('end') or {}).get('time', opening['time'])
-        window = steps_between(episode['steps'], released, released+value(t, 'place_settle_s'))
-        stayed = any(s.get('arena_success') for s in window)
-        checks.add(4, 'place: box stayed on the target after release', stayed, value={'released_at': released},
-                   threshold=value(t, 'place_settle_s'), time=released, phase='place', attempt=k)
+        released = opening['time']
+        stayed = kept_after(episode['steps'], released, t)
+        checks.add(4, 'place: box stayed on the target after release', bool(stayed),
+                   value={'released_at': released, 'kept': stayed}, threshold=value(t, 'place_hold_s'),
+                   time=released, phase='place', attempt=k)
 
 
 # ---- leg class --------------------------------------------------------------------------
@@ -480,12 +532,16 @@ def judge(episode, thresholds, fk=None, grasp_config=None, attribution='earliest
         checks, margins, attempts, early_fall, tried = judge_sofa(episode, thresholds)
     else:
         raise ValueError(f'Unknown task {task!r}')
-    success = success_of(episode)
-    verdict = {'run': episode.get('run'), 'task': task, 'success': success, 'link': None, 'link_name': None,
+    arena = success_of(episode)
+    success, openings = released_and_kept(episode, thresholds) if task == 'pp_box' else (arena, None)
+    verdict = {'run': episode.get('run'), 'task': task, 'success': success, 'arena_success': arena,
+               'success_rule': 'released_and_kept' if task == 'pp_box' else 'arena', 'link': None, 'link_name': None,
                'phase': None, 'reason': None, 'attempts': len(attempts), 'checks': checks.rows, 'margins': margins,
                'end_reason': (episode.get('summary') or {}).get('end_reason'),
                'arena_failure_reason': (episode.get('episode') or {}).get('failure_reason'), 'attribution': attribution}
     verdict['arrived'] = arrival_flags(checks.rows)
+    if openings is not None:
+        verdict['openings'] = [{'time': o, 'kept': k} for o, k in openings]
     if success:
         return verdict
     failed = None

@@ -289,6 +289,11 @@ def main():
     with socket.socket() as sock:
         sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
     env={k:v for k,v in os.environ.items() if k.lower() not in ('http_proxy','https_proxy','all_proxy')}
+    # The proxy stays off for the simulator and the policy server's local traffic; a hosted VLM commander reaches its
+    # API through it (kimodo_vla/vlm/backends.py reads these two only for its own calls).
+    for name in ('https','http'):
+        value=os.environ.get(f'{name}_proxy') or os.environ.get(f'{name.upper()}_PROXY')
+        if value:env[f'KVLA_API_{name.upper()}_PROXY']=value
     env.update(PYTHONUNBUFFERED='1',OMP_NUM_THREADS='4',ORACLE_RUN=str(run))
     if a.dynamics_profile:env['SONIC_DYNAMICS_PROFILE']=a.dynamics_profile
     if heft:env.update(KVLA_TRACKER='heft',KVLA_HEFT_CHECKPOINT=str(heft))
