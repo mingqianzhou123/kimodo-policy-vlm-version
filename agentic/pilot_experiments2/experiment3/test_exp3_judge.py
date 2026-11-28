@@ -151,7 +151,7 @@ NO_LIFT = {'lift': lambda t: 0., 'placed': False}   # a reach that went wrong do
     ({'walk_error': .2, **NO_LIFT}, 3, 'pick: root arrived (last walk)'),
     ({'lift': lambda t: .1 if 7. <= t < 9. else 0., 'hands_up': lambda t: 0. if t < 7. else .1, 'placed': False},
      5, 'kept the box until the hands opened'),
-    ({'carry_error': .3, 'stays': False}, 3, 'place: root arrived (last walk)'),
+    ({'carry_error': .3, 'stays': False}, 4, 'place: box stayed on the target after release'),
     ({'stays': False}, 4, 'place: box stayed on the target after release')])
 def test_box_one_episode_per_link(tmp_path, change, link, check):
     v = verdict_box(tmp_path, **change)
@@ -337,3 +337,12 @@ def test_a_carrying_turn_in_an_episode_is_not_link_five(tmp_path):
             s['root_quat'] = quat_z(yaw)
     v = judge(write(tmp_path, 'pp_box', scene, commands, steps, False), THRESHOLDS, grasp_config=GRASP)
     assert v['success'] and not any(c['link'] == 5 and not c['passed'] for c in v['checks'])
+
+
+def test_the_place_stage_does_not_check_the_root(tmp_path):
+    """2026-11-28 (user, departing from the plan's text): the walk before placing is not a link-3 check; the pick
+    stage keeps its root check."""
+    v = verdict_box(tmp_path, carry_error=.3)
+    assert v['success'] and not any(c.get('phase') == 'place' and 'root' in c['check'] for c in v['checks'])
+    v = verdict_box(tmp_path, walk_error=.2, **NO_LIFT)
+    assert (v['link'], v['reason']) == (3, 'pick: root arrived (last walk)')

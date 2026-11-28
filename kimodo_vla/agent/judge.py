@@ -25,8 +25,9 @@ body evidently got there)
 its value and threshold, so a reader can see why. A failed episode with no attempt, or one where
 every check passed, is 'unclassified' with the reason; the judge does not force it into a link.
 
-P&PBox is judged in two stages, 'pick' and 'place' (plan v3, section 5): link 3 covers the root
-(the last walk or turn before the stage) as well as the wrists; in the place stage link 2 is a wrong
+P&PBox is judged in two stages, 'pick' and 'place' (plan v3, section 5): in the pick stage link 3 covers
+the root (the last walk or turn before it) as well as the wrists, in the place stage only the wrists (user
+2026-11-28, a departure from the plan); in the place stage link 2 is a wrong
 placement target and link 4 is "released, but the box did not stay on the target".
 
 P&PBox success (decided 2026-11-28) is not Arena's flag: ``place_hold_s`` after a hand-opening command
@@ -361,7 +362,8 @@ def judge_box(episode, t, fk=None, grasp_config=None):
 
 def judge_place(checks, place, grasp, box, episode, t, k, opening=None, move=None):
     """The place stage with the same links: 2 the commanded wrists would not put the box on the target layer,
-    3 the root or the wrists did not get where commanded, 4 released but the box did not stay on the target."""
+    3 the wrists did not get where commanded (not the root: see below), 4 released but the box did not stay on the
+    target."""
     layer = scene_object(episode, 'shelf_target_layer')
     if place is None or layer is None or place is grasp:
         return
@@ -385,7 +387,9 @@ def judge_place(checks, place, grasp, box, episode, t, k, opening=None, move=Non
     lo, hi = value(t, 'place_bottom_gap_m')
     checks.add(2, 'place: box bottom at the layer', lo <= bottom <= hi, value=float(bottom), threshold=[lo, hi],
                time=place['time'], phase='place', attempt=k)
-    root_arrival(checks, move, t, k, 'place')
+    # No root arrival in the place stage (user 2026-11-28, a departure from the plan's text): the reference policy's
+    # walk into the shelf ended 8-25 cm short of its command on all 57 successful placements of the second
+    # measurement, so the check would put every place-stage failure on link 3. Only the wrists count here.
     error = (place.get('end') or {}).get('measured_error', {})
     for side in wrists:
         checks.add(3, f'place: {side} wrist arrived', error.get(f'{side}_wrist_m', np.inf) <= value(t, 'wrist_arrival_m'),
