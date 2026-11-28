@@ -601,8 +601,31 @@ def test_loosen_before_open():
     out_right = script.queue[2]({'robot': {'wrists': gone}, 'objects': [box]})
     assert out_right['hands']['right']['position'] == pytest.approx([-1.9, -2.66-.105-.06, .85])
     assert out_right['hands']['left']['position'] == pytest.approx([-1.9, -2.495, .89])
+    # loosen_probe_m: first 2 cm out; the box not following, the loosening goes where it would have gone without
+    # the probe; following the left wrist by 1.5 cm, both fists go back, the left hand opens alone and goes out
+    # (6 cm outside the box's side, 4 cm up), then the right fist goes out, and the plain loosening is dropped
+    script = TaskScript('pp_box', place_by_walk=True, true_shelf=True, loosen_before_open_m=.06, loosen_clear_m=.06,
+                        loosen_probe_m=.02)
+    box = {'name': 'box', 'position': [-1.9, -2.72, .754], 'quat_wxyz': [1, 0, 0, 0]}
+    before = {'robot': {'wrists': wrists}, 'objects': [box]}
+    probe = script.probe(before)
+    assert probe['hands']['left']['position'] == pytest.approx([-1.9, -2.58, .85])
+    assert probe['hands']['right']['position'] == pytest.approx([-1.9, -2.86, .85])
+    probed = {'left': {'position': [-1.9, -2.58, .85]}, 'right': {'position': [-1.9, -2.86, .85]}}
+    script.queue = [script.loosen, 'open both']
+    assert script.probe_check({'robot': {'wrists': probed}, 'objects': [dict(box, position=[-1.9, -2.715, .754])]}) is None
+    step = script.loosen({'robot': {'wrists': probed}, 'objects': [box]})
+    assert step['hands']['left']['position'] == pytest.approx([-1.9, -2.54, .85])
+    assert step['hands']['right']['position'] == pytest.approx([-1.9, -2.90, .85])
+    back = script.probe_check({'robot': {'wrists': probed}, 'objects': [dict(box, position=[-1.9, -2.705, .754])]})
+    assert back['hands']['left']['position'] == pytest.approx([-1.9, -2.6, .85])
+    assert back['hands']['right']['position'] == pytest.approx([-1.9, -2.84, .85])
+    assert script.queue[0] == {'type': 'hand', 'left': 'open'} and script.queue[-1] == 'open both'
+    assert len(script.queue) == 4
+    away = script.queue[1]({'robot': {'wrists': wrists}, 'objects': [box]})
+    assert away['hands']['left']['position'] == pytest.approx([-1.9, -2.72+.105+.06, .89])
+    assert away['hands']['right']['position'] == pytest.approx([-1.9, -2.84, .85])
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
                                                           'loosen_before_open_m': .06, 'loosen_clear_m': .06,
-                                                          'loosen_back_m': .08, 'loosen_min_gap_m': .03,
-                                                          'loosen_brace_m': .01}
+                                                          'loosen_probe_m': .02}

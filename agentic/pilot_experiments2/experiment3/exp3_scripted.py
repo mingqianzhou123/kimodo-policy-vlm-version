@@ -8,6 +8,7 @@ reuse the box grasp geometry the first pilot batch validated (``kimodo_vla/oracl
 and ``agentic/configs/grasp-loop.json``); nothing here was tuned on development outcomes beyond
 what the smoke runs show about the scene.
 """
+import copy
 import json
 from pathlib import Path
 
@@ -96,7 +97,8 @@ class TaskScript:
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
                  place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02, place_end_margin_m=.15,
                  approach_gap_m=None, true_shelf=False, carry_turn_max_deg=None, loosen_before_open_m=None,
-                 loosen_clear_m=None, loosen_back_m=None, loosen_min_gap_m=None, loosen_brace_m=None):
+                 loosen_clear_m=None, loosen_back_m=None, loosen_min_gap_m=None, loosen_brace_m=None,
+                 loosen_probe_m=None):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -168,6 +170,13 @@ class TaskScript:
         # and goes out, then the other fist goes out before it opens. Taken further out (r5heft) or back (r4heft),
         # the stuck fist dragged the box 9-12 cm, and opening it threw the box 0.19 m inward in 0.3 s (r3heft 90022).
         self.loosen_brace_m = None if loosen_brace_m is None else float(loosen_brace_m)
+        # With loosen_probe_m, the loosening starts with the closed fists only this far out. If the box came along
+        # with one wrist (at least half as far), both fists go back where they were, so the other one still holds
+        # the box, and the stuck hand opens alone and goes out; then the other fist goes out and opens. Otherwise the
+        # loosening goes on to where it would have gone without the probe. A brace from the other side (h1heft) did
+        # not get there: the other arm stopped 6 cm short, and opening the stuck hand threw the box as before.
+        self.loosen_probe_m = None if loosen_probe_m is None else float(loosen_probe_m)
+        self._before_probe = None
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -426,6 +435,7 @@ class TaskScript:
                     first] + ([self.insert_check] if self.true_shelf else []) + [
                     {'type': 'walk', 'forward_m': max(forward, .05), 'left_m': 0.0}] + (
                     [self.set_down] if self.true_shelf else []) + (
+                    [self.probe, self.probe_check] if self.loosen_probe_m is not None else []) + (
                     [self.loosen] if self.loosen_before_open_m is not None else []) + (
                     [self.loosen_check] if self.loosen_min_gap_m is not None else []) + [
                     {'type': 'hand', 'left': 'open', 'right': 'open'},
@@ -538,6 +548,8 @@ class TaskScript:
         or further until it is loosen_clear_m outside the box's side, hands still closed, so the palms no longer
         squeeze it and the opening fingers clear it. Without loosen_min_gap_m, both hands also go loosen_back_m back
         toward the pelvis (r4heft)."""
+        if self._before_probe is not None:   # from where the fists were before the probe, as without it
+            observation = self._before_probe
         wrists = observation['robot']['wrists']
         left, right = (np.asarray(wrists[s]['position'], float) for s in ('left', 'right'))
         out = (left-right)*[1, 1, 0]
@@ -579,19 +591,48 @@ class TaskScript:
         sign = {'left': 1., 'right': -1.}
         now = {'left': left, 'right': right}
         brace = now[free]-sign[free]*(gaps[free]+self.loosen_brace_m)*out
-
-        def away(side, up):
-            def step(o):
-                l, r, o_out, g = self.box_gaps(o)
-                at = {'left': l, 'right': r}
-                target = dict(at)
-                target[side] = at[side]+sign[side]*max(0., self.loosen_clear_m-g[side])*o_out+[0, 0, up]
-                return {'type': 'hand_pose', 'duration_s': 0.8,
-                        'hands': {s: {'position': target[s].tolist()} for s in ('left', 'right')}}
-            return step
-        self.queue[0:0] = [{'type': 'hand', stuck: 'open'}, away(stuck, .04), away(free, 0.)]
+        self.queue[0:0] = [{'type': 'hand', stuck: 'open'}, self.away(stuck, .04), self.away(free, 0.)]
         return {'type': 'hand_pose', 'duration_s': 0.8,
                 'hands': {stuck: {'position': now[stuck].tolist()}, free: {'position': brace.tolist()}}}
+
+    def away(self, side, up):
+        """A step, computed when due: this wrist out until it is loosen_clear_m outside the box's side, and up by
+        ``up``; the other wrist stays where it is."""
+        sign = {'left': 1., 'right': -1.}
+
+        def step(o):
+            l, r, o_out, g = self.box_gaps(o)
+            target = {'left': l, 'right': r}
+            target[side] = target[side]+sign[side]*max(0., self.loosen_clear_m-g[side])*o_out+[0, 0, up]
+            return {'type': 'hand_pose', 'duration_s': 0.8,
+                    'hands': {s: {'position': target[s].tolist()} for s in ('left', 'right')}}
+        return step
+
+    def probe(self, observation):
+        """loosen_probe_m: both closed fists this far out along the line between the wrists (0.4 s)."""
+        self._before_probe = copy.deepcopy({'robot': {'wrists': observation['robot']['wrists']},
+                                            'objects': observation['objects']})
+        left, right, out, _ = self.box_gaps(observation)
+        return {'type': 'hand_pose', 'duration_s': 0.4,
+                'hands': {'left': {'position': (left+self.loosen_probe_m*out).tolist()},
+                          'right': {'position': (right-self.loosen_probe_m*out).tolist()}}}
+
+    def probe_check(self, observation):
+        """After the probe: if the box came along with exactly one wrist (at least half the probe), both fists go back
+        where they were, the stuck hand opens alone and goes out (and 4 cm up), then the other fist goes out, instead
+        of the plain loosening; None otherwise (the loosening goes on)."""
+        before = self._before_probe
+        left, right, out, _ = self.box_gaps(before)
+        moved = (np.asarray(obj(observation, 'box')['position'], float)-np.asarray(obj(before, 'box')['position'], float))*[1, 1, 0]
+        follow = {'left': float(np.dot(moved, out)), 'right': -float(np.dot(moved, out))}
+        stuck = [side for side in ('left', 'right') if follow[side] >= self.loosen_probe_m/2]
+        if len(stuck) != 1:
+            return None
+        free = 'right' if stuck[0] == 'left' else 'left'
+        self.queue = [{'type': 'hand', stuck[0]: 'open'}, self.away(stuck[0], .04), self.away(free, 0.)] + [
+            item for item in self.queue if item != self.loosen]
+        return {'type': 'hand_pose', 'duration_s': 0.4,
+                'hands': {'left': {'position': left.tolist()}, 'right': {'position': right.tolist()}}}
 
     def insert_check(self, observation):
         """After the lowering (the box sags 4-7 cm in the grip): put it right again if a corner is out of the room."""
