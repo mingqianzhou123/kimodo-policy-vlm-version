@@ -185,8 +185,9 @@ class LocalOpenAIBackend(OpenAIBackend):
         super().__init__(config, post or (lambda url, headers, body, timeout: post_json(url, headers, body, timeout, local=True)), sleep)
 
     def request(self, prompt, image_b64):
-        url, _, body = super().request(prompt, image_b64)
-        return url, {}, body
+        content = [{'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,'+image_b64}}, {'type': 'text', 'text': prompt}]
+        return (self.config['base_url'].rstrip('/')+'/chat/completions', {},
+                {'model': self.config['model'], 'messages': [{'role': 'user', 'content': content}], **self.config.get('request', {})})
 
 
 API_BACKENDS = {'openai': OpenAIBackend, 'gemini': GeminiBackend, 'vllm': LocalOpenAIBackend}
