@@ -671,3 +671,40 @@ def test_a_summary_is_written_when_arena_ends_the_episode(tmp_path):
     assert summary['end_reason'] == 'arena_ended' and summary['arena_failure_reason'] == 'max_steps'
     assert (summary['commands'], summary['commander_calls'], summary['time']) == (1, 2, 171.4)
     assert not fill_summary(run)      # an existing summary is left alone
+
+
+def test_hosted_backend_retries_transient_failures_and_keeps_the_key_out(monkeypatch):
+    """Connection failures are retried and counted apart from the model's replies; the key never reaches the record."""
+    from PIL import Image
+    from kimodo_vla.vlm import backends
+    monkeypatch.setenv('OPENAI_API_KEY', 'sk-secretsecret123')
+    replies = [OSError('proxy refused'), (502, {'error_body': 'bad gateway sk-secretsecret123'}),
+               (200, {'model': 'm-1', 'choices': [{'message': {'content': '{"type": "done"}'}}],
+                      'usage': {'prompt_tokens': 10, 'completion_tokens': 3}})]
+    def post(url, headers, body, timeout):
+        r = replies.pop(0)
+        if isinstance(r, Exception):
+            raise r
+        return r
+    waited = []
+    config = {'model': 'm', 'base_url': 'https://example.invalid/v1', 'request': {}, 'transport_retries': 4}
+    record = backends.OpenAIBackend(config, post, sleep=waited.append).generate(Image.new('RGB', (4, 4)), 'p', 64)
+    assert record['text'] == '{"type": "done"}' and record['transport_retries'] == 2 and not record['infra_failure']
+    assert waited == [5, 15] and 'secret' not in json.dumps(record, default=str)
+    down = backends.OpenAIBackend({**config, 'transport_retries': 1}, lambda *a: (503, {'error_body': 'key sk-secretsecret123'}),
+                                  sleep=waited.append).generate(Image.new('RGB', (4, 4)), 'p', 64)
+    assert down['infra_failure'] and down['transport_retries'] == 1 and 'secret' not in json.dumps(down, default=str)
+    bad_request = backends.OpenAIBackend(config, lambda *a: (400, {'error_body': 'bad'}), sleep=waited.append).generate(
+        Image.new('RGB', (4, 4)), 'p', 64)
+    assert not bad_request['infra_failure'] and bad_request['transport_retries'] == 0 and bad_request['error_summary'] == 'bad'
+
+
+def test_an_unreachable_model_ends_the_episode_as_infrastructure(tmp_path):
+    class Down(ListCommander):
+        def next(self, observation, image=None, error=None):
+            return {'source': 'api', 'raw': '', 'command': None, 'error': 'no_json: empty', 'infra_failure': True}
+    policy = CommandLoopPolicy(None, None, tmp_path, config={'budgets': {}}, task_text='t', planner=StandInPlanner(),
+                               commander=Down([]), fk=FK)
+    drive(policy)
+    episode = load_episode(tmp_path)
+    assert episode['summary']['end_reason'] == 'vlm_unreachable' and not episode['commands']

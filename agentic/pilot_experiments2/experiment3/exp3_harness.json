@@ -414,6 +414,7 @@
    "max_tokens": 400,
    "api": {
     "model": "gpt-6.2-astra",
+    "transport_retries": 4,
     "base_url": "https://api.openai.com/v1",
     "request": {},
     "price_per_million_tokens_usd": {
@@ -442,6 +443,7 @@
    "max_tokens": 400,
    "api": {
     "model": "gemini-4-argon",
+    "transport_retries": 4,
     "base_url": "https://generativelanguage.googleapis.com/v1beta",
     "request": {},
     "price_per_million_tokens_usd": {

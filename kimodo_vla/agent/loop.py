@@ -189,6 +189,11 @@ class CommandLoopPolicy:
             self.log.vlm({'call': call, 'time': obs['time'], 'wall_s': time.perf_counter()-begin,
                           'image': vision['capture_path'] if vision else None, 'observation': observation,
                           'refusal_note': self.last_error, **record})
+            if record.get('infra_failure'):
+                # The hosted model could not be reached after its retries (connection, proxy, server): not the
+                # model's reply. The episode ends as an infrastructure failure, to be rerun as it was.
+                self.end('vlm_unreachable', obs)
+                return None, None
             if record['error'] is None:
                 self.refused, self.last_error = 0, None
                 return record['command'], call

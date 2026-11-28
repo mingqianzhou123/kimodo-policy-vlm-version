@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -71,17 +72,32 @@ def post_json(url, headers, body, timeout):
         return exc.code, {'error_body': exc.read().decode(errors='replace')[:2000]}
 
 
+TRANSIENT = (None, 408, 429, 500, 502, 503, 504)   # no reply (connection, proxy, timeout) or a server-side hiccup
+
+
+def redacted(text, key):
+    """An error body as it may be logged: the key and anything shaped like one removed."""
+    text = str(text)
+    if key:
+        text = text.replace(key, '[key]')
+    return re.sub(r'(sk-|AIza)[A-Za-z0-9_*\-]{6,}', '[key]', text)
+
+
 class ApiBackend:
-    """Shared part of the hosted backends. The exact model version comes from the config; there is no default."""
+    """Shared part of the hosted backends. The exact model version comes from the config; there is no default.
+
+    ``config['transport_retries']`` (default 0): a call that got no reply or a transient HTTP status is sent again
+    that many times (waits ``retry_wait_s``); the record counts the retries and, if all failed, says
+    ``infra_failure``: a connection problem, not the model's reply. Headers (the key) are never in the record."""
     key_variable = None
 
-    def __init__(self, config, post=post_json):
+    def __init__(self, config, post=post_json, sleep=time.sleep):
         if not config.get('model'):
             raise SystemExit(f"Set the exact model version for '{self.name}' in agentic/pilot_experiments/experiment3_pointing/pointing-backends.json (field 'model')")
         self.key = os.environ.get(self.key_variable)
         if not self.key:
             raise SystemExit(f'{self.key_variable} is not set: put it in agentic/env.local.sh and source that file')
-        self.config, self.post = config, post
+        self.config, self.post, self.sleep = config, post, sleep
         self.info = {'model': config['model'], 'base_url': config['base_url'], 'request': config.get('request', {}),
                      'price_per_million_tokens_usd': config.get('price_per_million_tokens_usd')}
 
@@ -96,15 +112,25 @@ class ApiBackend:
         # because a reasoning model spends an unknown share of any cap on hidden tokens.
         data = png_bytes(image)
         url, headers, body = self.request(prompt, base64.b64encode(data).decode())
-        start = time.perf_counter()
-        try:
-            status, response = self.post(url, headers, body, self.config.get('timeout_s', 120))
-        except OSError as exc:  # no reply at all; the elapsed time is still the cost of this call
-            status, response = None, {'error_body': repr(exc)}
-        latency = time.perf_counter()-start
+        retries, waits, failures = int(self.config.get('transport_retries', 0)), self.config.get('retry_wait_s', [5, 15, 30, 60]), []
+        for attempt in range(retries+1):
+            start = time.perf_counter()
+            try:
+                status, response = self.post(url, headers, body, self.config.get('timeout_s', 120))
+            except OSError as exc:  # no reply at all; the elapsed time is still the cost of this call
+                status, response = None, {'error_body': repr(exc)}
+            latency = time.perf_counter()-start
+            if status not in TRANSIENT or attempt == retries:
+                break
+            failures.append({'http_status': status, 'error': redacted((response or {}).get('error_body', ''), self.key)[:200]})
+            self.sleep(waits[min(attempt, len(waits)-1)])
         record = {'text': '', 'latency_s': latency, 'prompt': prompt, 'image_sha256': hashlib.sha256(data).hexdigest(),
                   'http_status': status, 'response': response, 'input_tokens': None, 'output_tokens': None,
-                  'model_version': None, 'request': self.config.get('request', {})}
+                  'model_version': None, 'request': self.config.get('request', {}),
+                  'transport_retries': len(failures), 'transport_failures': failures,
+                  'infra_failure': status in TRANSIENT}
+        if status != 200:
+            record['error_summary'] = redacted((response or {}).get('error_body', ''), self.key)[:300]
         if status == 200:
             record.update(self.read(response))
         record['cost_usd'] = self.cost(record['input_tokens'], record['output_tokens'])
