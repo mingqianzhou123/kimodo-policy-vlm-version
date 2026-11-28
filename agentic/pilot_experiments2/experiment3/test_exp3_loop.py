@@ -708,3 +708,13 @@ def test_an_unreachable_model_ends_the_episode_as_infrastructure(tmp_path):
     drive(policy)
     episode = load_episode(tmp_path)
     assert episode['summary']['end_reason'] == 'vlm_unreachable' and not episode['commands']
+
+
+def test_hosted_calls_use_the_proxy_the_launcher_passes(monkeypatch):
+    """run_oracle.py keeps the proxy off for local traffic and passes it under KVLA_API_*_PROXY for the API calls."""
+    from kimodo_vla.vlm import backends
+    monkeypatch.setenv('KVLA_API_HTTPS_PROXY', 'http://proxy.invalid:3128')
+    handlers = [h for h in backends.api_opener().handlers if type(h).__name__ == 'ProxyHandler']
+    assert handlers and handlers[0].proxies == {'https': 'http://proxy.invalid:3128'}
+    source = (HERE.parents[1]/'scripts'/'run_oracle.py').read_text()
+    assert "env[f'KVLA_API_{name.upper()}_PROXY']=value" in source

@@ -63,10 +63,17 @@ class QwenBackend:
                 'peak_reserved_mib': self.torch.cuda.max_memory_reserved()/2**20}
 
 
+def api_opener():
+    """urllib's opener for the hosted APIs: the launcher (run_oracle.py) keeps the proxy off for local traffic and
+    passes it as KVLA_API_HTTPS_PROXY / KVLA_API_HTTP_PROXY for these calls; without them, the usual environment."""
+    proxies = {k: os.environ[f'KVLA_API_{k.upper()}_PROXY'] for k in ('https', 'http') if os.environ.get(f'KVLA_API_{k.upper()}_PROXY')}
+    return urllib.request.build_opener(urllib.request.ProxyHandler(proxies)) if proxies else urllib.request.build_opener()
+
+
 def post_json(url, headers, body, timeout):
     request = urllib.request.Request(url, json.dumps(body).encode(), {**headers, 'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with api_opener().open(request, timeout=timeout) as response:
             return response.status, json.load(response)
     except urllib.error.HTTPError as exc:
         return exc.code, {'error_body': exc.read().decode(errors='replace')[:2000]}
