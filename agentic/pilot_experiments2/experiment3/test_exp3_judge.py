@@ -342,7 +342,7 @@ def test_a_carrying_turn_in_an_episode_is_not_link_five(tmp_path):
 def test_the_place_stage_does_not_check_the_root(tmp_path):
     """2026-11-28 (user, departing from the plan's text): the walk before placing is not a link-3 check; the pick
     stage keeps its root check."""
-    v = verdict_box(tmp_path, carry_error=.3)
+    v = verdict_box(tmp_path/'a', carry_error=.3)
     assert v['success'] and not any(c.get('phase') == 'place' and 'root' in c['check'] for c in v['checks'])
-    v = verdict_box(tmp_path, walk_error=.2, **NO_LIFT)
+    v = verdict_box(tmp_path/'b', walk_error=.2, **NO_LIFT)
     assert (v['link'], v['reason']) == (3, 'pick: root arrived (last walk)')
