@@ -1,0 +1,423 @@
+{
+ "_about": "Experiment 3 harness (second pilot batch): what the command loop runs with. Read by agentic/scripts/serve_oracle.py --command-loop. Thresholds of the five-link judge are in exp3_thresholds.json, not here.",
+ "tasks": {
+  "pp_box": {
+   "task_text": "Pick up the box from the table and put it on the shelf.",
+   "dev_seeds": [
+    90000,
+    90001,
+    90002,
+    90003,
+    90004,
+    90005,
+    90006,
+    90007,
+    90008,
+    90009
+   ],
+   "_dev_seeds": "Development layouts only (Arena's own seeded reset of box and shelf). Set aside on 2026-11-26 for building the harness; they must not be in the valid layout set V of experiment 2.",
+   "check_seeds": [
+    90010,
+    90011,
+    90012,
+    90013,
+    90014,
+    90015,
+    90016,
+    90017,
+    90018,
+    90019,
+    90020,
+    90021,
+    90022,
+    90023,
+    90024,
+    90025,
+    90026,
+    90027,
+    90028,
+    90029,
+    90030,
+    90031,
+    90032,
+    90033,
+    90034,
+    90035,
+    90036,
+    90037,
+    90038,
+    90039,
+    90040,
+    90041,
+    90042,
+    90043,
+    90044,
+    90045,
+    90046,
+    90047,
+    90048,
+    90049
+   ],
+   "_check_seeds": "Development layouts never looked at while the rule was tuned (2026-11-27): the HEFT main line's scripted rule is run once on each, only after it was fixed on dev_seeds, and reported apart as the figure for new layouts. Not the 60 official evaluation episodes. 90020-90029 added 2026-11-28 as the unseen group for the release fix (scripted_hitch_main2); they were looked at under its 6 cm version (a1heft) and the rule was changed after, so they count as seen; 90030-90039 were meant as its unseen group, but 90030-90035 were run (and 90030-90032 looked at) under a version changed after (r4heft), so 90040-90049 are the unseen group of the final version."
+  },
+  "sit_sofa": {
+   "task_text": "Sit down on the sofa.",
+   "dev_seeds": [
+    91000,
+    91001,
+    91002,
+    91003,
+    91004,
+    91005,
+    91006,
+    91007,
+    91008,
+    91009
+   ],
+   "_dev_seeds": "As for pp_box: development only, never in V."
+  },
+  "vision_navi": {
+   "task_text": "Walk to the target marked on the floor and stop with both feet inside it.",
+   "dev_seeds": [
+    92000,
+    92001,
+    92002,
+    92003,
+    92004,
+    92005,
+    92006,
+    92007,
+    92008,
+    92009
+   ],
+   "_dev_seeds": "Interface self-check (plan v3, section 2 item 7): if the loop fails here, nothing else is read. Development only, never an evaluation episode."
+  }
+ },
+ "budgets": {
+  "_about": "To be fixed by the team before the formal run. Arena's own step limit (run_oracle.py --steps, default 3000 = 60 s) ends the episode too.",
+  "max_commands": 40,
+  "max_commander_calls": 60,
+  "max_refused_in_row": 3,
+  "max_episode_s": null,
+  "start_hold_s": 0.6,
+  "capture_hold_steps": 5
+ },
+ "limits": {
+  "_about": "Ranges a command may ask for (kimodo_vla/agent/commands.py DEFAULT_LIMITS); a command outside them is refused and the commander asked again.",
+  "walk_max_m": 2.0,
+  "walk_min_m": 0.02,
+  "turn_max_deg": 180,
+  "turn_min_deg": 2,
+  "pelvis_height_m": [
+   0.4,
+   0.8
+  ],
+  "behind_feet_m": [
+   0.0,
+   0.3
+  ],
+  "torso_pitch_deg": [
+   0,
+   45
+  ],
+  "hand_duration_s": [
+   0.5,
+   4.0
+  ],
+  "hand_default_duration_s": 1.5,
+  "workspace_radius_m": 1.2,
+  "min_palm_finger_angle_deg": 45
+ },
+ "planner": {
+  "_about": "kimodo_vla/agent/planner.py SETTINGS. wrist_feedback stays off: closing the wrist error with measurements is experiment 4's step 3. Walks and turns are closed-loop on the true root pose (walk_tolerance_m, turn_tolerance_deg, at most move_corrections extra moves). name: 'kimodo' (KimodoPlanner, default) or 'hitch' (KinematicPlanner).",
+  "diffusion_steps": 50,
+  "constraint_cfg": 2.0,
+  "joint_speed": 4.0,
+  "handoff_seconds": 0.2,
+  "turn_rate_deg_s": 45,
+  "hand_settle_s": 0.5,
+  "hand_toggle_s": 0.6,
+  "wrist_feedback": false,
+  "hold_arms_when_closed": true,
+  "tracker": "sonic",
+  "walk_tolerance_m": 0.08,
+  "turn_tolerance_deg": 6,
+  "move_corrections": 2,
+  "avoid_rules": {
+   "_about": "Per tracker: motions it does badly and how the planner routes around them (plan v3, section 2 item 4). Values from experiment 2's final record (PR #20, claude/exp2-tracker-base 4127401, experiment2/README.md section 3; n = 5 per command, planner = Kimodo native generation with root closed loop, measured 0.5 s after the body is still). Suggested values awaiting the team, frozen with the VLM configuration. The planner applies only 'sidestep' and 'backward' and only when max_m is a number; everything else is recorded here for the commander prompt and the team.",
+   "sonic": {
+    "backward": {
+     "max_m": null,
+     "rule": "longer empty-handed backward walks become turn + forward walk + turn back",
+     "measured": "exp2: 0.5 m backward empty-handed 53.0 +/- 88.8 cm (one run drifted 2.1 m sideways, one stopped 36 cm short); carrying the box backward 5.7 +/- 1.6 cm (1 of 5 dropped)",
+     "status": "exp2 says avoid; not applied yet: only 0.5 m was measured, so the length above which to replace is the team's choice (the planner would also apply it while carrying, where backward was fine)"
+    },
+    "sidestep": {
+     "max_m": null,
+     "rule": "none",
+     "measured": "exp2: 0.5 m sidestep 4.1 +/- 3.1 cm empty-handed, 8.0 +/- 4.4 cm carrying",
+     "status": "usable; contrary to the plan's presumption, do not replace by turn + forward"
+    },
+    "turn": {
+     "rule": "aim twice the yaw still to go (turn_gain 2)",
+     "measured": "exp3 smoke 2026-11-26: a +30 deg turn aimed exactly stalled at 17 deg; with the gain a 180 deg turn ended 0.06 deg off. exp2 (approach gain 2): 90 deg turn -2.1 +/- 2.4 deg",
+     "status": "applied"
+    },
+    "carry_squat": {
+     "max_drop_m": 0.05,
+     "rule": "while carrying, a pelvis drop counts as at most 5 cm",
+     "measured": "exp2: 15 cm squat carrying the box could not be planned 5/5 (joint limits); offline 5 cm worked from both start poses, 10 cm from one of two",
+     "status": "suggested; not enforced by a separate check (the posture solve refuses an infeasible pose itself: planner_refused)"
+    },
+    "carry_forward": {
+     "rule": "use with care",
+     "measured": "exp2: 0.5 m forward carrying 11.2 +/- 8.6 cm (7.2 +/- 12.5 cm overshoot along heading) vs 3.8 +/- 2.0 cm empty-handed",
+     "status": "suggested, no planner rule"
+    },
+    "carry_turn": {
+     "rule": "use with care (box dropped)",
+     "measured": "exp2: 90 deg turn carrying dropped the box 2 of 5; torso pitched 6.8 +/- 1.8 deg more",
+     "status": "suggested, no planner rule"
+    },
+    "squat": {
+     "rule": "none (fixed shortfall, could be added to the command)",
+     "measured": "exp2: 15 cm squat empty-handed 2.9 +/- 0.0 cm short",
+     "status": "usable"
+    },
+    "lean": {
+     "rule": "none",
+     "measured": "exp2: 30 deg lean (native generation, by hips) +1.5 +/- 0.4 deg, after 0.5 s still. exp3 smoke (posture solve, 15 deg absolute, read at the end of the 1.6 s plan, no settling, starting from -5.3/-5.8 deg): reached 5.8/6.2 deg, a change of 11.4-11.6 deg against the reference's 17.7. Different planner, size and read-out time: not comparable, not re-measured",
+     "status": "usable per exp2; the exp3 posture solve's lean is unverified"
+    },
+    "reach": {
+     "rule": "none",
+     "measured": "exp2: standing reach 4.0 +/- 0.9 cm, 5.6 +/- 2.0 deg (the grasp gate's position tolerance is 5 cm)",
+     "status": "usable"
+    }
+   }
+  }
+ },
+ "commanders": {
+  "smoke": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "SmokeScript",
+   "_about": "One of every command type, to check the planner end to end and record the scene; not a task."
+  },
+  "scripted": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "_about": "The acceptance test of the harness: a fixed rule per task computed from the ground-truth objects, no VLM."
+  },
+  "scripted_feedback": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "wrist_feedback": true
+   },
+   "_about": "As scripted, with the first batch's reach feedback (measured wrist shortfall added to the command, gain 0.7, at most 12 cm) switched on in the planner. Whether the formal baseline has it is a team decision: it closes part of link 3 inside the planner."
+  },
+  "scripted_feedback_open_walk": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "wrist_feedback": true,
+    "move_corrections": 0
+   },
+   "_about": "As scripted_feedback, without the planner's closed-loop correction walks (move_corrections 0), as in development round d7 (3 of 4 lifted). In d9 the correction walks near the table swung the hands into its edge (up to 621 N). A development variant, not a candidate baseline: it switches off plan v3 item 4 for this commander."
+  },
+  "scripted_hitch": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "The same rule on the kinematic planner (kimodo_vla/agent/kinematic.py: HITCH's whole-body planner, $HITCH_PYTHON). The tracker is chosen with --tracker sonic|heft, so the two cells share the references. Development comparison (2026-11-27/28), not a frozen baseline. Places the box 0.35 m inside the shelf's face: the target board starts further back than the frame (m1/m2 heft 90002 fell through at 0.21 m, probe p1heft 90002 stayed at 0.35 m).",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3
+   }
+  },
+  "scripted_hitch_main": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "HEFT main line after the three remaining failures (2026-11-27): scripted_hitch's options plus true_shelf (place against the shelf as turned, carry the box under the board above, check the box's corners before walking it in) and carry_turn_max_deg 45 (turns while carrying split into steps of at most 45 degrees).",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3,
+    "true_shelf": true,
+    "carry_turn_max_deg": 45
+   }
+  },
+  "scripted_hitch_main2": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch_main plus loosen_before_open_m and loosen_clear_m (2026-11-28, the r3heft version, final): with the box set down on the board, each wrist goes loosen_before_open_m outside where it is measured, fists still closed, before the hands open, so the palms stop squeezing the box; and further, until each wrist is loosen_clear_m outside the box's side (from the box's pose), so the opening fingers clear it. Fixes the release that threw the box off the back of the shelf (7 of the first measurement on the 60 official layouts) on 28 of 29 releases of the 30 development layouts looked at; not on 90022. Tuned on development layouts only. The other loosen_* options (r4heft, r5heft, h1heft, h2heft) are in exp3_scripted.py but not used: none of them did better than this on the development layouts; see experiment3/README.md",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3,
+    "true_shelf": true,
+    "carry_turn_max_deg": 45,
+    "loosen_before_open_m": 0.06,
+    "loosen_clear_m": 0.06
+   }
+  },
+  "scripted_kimodo_main": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3
+   },
+   "_about": "Control cell (2026-11-27): the final scripted_hitch rule, options identical, on the default KimodoPlanner. Fixed before any run; not tuned. Not available on Kimodo and so absent: HITCH's slower carrying timing, the lean retry of a refused reach, the retry at HITCH's needed duration (all inside KinematicPlanner). Tracker chosen with --tracker (heft or sonic)."
+  },
+  "scripted_hitch_deep": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch with the box walked 0.35 m inside the shelf's face (0.15 by default): a probe of where the target board physically is (m1/m2 heft 90002: released 0.21 m inside at board height, the box fell to the floor).",
+   "options": {
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3
+   }
+  },
+  "scripted_hitch_hold": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "options": {
+    "stop_after": "hold",
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3
+   },
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch, ending after the 'hold' stage (staged development runs: approach + reach + lift + hold first, then carry, then place)."
+  },
+  "scripted_hitch_carry": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "options": {
+    "stop_after": "carry",
+    "stance_closer_m": 0.08,
+    "min_clearance": true,
+    "place_by_walk": true,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3
+   },
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch, ending after the 'carry' stage (staged development runs: approach + reach + lift + hold first, then carry, then place)."
+  },
+  "scripted_hitch_hold_close": {
+   "kind": "scripted",
+   "file": "exp3_scripted.py",
+   "name": "TaskScript",
+   "options": {
+    "stop_after": "hold",
+    "stance_closer_m": 0.12,
+    "clearance_m": 0.12,
+    "tuck_m": 0.1,
+    "place_depth_m": 0.35,
+    "place_clearance_m": 0.1,
+    "place_end_margin_m": 0.3
+   },
+   "planner": {
+    "name": "hitch"
+   },
+   "_about": "scripted_hitch_hold with the pelvis 0.12 m from the table edge (below the first batch's validated 0.17-0.24 m): HITCH refused the reach beside the box from 0.17 m (k4heft 90002, 90004)."
+  },
+  "qwen": {
+   "kind": "vlm",
+   "backend": "qwen",
+   "page": "vlm-config.md",
+   "max_tokens": 400,
+   "_about": "Qwen3-VL-4B-Instruct, local (--vlm-model). Prompt: the prompt block of vlm-config.md."
+  },
+  "gpt": {
+   "kind": "vlm",
+   "backend": "openai",
+   "page": "vlm-config.md",
+   "max_tokens": 400,
+   "api": {
+    "model": "gpt-6.2-astra",
+    "base_url": "https://api.openai.com/v1",
+    "request": {},
+    "price_per_million_tokens_usd": {
+     "input": 8.0,
+     "output": 40.0
+    },
+    "timeout_s": 120
+   },
+   "_about": "Candidate only, not frozen: the model the first batch's pointing experiment used. Key: OPENAI_API_KEY in agentic/env.local.sh. One connectivity check at most without the user's go-ahead."
+  },
+  "gemini": {
+   "kind": "vlm",
+   "backend": "gemini",
+   "page": "vlm-config.md",
+   "max_tokens": 400,
+   "api": {
+    "model": "gemini-4-argon",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta",
+    "request": {},
+    "price_per_million_tokens_usd": {
+     "input": 2.0,
+     "output": 10.0
+    },
+    "timeout_s": 120
+   },
+   "_about": "Candidate only, as gpt. Key: GEMINI_API_KEY in agentic/env.local.sh."
+  }
+ }
+}

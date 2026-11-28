@@ -25,7 +25,7 @@ def intervene(state, joint_names, body_names, profile, spec):
             mass=spec['sensor-load']['mass_kg']
             if not 0<mass<old:raise ValueError('Invalid positive surrogate mass')
             result['masses'][i]=mass;result['inertias'][i]*=mass/old
-    elif profile=='actuator':
+    elif profile in ('actuator','heft'):   # heft: spec is configs/heft-dynamics.json (HEFT's own MuJoCo drives)
         for key,values in spec['actuator'].items():
             if set(values)!=set(G1_JOINT_NAMES):raise ValueError('Incomplete named actuator profile')
             for name,value in values.items():result[key][joint_names.index(name)]=value
@@ -36,7 +36,8 @@ def intervene(state, joint_names, body_names, profile, spec):
 def install_dynamics_override():
     import torch
     factory=importlib.import_module('action_provider.create_action_provider');original_create=factory.create_action_provider
-    profile=os.environ['SONIC_DYNAMICS_PROFILE'];spec=json.loads((ROOT/'configs/sonic-dynamics.json').read_text())
+    profile=os.environ['SONIC_DYNAMICS_PROFILE']
+    spec=json.loads((ROOT/('configs/heft-dynamics.json' if profile=='heft' else 'configs/sonic-dynamics.json')).read_text())
 
     def create(env,args):
         provider=original_create(env,args);original_step=env.sim.step;original_action=provider.get_action

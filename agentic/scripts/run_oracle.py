@@ -4,6 +4,8 @@ The defaults are the backend every experiment since 2026-11-17 has used: bounded
 root support, continuous hand conditions, IK-hold projection, 4 rad/s, 400 steps.
 ``--settled-goal`` additionally starts from stable double support with aligned actuators,
 which is the configuration of the 2026-11-23 result. Earlier variants need explicit flags.
+``--command-loop`` runs a whole task (P&PBox or SitSofa) one body command at a time from a scripted
+or VLM commander (kimodo_vla/agent; experiment 3 of the second pilot batch).
 ``--grasp-loop`` runs blocking walk-reach-close-lift rounds on the box from the same settled
 start, with a physical success criterion; it defaults to the task's 1450-step time limit.
 """
@@ -22,8 +24,16 @@ import urllib.request
 
 from paths import AGENTIC as ROOT, CHECKPOINTS, REPO, RUNS, sim_cache
 
+# The tracker under the reference: simulator arguments per tracker. HEFT runs inside Arena's SONIC provider
+# (arena/heft_bridge.py, KVLA_TRACKER=heft), which still loads the SONIC files.
+_SONIC_FILES=lambda cache:['--sonic_encoder_path',str(cache/'sim-assets/sonic/model_encoder.onnx'),
+                           '--sonic_decoder_path',str(cache/'sim-assets/sonic/model_decoder.onnx')]
+TRACKERS={'sonic':_SONIC_FILES,'heft':_SONIC_FILES}
 TASKS={'pp_box':('Isaac-Move-PickPlace-Box-G129-Dex3-Wholebody','tasks/common_test_config/base_test/pp_box_sonic_test.yaml'),
-       'doubledesk':('Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody','tasks/common_test_config/base_test/doubledesk_sonic_test.yaml')}
+       'doubledesk':('Isaac-Move-PickPlace-DoubleDesk-G129-Dex3-Wholebody','tasks/common_test_config/base_test/doubledesk_sonic_test.yaml'),
+       'sit_sofa':('Isaac-Move-Sit-Sofa-G129-Dex3-Wholebody','tasks/common_test_config/base_test/sit_sofa_sonic_test.yaml'),
+       'vision_navi':('Isaac-Move-SmallWarehouse-VisionNavigation-G129-Dex3-Wholebody',
+                      'tasks/common_test_config/base_test/vision_navi_sonic_test.yaml')}
 
 
 def sha(p):
@@ -39,8 +49,18 @@ def parse_args(argv=None):
     p.add_argument('--policy-gpu',type=int,default=2)
     p.add_argument('--share-policy-sim-gpu',action='store_true',
                    help='Explicitly colocate this run\'s policy and simulation on one otherwise empty GPU')
-    p.add_argument('--steps',type=int,help='Default: 400, or 1450 with --grasp-loop')
+    p.add_argument('--steps',type=int,help='Default: 400, 1450 with --grasp-loop, 3000 with --command-loop')
+    p.add_argument('--command-loop',type=Path,help='Command loop configuration (JSON); runs --task pp_box or sit_sofa '
+        'one body command at a time (kimodo_vla/agent)')
+    p.add_argument('--commander',help='With --command-loop: the commander named in the configuration')
+    p.add_argument('--condition',default='',help='With --command-loop: condition name, recorded in run.json')
     p.add_argument('--seed',type=int,default=1000,help='Episode seed: object placement and generator noise')
+    p.add_argument('--episode-seed',type=int,help='Arena episode seed when it differs from --seed (an official evaluation '
+        'episode runs with seed = its group seed and its own episode seed); default: --seed')
+    p.add_argument('--repeat-idx',type=int,default=0,help='With --episode-seed: the evaluation episode\'s repeat index (recorded)')
+    p.add_argument('--after-success-steps',type=int,default=0,help='With --command-loop: keep stepping this many control '
+        'steps after Arena first reports success (its post-termination recording), so the commander can release the '
+        'object and step away; the verdict stays Arena\'s first success, the steps log shows what followed. Default 0')
     p.add_argument('--grasp-loop',action='store_true',help='Blocking grasp rounds on the box: latch its pose, wait, '
         'walk, reach, close both hands on measured arrival, lift; retry until success, fall or the step limit')
     p.add_argument('--latch-delay-steps',type=int,default=75,help='Control steps each round waits after latching the box pose')
@@ -57,10 +77,13 @@ def parse_args(argv=None):
         'configs/grasp-loop.json (wide); the robot starts at the task position and walks every round')
     p.add_argument('--native-walk',action='store_true',help='Grasp loop: walk the official Kimodo way '
         '(kimodo_vla/oracle/grasp_walk.py, settings in configs/grasp-loop.json wide) instead of whole clips')
+    p.add_argument('--carry-goal',type=Path,help='Grasp loop, standing still: after a lifted grasp, walk 0.6 m back '
+        'and run this motion goal carrying the box (kimodo_vla/oracle/carry_policy.py); the episode then runs to --steps')
     p.add_argument('--box-speed',type=float,default=0.,help='With --box-in-region: drive the box back and forth '
         'across the region at this speed (m/s) from the first latch until a hand touches it')
-    p.add_argument('--task',choices=['pp_box','doubledesk'],default='pp_box',help='Grasp loop task: the two-handed box '
-        '(pp_box) or the one-handed hammer on DoubleDesk (experiment 1b; needs --stand-still and a --hammer-* placement)')
+    p.add_argument('--task',choices=['pp_box','doubledesk','sit_sofa','vision_navi'],default='pp_box',help='Grasp loop task: the two-handed box '
+        '(pp_box) or the one-handed hammer on DoubleDesk (experiment 1b; needs --stand-still and a --hammer-* placement); '
+        'command loop: pp_box or sit_sofa')
     p.add_argument('--hammer-at',type=float,nargs=4,metavar=('DEPTH_M','LATERAL_M','YAW_DEG','EXTRA_M'),
         help='DoubleDesk reach-map cell: grip point this far behind the table edge and to the robot\'s left, handle '
              'turned from the robot\'s left (head towards the robot positive), robot this much further back than the stance rule')
@@ -107,6 +130,9 @@ def parse_args(argv=None):
     p.add_argument('--noise-seed',type=int,help='With --motion-goal: seed of Kimodo\'s sampling noise, to repeat one goal with different motions')
     p.add_argument('--actuator-audit',action='store_true')
     p.add_argument('--dynamics-profile',choices=['sensor-load','actuator','actuator-load'])
+    p.add_argument('--tracker',choices=['sonic','heft'],default='sonic',help='heft: HEFT (HITCH G1_Harness) replaces '
+        'SONIC inside the provider (arena/heft_bridge.py), with its own drives (configs/heft-dynamics.json); open-floor '
+        'motion goals, demo segments and the command loop. Checkpoint: $KVLA_HEFT_CHECKPOINT, else <checkpoints>/heft/G1_Harness')
     p.add_argument('--root-support',choices=['none','raised'],help='Root diagnostic: keep ground or add a reference-height support platform')
     p.add_argument('--variant',choices=['original','handoff','bounded'],default='bounded')
     p.add_argument('--handoff-seconds',type=float,default=.2)
@@ -127,7 +153,21 @@ def parse_args(argv=None):
     p.add_argument('--gpu-min-free-mib',type=int,
         help='Explicitly allow existing GPU users if at least this much memory is free (minimum 16384 MiB)')
     a=p.parse_args(argv)
-    a.steps=a.steps or (1450 if a.grasp_loop else 400)
+    a.steps=a.steps or (1450 if a.grasp_loop else 3000 if a.command_loop else 400)
+    if a.command_loop:
+        if not a.commander or a.task not in ('pp_box','sit_sofa','vision_navi'):
+            raise ValueError('--command-loop needs --commander and --task pp_box, sit_sofa or vision_navi')
+        if (a.grasp_loop or a.motion_goal or a.settled_goal or a.reference_source!='kimodo' or a.root_support
+                or a.capture_vision or a.visual_markers or a.actuator_audit or a.mode!='hold' or a.box_at or a.box_in_region
+                or a.box_wide or a.stand_still or a.start_at_stance):
+            raise ValueError('The command loop runs on its own: no grasp loop, goal file, replay, markers or placement flags')
+        if not a.command_loop.is_file():raise FileNotFoundError(a.command_loop)
+        if a.after_success_steps<0:raise ValueError('--after-success-steps must be >= 0')
+        if a.tracker not in TRACKERS:
+            raise SystemExit(f'Tracker {a.tracker!r} is not wired into this launcher yet (wired: {sorted(TRACKERS)})')
+        a.dynamics_profile=a.dynamics_profile or 'actuator'   # the aligned actuators of every walking and grasping run
+    elif a.task in ('sit_sofa','vision_navi') or a.commander or a.condition or a.after_success_steps:
+        raise ValueError('--task sit_sofa, --commander and --condition belong to --command-loop')
     hammer=a.task=='doubledesk'
     placements=[bool(a.box_at),a.box_in_region] if not hammer else [bool(a.hammer_at),a.hammer_in_region]
     if (a.hammer_at or a.hammer_in_region or a.inject or a.hammer_speed or a.hammer_direction) and not hammer:
@@ -146,6 +186,8 @@ def parse_args(argv=None):
         raise ValueError('--box-speed needs --box-in-region or --box-wide and a non-negative speed')
     if (a.box_wide or a.native_walk) and (not a.grasp_loop or a.stand_still or a.start_at_stance):
         raise ValueError('--box-wide and --native-walk belong to the grasp loop from the task start')
+    if a.carry_goal and (not a.grasp_loop or not a.stand_still or a.task!='pp_box' or a.box_speed):
+        raise ValueError('--carry-goal carries the static box after the standing grasp loop')
     if a.grasp_loop:
         a.dynamics_profile=a.dynamics_profile or 'actuator'
     if a.settled_goal:
@@ -193,9 +235,17 @@ def main():
             or a.actuator_audit or a.mode!='hold' or a.trajectory_projection!='ik-hold' or a.dynamics_profile!='actuator'
             or a.latch_delay_steps<0):
         raise ValueError('The grasp loop runs on the live IK-hold backend with aligned actuators and nothing else')
+    heft=None
+    if a.tracker=='heft':
+        if not (a.motion_goal or demo or a.command_loop):
+            raise ValueError('--tracker heft runs open-floor motion goals, demo segments and the command loop only')
+        heft=Path(os.environ.get('KVLA_HEFT_CHECKPOINT') or CHECKPOINTS/'heft/G1_Harness')
+        if not (heft/'deploy.yaml').is_file() or not (heft/'policy.onnx').is_file():
+            raise FileNotFoundError(f'HEFT checkpoint (deploy.yaml, policy.onnx) not found in {heft}')
+        a.dynamics_profile='heft'   # after the checks above, which require the aligned SONIC profile
     if a.actuator_audit and not (replay or a.settled_goal):
         raise ValueError('Actuator audit requires an immutable replay fixture')
-    if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not demo and not ((replay or a.settled_goal) and a.actuator_audit):
+    if a.dynamics_profile and not a.motion_goal and not a.grasp_loop and not a.command_loop and not demo and not ((replay or a.settled_goal) and a.actuator_audit):
         raise ValueError('Dynamics interventions require audited immutable replay')
     if a.root_support and not (a.actuator_audit and replay and a.dynamics_profile in ('actuator','actuator-load')):
         raise ValueError('Root diagnostics require fixed reference and aligned actuators')
@@ -207,7 +257,7 @@ def main():
             raise ValueError('Replay must consume exactly the archived frame count')
         if not a.capture_vision or not a.visual_markers or a.marker_reach_rad != fixture['marker_reach_rad'] or a.camera_lateral_m != fixture['camera_lateral_m']:
             raise ValueError('Replay scene must match the archived marker/camera configuration')
-    if a.vlm_model and (fixed or a.mode!='hold' or a.trajectory_projection!='ik-hold' or not a.visual_markers):
+    if a.vlm_model and not a.command_loop and (fixed or a.mode!='hold' or a.trajectory_projection!='ik-hold' or not a.visual_markers):
         raise ValueError('First VLM experiment requires visual markers and the standing IK-hold backend')
     if fixed and a.mode not in ('hold','reach'):  # a demo replay is logged as 'hold'
         raise ValueError('Fixed reference supports hold/reach only')
@@ -241,7 +291,10 @@ def main():
     env={k:v for k,v in os.environ.items() if k.lower() not in ('http_proxy','https_proxy','all_proxy')}
     env.update(PYTHONUNBUFFERED='1',OMP_NUM_THREADS='4',ORACLE_RUN=str(run))
     if a.dynamics_profile:env['SONIC_DYNAMICS_PROFILE']=a.dynamics_profile
+    if heft:env.update(KVLA_TRACKER='heft',KVLA_HEFT_CHECKPOINT=str(heft))
     if a.grasp_loop:env['GRASP_LOOP']='1'
+    if a.command_loop:env.update(COMMAND_LOOP='1',COMMAND_TASK=a.task)
+    if a.carry_goal:env['KVLA_GRASP_KEEP_RUNNING']='1'   # success no longer ends the episode
     if hammer:env['GRASP_TASK']='hammer'
     if a.start_at_stance:
         if not a.grasp_loop:raise ValueError('--start-at-stance belongs to the grasp loop')
@@ -270,7 +323,7 @@ def main():
             env.pop(key,None)
         env.update(VLM_MARKER_REACH_RAD=str(a.marker_reach_rad),VLM_CAMERA_LATERAL_M=str(a.camera_lateral_m))
     if a.start_xy:env['KVLA_START_XY']=f'{a.start_xy[0]},{a.start_xy[1]}'
-    if a.capture_vision or a.vlm_model:
+    if a.capture_vision or (a.vlm_model and not a.command_loop):   # the command loop captures for itself
         env.update(VLM_CAPTURE='1',VLM_CAMERA=a.camera,ENABLE_DEPTH='1')
         if a.visual_markers:
             env.update(VLM_MARKERS='1',VLM_MARKER_REACH_RAD=str(a.marker_reach_rad),
@@ -303,6 +356,10 @@ def main():
         if hammer:policycmd+=['--grasp-task','hammer']
         if a.stand_still:policycmd.append('--stand-still')
         if a.native_walk:policycmd.append('--native-walk')
+        if a.carry_goal:policycmd+=['--carry-goal',str(a.carry_goal.resolve()),'--carry-noise-seed',str(a.seed)]
+    if a.command_loop:
+        policycmd+=['--command-loop',str(a.command_loop.resolve()),'--commander',a.commander,'--command-task',a.task,
+                    '--condition',a.condition,'--tracker',a.tracker]
     if a.vlm_model:policycmd+=['--vlm-model',str(a.vlm_model.resolve()),'--vlm-python',a.vlm_python,'--vlm-localizer',a.vlm_localizer]
     if fixed:
         policycmd=[sys.executable,'-u',str(ROOT/'scripts/serve_fixed_reference.py'),
@@ -321,20 +378,20 @@ def main():
         shutil.copytree(a.sim_cache_seed,runtime/'cache',ignore=shutil.ignore_patterns('*.lock'))
     for key,folder in [('XDG_CACHE_HOME','cache'),('XDG_DATA_HOME','data'),('XDG_CONFIG_HOME','config'),('CUDA_CACHE_PATH','cuda')]:
         simenv[key]=str(runtime/folder)
-    episode={'seed':a.seed,'episode_seed':a.seed,'repeat_idx':0,'episode_index':0,'max_steps':a.steps,
+    episode_seed=a.seed if a.episode_seed is None else a.episode_seed
+    episode={'seed':a.seed,'episode_seed':episode_seed,'repeat_idx':a.repeat_idx,'episode_index':0,'max_steps':a.steps,
         'result_json':str(run/'episode.json'),'success_video_dir':str(run/'videos'),
         'failure_video_dir':str(run/'videos'),'recording_save_dir':str(run/'recordings'),'video_fps':30,
-        'post_termination_record_steps':0,'model_label':('demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
+        'post_termination_record_steps':a.after_success_steps,'model_label':('command-loop-' if a.command_loop else 'demo-' if demo else 'grasp-loop-' if a.grasp_loop else 'replay-' if replay else 'vlm-markers-' if a.vlm_model else 'fixed-' if fixed else 'oracle-A-')+a.mode,
         'eval_model_path':str(a.replay_fixture.resolve()) if replay else str(a.demo_segment.resolve()) if demo else str(REPO/'kimodo_vla/oracle/fixed_reference.py') if fixed else str(checkpoint)}
     (run/'episodes.json').write_text(json.dumps({'episodes':[episode]},indent=2))
-    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('free_sim_bootstrap.py' if a.motion_goal or demo else ('hammer_sim_bootstrap.py' if hammer else 'grasp_sim_bootstrap.py') if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
+    simcmd=[str(CACHE/'envs/isaaclab-2.2/bin/python'),'-u',str(ROOT/'scripts'/('command_sim_bootstrap.py' if a.command_loop else 'free_sim_bootstrap.py' if a.motion_goal or demo else ('hammer_sim_bootstrap.py' if hammer else 'grasp_sim_bootstrap.py') if a.grasp_loop else 'settled_sim_bootstrap.py' if a.settled_goal else 'root_sim_bootstrap.py' if a.root_support else 'dynamics_sim_bootstrap.py' if a.dynamics_profile else 'actuator_sim_bootstrap.py' if a.actuator_audit else 'oracle_sim_bootstrap.py')),
         str(arena/'script/eval_scripts/sonic/sim_eval_vla.py'),'--headless','--device','cuda:0','--kit_args',
         f'--allow-root --portable-root {runtime} --/renderer/activeGpu={a.sim_gpu} --/renderer/multiGpu/enabled=false',
         '--task',TASKS[a.task][0],'--env_config_yaml',str(arena/TASKS[a.task][1]),
-        '--seed',str(a.seed),'--episode_seed',str(a.seed),'--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
-        '--lerobot_server_url',f'http://127.0.0.1:{port}','--lerobot_server_timeout','660' if a.vlm_model else '120','--step_log_every_n','50',
-        '--sonic_encoder_path',str(CACHE/'sim-assets/sonic/model_encoder.onnx'),
-        '--sonic_decoder_path',str(CACHE/'sim-assets/sonic/model_decoder.onnx')]
+        '--seed',str(a.seed),'--episode_seed',str(episode_seed),'--max_steps',str(a.steps),'--episode_batch_json',str(run/'episodes.json'),
+        '--lerobot_server_url',f'http://127.0.0.1:{port}','--lerobot_server_timeout','660' if a.vlm_model or a.command_loop else '120','--step_log_every_n','50',
+        *TRACKERS[a.tracker](CACHE)]
     record={'status':'starting','experiment':'A','oracle':True,'mode':a.mode,'sim_command':simcmd,
         'vlm_localizer':a.vlm_localizer,
         'target_source':'qwen_rgb_depth' if a.vlm_model else 'oracle',
@@ -351,12 +408,15 @@ def main():
         'grasp_attempted':a.grasp_loop,'success_rate_evaluation':a.grasp_loop,'seed':a.seed,
         'latch_delay_steps':a.latch_delay_steps if a.grasp_loop else None,'start_at_stance':a.start_at_stance,
         'stand_still':a.stand_still,'layout_request':layout,'native_walk':a.native_walk,
+        **({'carry_goal':json.loads(a.carry_goal.read_text())} if a.carry_goal else {}),
         'git_commit':commit,'git_dirty':dirty,
         # Keys keep the pre-merge layout so runs stay comparable with those before 2026-11-23.
         'source_sha256':{str(p.relative_to(base)):sha(p) for base,directory in ((REPO,'kimodo_vla'),(ROOT,'arena'),(ROOT,'scripts'),(ROOT,'pilot_experiments'))
                          for p in (base/directory).rglob('*.py')},
         'checkpoint_sha256':{} if fixed else {str(p.relative_to(checkpoint)):sha(p) for p in checkpoint.rglob('*') if p.is_file()},
-        'tracker_sha256':{p.name:sha(p) for p in (CACHE/'sim-assets/sonic').glob('model_*.onnx')}}
+        'tracker':a.tracker,
+        'tracker_sha256':({p.name:sha(heft/p.name) for p in (heft/'policy.onnx',heft/'deploy.yaml')} if heft else
+                          {p.name:sha(p) for p in (CACHE/'sim-assets/sonic').glob('model_*.onnx')})}
     if a.settled_goal:record.update(experiment='SETTLED-VISUAL-GOAL',oracle=False,target_source='archived_visual_world',
         archived_goal_sha256=sha(a.settled_goal),marker_reach_rad=a.marker_reach_rad,camera_lateral_m=a.camera_lateral_m)
     if a.vlm_model:record.update(experiment='VLM-A',oracle=False)
@@ -376,9 +436,14 @@ def main():
     if a.grasp_loop:record.update(experiment='GRASP-LOOP',target_source='latched_truth_pose_per_round',
         grasp_config_sha256=sha(grasp_config))
     if hammer:record.update(experiment='HAMMER-GRASP-LOOP',task=a.task,env_config=TASKS[a.task][1])
+    if a.command_loop:record.update(experiment='COMMAND-LOOP',oracle=False,task=a.task,env_config=TASKS[a.task][1],
+        target_source='commander',command_loop=str(a.command_loop.resolve()),command_loop_sha256=sha(a.command_loop),
+        commander=a.commander,condition=a.condition,tracker=a.tracker,layout_id=a.seed,episode_seed=episode_seed,repeat_idx=a.repeat_idx,
+        max_steps=a.steps,
+        vlm_model=str(a.vlm_model) if a.vlm_model else None)
     record['arena_sha256']={f:sha(arena/f) for f in (
         'action_provider/action_provider_sonic.py','action_provider/vla_robot_current_local_runtime_v3.py',
-        'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')+((TASKS[a.task][1],) if hammer else ())}
+        'tasks/common_test_config/base_test/pp_box_sonic_test.yaml')+((TASKS[a.task][1],) if a.task!='pp_box' else ())}
     if replay:
         for key in ('tracker_sha256','arena_sha256'):
             if record[key] != fixture[key]:
@@ -419,7 +484,8 @@ def main():
                 sim=subprocess.run(simcmd,env=simenv,cwd=arena,stdout=slog,stderr=subprocess.STDOUT,timeout=max(1800,3*a.steps))
             record['sim_exit_code']=sim.returncode
             sim.check_returncode()
-            if not (run/'execution.jsonl').is_file() or not (run/'plans.jsonl').is_file():
+            evidence=run/('loop/commands.jsonl' if a.command_loop else 'plans.jsonl')
+            if not (run/'execution.jsonl').is_file() or not evidence.is_file():
                 raise RuntimeError('No actual execution or native-model evidence')
             if fixed and not (run/'commands.jsonl').is_file():
                 raise RuntimeError('Missing prescribed command evidence')

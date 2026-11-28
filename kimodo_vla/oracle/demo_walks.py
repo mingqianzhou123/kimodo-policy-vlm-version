@@ -27,7 +27,7 @@ from kimodo_vla.core.types import G1_JOINT_NAMES, yaw_matrix, yaw_of
 from .geometry import XmlFK, rotation_wxyz
 
 RATE = 50.
-DIRECTIONS = ('forward', 'backward', 'left', 'right', 'turn')
+DIRECTIONS = ('forward', 'backward', 'left', 'right', 'turn', 'in_place')   # in_place: HITCH-planned body or hand motions (experiment2/heft)
 BLEND_S = 1.       # standing pose -> first segment frame
 SETTLE_S = 1.      # last frame held after the segment
 FOOT_NAMES = ('left_ankle_roll_link', 'right_ankle_roll_link')
