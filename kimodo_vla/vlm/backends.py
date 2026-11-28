@@ -131,6 +131,7 @@ class ApiBackend:
                   'infra_failure': status in TRANSIENT}
         if status != 200:
             record['error_summary'] = redacted((response or {}).get('error_body', ''), self.key)[:300]
+            record['response'] = {k: redacted(v, self.key) for k, v in (response or {}).items()}
         if status == 200:
             record.update(self.read(response))
         record['cost_usd'] = self.cost(record['input_tokens'], record['output_tokens'])
