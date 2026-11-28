@@ -584,7 +584,25 @@ def test_loosen_before_open():
     again = script.loosen_check({'robot': {'wrists': apart, 'pelvis': pelvis}, 'objects': [box]})
     assert again['hands']['left']['position'] == pytest.approx([-1.82, -2.495, .85])
     assert again['hands']['right']['position'] == pytest.approx([-1.9, -2.90, .85])
+    # loosen_brace_m: the right fist comes back 1 cm inside the box's right side, the stuck left hand opens alone
+    # and goes out to 6 cm and 4 cm up, then the right fist goes out to 6 cm; the usual opening follows
+    script = TaskScript('pp_box', place_by_walk=True, true_shelf=True, loosen_before_open_m=.06, loosen_clear_m=.06,
+                        loosen_back_m=.08, loosen_min_gap_m=.03, loosen_brace_m=.01)
+    script.queue = ['open both']
+    brace = script.loosen_check({'robot': {'wrists': apart, 'pelvis': pelvis}, 'objects': [box]})
+    assert brace['hands']['left']['position'] == pytest.approx([-1.9, -2.54, .85])
+    assert brace['hands']['right']['position'] == pytest.approx([-1.9, -2.66-.105+.01, .85])
+    assert script.queue[0] == {'type': 'hand', 'left': 'open'} and script.queue[-1] == 'open both'
+    braced = {'left': {'position': [-1.9, -2.54, .85]}, 'right': {'position': [-1.9, -2.755, .85]}}
+    out_left = script.queue[1]({'robot': {'wrists': braced}, 'objects': [box]})
+    assert out_left['hands']['left']['position'] == pytest.approx([-1.9, -2.66+.105+.06, .89])
+    assert out_left['hands']['right']['position'] == pytest.approx([-1.9, -2.755, .85])
+    gone = {'left': {'position': [-1.9, -2.495, .89]}, 'right': {'position': [-1.9, -2.755, .85]}}
+    out_right = script.queue[2]({'robot': {'wrists': gone}, 'objects': [box]})
+    assert out_right['hands']['right']['position'] == pytest.approx([-1.9, -2.66-.105-.06, .85])
+    assert out_right['hands']['left']['position'] == pytest.approx([-1.9, -2.495, .89])
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
                                                           'loosen_before_open_m': .06, 'loosen_clear_m': .06,
-                                                          'loosen_back_m': .08, 'loosen_min_gap_m': .03}
+                                                          'loosen_back_m': .08, 'loosen_min_gap_m': .03,
+                                                          'loosen_brace_m': .01}

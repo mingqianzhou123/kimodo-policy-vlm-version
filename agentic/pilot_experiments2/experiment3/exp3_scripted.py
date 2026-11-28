@@ -96,7 +96,7 @@ class TaskScript:
     def __init__(self, task, stop_after=None, stance_closer_m=0., min_clearance=False, clearance_m=None,
                  place_by_walk=False, tuck_m=0., place_depth_m=None, place_clearance_m=.02, place_end_margin_m=.15,
                  approach_gap_m=None, true_shelf=False, carry_turn_max_deg=None, loosen_before_open_m=None,
-                 loosen_clear_m=None, loosen_back_m=None, loosen_min_gap_m=None):
+                 loosen_clear_m=None, loosen_back_m=None, loosen_min_gap_m=None, loosen_brace_m=None):
         """``stop_after`` (P&PBox, staged development runs): 'hold' ends after lifting and holding the box 2 s,
         'carry' after carrying it to the shelf front; None runs the whole task.
 
@@ -163,6 +163,11 @@ class TaskScript:
         # which then got flicked 8 cm in (90029), so only the hand that needs it goes back.
         self.loosen_back_m = None if loosen_back_m is None else float(loosen_back_m)
         self.loosen_min_gap_m = None if loosen_min_gap_m is None else float(loosen_min_gap_m)
+        # With loosen_brace_m, a wrist the box came along with is not taken further: the other fist, still closed,
+        # comes back against the box's other side (this far inside it, as when holding), the stuck hand opens alone
+        # and goes out, then the other fist goes out before it opens. Taken further out (r5heft) or back (r4heft),
+        # the stuck fist dragged the box 9-12 cm, and opening it threw the box 0.19 m inward in 0.3 s (r3heft 90022).
+        self.loosen_brace_m = None if loosen_brace_m is None else float(loosen_brace_m)
         self.queue, self.stage, self.tries = [], 'start', 0
         config = json.loads(GRASP_CONFIG.read_text())
         self.grasp, self.wide = config['policy'], config['wide']
@@ -556,6 +561,9 @@ class TaskScript:
         left, right, out, gaps = self.box_gaps(observation)
         if min(gaps.values()) >= self.loosen_min_gap_m:
             return None
+        stuck = [side for side in ('left', 'right') if gaps[side] < self.loosen_min_gap_m]
+        if self.loosen_brace_m is not None and len(stuck) == 1:
+            return self.brace_release(stuck[0], left, right, out, gaps)
         back = self.back_toward_pelvis(observation, left, right, out) if self.loosen_back_m else np.zeros(3)
         target = {'left': left, 'right': right}
         for side, sign in (('left', 1.), ('right', -1.)):
@@ -563,6 +571,27 @@ class TaskScript:
                 target[side] = target[side]+sign*max(0., (self.loosen_clear_m or 0.)-gaps[side])*out+back
         return {'type': 'hand_pose', 'duration_s': 0.8,
                 'hands': {s: {'position': target[s].tolist()} for s in ('left', 'right')}}
+
+    def brace_release(self, stuck, left, right, out, gaps):
+        """loosen_brace_m: the free fist back against the box's other side, then the stuck hand opens alone and goes
+        out to loosen_clear_m (and 4 cm up), then the free fist goes out to loosen_clear_m; the usual opening follows."""
+        free = 'right' if stuck == 'left' else 'left'
+        sign = {'left': 1., 'right': -1.}
+        now = {'left': left, 'right': right}
+        brace = now[free]-sign[free]*(gaps[free]+self.loosen_brace_m)*out
+
+        def away(side, up):
+            def step(o):
+                l, r, o_out, g = self.box_gaps(o)
+                at = {'left': l, 'right': r}
+                target = dict(at)
+                target[side] = at[side]+sign[side]*max(0., self.loosen_clear_m-g[side])*o_out+[0, 0, up]
+                return {'type': 'hand_pose', 'duration_s': 0.8,
+                        'hands': {s: {'position': target[s].tolist()} for s in ('left', 'right')}}
+            return step
+        self.queue[0:0] = [{'type': 'hand', stuck: 'open'}, away(stuck, .04), away(free, 0.)]
+        return {'type': 'hand_pose', 'duration_s': 0.8,
+                'hands': {stuck: {'position': now[stuck].tolist()}, free: {'position': brace.tolist()}}}
 
     def insert_check(self, observation):
         """After the lowering (the box sags 4-7 cm in the grip): put it right again if a corner is out of the room."""
