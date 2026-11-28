@@ -382,6 +382,8 @@ def test_a_command_the_planner_cannot_carry_out_is_logged_and_asked_again(tmp_pa
     assert episode['commands'][0]['end']['status'] == 'planner_refused'
     assert episode['summary']['end_reason'] == 'commander_done'
     assert commander.seen[1][0]['last_command']['status'] == 'planner_refused'
+    assert commander.seen[1][2] == 'planner_refused: Posture out of reach'   # the reason, as it is, as the next error
+    assert commander.seen[0][2] is None
 
 
 def test_development_seeds_are_not_evaluation_episodes():

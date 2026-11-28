@@ -380,13 +380,19 @@
   },
   "qwen": {
    "kind": "vlm",
+   "planner": {
+    "name": "hitch"
+   },
    "backend": "qwen",
    "page": "vlm-config.md",
    "max_tokens": 400,
-   "_about": "Qwen3-VL-4B-Instruct, local (--vlm-model). Prompt: the prompt block of vlm-config.md."
+   "_about": "Qwen3-VL-4B-Instruct, local (--vlm-model). Prompt: the prompt block of vlm-config.md. On the kinematic planner (HITCH) since 2026-11-28 (user: only HEFT + kinematic planner this round; run with --tracker heft); before that the default Kimodo planner (the q1-q7 development runs in experiment3/README.md)."
   },
   "gpt": {
    "kind": "vlm",
+   "planner": {
+    "name": "hitch"
+   },
    "backend": "openai",
    "page": "vlm-config.md",
    "max_tokens": 400,
@@ -400,10 +406,13 @@
     },
     "timeout_s": 120
    },
-   "_about": "Candidate only, not frozen: the model the first batch's pointing experiment used. Key: OPENAI_API_KEY in agentic/env.local.sh. One connectivity check at most without the user's go-ahead."
+   "_about": "Candidate only, not frozen: the model the first batch's pointing experiment used. Key: OPENAI_API_KEY in agentic/env.local.sh. One connectivity check at most without the user's go-ahead. On the kinematic planner (HITCH) since 2026-11-28 (user: only HEFT + kinematic planner this round; run with --tracker heft); before that the default Kimodo planner (the q1-q7 development runs in experiment3/README.md)."
   },
   "gemini": {
    "kind": "vlm",
+   "planner": {
+    "name": "hitch"
+   },
    "backend": "gemini",
    "page": "vlm-config.md",
    "max_tokens": 400,
@@ -417,7 +426,7 @@
     },
     "timeout_s": 120
    },
-   "_about": "Candidate only, as gpt. Key: GEMINI_API_KEY in agentic/env.local.sh."
+   "_about": "Candidate only, as gpt. Key: GEMINI_API_KEY in agentic/env.local.sh. On the kinematic planner (HITCH) since 2026-11-28 (user: only HEFT + kinematic planner this round; run with --tracker heft); before that the default Kimodo planner (the q1-q7 development runs in experiment3/README.md)."
   }
  }
 }
