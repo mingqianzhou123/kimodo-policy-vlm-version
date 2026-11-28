@@ -609,6 +609,7 @@ def test_loosen_before_open():
     box = {'name': 'box', 'position': [-1.9, -2.72, .754], 'quat_wxyz': [1, 0, 0, 0]}
     before = {'robot': {'wrists': wrists}, 'objects': [box]}
     probe = script.probe(before)
+    validate(probe)
     assert probe['hands']['left']['position'] == pytest.approx([-1.9, -2.58, .85])
     assert probe['hands']['right']['position'] == pytest.approx([-1.9, -2.86, .85])
     probed = {'left': {'position': [-1.9, -2.58, .85]}, 'right': {'position': [-1.9, -2.86, .85]}}
@@ -618,11 +619,14 @@ def test_loosen_before_open():
     assert step['hands']['left']['position'] == pytest.approx([-1.9, -2.54, .85])
     assert step['hands']['right']['position'] == pytest.approx([-1.9, -2.90, .85])
     back = script.probe_check({'robot': {'wrists': probed}, 'objects': [dict(box, position=[-1.9, -2.705, .754])]})
+    validate(back)
     assert back['hands']['left']['position'] == pytest.approx([-1.9, -2.6, .85])
     assert back['hands']['right']['position'] == pytest.approx([-1.9, -2.84, .85])
     assert script.queue[0] == {'type': 'hand', 'left': 'open'} and script.queue[-1] == 'open both'
     assert len(script.queue) == 4
     away = script.queue[1]({'robot': {'wrists': wrists}, 'objects': [box]})
+    validate(away)
+    validate(script.queue[0])
     assert away['hands']['left']['position'] == pytest.approx([-1.9, -2.72+.105+.06, .89])
     assert away['hands']['right']['position'] == pytest.approx([-1.9, -2.84, .85])
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']

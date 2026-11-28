@@ -609,11 +609,12 @@ class TaskScript:
         return step
 
     def probe(self, observation):
-        """loosen_probe_m: both closed fists this far out along the line between the wrists (0.4 s)."""
+        """loosen_probe_m: both closed fists this far out along the line between the wrists (0.5 s, the shortest a
+        command may take)."""
         self._before_probe = copy.deepcopy({'robot': {'wrists': observation['robot']['wrists']},
                                             'objects': observation['objects']})
         left, right, out, _ = self.box_gaps(observation)
-        return {'type': 'hand_pose', 'duration_s': 0.4,
+        return {'type': 'hand_pose', 'duration_s': 0.5,
                 'hands': {'left': {'position': (left+self.loosen_probe_m*out).tolist()},
                           'right': {'position': (right-self.loosen_probe_m*out).tolist()}}}
 
@@ -631,7 +632,7 @@ class TaskScript:
         free = 'right' if stuck[0] == 'left' else 'left'
         self.queue = [{'type': 'hand', stuck[0]: 'open'}, self.away(stuck[0], .04), self.away(free, 0.)] + [
             item for item in self.queue if item != self.loosen]
-        return {'type': 'hand_pose', 'duration_s': 0.4,
+        return {'type': 'hand_pose', 'duration_s': 0.5,
                 'hands': {'left': {'position': left.tolist()}, 'right': {'position': right.tolist()}}}
 
     def insert_check(self, observation):
