@@ -159,10 +159,10 @@ class TaskScript:
         self.loosen_clear_m = None if loosen_clear_m is None else float(loosen_clear_m)
         # After that, checked against the box's pose: a wrist still closer than loosen_min_gap_m to the box's side
         # goes out to loosen_clear_m again and loosen_back_m back toward the pelvis, before the hands open. Going only
-        # outward, a closed fist dragged the box 7 of its 9.5 cm along (the thumb wraps the box's near face), was still
-        # against it, and the opening flung it off the back (r3heft 90022). Both hands always going back as well
-        # (r4heft) pressed a hand that could not reach its target against something and left it 2 cm from the box,
-        # which then got flicked 8 cm in (90029), so only the hand that needs it goes back.
+        # outward, a closed fist dragged the box 7 of its 9.5 cm along (which part of the hand holds it is not in the
+        # logs), was still against it, and the opening flung it off the back (r3heft 90022). Both hands always going
+        # back as well (r4heft) pressed a hand that could not reach its target against something and left it 2 cm from
+        # the box, which then got flicked 8 cm in (90029), so only the hand that needs it goes back.
         self.loosen_back_m = None if loosen_back_m is None else float(loosen_back_m)
         self.loosen_min_gap_m = None if loosen_min_gap_m is None else float(loosen_min_gap_m)
         # With loosen_brace_m, a wrist the box came along with is not taken further: the other fist, still closed,

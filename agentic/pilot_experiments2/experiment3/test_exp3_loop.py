@@ -631,5 +631,4 @@ def test_loosen_before_open():
     assert away['hands']['right']['position'] == pytest.approx([-1.9, -2.84, .85])
     config = json.loads((HERE/'exp3_harness.json').read_text())['commanders']
     assert config['scripted_hitch_main2']['options'] == {**config['scripted_hitch_main']['options'],
-                                                          'loosen_before_open_m': .06, 'loosen_clear_m': .06,
-                                                          'loosen_probe_m': .02}
+                                                          'loosen_before_open_m': .06, 'loosen_clear_m': .06}
