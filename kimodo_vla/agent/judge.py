@@ -211,6 +211,20 @@ def grasp_attempts(commands):
     return attempts
 
 
+def held_offset(step):
+    """The box's offset from the wrists' midpoint in the body's heading frame (yaw of the root; world frame when the
+    step has no root orientation). Measured in the world frame, a turn while carrying moved a firmly held box by
+    11 cm and read as a drop (first measurement g2r08, 2026-11-28; changed with the user's agreement)."""
+    d = np.subtract(next(o['position'] for o in step['objects'] if o['name'] == 'box'), np.mean(step['wrist_pos'], axis=0))
+    q = step.get('root_quat')
+    if q is None:
+        return d
+    w, x, y, z = (float(v) for v in q)
+    yaw = np.arctan2(2*(w*z+x*y), 1-2*(y*y+z*z))
+    c, s_ = np.cos(yaw), np.sin(yaw)
+    return np.array([c*d[0]+s_*d[1], -s_*d[0]+c*d[1], d[2]])
+
+
 def wrist_in_box_frame(position, box_position, yaw_deg):
     f, l = to_frame(position, box_position, yaw_deg)
     return np.array([f, l, float(position[2]-box_position[2])])
@@ -325,7 +339,7 @@ def judge_box(episode, t, fk=None, grasp_config=None):
             # Lost = the box moved away from the hands (its offset from the wrists' midpoint changed) while
             # they were still closed, or the robot fell. The box going down with the hands is a placement.
             later = [s for s in steps_between(steps, lifted_at, stop) if s.get('wrist_pos') and (stop is None or s['time'] < stop)]
-            offset = lambda s: np.subtract(next(o['position'] for o in s['objects'] if o['name'] == 'box'), np.mean(s['wrist_pos'], axis=0))
+            offset = lambda s: held_offset(s)
             dropped, drift = None, 0.
             if later:
                 held = offset(later[0])

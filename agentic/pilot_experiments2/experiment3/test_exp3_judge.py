@@ -297,3 +297,43 @@ def test_unfinished_and_refused_sits(tmp_path):
               'objects': []} for t in np.arange(0., 4., .1)]
     v = judge(write(tmp_path, 'sit_sofa', {'objects': [SEAT]}, [refused, unfinished], steps, False), THRESHOLDS)
     assert v['attempts'] == 1 and v['link'] in (5, 'unclassified', 1, 2, 3, 4)
+
+
+def quat_z(deg):
+    a = np.radians(deg)/2
+    return [float(np.cos(a)), 0., 0., float(np.sin(a))]
+
+
+def test_turning_with_the_box_held_is_not_a_drop(tmp_path):
+    """Link 5 measures the box's offset from the wrists in the body's heading frame (2026-11-28): a 90 degree turn
+    in place with the box held 14 cm in front of the wrists is not a drop; the box falling out still is."""
+    from kimodo_vla.agent.judge import held_offset
+    def step(yaw, box_ahead=.14, drop=0.):
+        a = np.radians(yaw)
+        fwd, left = np.array([np.cos(a), np.sin(a), 0.]), np.array([-np.sin(a), np.cos(a), 0.])
+        mid = np.array([0., 0., 1.])
+        return {'root_quat': quat_z(yaw), 'wrist_pos': [(mid+.15*left).tolist(), (mid-.15*left).tolist()],
+                'objects': [{'name': 'box', 'position': (mid+box_ahead*fwd-[0, 0, drop]).tolist()}]}
+    held = held_offset(step(0.))
+    assert np.linalg.norm(held_offset(step(90.))-held) < 1e-9          # turned with it: same offset
+    world = lambda s: np.subtract(s['objects'][0]['position'], np.mean(s['wrist_pos'], axis=0))
+    assert np.linalg.norm(world(step(90.))-world(step(0.))) > .19         # the world frame would have moved 0.2 m
+    assert np.linalg.norm(held_offset(step(90., drop=.5))-held) > .4      # fell out: still a drop
+    assert np.allclose(held_offset({k: v for k, v in step(30.).items() if k != 'root_quat'}), world(step(30.)))
+
+
+def test_a_carrying_turn_in_an_episode_is_not_link_five(tmp_path):
+    """The reference episode, but the robot turns 90 degrees while carrying (the box turns with the hands)."""
+    commands, steps, scene = box_episode()
+    for s in steps:
+        yaw = 0. if s['time'] < 9. else min(90., (s['time']-9.)*45.) if s['time'] < 12. else 0.
+        if 8. <= s['time'] < 12.:
+            a = np.radians(yaw)
+            mid = np.mean(s['wrist_pos'], axis=0)
+            box = np.asarray(s['objects'][0]['position'])
+            d = box-mid
+            rot = np.array([[np.cos(a), -np.sin(a), 0.], [np.sin(a), np.cos(a), 0.], [0., 0., 1.]])
+            s['objects'][0]['position'] = (mid+rot @ d).tolist()
+            s['root_quat'] = quat_z(yaw)
+    v = judge(write(tmp_path, 'pp_box', scene, commands, steps, False), THRESHOLDS, grasp_config=GRASP)
+    assert v['success'] and not any(c['link'] == 5 and not c['passed'] for c in v['checks'])
